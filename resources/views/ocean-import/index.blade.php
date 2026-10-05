@@ -580,7 +580,7 @@
                     pol_id: @json(isset($oceanImport) ? $oceanImport->pol_id : ''),
                     del_id: @json(isset($oceanImport) ? $oceanImport->del_id : ''),
                     trans_shipment_id: @json(isset($oceanImport) ? $oceanImport->trans_shipment_id : ''),
-                    trans_shipments: @json(isset($oceanImport) && !empty($oceanImport->trans_shipments) ? $oceanImport->trans_shipments : []),
+                    routes: @json(isset($oceanImport) && !empty($oceanImport->routes) ? (is_array($oceanImport->routes) ? $oceanImport->routes : json_decode($oceanImport->routes, true)) : []),
                     atd: @json(isset($oceanImport) && $oceanImport->atd ? $oceanImport->atd->format('Y-m-d') : ''),
                     cy_location_id: @json(isset($oceanImport) ? $oceanImport->cy_location_id : ''),
                     pod_id: @json(isset($oceanImport) ? $oceanImport->pod_id : ''),
@@ -860,9 +860,6 @@
                     if (!this.form.office_id) {
                         errors.push('Office is required.');
                     }
-                    if (!this.form.eta) {
-                        errors.push('ETA is required.');
-                    }
                     return errors;
                 },
                 async saveMainTab() {
@@ -930,10 +927,6 @@
                     
                     if (!this.form.office_id) {
                         errors.push('Office is required');
-                    }
-                    
-                    if (!this.form.eta) {
-                        errors.push('ETA is required');
                     }
                     
                     // Sanitize container numeric fields to prevent null values
@@ -1349,20 +1342,23 @@
                         hbl.containers[0].measure_cbm = totalMeasure;
                     }
                 },
-                addTransShipment() {
-                    if (!this.form.trans_shipments || !Array.isArray(this.form.trans_shipments)) {
-                        this.form.trans_shipments = [];
+                addRoute() {
+                    if (!this.form.routes || !Array.isArray(this.form.routes)) {
+                        this.form.routes = [];
                     }
-                    this.form.trans_shipments.push({
-                        port_id: '',
-                        etd: '',
+                    this.form.routes.push({
+                        airport_id: '',
                         eta: '',
-                        vessel_voyage: ''
+                        ata: '',
+                        etd: '',
+                        atd: '',
+                        flight_no: '',
+                        carrier_id: ''
                     });
                 },
-                removeTransShipment(index) {
-                    if (this.form.trans_shipments && this.form.trans_shipments[index] !== undefined) {
-                        this.form.trans_shipments.splice(index, 1);
+                removeRoute(index) {
+                    if (this.form.routes && this.form.routes[index] !== undefined) {
+                        this.form.routes.splice(index, 1);
                     }
                 },
                 addHbl() {
@@ -1398,6 +1394,7 @@
                         notify_party_id: '',
                         receipt_id: '',
                         freight_payable_at: '',
+                        hbl_freight: '',
                         incoterms_id: '',
                         sc_no: '',
                         ship_mode: '',

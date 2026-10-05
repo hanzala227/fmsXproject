@@ -135,6 +135,8 @@ class AirExportController extends Controller
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
 
         $page = $request->segment(2);
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
@@ -166,7 +168,7 @@ class AirExportController extends Controller
             $airExport->post_date = now();
             
             $chargesData = collect();
-            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData', 'booking'));
+            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData', 'booking'));
         }
 
         // Handle copy - load data from existing shipment
@@ -208,12 +210,12 @@ class AirExportController extends Controller
                     'mbl_no' => '',
                 ])
                 : collect();
-            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
+            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
         }
 
         $chargesData = collect();
 
-        return view('air-export.create', compact('offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
+        return view('air-export.create', compact('offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
     }
 
     public function store(StoreAirExportRequest $request)
@@ -340,6 +342,9 @@ class AirExportController extends Controller
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
+
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
         
         $chargesData = $airExport->charges->isNotEmpty()
@@ -373,7 +378,7 @@ class AirExportController extends Controller
             ])
             : collect();
         
-        return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'quotations', 'chargesData'));
+        return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'quotations', 'chargesData'));
     }
 
     public function update(UpdateAirExportRequest $request, AirExport $airExport)

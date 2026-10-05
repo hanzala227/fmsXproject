@@ -190,18 +190,31 @@
                     selling_rate: '{{ isset($airExport) ? $airExport->selling_rate : "" }}',
                     sales_type: '{{ isset($airExport) ? $airExport->sales_type : "" }}',
                     internal_remark: '{{ isset($airExport) ? $airExport->internal_remark : "" }}',
-                    route: {
-                        departure: { airport_id: '', etd: '', atd: '', carrier_id: '' },
-                        trans1: { airport_id: '', eta: '', ata: '', etd: '', atd: '', flight_no: '', carrier_id: '' },
-                        trans2: { airport_id: '', eta: '', ata: '', etd: '', atd: '', flight_no: '', carrier_id: '' },
-                        trans3: { airport_id: '', eta: '', ata: '', etd: '', atd: '', flight_no: '', carrier_id: '' },
-                        final: { airport_id: '', eta: '', ata: '' }
-                    },
+                    routes: @json(isset($airExport) && !empty($airExport->routes) ? (is_array($airExport->routes) ? $airExport->routes : json_decode($airExport->routes, true)) : []),
                     other_charges: [],
                     charges: @json($chargesData ?? []),
                     accounting_info: [],
                     commodities: [],
                     memo: ''
+                },
+                addRoute() {
+                    if (!this.form.routes || !Array.isArray(this.form.routes)) {
+                        this.form.routes = [];
+                    }
+                    this.form.routes.push({
+                        airport_id: '',
+                        eta: '',
+                        ata: '',
+                        etd: '',
+                        atd: '',
+                        flight_no: '',
+                        carrier_id: ''
+                    });
+                },
+                removeRoute(index) {
+                    if (this.form.routes && this.form.routes[index] !== undefined) {
+                        this.form.routes.splice(index, 1);
+                    }
                 },
                 activeChargeFilter: 'All',
                 manifestFilters: {
@@ -1345,7 +1358,8 @@
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>
 
                             <!-- Row 2 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Carrier</label><div class="form-input-container"><x-inline-select name="carrier_id" :options="$agents" module="trade-partner" x-model="form.carrier" class="form-control-gf" /></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Carrier</label><div class="form-input-container"><x-inline-select name="carrier_id" :options="$agents" module="trade-partner" x-model="form.carrier" class="form-control-gf" /></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">AWB Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="form.awb_date"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Post Date</label><div class="form-input-container"><input type="date" name="post_date" class="form-control-gf" x-model="form.post_date"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Actual Shipper</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.actual_shipper"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
@@ -1389,205 +1403,104 @@
                             <!-- Row 1 -->
                             <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" :options="$ports" module="port" x-model="form.departure" class="form-control-gf" /></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" :options="$ports" module="port" x-model="form.destination" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" x-model="form.flight_no"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Connecting Flight</label><div class="form-input-container"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="showConnectingFlight = !showConnectingFlight">Expand <i class="fa" :class="showConnectingFlight ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i></button></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" x-model="form.flight_no"></div></div>
+                            <div></div>
 
                             <!-- Row 2 -->
-                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*ETD</label><div class="form-input-container"><input type="date" name="etd" class="form-control-gf" x-model="form.etd" required></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">ATD</label><div class="form-input-container"><input type="date" name="atd" class="form-control-gf" x-model="form.atd"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">ETA</label><div class="form-input-container"><input type="date" name="eta" class="form-control-gf" x-model="form.eta" style="background:#fff8e1;"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">ATA</label><div class="form-input-container"><input type="date" name="ata" class="form-control-gf" x-model="form.ata"></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf" style="color:red;">*ETD</label><div class="form-input-container"><input type="date" name="etd" class="form-control-gf" x-model="form.etd" required></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ATD</label><div class="form-input-container"><input type="date" name="atd" class="form-control-gf" x-model="form.atd"></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ETA</label><div class="form-input-container"><input type="date" name="eta" class="form-control-gf" x-model="form.eta" style="background:#fff8e1;"></div></div>
+                            <!-- Hidden per client instruction -->
+                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ATA</label><div class="form-input-container"><input type="date" name="ata" class="form-control-gf" x-model="form.ata"></div></div>
 
                             <!-- Row 3 -->
                             <div class="form-group-gf"><label class="form-label-gf">Cargo Ready Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="form.cargo_ready_date"></div></div>
                         </div>
 
-                        <!-- Connecting Flight Route Table -->
-                        <div x-show="showConnectingFlight" x-collapse style="margin-top: 15px;">
-                            <div style="background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px;">
-                                <h4 style="font-size: 12px; font-weight: 600; color: #333; margin: 0 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid #ddd;">
-                                    <i class="fa fa-route" style="color: #3b82f6;"></i> Route
-                                </h4>
-                                
+                        <!-- DYNAMIC ROUTE / TRANSPORTATION SECTION -->
+                        <div class="portlet light bordered" style="margin-bottom: 15px;">
+                            <div class="portlet-title" style="min-height: 30px; border-bottom: 1px solid #eee; margin-bottom: 0;">
+                                <div class="caption" style="padding: 5px 0;">
+                                    <span class="caption-subject" style="font-size: 13px; font-weight: bold; color: #3b82f6;"><i class="fa fa-route"></i> Route / Transportation</span>
+                                </div>
+                            </div>
+                            <div class="portlet-body" style="padding: 10px 0;">
                                 <div style="overflow-x: auto;">
-                                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: white;">
+                                    <table class="table-custom" style="width: 100%;">
                                         <thead>
-                                            <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;"></th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 150px;">Airport</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;">ETA</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;">ATA</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;">ETD</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;">ATD</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 100px;">Flight No.</th>
-                                                <th style="padding: 8px; text-align: left; font-weight: 600; border: 1px solid #e0e0e0; min-width: 150px;">Carrier</th>
+                                            <tr>
+                                                <th style="width: 15%;"></th>
+                                                <th style="width: 15%;">Airport</th>
+                                                <th style="width: 12%;">ETA</th>
+                                                <th style="width: 12%;">ATA</th>
+                                                <th style="width: 12%;">ETD</th>
+                                                <th style="width: 12%;">ATD</th>
+                                                <th style="width: 12%;">Flight No.</th>
+                                                <th style="width: 10%;">Carrier</th>
+                                                <th style="width: 5%; text-align: center;">
+                                                    <button type="button" @click="addRoute" class="btn-tool-icon" style="color: #3b82f6;" title="Add Route Row"><i class="fa fa-plus"></i></button>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <!-- Departure -->
-                                            <tr>
-                                                <td style="padding: 8px; font-weight: 600; background: #fafafa; border: 1px solid #e0e0e0;">Departure</td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[departure][airport_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.departure.airport_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($ports as $port)
-                                                            <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[departure][etd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.departure.etd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #fff8e1;">
-                                                    <input type="date" name="route[departure][atd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.departure.atd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[departure][carrier_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.departure.carrier_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($agents->where('type', 'carrier') as $carrier)
-                                                            <option value="{{ $carrier->id }}">{{ $carrier->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                            </tr>
-
-                                            <!-- Trans 1 -->
-                                            <tr>
-                                                <td style="padding: 8px; font-weight: 600; background: #fafafa; border: 1px solid #e0e0e0;">Trans 1</td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans1][airport_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.airport_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($ports as $port)
-                                                            <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans1][eta]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.eta">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans1][ata]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.ata">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans1][etd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.etd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans1][atd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.atd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="text" name="route[trans1][flight_no]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.flight_no">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans1][carrier_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans1.carrier_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($agents->where('type', 'carrier') as $carrier)
-                                                            <option value="{{ $carrier->id }}">{{ $carrier->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                            </tr>
-
-                                            <!-- Trans 2 -->
-                                            <tr>
-                                                <td style="padding: 8px; font-weight: 600; background: #fafafa; border: 1px solid #e0e0e0;">Trans 2</td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans2][airport_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.airport_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($ports as $port)
-                                                            <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans2][eta]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.eta">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans2][ata]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.ata">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans2][etd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.etd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans2][atd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.atd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="text" name="route[trans2][flight_no]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.flight_no">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans2][carrier_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans2.carrier_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($agents->where('type', 'carrier') as $carrier)
-                                                            <option value="{{ $carrier->id }}">{{ $carrier->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                            </tr>
-
-                                            <!-- Trans 3 -->
-                                            <tr>
-                                                <td style="padding: 8px; font-weight: 600; background: #fafafa; border: 1px solid #e0e0e0;">Trans 3</td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans3][airport_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.airport_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($ports as $port)
-                                                            <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans3][eta]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.eta">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans3][ata]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.ata">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans3][etd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.etd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[trans3][atd]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.atd">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="text" name="route[trans3][flight_no]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.flight_no">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[trans3][carrier_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.trans3.carrier_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($agents->where('type', 'carrier') as $carrier)
-                                                            <option value="{{ $carrier->id }}">{{ $carrier->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                            </tr>
-
-                                            <!-- Final Destination -->
-                                            <tr>
-                                                <td style="padding: 8px; font-weight: 600; background: #fafafa; border: 1px solid #e0e0e0;">Final Destination</td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <select name="route[final][airport_id]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.final.airport_id">
-                                                        <option value="">Select...</option>
-                                                        @foreach($ports as $port)
-                                                            <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[final][eta]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.final.eta">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0;">
-                                                    <input type="date" name="route[final][ata]" class="form-control-gf" style="height: 22px; font-size: 11px; width: 100%;" x-model="form.route.final.ata">
-                                                </td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                                <td style="padding: 4px; border: 1px solid #e0e0e0; background: #f9f9f9;"></td>
-                                            </tr>
+                                            <template x-for="(route, idx) in form.routes" :key="idx">
+                                                <tr>
+                                                    <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
+                                                    <td style="padding: 2px;">
+                                                        <div style="display:flex;">
+                                                            <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                                <option value="">Select...</option>
+                                                                @foreach($ports as $port)
+                                                                    <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <input type="datetime-local" :name="'routes['+idx+'][eta]'" class="form-control-gf" x-model="route.eta" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <input type="datetime-local" :name="'routes['+idx+'][ata]'" class="form-control-gf" x-model="route.ata" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <input type="datetime-local" :name="'routes['+idx+'][etd]'" class="form-control-gf" x-model="route.etd" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <input type="datetime-local" :name="'routes['+idx+'][atd]'" class="form-control-gf" x-model="route.atd" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <input type="text" :name="'routes['+idx+'][flight_no]'" class="form-control-gf" x-model="route.flight_no" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    </td>
+                                                    <td style="padding: 2px;">
+                                                        <div style="display:flex;">
+                                                            <select :name="'routes['+idx+'][carrier_id]'" class="form-control-gf" x-model="route.carrier_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                                <option value="">Select...</option>
+                                                                @foreach($carriers as $carrier)
+                                                                    <option value="{{ $carrier->id }}">{{ $carrier->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    </td>
+                                                    <td style="padding: 2px; text-align: center;">
+                                                        <button type="button" @click="removeRoute(idx)" class="btn-tool-icon" style="color: #ef4444;" title="Remove Route"><i class="fa fa-trash-o"></i></button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                            <template x-if="!form.routes || form.routes.length === 0">
+                                                <tr>
+                                                    <td colspan="9" style="text-align: center; color: #999; padding: 10px;">No routes added. Click + to add a route.</td>
+                                                </tr>
+                                            </template>
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
+                        </div>
+
                         </div>
 
                         <!-- Weight Row -->

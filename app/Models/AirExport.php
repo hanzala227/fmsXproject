@@ -29,6 +29,7 @@ class AirExport extends Model
     ];
 
     protected $casts = [
+        'routes' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
         'eta' => 'date',

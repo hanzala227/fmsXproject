@@ -18,7 +18,7 @@ class StoreAirImportRequest extends FormRequest
             'file_no' => 'required|string|unique:air_imports,file_no',
             'mawb_no' => 'required|string|max:255|unique:air_imports,mawb_no',
             'office_id' => 'required|exists:offices,id',
-            'eta' => 'required|date',
+            'eta' => 'nullable|date',
             
             // Optional fields with validation
             'post_date' => 'nullable|date',
@@ -49,6 +49,8 @@ class StoreAirImportRequest extends FormRequest
             'volume_cbm' => 'nullable|numeric|min:0',
             
             'freight_term' => 'nullable|string|in:PREPAID,COLLECT',
+            'freight' => 'nullable|string|max:255',
+            'transportation' => 'nullable|string|max:255',
             'incoterm_id' => 'nullable|exists:incoterms,id',
             'svc_term_from_id' => 'nullable|exists:service_terms,id',
             'svc_term_to_id' => 'nullable|exists:service_terms,id',
@@ -83,6 +85,8 @@ class StoreAirImportRequest extends FormRequest
             'hbls.*.volume' => 'nullable|numeric',
             'hbls.*.bill_to_id' => 'nullable|exists:trade_partners,id',
             'hbls.*.customs_broker_id' => 'nullable|exists:trade_partners,id',
+            'hbls.*.freight' => 'nullable|string|max:255',
+            'hbls.*.transportation' => 'nullable|string|max:255',
             
             // Filing fields
             'shipper_id' => 'nullable|exists:trade_partners,id',
@@ -170,6 +174,15 @@ class StoreAirImportRequest extends FormRequest
             'charges.*.empty_confirmed_date' => 'nullable|date',
             'charges.*.empty_return_date' => 'nullable|date',
             'charges.*.complete' => 'nullable|boolean',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 
@@ -182,7 +195,7 @@ class StoreAirImportRequest extends FormRequest
             'mawb_no.unique' => 'This MAWB Number already exists. Please use a unique MAWB number.',
             'office_id.required' => 'Office is required',
             'office_id.exists' => 'Selected office is invalid',
-            'eta.required' => 'ETA is required',
+
             'eta.date' => 'ETA must be a valid date',
             'carrier_id.exists' => 'Selected carrier is invalid',
             'oversea_agent_id.exists' => 'Selected oversea agent is invalid',

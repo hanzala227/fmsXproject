@@ -16,6 +16,37 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    public function volumeProfitChart(Request $request)
+    {
+        $offices = Office::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']);
+        $salesPersons = User::orderBy('name')->get(['id', 'name']);
+        $shippingTypes = ['Ocean Export', 'Ocean Import', 'Air Export', 'Air Import', 'Trucking', 'Misc', 'Warehouse'];
+        
+        $volumeUnits = [
+            ['value' => 'cbm', 'label' => 'CBM'],
+            ['value' => 'cft', 'label' => 'CFT'],
+            ['value' => 'teu', 'label' => 'TEU'],
+            ['value' => 'bl', 'label' => 'B/L Count'],
+        ];
+
+        $chartTypes = [
+            ['value' => 'month', 'label' => 'Month'],
+            ['value' => 'office', 'label' => 'Office'],
+            ['value' => 'sales', 'label' => 'Sales Person'],
+            ['value' => 'shipping_type', 'label' => 'Shipping Type'],
+        ];
+
+        $barSegments = [
+            ['value' => 'shipping_type', 'label' => 'Shipping Type'],
+            ['value' => 'office', 'label' => 'Office'],
+            ['value' => 'status', 'label' => 'Status'],
+        ];
+
+        $statuses = ['All', 'Open', 'Blocked'];
+
+        return view('report.volume-profit-chart', compact('offices', 'salesPersons', 'shippingTypes', 'volumeUnits', 'chartTypes', 'barSegments', 'statuses'));
+    }
+
    public function volumeProfitChartData(Request $request)
 {
     $dateFrom = $request->input(

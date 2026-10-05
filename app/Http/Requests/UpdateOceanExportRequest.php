@@ -130,6 +130,8 @@ class UpdateOceanExportRequest extends FormRequest
             'service_term_from_id' => 'nullable|exists:service_terms,id',
             'service_term_to_id' => 'nullable|exists:service_terms,id',
             'freight_term' => 'nullable|string',
+            'freight' => 'nullable|string',
+            'transportation' => 'nullable|string',
             'obl_type' => 'nullable|string',
             'obl_received_date' => 'nullable|date',
             'released_date' => 'nullable|date',
@@ -279,6 +281,15 @@ class UpdateOceanExportRequest extends FormRequest
             'charges.*.financial_date' => 'nullable|date',
             'charges.*.eq_bl_no' => 'nullable|string',
             'charges.*.remark_text' => 'nullable|string',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 

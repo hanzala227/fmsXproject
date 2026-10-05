@@ -127,6 +127,7 @@ class StoreOceanImportRequest extends FormRequest
             'service_term_from_id' => 'nullable|exists:service_terms,id',
             'service_term_to_id' => 'nullable|exists:service_terms,id',
             'freight_term' => 'nullable|string|max:255',
+            'transportation' => 'nullable|string|max:255',
             'obl_type' => 'nullable|string|max:255',
             'obl_received_date' => 'nullable|date',
             'released_date' => 'nullable|date',
@@ -187,6 +188,7 @@ class StoreOceanImportRequest extends FormRequest
             'hbls.*.lc_no' => 'nullable|string',
             'hbls.*.sc_no' => 'nullable|string',
             'hbls.*.freight_payable_at' => 'nullable|string',
+            'hbls.*.hbl_freight' => 'nullable|string',
             'hbls.*.is_express_bl' => 'sometimes|boolean',
             'hbls.*.is_door_move' => 'sometimes|boolean',
             'hbls.*.is_customs_clear' => 'sometimes|boolean',
@@ -321,6 +323,15 @@ class StoreOceanImportRequest extends FormRequest
             'charges.*.remark' => 'nullable|string|max:255',
             'charges.*.remark_text' => 'nullable|string|max:255',
             'charges.*.mbl_no' => 'nullable|string|max:255',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 

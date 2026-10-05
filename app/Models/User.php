@@ -7,11 +7,12 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +37,11 @@ class User extends Authenticatable
         'create_date',
         'last_login_at',
         'trade_partner_id',
+        'department',
+        'profile_photo_path',
+        'mfa_enabled',
+        'access_expiry',
+        'last_login_ip',
     ];
 
     public function tradePartner()
@@ -85,6 +91,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'create_date' => 'datetime',
             'last_login_at' => 'datetime',
+            'access_expiry' => 'date',
+            'mfa_enabled' => 'boolean',
         ];
     }
 }

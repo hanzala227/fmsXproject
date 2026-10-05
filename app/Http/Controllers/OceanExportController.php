@@ -141,6 +141,8 @@ class OceanExportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = \App\Models\User::all();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -221,7 +223,7 @@ class OceanExportController extends Controller
             }));
         }
         
-        return view('ocean-export.index', compact('offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'page', 'quotations', 'oceanExport', 'history', 'chargesList'));
+        return view('ocean-export.index', compact('offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'page', 'quotations', 'oceanExport', 'history', 'chargesList'));
     }
 
     private function sanitizeShipmentData(array $data): array
@@ -393,6 +395,8 @@ class OceanExportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = \App\Models\User::all();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -437,7 +441,7 @@ class OceanExportController extends Controller
             })
             : [];
         
-        return view('ocean-export.index', compact('oceanExport', 'offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'quotations', 'page', 'history', 'chargesList'));
+        return view('ocean-export.index', compact('oceanExport', 'offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'quotations', 'page', 'history', 'chargesList'));
     }
 
     public function update(UpdateOceanExportRequest $request, OceanExport $oceanExport)

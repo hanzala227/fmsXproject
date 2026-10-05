@@ -13,7 +13,8 @@
                 <div class="memo-header" @click="showMblMemo = !showMblMemo">
                     <span>Note</span>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button type="button" class="btn-memo-doc" @click.stop="showDocumentModal = true">Document (<span x-text="documents.length"></span>) <i class="fa fa-external-link"></i></button>
+                        <!-- Hidden per client instruction -->
+                        <button type="button" class="btn-memo-doc" @click.stop="showDocumentModal = true" style="display: none;">Document (<span x-text="documents.length"></span>) <i class="fa fa-external-link"></i></button>
                         <i class="fa" :class="showMblMemo ? 'fa-angle-up' : 'fa-angle-down'"></i>
                     </div>
                 </div>
@@ -149,7 +150,8 @@
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'co_loader_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Contract No.</label>
                         <div class="form-input-container">
                             <input type="text" name="contract_no" class="form-control-gf" x-model="form.contract_no">
@@ -184,14 +186,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Carrier</label>
                         <div class="form-input-container">
                             <x-inline-select name="carrier_id" :options="$agents" module="trade-partner" type="carrier" x-model="form.carrier_id" class="form-control-gf" />
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'carrier_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Agent Ref No.</label>
                         <div class="form-input-container">
                             <input type="text" name="agent_ref_no" class="form-control-gf" x-model="form.agent_ref_no">
@@ -237,7 +241,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Acct. Carrier</label>
                         <div class="form-input-container">
                             <x-inline-select name="acct_carrier_id" :options="$agents" module="trade-partner" type="carrier" x-model="form.acct_carrier_id" class="form-control-gf" />
@@ -280,7 +285,8 @@
             <div class="form-grid-4">
                 <!-- Column 1 -->
                 <div class="flex flex-col">
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Vessel</label>
                         <div class="form-input-container">
                             <select name="vessel_id" class="form-control-gf" x-model="form.vessel_id">
@@ -307,80 +313,34 @@
                         </div>
                     </div>
 
-                    <!-- Trans Shipment Section (Dynamic Connected with DB) -->
-                    <div class="form-group-gf" style="flex-direction: column; align-items: stretch; margin-top: 6px; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <label class="form-label-gf" style="font-weight: 600; color: #1e40af; width: auto;">
-                                <i class="fa fa-ship" style="margin-right: 3px; font-size: 10px;"></i> TRANS SHIPMENT
-                            </label>
-                            <button type="button" class="btn-default-gf" @click="addTransShipment()" style="height: 20px; padding: 0 6px; font-size: 10px; font-weight: 600; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 3px; cursor: pointer;">
-                                <i class="fa fa-plus" style="font-size: 9px; margin-right: 3px;"></i> TRANS SHIPMENT
-                            </button>
-                        </div>
 
-                        <!-- Dynamic Trans Shipment List -->
-                        <template x-for="(ts, tsIdx) in form.trans_shipments" :key="tsIdx">
-                            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; margin-bottom: 6px; position: relative;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <span style="font-size: 10px; font-weight: 600; color: #475569;" x-text="'Trans Shipment Port #' + (tsIdx + 1)"></span>
-                                    <button type="button" @click="removeTransShipment(tsIdx)" style="background: none; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 0 2px;" title="Remove Trans Shipment">
-                                        <i class="fa fa-trash-o"></i>
-                                    </button>
-                                </div>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <div class="form-input-container">
-                                        <select :name="'trans_shipments[' + tsIdx + '][port_id]'" x-model="ts.port_id" class="form-control-gf" style="width: 100%;">
-                                            <option value="">Select Trans Shipment Port...</option>
-                                            @foreach($ports as $port)
-                                                <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
-                                        <div>
-                                            <span style="font-size: 9px; color: #64748b; display: block;">ETD</span>
-                                            <input type="date" :name="'trans_shipments[' + tsIdx + '][etd]'" x-model="ts.etd" class="form-control-gf" style="width: 100%; font-size: 10px; padding: 1px 3px;">
-                                        </div>
-                                        <div>
-                                            <span style="font-size: 9px; color: #64748b; display: block;">ETA</span>
-                                            <input type="date" :name="'trans_shipments[' + tsIdx + '][eta]'" x-model="ts.eta" class="form-control-gf" style="width: 100%; font-size: 10px; padding: 1px 3px;">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span style="font-size: 9px; color: #64748b; display: block;">Vessel / Voyage</span>
-                                        <input type="text" :name="'trans_shipments[' + tsIdx + '][vessel_voyage]'" x-model="ts.vessel_voyage" placeholder="Vessel / Voyage..." class="form-control-gf" style="width: 100%; font-size: 10px; padding: 1px 3px;">
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div x-show="!form.trans_shipments || form.trans_shipments.length === 0" style="font-size: 9px; color: #94a3b8; font-style: italic; margin-top: 2px;">
-                            No trans shipment added. Click "+ TRANS SHIPMENT" to add intermediate ports.
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Column 2 -->
                 <div class="flex flex-col">
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Voyage</label>
                         <div class="form-input-container">
                             <input type="text" name="voyage" class="form-control-gf" x-model="form.voyage">
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">ETD</label>
                         <div class="form-input-container">
                             <input type="date" name="etd" class="form-control-gf" x-model="form.etd">
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf" style="color:red;">* ETA</label>
                         <div class="form-input-container">
                             <input type="date" name="eta" class="form-control-gf" x-model="form.eta" required>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">ATD</label>
                         <div class="form-input-container">
                             <input type="date" name="atd" class="form-control-gf" x-model="form.atd">
@@ -411,7 +371,8 @@
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">ATA</label>
                         <div class="form-input-container">
                             <input type="date" name="ata" class="form-control-gf" x-model="form.ata">
@@ -446,6 +407,86 @@
 
             <div style="height: 15px;"></div>
 
+            <!-- DYNAMIC ROUTE / TRANSPORTATION SECTION -->
+            <div class="portlet light bordered" style="margin-bottom: 15px;">
+                <div class="portlet-title" style="min-height: 30px; border-bottom: 1px solid #eee; margin-bottom: 0;">
+                    <div class="caption" style="padding: 5px 0;">
+                        <span class="caption-subject" style="font-size: 13px; font-weight: bold; color: #32c5d2;"><i class="fa fa-ship"></i> Route / Transportation</span>
+                    </div>
+                </div>
+                <div class="portlet-body" style="padding: 10px 0;">
+                    <div style="overflow-x: auto;">
+                        <table class="table-custom" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;"></th>
+                                    <th style="width: 15%;">Port</th>
+                                    <th style="width: 12%;">ETA</th>
+                                    <th style="width: 12%;">ATA</th>
+                                    <th style="width: 12%;">ETD</th>
+                                    <th style="width: 12%;">ATD</th>
+                                    <th style="width: 12%;">Vessel / Voyage</th>
+                                    <th style="width: 10%;">Carrier</th>
+                                    <th style="width: 5%; text-align: center;">
+                                        <button type="button" @click="addRoute" class="btn-tool-icon" style="color: #32c5d2;" title="Add Route Row"><i class="fa fa-plus"></i></button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(route, idx) in form.routes" :key="idx">
+                                    <tr>
+                                        <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
+                                        <td style="padding: 2px;">
+                                            <div style="display:flex;">
+                                                <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    <option value="">Select...</option>
+                                                    @foreach($ports as $port)
+                                                        <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="date" :name="'routes['+idx+'][eta]'" class="form-control-gf" x-model="route.eta" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="date" :name="'routes['+idx+'][ata]'" class="form-control-gf" x-model="route.ata" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="date" :name="'routes['+idx+'][etd]'" class="form-control-gf" x-model="route.etd" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="date" :name="'routes['+idx+'][atd]'" class="form-control-gf" x-model="route.atd" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="text" :name="'routes['+idx+'][flight_no]'" class="form-control-gf" x-model="route.flight_no" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <div style="display:flex;">
+                                                <select :name="'routes['+idx+'][carrier_id]'" class="form-control-gf" x-model="route.carrier_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                    <option value="">Select...</option>
+                                                    @foreach($agents as $agent)
+                                                        <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td style="padding: 2px; text-align: center;">
+                                            <button type="button" @click="removeRoute(idx)" class="btn-tool-icon" style="color: #ef4444;" title="Remove Route"><i class="fa fa-trash-o"></i></button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="!form.routes || form.routes.length === 0">
+                                    <tr>
+                                        <td colspan="9" style="text-align: center; color: #999; padding: 10px;">No routes added. Click + to add a route.</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- FREIGHT & SERVICE TERMS GRID -->
             <div class="form-grid-4">
                 <!-- Column 1 -->
@@ -459,6 +500,7 @@
                             </select>
                         </div>
                     </div>
+
                     <div class="form-group-gf">
                         <label class="form-label-gf">OB/L Type</label>
                         <div class="form-input-container">
@@ -468,7 +510,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Latest Gate In</label>
                         <div class="form-input-container">
                             <input type="date" name="latest_gate_in" class="form-control-gf" x-model="form.latest_gate_in">
@@ -538,7 +581,8 @@
                             <input type="text" class="form-control-gf" :value="form.containers.length + ' Container(s)'" readonly>
                         </div>
                     </div>
-                    <div class="form-group-gf">
+                    <!-- Hidden per client instruction -->
+                    <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">Business Referred By</label>
                         <div class="form-input-container">
                             <x-inline-select name="business_referred_by_id" :options="$agents" module="trade-partner" type="customer" x-model="form.business_referred_by_id" class="form-control-gf" />
@@ -617,7 +661,8 @@
                     <div class="memo-header" @click="hbl.showMemo = !hbl.showMemo">
                         <span>HBL Note / Remark</span>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <button type="button" class="btn-memo-doc" @click.stop="showDocumentModal = true">Document (<span x-text="documents.length"></span>) <i class="fa fa-external-link"></i></button>
+                            <!-- Hidden per client instruction -->
+                            <button type="button" class="btn-memo-doc" @click.stop="showDocumentModal = true" style="display: none;">Document (<span x-text="documents.length"></span>) <i class="fa fa-external-link"></i></button>
                             <i class="fa" :class="hbl.showMemo ? 'fa-angle-up' : 'fa-angle-down'"></i>
                         </div>
                     </div>
@@ -857,6 +902,12 @@
                             <label class="form-label-gf">FREIGHT PAYABLE AT</label>
                             <div class="form-input-container">
                                 <input type="text" :name="'hbls['+index+'][freight_payable_at]'" class="form-control-gf" x-model="hbl.freight_payable_at">
+                            </div>
+                        </div>
+                        <div class="form-group-gf">
+                            <label class="form-label-gf">HBL Freight</label>
+                            <div class="form-input-container">
+                                <input type="text" :name="'hbls['+index+'][hbl_freight]'" class="form-control-gf" x-model="hbl.hbl_freight">
                             </div>
                         </div>
                         <div class="form-group-gf">

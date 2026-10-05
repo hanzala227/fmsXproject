@@ -139,6 +139,8 @@ class OceanImportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = User::all();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
@@ -264,7 +266,7 @@ class OceanImportController extends Controller
             $oceanImport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'hbls.receipts', 'containers.containerType', 'charges.currency', 'memos']);
         }
 
-        return view('ocean-import.index', compact('offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'page', 'quotations', 'oceanImport', 'incoterms', 'currencies', 'serviceTerms'));
+        return view('ocean-import.index', compact('offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'page', 'quotations', 'oceanImport', 'incoterms', 'currencies', 'serviceTerms'));
     }
 
     public function store(StoreOceanImportRequest $request)
@@ -509,6 +511,8 @@ class OceanImportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = User::all();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
@@ -517,7 +521,7 @@ class OceanImportController extends Controller
         $serviceTerms = \App\Models\ServiceTerm::all();
         $quotations = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Ocean Import')->latest()->get();
 
-        return view('ocean-import.index', compact('oceanImport', 'offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'quotations', 'incoterms', 'currencies', 'serviceTerms'));
+        return view('ocean-import.index', compact('oceanImport', 'offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'quotations', 'incoterms', 'currencies', 'serviceTerms'));
     }
 
     public function update(UpdateOceanImportRequest $request, OceanImport $oceanImport)

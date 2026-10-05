@@ -105,9 +105,9 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/air-export/list', 'label' => 'My Shipment List'],
                                 ['url' => '/air-export/list/mbl', 'label' => 'MAWB List'],
                                 ['url' => '/air-export/list/hbl', 'label' => 'HAWB List'],
-                                ['url' => '/air-export/booking/entry', 'label' => 'New Booking'],
-                                ['url' => '/air-export/booking/entry?load_from_quotation=true', 'label' => 'New Booking from Quote'],
-                                ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
+                                // ['url' => '/air-export/booking/entry', 'label' => 'New Booking'],
+                                // ['url' => '/air-export/booking/entry?load_from_quotation=true', 'label' => 'New Booking from Quote'],
+                                // ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
                                 ['url' => '/air-export/booking/mawb-stock', 'label' => 'MAWB Stock List'],
                             ]],
                             ['id' => 'truck', 'label' => 'Trucking', 'icon' => 'fa-truck', 'sub' => [
@@ -199,8 +199,33 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
 
                 @php
                     if (auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company) {
-                        $allowedModules = auth()->user()->company->moduleKeys();
-                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedModules));
+                        $moduleMapping = [
+                            'Ocean Import' => 'ocean-import',
+                            'Ocean Export' => 'ocean-export',
+                            'Air Import' => 'air-import',
+                            'Air Export' => 'air-export',
+                            'Truck Shipment' => 'truck',
+                            'Warehouse & Distribution' => 'warehouse',
+                            'Accounting' => 'accounting',
+                            'CRM' => 'sales',
+                            'Master Data' => 'trade-partners',
+                            'General' => 'reports',
+                            'Settings' => 'settings'
+                        ];
+                        
+                        $userModules = auth()->user()->permissions->pluck('module_name')
+                            ->map(function($m) {
+                                return array_map('trim', explode(',', $m));
+                            })->flatten()->unique()->toArray();
+                            
+                        $allowedMenuIds = [];
+                        foreach ($userModules as $uMod) {
+                            if (isset($moduleMapping[$uMod])) {
+                                $allowedMenuIds[] = $moduleMapping[$uMod];
+                            }
+                        }
+                        
+                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedMenuIds));
                     }
                 @endphp
 
@@ -242,7 +267,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     </div>
                                 </div>
                             @else
-                                <a href="{{ $sub['url'] }}" class="block text-[9px] transition-all duration-200 {{ Request::is(trim($sub['url'], '/')) ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
+                                <a href="{{ $sub['url'] ?? '#' }}" class="block text-[9px] transition-all duration-200 {{ isset($sub['url']) && Request::is(trim($sub['url'], '/')) ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
                                     {{ $sub['label'] }}
                                 </a>
                             @endif
@@ -250,6 +275,22 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                     </div>
                 </div>
                 @endforeach
+
+                {{-- Support Center (Tenant Admin) --}}
+                @if(auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company)
+                <div class="relative mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                    <a href="{{ route('support.tickets.index') }}"
+                       class="sidebar-nav-item w-full flex items-center transition-all duration-200 nav-link {{ Request::is('support/tickets*') ? 'active-link' : '' }}"
+                       :class="isCollapsed ? 'justify-center px-0' : 'justify-between px-5'"
+                       style="text-decoration: none;">
+                        <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
+                            <i class="fa fa-life-ring text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
+                            <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Support Center</span>
+                        </div>
+                    </a>
+                </div>
+                @endif
+
 
                 @if($type === 'admin')
                 <!-- Intelligence Section -->
@@ -259,6 +300,16 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                     <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
                         <i class="fa fa-users text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
                         <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Customers</span>
+                    </div>
+                </a>
+
+                <!-- Data Migration -->
+                <a href="{{ route('data-migration.index') }}" 
+                   class="sidebar-nav-item flex items-center transition-all duration-200 nav-link {{ request()->is('data-migration*') ? 'active bg-white/5 border-l-2 border-white' : '' }}"
+                   :class="isCollapsed ? 'justify-center px-0' : 'px-5'">
+                    <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
+                        <i class="fa fa-database text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
+                        <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Data Migration</span>
                     </div>
                 </a>
 

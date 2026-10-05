@@ -11,12 +11,26 @@ class Company extends Model
 
     protected $fillable = [
         'name',
+        'legal_name',
         'code',
+        'country',
         'email',
         'phone',
         'address',
         'subdomain',
         'status',
+        'plan_id',
+        'subscription_status',
+        'storage_limit',
+        'user_limit',
+        'default_language',
+        'timezone',
+        'logo',
+        'subscription_ends_at',
+    ];
+
+    protected $casts = [
+        'subscription_ends_at' => 'datetime',
     ];
 
     public function users()

@@ -139,6 +139,15 @@ class UpdateAirExportRequest extends FormRequest
             'charges.*.amount' => 'nullable|numeric',
             'charges.*.currency' => 'nullable|string',
             'charges.*.type' => 'nullable|string|in:origin_revenue,destination_revenue,origin_cost',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 }

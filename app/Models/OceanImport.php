@@ -35,6 +35,7 @@ class OceanImport extends Model
     ];
 
     protected $casts = [
+        'routes' => 'array',
         'trans_shipments' => 'array',
         'post_date' => 'date',
         'etd' => 'date',

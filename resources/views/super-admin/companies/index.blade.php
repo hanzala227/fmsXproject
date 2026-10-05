@@ -18,14 +18,6 @@
                     <i class="fa fa-search" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #94a3b8;"></i>
                 </div>
 
-                {{-- Status Filter --}}
-                <select x-model="statusFilter" @change="applyFilters()"
-                    style="height: 26px; padding: 0 6px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff; outline: none; cursor: pointer;">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-
                 {{-- Action Buttons --}}
                 <a href="{{ route('super-admin.companies.create') }}"
                    style="height: 26px; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: #fff; background: #0ab39c; border: none; border-radius: 3px; text-decoration: none; cursor: pointer;">
@@ -38,6 +30,27 @@
             </div>
         </div>
 
+        {{-- Filter Tabs --}}
+        <div style="padding: 0 10px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px;">
+            @php
+                $currentStatus = request('status', '');
+                $tabs = [
+                    '' => 'All Companies',
+                    'active' => 'Active',
+                    'trial' => 'Trial',
+                    'suspended' => 'Suspended',
+                    'expired' => 'Expired',
+                    'inactive' => 'Inactive'
+                ];
+            @endphp
+            @foreach($tabs as $val => $label)
+            <button @click="statusFilter = '{{ $val }}'; applyFilters()"
+                style="padding: 8px 4px; font-size: 11px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid {{ $currentStatus === $val ? '#0ab39c' : 'transparent' }}; color: {{ $currentStatus === $val ? '#0ab39c' : '#64748b' }};">
+                {{ $label }}
+            </button>
+            @endforeach
+        </div>
+
         {{-- Table --}}
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed;">
@@ -48,7 +61,7 @@
                         <th style="width: 80px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Code</th>
                         <th style="width: 140px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Admin User</th>
                         <th style="width: 180px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Email</th>
-                        <th style="width: 70px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Status</th>
+                        <th style="width: 80px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Status</th>
                         <th style="width: 200px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Modules</th>
                         <th style="width: 90px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Created</th>
                         <th style="width: 90px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Last Login</th>
@@ -66,9 +79,20 @@
                         <td style="padding: 6px 8px; border: 1px solid #f1f5f9; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $admin?->email ?? $company->email ?? '—' }}</td>
                         <td style="padding: 6px 8px; text-align: center; border: 1px solid #f1f5f9;">
                             <span id="status-badge-{{ $company->id }}" style="font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
-                                {{ $company->status === 'active' ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;' }}">
+                                {{ $company->status === 'active' ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;' }} display: block; margin-bottom: 2px;">
                                 {{ ucfirst($company->status) }}
                             </span>
+                            @if($company->subscription_status)
+                            <span style="font-size: 8px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+                                {{ match($company->subscription_status) {
+                                    'active' => 'background: #dbeafe; color: #1e40af;',
+                                    'trial' => 'background: #fef3c7; color: #b45309;',
+                                    'suspended', 'expired' => 'background: #fee2e2; color: #991b1b;',
+                                    default => 'background: #f1f5f9; color: #475569;'
+                                } }} display: block;">
+                                {{ ucfirst($company->subscription_status) }}
+                            </span>
+                            @endif
                         </td>
                         <td style="padding: 6px 8px; border: 1px solid #f1f5f9;">
                             <div style="display: flex; flex-wrap: wrap; gap: 2px;">
@@ -84,6 +108,11 @@
                         <td style="padding: 6px 8px; text-align: center; border: 1px solid #f1f5f9; color: #64748b; font-size: 9px;">{{ $admin?->last_login_at ? $admin->last_login_at->diffForHumans() : '—' }}</td>
                         <td style="padding: 6px 8px; text-align: center; border: 1px solid #f1f5f9;">
                             <div style="display: flex; align-items: center; justify-content: center; gap: 3px;">
+                                <a href="{{ route('super-admin.companies.show', $company) }}" title="View Profile"
+                                   style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; border: 1px solid #cbd5e1; background: #fff; color: #0ab39c; font-size: 10px; text-decoration: none; cursor: pointer;"
+                                   onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#fff'">
+                                    <i class="fa fa-eye"></i>
+                                </a>
                                 <a href="{{ route('super-admin.companies.edit', $company) }}" title="Edit"
                                    style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; border: 1px solid #cbd5e1; background: #fff; color: #3b82f6; font-size: 10px; text-decoration: none; cursor: pointer;"
                                    onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">

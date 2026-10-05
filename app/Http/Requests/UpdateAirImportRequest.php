@@ -42,6 +42,8 @@ class UpdateAirImportRequest extends FormRequest
             'volume' => 'nullable|numeric',
             
             'freight_term' => 'nullable|string',
+            'freight' => 'nullable|string|max:255',
+            'transportation' => 'nullable|string|max:255',
             'is_ecommerce' => 'boolean',
             'internal_remark' => 'nullable|string',
             
@@ -60,6 +62,8 @@ class UpdateAirImportRequest extends FormRequest
             'hbls.*.volume' => 'nullable|numeric',
             'hbls.*.bill_to_id' => 'nullable|exists:trade_partners,id',
             'hbls.*.customs_broker_id' => 'nullable|exists:trade_partners,id',
+            'hbls.*.freight' => 'nullable|string|max:255',
+            'hbls.*.transportation' => 'nullable|string|max:255',
             'hbls.*.quotation_id' => 'nullable|exists:quotations,id',
             'hbls.*.hsn_code' => 'nullable|string',
             'hbls.*.is_frt_released' => 'nullable|boolean',
@@ -168,6 +172,15 @@ class UpdateAirImportRequest extends FormRequest
             'charges.*.empty_confirmed_date' => 'nullable|date',
             'charges.*.empty_return_date' => 'nullable|date',
             'charges.*.complete' => 'nullable|boolean',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 
