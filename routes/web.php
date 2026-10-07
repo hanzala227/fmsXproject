@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\ClientController;
+
 // Auto-restore silk-container-page-1.png if corrupted
 if (file_exists(public_path('assets/images/hbl/silk-1.png'))) {
     $src = public_path('assets/images/hbl/silk-1.png');
@@ -54,11 +56,14 @@ use App\Http\Controllers\Accounting\YearEndClosingController;
 use App\Http\Controllers\VesselScheduleController;
 use App\Http\Controllers\OceanBookingController;
 use App\Http\Controllers\AirBookingController;
+use App\Http\Controllers\ClientReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GaExpenseController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\GlobalSearchController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CustomerQuoteController;
+use App\Http\Controllers\CustomerInvoiceController;
 use App\Http\Controllers\SuperAdmin\CompanyController as SuperAdminCompanyController;
 
 // Views routing - purely rendering blade templates.
@@ -1210,3 +1215,41 @@ Route::get('/ocean-import/{id}/delivery-order', [App\Http\Controllers\OceanImpor
 Route::get('/ocean-import/{id}/profit-summary', [App\Http\Controllers\OceanImportController::class, 'profitSummaryView'])->name('ocean-import.profit-summary');
 
 Route::get('/ocean-import/{id}/profit-detail', [App\Http\Controllers\OceanImportController::class, 'profitDetailView'])->name('ocean-import.profit-detail');
+
+
+Route::prefix('client-portal')
+    ->middleware(['auth', 'client'])
+    ->group(function () {
+
+        Route::get('/client', [ClientController::class, 'index'])->name('client.index');
+   
+        Route::get('/shipments', [ClientController::class, 'shipments'])->name('client.shipments');
+
+        Route::get('/tracking', [ClientController::class, 'tracking']);
+
+        Route::get('/bookings', [ClientController::class, 'bookings']);
+
+        Route::get('/documents', [ClientController::class, 'documents']);
+
+        Route::get('/requests', [ClientController::class, 'requests']);
+
+        Route::get('/messages', [ClientController::class, 'messages']);
+
+        Route::get('/notifications', [ClientController::class, 'notifications']);
+
+        Route::get('/reports', [ClientReportController::class, 'index']);
+
+        Route::get('/company', [ClientController::class, 'company']);
+
+        Route::get('/settings', [ClientController::class, 'settings']);
+
+        Route::get('quotes', [CustomerQuoteController::class, 'index'])->name('cp.quotes.index');
+
+        Route::get('quotes/{id}', [CustomerQuoteController::class, 'show'])->name('cp.quotes.show');
+
+        Route::get('invoices', [CustomerInvoiceController::class, 'index'])->name('cp.invoices.index');
+
+        Route::get('invoices/{id}', [CustomerInvoiceController::class, 'show'])->name('cp.invoices.show');
+
+    });
+

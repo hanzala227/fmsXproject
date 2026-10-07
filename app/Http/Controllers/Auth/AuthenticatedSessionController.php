@@ -11,9 +11,6 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View
     {
         return view('auth.login');
@@ -39,10 +36,12 @@ class AuthenticatedSessionController extends Controller
         if ($request->user()->isCustomer()) {
             return redirect()->route('customer.dashboard');
         }
-
+        if($request->user()->role == 'client'){
+            return redirect()->route('client.index');
+        }
         return redirect()->intended(route('dashboard', absolute: false));
-    }
 
+    }
     /**
      * Destroy an authenticated session.
      */

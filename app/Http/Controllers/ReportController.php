@@ -1935,4 +1935,115 @@ $yearlyAverage = $totalYears > 0
             'departmentTypes' => $departmentTypes
         ]);
     }
+
+
+public function volumeProfitChart()
+{
+    // Offices
+    $offices = Office::where('is_active', true)
+        ->orderBy('name')
+        ->get(['id', 'name', 'code']);
+
+    // Sales Persons
+    $salesPersons = User::orderBy('name')
+        ->get(['id', 'name']);
+
+    // Shipping Types
+    $shippingTypes = [
+        'Ocean Export',
+        'Ocean Import',
+        'Air Export',
+        'Air Import',
+        'Trucking',
+        'Misc',
+        'Warehouse',
+    ];
+
+    // Volume Units
+    // Blade expects: $vu['value'] and $vu['label']
+    $volumeUnits = [
+        [
+            'value' => 'cbm',
+            'label' => 'CBM',
+        ],
+        [
+            'value' => 'cft',
+            'label' => 'CFT',
+        ],
+        [
+            'value' => 'bl',
+            'label' => 'BL',
+        ],
+        [
+            'value' => 'teu',
+            'label' => 'TEU',
+        ],
+    ];
+
+    // Chart Types / X-Axis
+    // Blade expects: $ct['value'] and $ct['label']
+    $chartTypes = [
+        [
+            'value' => 'month',
+            'label' => 'Month',
+        ],
+        [
+            'value' => 'quarter',
+            'label' => 'Quarter',
+        ],
+        [
+            'value' => 'year',
+            'label' => 'Year',
+        ],
+        [
+            'value' => 'shipping_type',
+            'label' => 'Shipping Type',
+        ],
+        [
+            'value' => 'office',
+            'label' => 'Office',
+        ],
+    ];
+
+    // Bar Segment
+    // Blade expects: $bs['value'] and $bs['label']
+    $barSegments = [
+        [
+            'value' => 'shipping_type',
+            'label' => 'Shipping Type',
+        ],
+        [
+            'value' => 'office',
+            'label' => 'Office',
+        ],
+        [
+            'value' => 'sales_person',
+            'label' => 'Sales Person',
+        ],
+    ];
+
+    // Status Filters
+    // Blade converts these to lowercase for the radio value
+    $statuses = [
+        'All',
+        'Draft',
+        'Sent',
+        'Pending',
+        'Won',
+        'Lost',
+        'Expired',
+        'Cancelled',
+        'Ghosted',
+    ];
+
+    return view('report.volume-profit-chart', compact(
+        'offices',
+        'salesPersons',
+        'shippingTypes',
+        'volumeUnits',
+        'chartTypes',
+        'barSegments',
+        'statuses'
+    ));
+}
 }

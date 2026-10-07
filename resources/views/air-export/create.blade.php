@@ -64,6 +64,23 @@
                 showQuoteModal: false,
                 quoteStep: 1,
                 selectedQuote: null,
+
+                // Quotation table column configuration
+                showQuoteConfig: false,
+                colVisibility: {
+                    select: true,
+                    quote_no: true,
+                    valid_date: true,
+                    status: true,
+                    creation_date: true,
+                    commodity: true,
+                    pol: true,
+                    pod: true,
+                    carrier: true,
+                    sales: true,
+                    op: true
+                },
+
                 selectQuote(data) {
                     this.selectedQuote = data;
                     this.quoteForm = data;
@@ -1453,7 +1470,7 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">File No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">File No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" x-model="form.mawb_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.notify"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>
@@ -2598,8 +2615,41 @@
 
                 <hr style="border-top: 1px solid #e2e8f0; margin: 10px 0;">
 
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
-                    <button type="button" class="btn-tool-secondary" style="background: #67809f; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; border: none;" @click="showQuoteConfig = !showQuoteConfig"><i class="fa fa-cogs"></i> Config</button>
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 5px; position: relative;">
+                    <button type="button"
+                            class="btn-tool-secondary"
+                            style="background: #67809f; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; border: none; cursor: pointer;"
+                            @click.stop="showQuoteConfig = !showQuoteConfig">
+                        <i class="fa fa-cogs"></i> Config
+                    </button>
+                </div>
+
+                <!-- Quotation Column Configuration -->
+                <div x-show="showQuoteConfig"
+                     x-cloak
+                     @click.outside="showQuoteConfig = false"
+                     style="background: #fff; border: 1px solid #d9e2ec; border-radius: 4px; padding: 18px 10px; margin: 0 0 8px auto; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.12); position: relative; z-index: 20;">
+                    <div style="font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 7px;">Show / Hide Columns</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;">
+                        <template x-for="(label, key) in {
+                            select: 'Select',
+                            quote_no: 'Quote No.',
+                            valid_date: 'Valid Date',
+                            status: 'Status',
+                            creation_date: 'Creation Date',
+                            commodity: 'Commodity',
+                            pol: 'Departure',
+                            pod: 'Destination',
+                            carrier: 'Carrier',
+                            sales: 'Sales',
+                            op: 'OP'
+                        }" :key="key">
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; color: #374151; white-space: nowrap;">
+                                <input type="checkbox" x-model="colVisibility[key]" style="width: 12px; height: 12px; margin: 0; cursor: pointer;">
+                                <span x-text="label"></span>
+                            </label>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Ocean Style Interactive Table -->
@@ -2607,17 +2657,17 @@
                     <table class="table-custom">
                         <thead>
                             <tr style="background: #888; color: #fff;">
-                                <th style="text-align: center;">Select</th>
-                                <th>Quote No.</th>
-                                <th>Valid Date <i class="fa fa-sort" style="float: right;"></i></th>
-                                <th>Status <i class="fa fa-sort" style="float: right;"></i></th>
-                                <th>Creation Date <i class="fa fa-sort" style="float: right;"></i></th>
-                                <th>Commodity</th>
-                                <th>Departure</th>
-                                <th>Destination</th>
-                                <th>Carrier</th>
-                                <th>Sales</th>
-                                <th>OP</th>
+                                <th x-show="colVisibility.select" style="text-align: center;">Select</th>
+                                <th x-show="colVisibility.quote_no">Quote No.</th>
+                                <th x-show="colVisibility.valid_date">Valid Date <i class="fa fa-sort" style="float: right;"></i></th>
+                                <th x-show="colVisibility.status">Status <i class="fa fa-sort" style="float: right;"></i></th>
+                                <th x-show="colVisibility.creation_date">Creation Date <i class="fa fa-sort" style="float: right;"></i></th>
+                                <th x-show="colVisibility.commodity">Commodity</th>
+                                <th x-show="colVisibility.pol">Departure</th>
+                                <th x-show="colVisibility.pod">Destination</th>
+                                <th x-show="colVisibility.carrier">Carrier</th>
+                                <th x-show="colVisibility.sales">Sales</th>
+                                <th x-show="colVisibility.op">OP</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2655,17 +2705,17 @@
                                 })"
                                 x-show="matchFilters({quote_no: '{{ addslashes($quote->quote_no) }}', customer_id: '{{ $quote->customer_id }}', pol_id: '{{ $quote->pol_id }}', pod_id: '{{ $quote->pod_id }}', status: '{{ $quote->status }}', sales_person_id: '{{ $quote->sales_person_id }}', op: '{{ $quote->op_id }}', commodity: '{{ addslashes($quote->commodity ?? '') }}'})">
                                 
-                                <td style="text-align: center;"><input type="radio" name="quote_sel" :checked="selectedQuote && selectedQuote.quote_no === '{{ addslashes($quote->quote_no) }}'"></td>
-                                <td><span style="color: #3b82f6; font-weight: 600;">{{ $quote->quote_no }}</span></td>
-                                <td>{{ $quote->quote_date ? $quote->quote_date->format('m-d-Y') : '' }} ~ {{ $quote->expiry_date ? $quote->expiry_date->format('m-d-Y') : '' }}</td>
-                                <td><span style="background: {{ in_array(strtoupper($quote->status), ['WON', 'ACCEPTED']) ? '#10b981' : '#64748b' }}; color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 9px; font-weight: 600;">{{ $quote->status }}</span></td>
-                                <td>{{ $quote->created_at ? $quote->created_at->format('Y-m-d') : '' }}</td>
-                                <td>{{ $quote->commodity ?: '-' }}</td>
-                                <td>{{ $quote->pol->name ?? '-' }}</td>
-                                <td>{{ $quote->pod->name ?? '-' }}</td>
-                                <td>{{ $quote->carrier->name ?? '-' }}</td>
-                                <td>{{ $quote->salesPerson->name ?? '-' }}</td>
-                                <td>{{ $quote->op->name ?? '-' }}</td>
+                                <td x-show="colVisibility.select" style="text-align: center;"><input type="radio" name="quote_sel" :checked="selectedQuote && selectedQuote.quote_no === '{{ addslashes($quote->quote_no) }}'"></td>
+                                <td x-show="colVisibility.quote_no"><span style="color: #3b82f6; font-weight: 600;">{{ $quote->quote_no }}</span></td>
+                                <td x-show="colVisibility.valid_date">{{ $quote->quote_date ? $quote->quote_date->format('m-d-Y') : '' }} ~ {{ $quote->expiry_date ? $quote->expiry_date->format('m-d-Y') : '' }}</td>
+                                <td x-show="colVisibility.status"><span style="background: {{ in_array(strtoupper($quote->status), ['WON', 'ACCEPTED']) ? '#10b981' : '#64748b' }}; color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 9px; font-weight: 600;">{{ $quote->status }}</span></td>
+                                <td x-show="colVisibility.creation_date">{{ $quote->created_at ? $quote->created_at->format('Y-m-d') : '' }}</td>
+                                <td x-show="colVisibility.commodity">{{ $quote->commodity ?: '-' }}</td>
+                                <td x-show="colVisibility.pol">{{ $quote->pol->name ?? '-' }}</td>
+                                <td x-show="colVisibility.pod">{{ $quote->pod->name ?? '-' }}</td>
+                                <td x-show="colVisibility.carrier">{{ $quote->carrier->name ?? '-' }}</td>
+                                <td x-show="colVisibility.sales">{{ $quote->salesPerson->name ?? '-' }}</td>
+                                <td x-show="colVisibility.op">{{ $quote->op->name ?? '-' }}</td>
                             </tr>
                             @endforeach
                         </tbody>

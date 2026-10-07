@@ -148,6 +148,18 @@
                 showClipboardModal: false,
                 showQuoteModal: false,
                 showQuoteConfig: false,
+                quoteConfig: {
+                    quoteNo: true,
+                    validDate: true,
+                    status: true,
+                    creationDate: true,
+                    commodity: true,
+                    departure: true,
+                    destination: true,
+                    carrier: true,
+                    sales: true,
+                    op: true
+                },
                 showWrModal: false,
                 activeHblForReceipts: null,
                 wrSearchQuery: '',
@@ -1645,10 +1657,29 @@
 
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                                <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Entry No.</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][entry_no]'" x-model="hawb.entry_no"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Class of Entry</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][class_of_entry]'" x-model="hawb.class_of_entry"></div></div>
-                                <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Frt. Released</label><div class="form-input-container" style="gap:5px; align-items:center;"><input type="checkbox" :name="'hbls['+index+'][frt_released]'" x-model="hawb.frt_released"> <input type="date" class="form-control-gf" disabled :name="'hbls['+index+'][frt_released_date]'" x-model="hawb.frt_released_date"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select class="form-control-gf" style="width:45%;" :name="'hbls['+index+'][service_term_from_id]'" x-model="hawb.service_term_from_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select><span class="mx-1">~</span><select class="form-control-gf" style="width:45%;" :name="'hbls['+index+'][service_term_to_id]'" x-model="hawb.service_term_to_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Entry No.</label><div class="form-input-container"><input type="text" class="form-control-gf" name="entry_no" x-model="hawb.entry_no"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Class of Entry</label><div class="form-input-container"><input type="text" class="form-control-gf" name="class_of_entry" x-model="hawb.class_of_entry"></div></div>
+                                <div class="form-group-gf">
+    <label class="form-label-gf">Frt. Released</label>
+
+    <div class="form-input-container" style="gap:5px; align-items:center;">
+        <input
+            type="checkbox"
+            name="frt_released"
+            x-model="hawb.frt_released"
+            @change="if (!hawb.frt_released) hawb.frt_released_date = null"
+        >
+
+        <input
+            type="date"
+            class="form-control-gf"
+            name="frt_released_date"
+            x-model="hawb.frt_released_date"
+            :disabled="!hawb.frt_released"
+        >
+    </div>
+</div>
+                                <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select class="form-control-gf" style="width:45%;" name="service_term_from_id" x-model="hawb.service_term_from_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select><span class="mx-1">~</span><select class="form-control-gf" style="width:45%;" name="service_term_to_id" x-model="hawb.service_term_to_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select></div></div>
 
                                 <!-- Row 2 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Released By</label><div class="form-input-container"><select class="form-control-gf" disabled :name="'hbls['+index+'][released_by_id]'" x-model="hawb.released_by_id"><option value="">Select...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div></div>
@@ -1972,35 +2003,15 @@
                                                     @endforeach
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="(charge.rate * charge.qty).toFixed(2)" style="display: inline-block; min-width: 50px; text-align: right;">0.00</span>
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 55px; text-align: right;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
-                                                <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
-                                            </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
-                                            </td>
-                                            <td style="padding: 5px 8px; text-align: center;">
-                                                <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
-                                                    <i class="fa fa-trash"></i>
-                                                </button>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                                <tbody>
+                                    <template x-if="filteredCharges.length === 0">
+                                        <tr>
+                                            <td colspan="21" style="text-align: center; padding: 30px; color: #999;">
+                                                <i class="fa fa-inbox" style="font-size: 40px; opacity: 0.3; display: block; margin-bottom: 10px;"></i>
+                                                <span x-text="form.charges.length === 0 ? 'No charges added yet. Click "+ Add Row" button to start.' : 'No charges match the selected manifest filter.'"></span>
                                             </td>
                                         </tr>
                                     </template>
@@ -2559,25 +2570,50 @@
                     <hr style="border-top: 1px solid #e2e8f0; margin: 10px 0;">
                     
                     <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
-                        <button type="button" class="btn-tool-secondary" style="background: #67809f; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; border: none;"><i class="fa fa-cogs"></i> Config</button>
+                        <button type="button"
+        @click="showQuoteConfig = !showQuoteConfig"
+        class="btn-tool-secondary">
+    <i class="fa fa-cogs"></i> Config
+</button>
                     </div>
                     
+                    <!-- Quote Table Config Modal -->
+                    <div x-show="showQuoteConfig" x-cloak @click.self="showQuoteConfig = false" style="inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center;">
+                        <div @click.stop style="width: 100%; background: #fff; overflow: hidden;">
+
+                            <div style="padding:12px 14px;">
+                                <div style="display:flex; flex-wrap: wrap; gap:7px 12px;">
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.quoteNo"> Quote No.</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.validDate"> Valid Date</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.status"> Status</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.creationDate"> Creation Date</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.commodity"> Commodity</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.departure"> Departure</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.destination"> Destination</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.carrier"> Carrier</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.sales"> Sales</label>
+                                    <label style="font-size:11px; cursor:pointer;"><input type="checkbox" x-model="quoteConfig.op"> OP</label>
+                                </div>
+                            </div>
+                           
+                        </div>
+                    </div>
                     <!-- Ocean Style Interactive Table -->
                     <div class="table-responsive" style="margin-bottom: 10px; height: 280px; border: 1px solid #e7ecf1;">
                         <table class="table-custom">
                             <thead>
                                 <tr style="background: #888; color: #fff;">
                                     <th style="text-align: center;">Select</th>
-                                    <th>Quote No.</th>
-                                    <th>Valid Date <i class="fa fa-sort" style="float: right;"></i></th>
-                                    <th>Status <i class="fa fa-sort" style="float: right;"></i></th>
-                                    <th>Creation Date <i class="fa fa-sort" style="float: right;"></i></th>
-                                    <th>Commodity</th>
-                                    <th>Departure</th>
-                                    <th>Destination</th>
-                                    <th>Carrier</th>
-                                    <th>Sales</th>
-                                    <th>OP</th>
+                                    <th x-show="quoteConfig.quoteNo">Quote No.</th>
+                                    <th x-show="quoteConfig.validDate">Valid Date <i class="fa fa-sort" style="float: right;"></i></th>
+                                    <th x-show="quoteConfig.status">Status <i class="fa fa-sort" style="float: right;"></i></th>
+                                    <th x-show="quoteConfig.creationDate">Creation Date <i class="fa fa-sort" style="float: right;"></i></th>
+                                    <th x-show="quoteConfig.commodity">Commodity</th>
+                                    <th x-show="quoteConfig.departure">Departure</th>
+                                    <th x-show="quoteConfig.destination">Destination</th>
+                                    <th x-show="quoteConfig.carrier">Carrier</th>
+                                    <th x-show="quoteConfig.sales">Sales</th>
+                                    <th x-show="quoteConfig.op">OP</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2585,7 +2621,7 @@
                                  <tr class="cursor-pointer hover:bg-blue-50"
                                      :style="selectedQuote && selectedQuote.quote_no === '{{ addslashes($quote->quote_no) }}' ? 'background-color: #eff6ff;' : ''"
                                      x-show="matchFilters({quote_no: '{{ addslashes($quote->quote_no) }}', customer_id: '{{ $quote->customer_id }}', pol_id: '{{ $quote->pol_id }}', pod_id: '{{ $quote->pod_id }}', status: '{{ $quote->status }}', sales_person_id: '{{ $quote->sales_person_id }}', op: '{{ $quote->op_id }}', commodity: '{{ addslashes($quote->commodity ?? '') }}'})">
-                                     <td style="text-align: center;"><input type="radio" name="quote_sel" :checked="selectedQuote && selectedQuote.quote_no === '{{ $quote->quote_no }}'" 
+                                     <td x-show="quoteConfig.quoteNo" style="text-align: center;"><input type="radio" name="quote_sel" :checked="selectedQuote && selectedQuote.quote_no === '{{ $quote->quote_no }}'" 
                                          @click="selectQuote({
                                             quote_no: '{{ addslashes($quote->quote_no) }}',
                                             mawb_no: 'MAWB-{{ addslashes($quote->quote_no) }}',
@@ -2615,15 +2651,15 @@
                                             items: (quoteItems && quoteItems['{{ $quote->quote_no }}']) ? quoteItems['{{ $quote->quote_no }}'].map(i => ({...i, selected: true})) : []
                                         })"></td>
                                      <td><span style="color: #3b82f6; font-weight: 600;">{{ $quote->quote_no }}</span></td>
-                                     <td>{{ $quote->quote_date ? $quote->quote_date->format('m-d-Y') : '' }} ~ {{ $quote->expiry_date ? $quote->expiry_date->format('m-d-Y') : '' }}</td>
-                                     <td><span style="background: {{ in_array(strtoupper($quote->status), ['WON', 'ACCEPTED']) ? '#10b981' : (in_array(strtoupper($quote->status), ['LOST', 'EXPIRED', 'CANCELLED']) ? '#ef4444' : '#64748b') }}; color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 9px; font-weight: 600;">{{ $quote->status }}</span></td>
-                                     <td>{{ $quote->created_at ? $quote->created_at->format('Y-m-d') : '' }}</td>
-                                     <td>{{ $quote->commodity ?: '-' }}</td>
-                                     <td>{{ $quote->pol->name ?? '-' }}</td>
-                                     <td>{{ $quote->pod->name ?? '-' }}</td>
-                                     <td>{{ $quote->carrier->name ?? '-' }}</td>
-                                     <td>{{ $quote->salesPerson->name ?? '-' }}</td>
-                                     <td>{{ $quote->op->name ?? '-' }}</td>
+                                     <td x-show="quoteConfig.validDate">{{ $quote->quote_date ? $quote->quote_date->format('m-d-Y') : '' }} ~ {{ $quote->expiry_date ? $quote->expiry_date->format('m-d-Y') : '' }}</td>
+                                     <td x-show="quoteConfig.status"><span style="background: {{ in_array(strtoupper($quote->status), ['WON', 'ACCEPTED']) ? '#10b981' : (in_array(strtoupper($quote->status), ['LOST', 'EXPIRED', 'CANCELLED']) ? '#ef4444' : '#64748b') }}; color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 9px; font-weight: 600;">{{ $quote->status }}</span></td>
+                                     <td x-show="quoteConfig.creationDate">{{ $quote->created_at ? $quote->created_at->format('Y-m-d') : '' }}</td>
+                                     <td x-show="quoteConfig.commodity">{{ $quote->commodity ?: '-' }}</td>
+                                     <td x-show="quoteConfig.departure">{{ $quote->pol->name ?? '-' }}</td>
+                                     <td x-show="quoteConfig.destination">{{ $quote->pod->name ?? '-' }}</td>
+                                     <td x-show="quoteConfig.carrier">{{ $quote->carrier->name ?? '-' }}</td>
+                                     <td x-show="quoteConfig.sales">{{ $quote->salesPerson->name ?? '-' }}</td>
+                                     <td x-show="quoteConfig.op">{{ $quote->op->name ?? '-' }}</td>
                                  </tr>
                                  @endforeach
                             </tbody>

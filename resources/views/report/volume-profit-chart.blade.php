@@ -224,7 +224,6 @@
                     <div class="chart-title">
                         <span><i class="fa fa-line-chart" style="margin-right: 4px;"></i> Monthly Revenue, Cost & Profit Trend</span>
                         <div style="display: flex; gap: 2px;">
-                            <button class="btn-chart" :class="{ active: chartType === 'bar' }" @click="switchChartType('bar')">BAR</button>
                             <button class="btn-chart" :class="{ active: chartType === 'line' }" @click="switchChartType('line')">LINE</button>
                             <button class="btn-chart" :class="{ active: chartType === 'area' }" @click="switchChartType('area')">AREA</button>
                         </div>
@@ -234,7 +233,7 @@
                 <div style="display: flex; flex-direction: column; gap: 14px;">
                     <div class="chart-card">
                         <div class="chart-title"><i class="fa fa-pie-chart" style="margin-right: 4px;"></i> Profit by Shipping Type</div>
-                        <div id="typeChart" style="height: 220px;"></div>
+                        <div id="typeChart" style="height: 260px;"></div>
                     </div>
                     <div class="chart-card" x-show="data.top_lanes.length > 0">
                         <div class="chart-title"><i class="fa fa-trophy" style="margin-right: 4px;"></i> Top Performing Lane</div>
@@ -269,13 +268,13 @@
                 </div>
                 <div class="chart-card">
                     <div class="chart-title"><i class="fa fa-flag" style="margin-right: 4px;"></i> Quotations by Status</div>
-                    <div id="statusChart" style="height: 280px;"></div>
+                    <div id="statusChart" style="height: 320px;"></div>
                 </div>
             </div>
 
             <div class="chart-card" x-show="data.top_lanes.length > 1" style="margin-bottom: 14px;">
                 <div class="chart-title"><i class="fa fa-route" style="margin-right: 4px;"></i> Top Lanes by Profit</div>
-                <div id="lanesChart" style="height: 300px;"></div>
+                <div id="lanesChart" style="height: 340px;"></div>
             </div>
 
             <!-- Monthly Table -->
@@ -326,7 +325,7 @@
     function volumeProfitReport() {
         return {
             loading: false,
-            chartType: 'bar',
+            chartType: 'line',
             trendChart: null,
             typeChart: null,
             officeChart: null,
@@ -403,6 +402,7 @@
                 this.renderLanesChart();
             },
 
+            // LINE / AREA - Monthly Revenue, Cost & Profit
             renderTrendChart() {
                 const el = document.getElementById('trendChart');
                 if (!el) return;
@@ -420,8 +420,8 @@
                         { name: 'Net Profit', data: profit },
                     ],
                     chart: { height: 320, type: this.chartType, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 600 } },
-                    stroke: { width: this.chartType === 'bar' ? 0 : 2, curve: 'smooth' },
-                    plotOptions: { bar: { columnWidth: '55%', borderRadius: 2 } },
+                    stroke: { width: 3, curve: 'smooth' },
+                    markers: { size: 4, strokeWidth: 2, hover: { size: 6 } },
                     xaxis: { categories: labels, labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } } },
                     yaxis: { labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 }, formatter: v => '$' + this.formatNum(v) } },
                     colors: ['#3b82f6', '#ef4444', '#10b981'],
@@ -432,6 +432,7 @@
                 this.trendChart.render();
             },
 
+            // RADAR - Profit by Shipping Type (was donut)
             renderTypeChart() {
                 const el = document.getElementById('typeChart');
                 if (!el) return;
@@ -439,19 +440,27 @@
 
                 const labels = this.data.by_shipping_type.map(t => t.label);
                 const profits = this.data.by_shipping_type.map(t => Math.abs(t.profit));
+                const hasData = profits.length > 0;
 
                 this.typeChart = new ApexCharts(el, {
-                    series: profits.length > 0 ? profits : [1],
-                    chart: { height: 220, type: 'donut' },
-                    labels: labels.length > 0 ? labels : ['No Data'],
-                    colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
-                    plotOptions: { pie: { donut: { size: '55%' } } },
-                    legend: { position: 'bottom', fontSize: '10px', fontWeight: 600 },
-                    dataLabels: { enabled: true, formatter: (val, opts) => '$' + this.formatNum(opts.w.config.series[opts.seriesIndex]) },
+                    series: [{ name: 'Profit', data: hasData ? profits : [0] }],
+                    chart: { height: 260, type: 'radar', toolbar: { show: false }, dropShadow: { enabled: false } },
+                    labels: hasData ? labels : ['No Data'],
+                    colors: ['#3b82f6'],
+                    stroke: { width: 2 },
+                    fill: { opacity: 0.25 },
+                    markers: { size: 4, strokeWidth: 1, hover: { size: 6 } },
+                    dataLabels: { enabled: false },
+                    plotOptions: { radar: { polygons: { strokeColors: '#e5e7eb', connectorColors: '#e5e7eb', fill: { colors: ['#ffffff', '#f8fafc'] } } } },
+                    xaxis: { labels: { style: { colors: Array(hasData ? labels.length : 1).fill('#475569'), fontSize: '10px', fontWeight: 600 } } },
+                    yaxis: { labels: { style: { colors: ['#94a3b8'], fontSize: '9px' }, formatter: v => '$' + this.formatNum(v) } },
+                    legend: { show: false },
+                    tooltip: { y: { formatter: v => '$' + this.formatNum(v) } },
                 });
                 this.typeChart.render();
             },
 
+            // LINE - Profit by Office (was column bar)
             renderOfficeChart() {
                 const el = document.getElementById('officeChart');
                 if (!el) return;
@@ -462,9 +471,12 @@
 
                 this.officeChart = new ApexCharts(el, {
                     series: [{ name: 'Profit', data: profits }],
-                    chart: { height: 280, type: 'bar', toolbar: { show: false } },
-                    plotOptions: { bar: { columnWidth: '50%', borderRadius: 3, colors: { ranges: [{ from: -99999, to: 0, color: '#ef4444' }, { from: 0, to: 99999, color: '#3b82f6' }] } } },
-                    xaxis: { categories: labels, labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } } },
+                    chart: { height: 280, type: 'line', toolbar: { show: false }, zoom: { enabled: false } },
+                    colors: ['#3b82f6'],
+                    stroke: { width: 3, curve: 'smooth' },
+                    markers: { size: 5, strokeWidth: 2, hover: { size: 7 } },
+                    dataLabels: { enabled: false },
+                    xaxis: { categories: labels, labels: { trim: true, style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } } },
                     yaxis: { labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 }, formatter: v => '$' + this.formatNum(v) } },
                     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
                     tooltip: { y: { formatter: v => '$' + this.formatNum(v) } },
@@ -472,27 +484,35 @@
                 this.officeChart.render();
             },
 
+            // RADAR - Quotations by Status (was donut)
             renderStatusChart() {
                 const el = document.getElementById('statusChart');
                 if (!el) return;
                 if (this.statusChart) this.statusChart.destroy();
 
-                const statusColors = { Draft: '#64748b', Sent: '#3b82f6', Pending: '#f59e0b', Won: '#10b981', Lost: '#ef4444', Expired: '#f87171', Cancelled: '#fb923c', Ghosted: '#a78bfa' };
                 const labels = this.data.by_status.map(s => s.label);
                 const counts = this.data.by_status.map(s => s.count);
-                const colors = this.data.by_status.map(s => statusColors[s.label] || '#94a3b8');
+                const hasData = counts.length > 0;
 
                 this.statusChart = new ApexCharts(el, {
-                    series: counts.length > 0 ? counts : [1],
-                    chart: { height: 280, type: 'donut' },
-                    labels: labels.length > 0 ? labels : ['No Data'],
-                    colors: colors.length > 0 ? colors : ['#94a3b8'],
-                    plotOptions: { pie: { donut: { size: '50%' } } },
-                    legend: { position: 'bottom', fontSize: '10px', fontWeight: 600 },
+                    series: [{ name: 'Quotations', data: hasData ? counts : [0] }],
+                    chart: { height: 320, type: 'radar', toolbar: { show: false }, dropShadow: { enabled: false } },
+                    labels: hasData ? labels : ['No Data'],
+                    colors: ['#8b5cf6'],
+                    stroke: { width: 2 },
+                    fill: { opacity: 0.25 },
+                    markers: { size: 4, strokeWidth: 1, hover: { size: 6 } },
+                    dataLabels: { enabled: false },
+                    plotOptions: { radar: { polygons: { strokeColors: '#e5e7eb', connectorColors: '#e5e7eb', fill: { colors: ['#ffffff', '#f8fafc'] } } } },
+                    xaxis: { labels: { style: { colors: Array(hasData ? labels.length : 1).fill('#475569'), fontSize: '10px', fontWeight: 600 } } },
+                    yaxis: { labels: { style: { colors: ['#94a3b8'], fontSize: '9px' }, formatter: v => Math.round(v) } },
+                    legend: { show: false },
+                    tooltip: { y: { formatter: v => this.formatInt(v) + ' quotes' } },
                 });
                 this.statusChart.render();
             },
 
+            // LINE - Top Lanes by Profit (was horizontal bar)
             renderLanesChart() {
                 const el = document.getElementById('lanesChart');
                 if (!el || this.data.top_lanes.length <= 1) return;
@@ -504,12 +524,14 @@
 
                 this.lanesChart = new ApexCharts(el, {
                     series: [{ name: 'Profit', data: profits }],
-                    chart: { height: 300, type: 'bar', toolbar: { show: false } },
-                    plotOptions: { bar: { columnWidth: '60%', borderRadius: 3, horizontal: true } },
-                    xaxis: { categories: labels, labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } } },
+                    chart: { height: 340, type: 'line', toolbar: { show: false }, zoom: { enabled: false } },
+                    colors: ['#3b82f6'],
+                    stroke: { width: 3, curve: 'smooth' },
+                    markers: { size: 5, strokeWidth: 2, hover: { size: 7 } },
+                    dataLabels: { enabled: false },
+                    xaxis: { categories: labels, labels: { rotate: -35, rotateAlways: true, trim: true, hideOverlappingLabels: false, style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } } },
                     yaxis: { labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 }, formatter: v => '$' + this.formatNum(v) } },
                     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-                    colors: ['#3b82f6'],
                     tooltip: { y: { formatter: v => '$' + this.formatNum(v) } },
                 });
                 this.lanesChart.render();
