@@ -138,7 +138,6 @@
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="date" style="width:80px;left:50px;">Date</th>
                                     <th class="sticky-col sticky-col-header" data-col="paid_to" style="width:140px;left:130px;">Paid To</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:270px;text-align:center;">Color</th>
                                     <th data-col="type" style="width:90px;">Type</th>
                                     <th data-col="ref_no" style="width:100px;">Ref No.</th>
                                     <th data-col="bank" style="width:100px;">Bank</th>
@@ -197,9 +196,6 @@
                                         <a href="{{ route('accounting.payment.edit', $payment->id) }}" class="col-link">
                                             {{ $payment->tradePartner?->name ?? '' }}
                                         </a>
-                                    </td>
-                                    <td class="sticky-col" style="width:35px;left:270px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $payment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $payment->id }}, '{{ $payment->color ?? '' }}')"></span>
                                     </td>
                                     <td data-col="type">{{ $payment->payment_method }}</td>
                                     <td data-col="ref_no"><a href="{{ route('accounting.payment.edit', $payment->id) }}" class="col-link" onclick="event.stopPropagation()">{{ $payment->payment_no }}</a></td>

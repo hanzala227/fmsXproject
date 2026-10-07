@@ -103,8 +103,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="vin" style="width:130px;left:50px;">VIN No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color_mark" style="width:35px;left:180px;text-align:center;">Color</th>
-                                    <th class="sticky-col sticky-col-header" data-col="receipt" style="width:110px;left:215px;">WH Receipt No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="receipt" style="width:110px;left:180px;">WH Receipt No.</th>
                                     <th data-col="received_date" style="width:90px;cursor:pointer;" onclick="doSort('received_date')">Received Date <i class="fa" id="sort-received_date"></i></th>
                                     <th data-col="customer" style="width:160px;">Customer</th>
                                     <th data-col="maker" style="width:80px;cursor:pointer;" onclick="doSort('maker')">Maker <i class="fa" id="sort-maker"></i></th>
@@ -121,7 +120,7 @@
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="VIN..." oninput="applyFilters()"></td>
                                     <td class="sticky-col" style="left:180px;"></td>
-                                    <td class="sticky-col" style="left:215px;"></td>
+                                    <td class="sticky-col" style="left:180px;"></td>
                                     <td><input class="filter-input" data-col-idx="5" placeholder="Date..." oninput="applyFilters()"></td>
                                     <td><input class="filter-input" data-col-idx="6" placeholder="Customer..." oninput="applyFilters()"></td>
                                     <td><input class="filter-input" data-col-idx="7" placeholder="Maker..." oninput="applyFilters()"></td>
@@ -150,10 +149,7 @@
                                     <td class="sticky-col" style="width:130px;left:50px;">
                                         <a href="{{ route('warehouse.automobile.show', $auto) }}" class="col-link" onclick="event.stopPropagation()">{{ $auto->vin_no }}</a>
                                     </td>
-                                    <td class="sticky-col" style="width:35px;left:180px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $auto->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $auto->id }}, '{{ $auto->color ?? '' }}')"></span>
-                                    </td>
-                                    <td class="sticky-col" style="width:110px;left:215px;">
+                                    <td class="sticky-col" style="width:110px;left:180px;">
                                         <span>{{ $auto->wh_receipt_no ?? '--' }}</span>
                                     </td>
                                     <td>{{ $auto->received_date ? $auto->received_date->format('m-d-Y') : '--' }}</td>

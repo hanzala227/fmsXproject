@@ -21,7 +21,6 @@
         @media print {
             th[data-col="check"], td:nth-child(1),
             th[data-col="lock"], td:nth-child(2),
-            th[data-col="color"], td:nth-child(4) {
                 display: none !important;
             }
         }
@@ -163,7 +162,6 @@
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;cursor:pointer;" onclick="toggleSort('file_no')">
                                             File No. <i class="fa fa-sort" id="sort-file_no"></i>
                                         </th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">Color</th>
                                         <th data-col="post_date" style="width:90px;cursor:pointer;" onclick="toggleSort('post_date')">
                                             Post Date <i class="fa fa-sort" id="sort-post_date"></i>
                                         </th>
@@ -191,7 +189,6 @@
                                         <td data-col="check" class="sticky-col" style="left:0;"></td>
                                         <td data-col="lock" class="sticky-col" style="left:25px;"></td>
                                         <td data-col="file_no" class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="File No..." oninput="applyFilters()"></td>
-                                        <td data-col="color" class="sticky-col" style="left:160px;"></td>
                                         <td data-col="post_date"><input class="filter-input" data-col-idx="4" placeholder="Post Date (Y-m-d)..." oninput="applyFilters()"></td>
                                         <td data-col="customer"><input class="filter-input" data-col-idx="5" placeholder="Customer..." oninput="applyFilters()"></td>
                                         <td data-col="trucker"><input class="filter-input" data-col-idx="6" placeholder="Trucker..." oninput="applyFilters()"></td>

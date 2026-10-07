@@ -98,7 +98,7 @@
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a></li>
                 <li><i class="fa fa-angle-right"></i>Accounting</li>
-                <li><i class="fa fa-angle-right"></i><span style="color: #333; font-weight: 700;">Invoice / Cost List</span></li>
+                <li><i class="fa fa-angle-right"></i><span style="color: #333; font-weight: 700;">{{ $docType ?? 'INV/DN/CN' }} List</span></li>
             </ul>
         </div>
 
@@ -106,7 +106,7 @@
             {{-- PORTLET TITLE --}}
             <div class="portlet-title">
                 <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">INVOICE / COST LIST</span>
+                    <span class="caption-subject">{{ $docType ?? 'INV/DN/CN' }} LIST</span>
                     <span class="summary-stats">
                         Invoice: <span class="val" id="stat-inv-total">{{ number_format($totalInvoiceAmount, 2) }}</span>
                         Paid: <span class="val paid" id="stat-paid-total">{{ number_format($totalPaidAmount, 2) }}</span>
@@ -201,7 +201,6 @@
                                         <th class="sticky-col sticky-col-header" data-col="party" style="width:130px;left:50px;">Party</th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:90px;left:180px;">File No.</th>
                                         <th class="sticky-col sticky-col-header" data-col="inv_no" style="width:100px;left:270px;">Invoice No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:370px;text-align:center;">Color</th>
                                         <th data-col="type" style="width:45px;">Type</th>
                                         <th data-col="post_date" style="width:85px;cursor:pointer;" onclick="doSort('invoice_date')">Post Date <i class="fa fa-sort" id="sort-invoice_date"></i></th>
                                         <th data-col="pub_status" style="width:90px;text-align:center;">Publication Status</th>
@@ -266,10 +265,6 @@
                                         {{-- Invoice No. --}}
                                         <td class="sticky-col" style="width:100px;left:270px;">
                                             <a href="{{ route('accounting.invoices.show', $invoice) }}" class="col-link">{{ $invoice->invoice_no }}</a>
-                                        </td>
-                                        {{-- Color --}}
-                                        <td class="sticky-col" style="width:35px;left:370px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $invoice->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $invoice->id }}, '{{ $invoice->color ?? '' }}')"></span>
                                         </td>
                                         {{-- Scrollable columns --}}
                                         <td><span style="font-weight:600;color:{{ $invoice->type === 'AP' ? '#e08283' : '#3b82f6' }};">{{ $invoice->type ?? 'AR' }}</span></td>

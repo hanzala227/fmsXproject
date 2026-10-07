@@ -34,10 +34,7 @@
             <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;" title="Open"></i>
         </div>
     </td>
-    <td class="sticky-col" style="left:200px;text-align:center;">
-        <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-    </td>
-    <td class="sticky-col" style="left:235px;" onclick="event.stopPropagation()">
+    <td class="sticky-col" style="left:200px;" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <span>{{ $shipment->mbl_no }}</span>
             <i class="fa fa-eye" style="color:#3b82f6;cursor:pointer;font-size:10px;" title="Quick view MBL" onclick="showMbl({

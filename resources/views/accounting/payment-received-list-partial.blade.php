@@ -25,9 +25,6 @@
                 {{ $payment->tradePartner?->name ?? '' }}
             </a>
         </td>
-        <td class="sticky-col" style="width:35px;left:270px;text-align:center;">
-            <span class="color-mark" style="background:{{ $payment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $payment->id }}, '{{ $payment->color ?? '' }}')"></span>
-        </td>
         <td>{{ $payment->payment_method }}</td>
         <td>{{ $payment->reference_no }}</td>
         <td>{{ $payment->bank_name ?? '' }}</td>

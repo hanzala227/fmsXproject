@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HBL Print - {{ $data['hbl_number'] ?: 'New' }}</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#e5e7eb; font-family:Arial,sans-serif; font-size:11px; }
@@ -66,6 +69,7 @@ textarea.hbl-field { overflow-y: auto; }
 </head>
 <body>
 
+@if(!request('pdf'))
 <div class="toolbar" id="toolbar">
   <span class="title">🖨 HBL Print System</span>
   <label style="color:#94a3b8;font-size:11px;">Select Template:</label>
@@ -74,33 +78,48 @@ textarea.hbl-field { overflow-y: auto; }
     <option value="{{ $t['key'] }}" data-size="{{ $t['size'] }}">{{ $t['name'] }}</option>
     @endforeach
   </select>
-  <button onclick="window.print()">🖨 Print / Save PDF</button>
+  <button onclick="window.print()">🖨 Print</button>
+  <button onclick="window.print()">💾 Save PDF</button>
+  
+  <x-email-document-modal 
+        documentType="ocean-export-hbl" 
+        documentId="{{ $shipment->id }}" 
+        documentUrl="{{ url()->full() }}" 
+        documentName="HBL_{{ $shipment->file_no ?? 'Document' }}" 
+    />
+
   <span style="color:#64748b;font-size:11px;margin-left:auto;">HBL: {{ $data['hbl_number'] ?: 'N/A' }} | File: {{ $shipment->file_no ?? '' }}</span>
 </div>
+@endif
 
 <div class="page-wrapper" id="pageWrapper">
+    @php
+        // When generating PDF via Dompdf (no JS), only render the selected template as active.
+        $selectedTpl = request('template', $templates[0]['key'] ?? '');
+    @endphp
+
     <!-- Template 1: Silk Container Lines -->
-    <div id="tpl-silk_container" class="template-container">
+    <div id="tpl-silk_container" class="template-container {{ $selectedTpl === 'silk_container' || request('pdf') && $selectedTpl === '' ? 'active' : '' }}">
         @include('ocean-export.hbl-templates.silk-container')
     </div>
 
     <!-- Template 2: NTG AIR -->
-    <div id="tpl-ntg_air" class="template-container">
+    <div id="tpl-ntg_air" class="template-container {{ $selectedTpl === 'ntg_air' ? 'active' : '' }}">
         @include('ocean-export.hbl-templates.ntg-air')
     </div>
 
     <!-- Template 3: United American Line -->
-    <div id="tpl-united_american" class="template-container">
+    <div id="tpl-united_american" class="template-container {{ $selectedTpl === 'united_american' ? 'active' : '' }}">
         @include('ocean-export.hbl-templates.united-american')
     </div>
 
     <!-- Template 4: Ocean Blue Express -->
-    <div id="tpl-ocean_blue" class="template-container">
+    <div id="tpl-ocean_blue" class="template-container {{ $selectedTpl === 'ocean_blue' ? 'active' : '' }}">
         @include('ocean-export.hbl-templates.ocean-blue')
     </div>
 
     <!-- Template 5: Transamerica Logistics -->
-    <div id="tpl-transamerica" class="template-container">
+    <div id="tpl-transamerica" class="template-container {{ $selectedTpl === 'transamerica' ? 'active' : '' }}">
         @include('ocean-export.hbl-templates.transamerica')
     </div>
 </div>

@@ -29,10 +29,19 @@ class StoreOceanExportRequest extends FormRequest
             'is_direct_master', 'is_ecommerce', 'is_isf_3rd_party',
             'is_ror', 'is_hold', 'is_blocked',
         ];
+        $mergeData = [];
         foreach ($booleanFields as $field) {
             if ($this->has($field)) {
-                $this->merge([$field => filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN)]);
+                $mergeData[$field] = filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN);
             }
+        }
+        
+        if (empty($this->bl_type)) $mergeData['bl_type'] = 'NORMAL';
+        if (empty($this->cargo_type)) $mergeData['cargo_type'] = 'GENERAL CARGO';
+        if (empty($this->ship_mode)) $mergeData['ship_mode'] = 'FCL';
+        
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
         }
 
         if ($this->has('containers') && is_array($this->containers)) {

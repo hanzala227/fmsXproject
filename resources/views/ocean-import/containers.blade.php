@@ -362,7 +362,6 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="flag" style="width:25px;left:25px;text-align:center;"><i class="fa fa-flag"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="file_no" style="width:135px;left:50px;">File No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:185px;text-align:center;">Color</th>
                                     <th class="sticky-col sticky-col-header" data-col="container_no" style="width:125px;left:220px;">Container No.</th>
                                     <th class="sticky-col sticky-col-header" data-col="consignee" style="width:150px;left:345px;">Consignee</th>
 

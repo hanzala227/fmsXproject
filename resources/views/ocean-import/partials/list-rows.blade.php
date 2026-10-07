@@ -35,12 +35,8 @@
     <td class="sticky-col" style="width:110px;left:90px;" onclick="event.stopPropagation()">
         <a href="{{ route('ocean-import.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
     </td>
-    {{-- Color --}}
-    <td class="sticky-col" style="width:35px;left:200px;text-align:center;">
-        <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-    </td>
     {{-- MBL + Eye --}}
-    <td class="sticky-col" style="width:150px;left:235px;" onclick="event.stopPropagation()">
+    <td class="sticky-col" style="width:150px;left:200px;" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <span>{{ $shipment->mbl_no }}</span>
             <i class="fa fa-eye"

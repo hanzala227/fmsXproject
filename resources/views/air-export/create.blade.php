@@ -140,12 +140,19 @@
                     @endforeach
                 },
                 activeTab: 'basic',
+                saved: {{ isset($airExport) && $airExport->id ? 'true' : 'false' }},
                 showMblSection: true,
                 showMblMemo: false,
                 isDirectMaster: false,
                 showMore: false,
                 showConnectingFlight: false,
                 hawbs: [],
+                showDimensionsModal: false,
+                dimensionTarget: 'mawb',
+                dimensionUnit: 'CM',
+                dimensionRows: [
+                    { selected: false, length: '', width: '', height: '', pcs: 1 }
+                ],
                 
                 form: {
                     id: '{{ isset($airExport) ? $airExport->id : "" }}',
@@ -458,6 +465,7 @@
                     const checked = e.target.checked;
                     (this.form.charges || []).forEach(c => c.selected = checked);
                 },
+
                 saveCharges() {
                     const formEl = document.getElementById('airExportForm') || document.querySelector('form[action*="air-export"]');
                     if (formEl) {
@@ -488,14 +496,21 @@
                         showToast('error', 'Please save shipment first before generating invoice.');
                         return;
                     }
-                    if (!confirm('Generate Freight Invoice for this Air Export shipment?')) return;
+
+                    let selectedIds = this.filteredCharges.filter(c => c.selected && !c.is_invoiced && c.id).map(c => c.id);
+                    if (selectedIds.length === 0) {
+                        showToast('error', 'Please select at least one uninvoiced charge.');
+                        return;
+                    }
+
+                    if (!confirm('Generate Invoice for selected charges?')) return;
                     fetch(`/air-export/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({ charges: this.form.charges || [] })
+                        body: JSON.stringify({ ids: selectedIds })
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -1246,6 +1261,92 @@
                     }
                     window.open(`/air-export/${shipmentId}/profit-summary`, '_blank');
                 },
+                sumPackageWeight() {
+                    if (!this.hawbs || this.hawbs.length === 0) {
+                        if (typeof showToast === 'function') showToast('warning', 'No HAWBs to sum.');
+                        return;
+                    }
+                    let totalPkg = 0;
+                    let totalWeightKg = 0;
+                    this.hawbs.forEach(hawb => {
+                        totalPkg += parseFloat(hawb.pkg_qty || 0);
+                        totalWeightKg += parseFloat(hawb.gross_weight || 0);
+                    });
+                    this.form.pkg_qty = totalPkg;
+                    this.form.gross_weight = totalWeightKg.toFixed(2);
+                    if (typeof showToast === 'function') showToast('success', 'Package & Weight summed from ' + this.hawbs.length + ' HAWB(s)');
+                },
+                openDimensionsModal(target) {
+                    this.dimensionTarget = target;
+                    this.showDimensionsModal = true;
+                    if (!this.dimensionRows || this.dimensionRows.length === 0) {
+                        this.dimensionRows = [{ selected: false, length: '', width: '', height: '', pcs: 1 }];
+                    }
+                },
+                closeDimensionsModal() {
+                    this.showDimensionsModal = false;
+                },
+                addDimensionRow() {
+                    this.dimensionRows.push({ selected: false, length: '', width: '', height: '', pcs: 1 });
+                },
+                deleteSelectedDimensions() {
+                    this.dimensionRows = this.dimensionRows.filter(r => !r.selected);
+                    if (this.dimensionRows.length === 0) {
+                        this.addDimensionRow();
+                    }
+                },
+                calcRowPcs(row) {
+                    return parseFloat(row.pcs) || 0;
+                },
+                calcRowCbm(row) {
+                    let l = parseFloat(row.length) || 0;
+                    let w = parseFloat(row.width) || 0;
+                    let h = parseFloat(row.height) || 0;
+                    let pcs = parseFloat(row.pcs) || 0;
+                    if (l <= 0 || w <= 0 || h <= 0 || pcs <= 0) return 0;
+                    if (this.dimensionUnit === 'CM') return (l * w * h * pcs) / 1000000;
+                    if (this.dimensionUnit === 'IN' || this.dimensionUnit === 'Inch') return (l * 2.54 * w * 2.54 * h * 2.54 * pcs) / 1000000;
+                    if (this.dimensionUnit === 'Feet') return (l * 30.48 * w * 30.48 * h * 30.48 * pcs) / 1000000;
+                    return 0;
+                },
+                calcRowCft(row) {
+                    return this.calcRowCbm(row) * 35.3147;
+                },
+                calcRowVolKg(row) {
+                    return this.calcRowCbm(row) * 166.6667;
+                },
+                calcRowVolLb(row) {
+                    return this.calcRowVolKg(row) * 2.20462;
+                },
+                get totalDimPcs() {
+                    return this.dimensionRows.reduce((sum, r) => sum + (parseFloat(r.pcs) || 0), 0);
+                },
+                get totalDimCbm() {
+                    return this.dimensionRows.reduce((sum, r) => sum + this.calcRowCbm(r), 0);
+                },
+                get totalDimCft() {
+                    return this.totalDimCbm * 35.3147;
+                },
+                get totalDimVolKg() {
+                    return this.totalDimCbm * 166.6667;
+                },
+                get totalDimVolLb() {
+                    return this.totalDimVolKg * 2.20462;
+                },
+                applyDimensions() {
+                    const cbm = this.totalDimCbm;
+                    const volKg = this.totalDimVolKg;
+                    
+                    if (this.dimensionTarget === 'mawb') {
+                        this.form.volume = cbm.toFixed(2);
+                    } else {
+                        const index = parseInt(this.dimensionTarget);
+                        if (!isNaN(index) && this.hawbs[index]) {
+                            this.hawbs[index].volume = cbm.toFixed(2);
+                        }
+                    }
+                    this.closeDimensionsModal();
+                },
                 openProfitDetail() {
                     const shipmentId = '{{ isset($airExport) && $airExport->id ? $airExport->id : '' }}';
                     if (!shipmentId) {
@@ -1526,13 +1627,13 @@
                                 </div>
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">Amount</label><div class="form-input-container"><input type="text" class="form-control-gf" style="text-align:right;"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;">Set Dimensions</button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;" @click="openDimensionsModal('mawb')">Set Dimensions</button></div></div>
 
                             <!-- Row 2 -->
                             <div class="form-group-gf"><label class="form-label-gf">Buying Rate</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" name="buying_rate" class="form-control-gf" style="flex:1;" x-model="form.buying_rate"> per <x-inline-select name="buying_rate_unit" :options="$agents" module="trade-partner" class="form-control-gf" /></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">AWB Gross Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1;"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;"> <span style="font-size:10px;">LB</span></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Amount</label><div class="form-input-container"><input type="text" class="form-control-gf" style="text-align:right;"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;">Sum Package & Weight</button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;" @click="sumPackageWeight()">Sum Package & Weight</button></div></div>
 
                             <!-- Row 3 -->
                             <div class="form-group-gf"><label class="form-label-gf">Selling Rate</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" name="selling_rate" class="form-control-gf" style="flex:1;" x-model="form.selling_rate"> per <x-inline-select name="selling_rate_unit" :options="$agents" module="trade-partner" class="form-control-gf" /></div></div>
@@ -1779,7 +1880,7 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Buying Rate</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" :name="'hbls[' + index + '][buying_rate]'" class="form-control-gf" style="flex:1;" x-model="hawb.buying_rate"> per <select class="form-control-gf" style="width:50px;"><option>KG</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Gross Weight (CNEE)</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1;"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;"> <span style="font-size:10px;">LB</span></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Amount</label><div class="form-input-container"><input type="text" class="form-control-gf" style="text-align:right;"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;">Set Dimensions</button></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;" @click="openDimensionsModal(index)">Set Dimensions</button></div></div>
 
                                 <!-- Row 3 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Selling Rate</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" :name="'hbls[' + index + '][selling_rate]'" class="form-control-gf" style="flex:1;" x-model="hawb.selling_rate"> per <select class="form-control-gf" style="width:50px;"><option>KG</option></select></div></div>
@@ -1790,7 +1891,7 @@
                                     </div>
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Amount</label><div class="form-input-container"><input type="text" class="form-control-gf" style="text-align:right;"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;">Sum Package & Weight</button></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf"></label><div class="form-input-container"><button type="button" class="btn-default-gf" style="width:100%;" @click="if(typeof showToast === 'function') showToast('info', 'Sum Package & Weight coming soon')">Sum Package & Weight</button></div></div>
                             </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
@@ -1980,7 +2081,8 @@
                                         <th style="width: 95px; text-align: right;">TOTAL (USD)</th>
                                         <th style="width: 90px;">INV NO.</th>
                                         <th style="width: 95px;">FINANCIAL DATE</th>
-                                        <th style="width: 90px;">EQ B/L NO.</th>
+                                        <th style="width: 80px;">MBL#</th>
+                                        <th style="width: 140px;">REMARK</th>
                                         <th style="width: 45px; text-align: center;">ACTION</th>
                                     </tr>
                                 </thead>
@@ -1989,7 +2091,7 @@
                                         <tr :style="charge.selected ? 'background:#fef9e7;' : ''">
                                             <td style="text-align: center;">
                                                 <input type="hidden" :name="'charges['+idx+'][id]'" :value="charge.id">
-                                                <input type="checkbox" x-model="charge.selected">
+                                                <input type="checkbox" x-model="charge.selected" :disabled="charge.is_invoiced" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                             </td>
                                             <td style="text-align: center;">
                                                 <div style="display: flex; align-items: center; justify-content: center; gap: 3px;">
@@ -2064,9 +2166,13 @@
                                             <td style="text-align: right; font-size: 10px;" x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0) * (parseFloat(charge.roe) || 1)).toFixed(2)">0.00</td>
                                             <td><input type="number" :name="'charges['+idx+'][vat]'" x-model="charge.vat" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px; text-align: right;" step="0.01" @input="updateLocalAmount(idx)"></td>
                                             <td style="text-align: right; font-weight: bold; font-size: 10px;" x-text="(((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0) * (parseFloat(charge.roe) || 1)) * (1 + (parseFloat(charge.vat) || 0) / 100)).toFixed(2)">0.00</td>
-                                            <td><input type="text" :name="'charges['+idx+'][inv_no]'" x-model="charge.inv_no" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px;"></td>
+                                            <td>
+                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold; font-size: 10px;"></span>
+                                                <input type="hidden" :name="'charges['+idx+'][inv_no]'" :value="charge.inv_no">
+                                            </td>
                                             <td><input type="date" :name="'charges['+idx+'][financial_date]'" x-model="charge.financial_date" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px;"></td>
-                                            <td><input type="text" :name="'charges['+idx+'][eq_bl_no]'" x-model="charge.eq_bl_no" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px;"></td>
+                                            <td><input type="text" :name="'charges['+idx+'][mbl_no]'" x-model="charge.mbl_no" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px;"></td>
+                                            <td><input type="text" :name="'charges['+idx+'][remark]'" x-model="charge.remark" class="form-control-gf" style="font-size: 10px; height: 20px; padding: 2px;"></td>
                                             <td style="text-align: center;">
                                                 <button type="button" @click="deleteCharge(charge)" class="btn-tool-icon" style="height: 20px; width: 20px; padding: 0; color: red; border-color: red;" title="Delete">
                                                     <i class="fa fa-trash" style="font-size: 10px;"></i>
@@ -2097,8 +2203,8 @@
 
                         <!-- Bottom Action Buttons Row -->
                         <div style="margin-top: 15px; display: flex; justify-content: flex-start; align-items: center; background: #f8fafc; padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 4px;">
-                            <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 7px 18px; font-weight: 600; border-radius: 4px; font-size: 11px; cursor: pointer;" @click.prevent="generateFreightInvoice()">
-                                Generate Freight Invoice
+                            <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 7px 18px; font-weight: 600; border-radius: 4px; font-size: 11px; cursor: pointer;" @click.prevent="createInvoice()">
+                                Generate Invoice
                             </button>
                         </div>
 
@@ -2813,6 +2919,129 @@
                     <button type="button" @click="showConsolidatedManifestModal = false" style="background: #ffffff; color: #374151; border: 1px solid #d1d5db; padding: 6px 18px; border-radius: 4px; font-weight: 500; font-size: 12px; cursor: pointer;">Cancel</button>
                     <button type="button" @click="submitConsolidatedManifest()" style="background: #0ea5e9; color: white; border: none; padding: 6px 22px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer;">View</button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Dimensions Modal -->
+        <div x-show="showDimensionsModal" 
+             style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999999; display: flex !important; align-items: center; justify-content: center;"
+             @click.self="closeDimensionsModal()" x-cloak>
+            <div style="background: white; border-radius: 4px; width: 750px; max-width: 95%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); font-size: 11px;">
+                <!-- Modal Header -->
+                <div style="background: #ffffff; padding: 14px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #111827;">Volume & Gross Weight Calculator</h3>
+                    <div class="modal-close" @click="closeDimensionsModal()" style="cursor: pointer; font-size: 20px; color: #9ca3af; line-height: 1;">&times;</div>
+                </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 15px 18px;">
+                <!-- Toolbar & Unit Switcher -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" @click="addDimensionRow()" style="background: #26a69a; color: #fff; border: none; width: 26px; height: 26px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                        <button type="button" @click="deleteSelectedDimensions()" style="background: #fff; color: #888; border: 1px solid #ddd; width: 26px; height: 26px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa fa-trash-o"></i>
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center; color: #666; font-size: 11px;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin: 0;">
+                            <input type="radio" x-model="dimensionUnit" value="CM" style="margin: 0;"> CM
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin: 0;">
+                            <input type="radio" x-model="dimensionUnit" value="Inch" style="margin: 0;"> Inch
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin: 0;">
+                            <input type="radio" x-model="dimensionUnit" value="Feet" style="margin: 0;"> Feet
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Calculator Table -->
+                <div style="border: 1px solid #ccc; max-height: 250px; overflow-y: auto;">
+                    <table class="table-custom" style="width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 11px;">
+                        <thead>
+                            <tr style="background: #888; color: #fff;">
+                                <th style="width: 30px; text-align: center; background: #888; color: #fff; border-right: 1px solid #999; padding: 6px 4px;">
+                                    <input type="checkbox" @change="dimensionRows.forEach(r => r.selected = $event.target.checked)">
+                                </th>
+                                <th style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 6px 4px;">Length</th>
+                                <th style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 6px 4px;">Width</th>
+                                <th style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 6px 4px;">Height</th>
+                                <th style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 6px 4px;">PCS</th>
+                                <th colspan="2" style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 4px;">
+                                    Gross Weight
+                                    <div style="display: flex; justify-content: space-around; border-top: 1px solid #aaa; margin-top: 2px; padding-top: 2px; font-weight: normal;">
+                                        <span style="width: 50%;">KGS</span>
+                                        <span style="width: 50%;">LBS</span>
+                                    </div>
+                                </th>
+                                <th colspan="2" style="background: #888; color: #fff; border-right: 1px solid #999; text-align: center; padding: 4px;">
+                                    Volume Weight
+                                    <div style="display: flex; justify-content: space-around; border-top: 1px solid #aaa; margin-top: 2px; padding-top: 2px; font-weight: normal;">
+                                        <span style="width: 50%;">KGS</span>
+                                        <span style="width: 50%;">LBS</span>
+                                    </div>
+                                </th>
+                                <th colspan="2" style="background: #888; color: #fff; text-align: center; padding: 4px;">
+                                    Measurement
+                                    <div style="display: flex; justify-content: space-around; border-top: 1px solid #aaa; margin-top: 2px; padding-top: 2px; font-weight: normal;">
+                                        <span style="width: 50%;">CBM</span>
+                                        <span style="width: 50%;">CFT</span>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(row, idx) in dimensionRows" :key="idx">
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="text-align: center; padding: 4px;">
+                                        <input type="checkbox" x-model="row.selected">
+                                    </td>
+                                    <td style="padding: 2px 4px;"><input type="number" step="0.01" class="form-control-gf" style="height: 22px; padding: 2px; text-align: right;" x-model="row.length" placeholder="0"></td>
+                                    <td style="padding: 2px 4px;"><input type="number" step="0.01" class="form-control-gf" style="height: 22px; padding: 2px; text-align: right;" x-model="row.width" placeholder="0"></td>
+                                    <td style="padding: 2px 4px;"><input type="number" step="0.01" class="form-control-gf" style="height: 22px; padding: 2px; text-align: right;" x-model="row.height" placeholder="0"></td>
+                                    <td style="padding: 2px 4px;"><input type="number" step="1" class="form-control-gf" style="height: 22px; padding: 2px; text-align: right;" x-model="row.pcs" placeholder="1"></td>
+                                    
+                                    <!-- Gross Weight -->
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowVolKg(row).toFixed(2)"></td>
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowVolLb(row).toFixed(2)"></td>
+                                    
+                                    <!-- Volume Weight -->
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowVolKg(row).toFixed(2)"></td>
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowVolLb(row).toFixed(2)"></td>
+                                    
+                                    <!-- Measurement -->
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowCbm(row).toFixed(2)"></td>
+                                    <td style="text-align: right; padding: 4px;" x-text="calcRowCft(row).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #fafafa; font-weight: bold; border-top: 2px solid #ccc;">
+                                <td colspan="4" style="text-align: right; padding: 6px;">Total</td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimPcs"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimVolKg.toFixed(2)"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimVolLb.toFixed(2)"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimVolKg.toFixed(2)"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimVolLb.toFixed(2)"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimCbm.toFixed(2)"></td>
+                                <td style="text-align: right; padding: 6px;" x-text="totalDimCft.toFixed(2)"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 12px 18px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; background: #fff;">
+                <button type="button" @click="closeDimensionsModal()" class="btn-default-gf" style="padding: 5px 15px; font-size: 12px; background: #e5e5e5; border: none; color: #333; border-radius: 2px;">
+                    Cancel
+                </button>
+                <button type="button" @click="applyDimensions()" class="btn-tool" style="padding: 5px 15px; font-size: 12px; background: #31708f; border: none; color: #fff; border-radius: 2px;">
+                    Apply
+                </button>
             </div>
         </div>
     </div>

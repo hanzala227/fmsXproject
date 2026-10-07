@@ -373,7 +373,6 @@
                                     <th class="sticky-col sticky-col-header" data-col="status"  style="width:90px;left:50px;">Status</th>
                                     <th class="sticky-col sticky-col-header" data-col="prefix"  style="width:50px;left:140px;">Prefix</th>
                                     <th class="sticky-col sticky-col-header" data-col="waybill" style="width:120px;left:190px;">Waybill No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color"   style="width:40px;left:310px;text-align:center;">Color</th>
                                     <th data-col="carrier" style="width:180px;">Carrier</th>
                                     <th data-col="file"    style="width:130px;">File No.</th>
                                     <th data-col="office"  style="width:90px;">Office</th>
@@ -452,10 +451,6 @@
                                     {{-- Waybill No. --}}
                                     <td class="sticky-col" style="width:120px;left:190px;font-weight:600;">
                                         <a href="/air-export/{{ $stock->id }}/edit" class="col-link">{{ $stock->mawb_no ? substr($stock->mawb_no, 4) : '--' }}</a>
-                                    </td>
-                                    {{-- Color --}}
-                                    <td class="sticky-col" style="width:40px;left:310px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $stock->color ?? '#94a3b8' }}" title="Click to change color" onclick="event.stopPropagation();openColorPicker({{ $stock->id }}, '{{ $stock->color ?? '' }}')"></span>
                                     </td>
                                     {{-- Carrier --}}
                                     <td>{{ $stock->carrier->name ?? '--' }}</td>

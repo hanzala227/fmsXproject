@@ -347,6 +347,7 @@
                             <thead>
                                 <tr>
                                     <th style="width: 30px;"><input type="checkbox" @change="toggleAllHblCommodities(hbl, $event)"></th>
+                                    <th style="width: 150px;">HB/L No.</th>
                                     <th>* Commodity Description</th>
                                     <th style="width: 200px;">HTS Code</th>
                                     <th style="width: 200px;">Container</th>
@@ -357,6 +358,14 @@
                                 <template x-for="(comm, commIdx) in hbl.commodities" :key="commIdx">
                                     <tr>
                                         <td><input type="checkbox" x-model="comm.selected"></td>
+                                        <td>
+                                            <select :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][hbl_no]'" class="form-control-gf" x-model="comm.hbl_no">
+                                                <option value="">Select HBL...</option>
+                                                <template x-for="h in hbls">
+                                                    <option :value="h.hbl_no" x-text="h.hbl_no"></option>
+                                                </template>
+                                            </select>
+                                        </td>
                                         <td>
                                             <textarea :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][commodity_desc]'" class="form-control-gf" placeholder="Description..." x-model="comm.commodity_desc" required style="min-height: 80px !important; height: 80px !important; width: 100%; resize: vertical; padding: 6px;"></textarea>
                                         </td>

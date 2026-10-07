@@ -20,12 +20,8 @@
     <td class="sticky-col" style="left:25px;" onclick="event.stopPropagation()">
         <a href="{{ route('ocean-bookings.edit', $b->id) }}" class="col-link">{{ $b->booking_no }}</a>
     </td>
-    {{-- Color --}}
-    <td class="sticky-col" style="left:155px;text-align:center;">
-        <span class="color-mark" style="background:{{ $b->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $b->id }}, '{{ $b->color ?? '' }}')"></span>
-    </td>
     {{-- Customer --}}
-    <td class="sticky-col" style="left:183px;">{{ $b->customer->name ?? '--' }}</td>
+    <td class="sticky-col" style="left:148px;">{{ $b->customer->name ?? '--' }}</td>
     {{-- Office --}}
     <td>{{ $b->office->code ?? '--' }}</td>
     {{-- Carrier --}}

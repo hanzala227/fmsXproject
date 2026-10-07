@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FREIGHT INVOICE {{ $data['invoice_no'] }}</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <style>
     @page {
         size: A4 portrait;
@@ -98,7 +101,7 @@
     }
 
     /* Absolute Field Positions (Exact PDF Image Alignments) */
-    #inv_no             { background: #ffffff !important; top: 17.2%; left: 36.8%; width: 30%; height: 2.2%; font-size: 28px; font-weight: 900; }
+    #inv_no             { background: #ffffff !important; top: 16.8%; left: 36.8%; width: 30%; height: 3.2%; font-size: 28px; font-weight: 900; line-height: 1; border: none; }
     #bin_no             { top: 19.5%; left: 9.8%; width: 18%; height: 1.8%; }
     
     #bill_to_block      {display:none; background: #ffffff !important; top: 20.5%; left: 24.5%; width: 50%; height: 8.0%; font-size: 9.5px; }
@@ -182,6 +185,13 @@
     <div class="btn-group">
         <button class="btn-action" onclick="recalculateTotals()">🔄 Recalculate Totals</button>
         <button class="btn-action" onclick="window.print()">🖨 Print / Download PDF</button>
+        
+        <x-email-document-modal 
+            documentType="freight-invoice" 
+            documentId="{{ $shipment->id ?? 0 }}" 
+            documentUrl="{{ url()->full() }}" 
+            documentName="Freight_Invoice_{{ $data['invoice_no'] }}" 
+        />
     </div>
 </div>
 

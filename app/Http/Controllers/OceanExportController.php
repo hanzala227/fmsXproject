@@ -308,21 +308,19 @@ class OceanExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -390,6 +388,40 @@ class OceanExportController extends Controller
             
             return (object) $data;
         });
+
+        // Format charge data for frontend compatibility
+        $oceanExport->charges = $oceanExport->charges->map(function($charge) use ($oceanExport) {
+            $data = $charge->toArray();
+            
+            $data['chrg_code'] = $charge->charge_code ?? '';
+            $data['charge_name'] = $charge->charge_name ?? '';
+            $data['pr'] = $charge->type === 'AP' ? 'Pay' : 'Rec';
+            $data['ppc'] = $charge->pc === 'PREPAID' ? 'Prepaid' : 'Colle';
+            $data['qty_type'] = $charge->unit ?? 'UNIT';
+            $data['inv_no'] = $charge->invoice_no ?? '';
+            $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
+            $data['currency'] = $charge->currency ? $charge->currency->code : '';
+            
+            if ($charge->type === 'AP' && $charge->vendor) {
+                $data['party_name'] = $charge->vendor->name;
+                $data['party_name_id'] = $charge->vendor_id;
+            } else if ($charge->type !== 'AP' && $charge->billTo) {
+                $data['party_name'] = $charge->billTo->name;
+                $data['party_name_id'] = $charge->bill_to_id;
+            } else {
+                $data['party_name'] = '';
+                $data['party_name_id'] = '';
+            }
+            
+            $data['party'] = 'Custom'; 
+            $data['sal'] = 'Sea'; 
+            $data['mbl_no'] = $oceanExport->file_no; 
+            $data['eq_bl_no'] = $charge->remark ?? ''; 
+            $data['remark'] = $charge->remark ?? false;
+            $data['_selected'] = false;
+
+            return (object) $data;
+        });
         
         $offices = Office::where('is_active', true)->get();
         $ports = Port::all();
@@ -416,7 +448,7 @@ class OceanExportController extends Controller
             })
             : [];
         $chargesList = $oceanExport->charges && $oceanExport->charges->count() > 0
-            ? $oceanExport->charges->map(function($c) {
+            ? $oceanExport->charges->map(function($c) use ($oceanExport) {
                 return [
                     'id' => $c->id,
                     'selected' => false,
@@ -460,21 +492,19 @@ class OceanExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -1227,7 +1257,7 @@ class OceanExportController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function createInvoiceFromCharges(Request $request, $oceanExportId)
+    public function createInvoiceFromCharges(Request $request, $oceanExportId, \App\Services\InvoiceGenerationService $invoiceService)
     {
         OceanExport::findOrFail($oceanExportId);
 
@@ -1258,14 +1288,21 @@ class OceanExportController extends Controller
             return response()->json(['success' => false, 'message' => 'No charges found for this shipment. Please add charges first.'], 400);
         }
 
-        $invNo = 'SCL' . sprintf('%08d', $oceanExportId);
-        foreach ($charges as $charge) {
-            $charge->update([
-                'is_invoiced' => true,
-                'invoice_no' => $invNo,
-                'invoice_date' => now(),
-            ]);
+        $companyId = auth()->user()->company_id ?? 1;
+        $result = $invoiceService->generateInvoicesFromCharges(
+            $companyId,
+            'App\Models\OceanExport',
+            $oceanExportId,
+            'Export',
+            'Sea',
+            $charges
+        );
+
+        if (!$result['success']) {
+            return response()->json($result, 400);
         }
+
+        $invNo = implode(', ', $result['invoices']);
 
         // === AUTO-POPULATION INTEGRATION ===
         $shipment = OceanExport::with([

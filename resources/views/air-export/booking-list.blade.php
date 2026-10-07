@@ -276,8 +276,7 @@
                                             <i class="fa fa-lock"></i>
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="booking_no"  style="width:130px;left:53px;">Booking No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color"       style="width:28px;left:183px;text-align:center;">CR</th>
-                                        <th class="sticky-col sticky-col-header" data-col="customer"    style="width:140px;left:211px;">Customer</th>
+                                        <th class="sticky-col sticky-col-header" data-col="customer"    style="width:140px;left:176px;">Customer</th>
                                         <th data-col="office"        style="width:70px;">Office</th>
                                         <th data-col="carrier"       style="width:120px;">Carrier</th>
                                         <th data-col="flight_no"    style="width:100px;">Flight No.</th>
@@ -303,7 +302,7 @@
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:53px;"><input class="filter-input" data-col-idx="2" placeholder="Booking…" oninput="applyFilters()"></td>
                                         <td class="sticky-col" style="left:183px;"></td>
-                                        <td class="sticky-col" style="left:211px;"><input class="filter-input" data-col-idx="4" placeholder="Customer…" oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:176px;"><input class="filter-input" data-col-idx="4" placeholder="Customer…" oninput="applyFilters()"></td>
                                         <td><input class="filter-input" data-col-idx="5"  placeholder="Office…"    oninput="applyFilters()"></td>
                                         <td><input class="filter-input" data-col-idx="6"  placeholder="Carrier…"   oninput="applyFilters()"></td>
                                         <td><input class="filter-input" data-col-idx="7"  placeholder="Flight…"    oninput="applyFilters()"></td>
@@ -349,12 +348,8 @@
                                         <td class="sticky-col" style="left:53px;" onclick="event.stopPropagation()">
                                             <a href="{{ route('air-bookings.edit', $b->id) }}" class="col-link">{{ $b->booking_no }}</a>
                                         </td>
-                                        {{-- Color --}}
-                                        <td class="sticky-col" style="left:183px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $b->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $b->id }}, '{{ $b->color ?? '' }}')"></span>
-                                        </td>
                                         {{-- Customer --}}
-                                        <td class="sticky-col" style="left:211px;">{{ $b->customer->name ?? '--' }}</td>
+                                        <td class="sticky-col" style="left:176px;">{{ $b->customer->name ?? '--' }}</td>
                                         {{-- Office --}}
                                         <td>{{ $b->office->code ?? '--' }}</td>
                                         {{-- Carrier --}}

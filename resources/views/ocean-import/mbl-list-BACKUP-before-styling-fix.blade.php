@@ -401,8 +401,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">File No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">Color</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mbl_no" style="width:150px;left:195px;">MB/L No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mbl_no" style="width:150px;left:160px;">MB/L No.</th>
 
                                     <th data-col="tracking" style="width:140px;">Tracking EDI Response</th>
                                     <th data-col="sub_status" style="width:100px;">Submit Status</th>
@@ -433,7 +432,7 @@
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File No…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td class="sticky-col" style="left:160px;"></td>
-                                    <td class="sticky-col" style="left:195px;"><input class="filter-input" style="width:100%;" data-param="filter_mbl_no" placeholder="MB/L…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                    <td class="sticky-col" style="left:160px;"><input class="filter-input" style="width:100%;" data-param="filter_mbl_no" placeholder="MB/L…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td colspan="4"></td>
                                     <td></td>
                                     <td><input class="filter-input" data-param="filter_etd" placeholder="ETD…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
@@ -479,10 +478,7 @@
                                             <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;" title="Open"></i>
                                         </div>
                                     </td>
-                                    <td class="sticky-col" style="left:160px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-                                    </td>
-                                    <td class="sticky-col" style="left:195px;" onclick="event.stopPropagation()">
+                                    <td class="sticky-col" style="left:160px;" onclick="event.stopPropagation()">
                                         <div style="display:flex;align-items:center;justify-content:space-between;">
                                             <span>{{ $shipment->mbl_no }}</span>
                                             <i class="fa fa-eye" style="color:#3b82f6;font-size:10px;cursor:pointer;" title="Quick view MBL" onclick="event.stopPropagation();showMbl({

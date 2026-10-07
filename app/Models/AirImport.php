@@ -34,10 +34,10 @@ class AirImport extends Model
         // Direct Master fields
         'is_direct_master', 'dm_customer_id', 'dm_shipper_id', 'dm_consignee_id',
         'dm_notify_id', 'dm_bill_to_id', 'dm_sales_person_id', 'is_blocked',
+        'transportation',
     ];
 
     protected $casts = [
-        'routes' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
         'eta' => 'date',

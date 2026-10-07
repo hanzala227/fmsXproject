@@ -65,7 +65,6 @@
             
             /* Hide checkboxes, color marks */
             th[data-col="check"], td:nth-child(1),
-            th[data-col="color"], td:nth-child(2) {
                 display: none !important;
             }
             
@@ -427,11 +426,10 @@
                                         <th class="sticky-col sticky-col-header" data-col="check" style="width:25px;text-align:center;">
                                             <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                         </th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:30px;left:25px;text-align:center;">Color</th>
-                                        <th class="sticky-col sticky-col-header" data-col="shipping_no" style="width:130px;left:55px;cursor:pointer;" onclick="toggleSort('shipping_no')">
+                                        <th class="sticky-col sticky-col-header" data-col="shipping_no" style="width:130px;left:25px;cursor:pointer;" onclick="toggleSort('shipping_no')">
                                             Shipping No. <i class="fa fa-sort" id="sort-shipping_no"></i>
                                         </th>
-                                        <th class="sticky-col sticky-col-header" data-col="customer" style="width:150px;left:185px;">Customer</th>
+                                        <th class="sticky-col sticky-col-header" data-col="customer" style="width:150px;left:155px;">Customer</th>
                                         <th data-col="office" style="width:80px;">Office</th>
                                         <th data-col="shipping_date" style="width:90px;cursor:pointer;" onclick="toggleSort('shipping_date')">
                                             Post Date <i class="fa fa-sort" id="sort-shipping_date"></i>
@@ -462,9 +460,8 @@
                                     {{-- FILTER ROW --}}
                                     <tr id="filter-row" style="display:none;">
                                         <td data-col="check" class="sticky-col" style="left:0;"></td>
-                                        <td data-col="color" class="sticky-col" style="left:25px;"></td>
-                                        <td data-col="shipping_no" class="sticky-col" style="left:55px;"><input class="filter-input" data-col-idx="2" placeholder="Shipping No..." oninput="applyFilters()"></td>
-                                        <td data-col="customer" class="sticky-col" style="left:185px;"><input class="filter-input" data-col-idx="3" placeholder="Customer..." oninput="applyFilters()"></td>
+                                        <td data-col="shipping_no" class="sticky-col" style="left:25px;"><input class="filter-input" data-col-idx="2" placeholder="Shipping No..." oninput="applyFilters()"></td>
+                                        <td data-col="customer" class="sticky-col" style="left:155px;"><input class="filter-input" data-col-idx="3" placeholder="Customer..." oninput="applyFilters()"></td>
                                         <td data-col="office"><input class="filter-input" data-col-idx="4" placeholder="Office..." oninput="applyFilters()"></td>
                                         <td data-col="shipping_date"><input class="filter-input" data-col-idx="5" placeholder="Post Date..." oninput="applyFilters()"></td>
                                         <td data-col="out_date"><input class="filter-input" data-col-idx="6" placeholder="Out Date..." oninput="applyFilters()"></td>
@@ -491,16 +488,12 @@
                                         <td class="sticky-col" style="width:25px;text-align:center;" onclick="event.stopPropagation()">
                                             <input type="checkbox" name="ids[]" value="{{ $shipping->id }}" class="row-check" onchange="updateToolbar()">
                                         </td>
-                                        {{-- Color --}}
-                                        <td class="sticky-col" style="width:30px;left:25px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $shipping->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipping->id }}, '{{ $shipping->color ?? '' }}')"></span>
-                                        </td>
                                         {{-- Shipping No. --}}
-                                        <td class="sticky-col" style="width:130px;left:55px;" onclick="event.stopPropagation()">
+                                        <td class="sticky-col" style="width:130px;left:25px;" onclick="event.stopPropagation()">
                                             <a href="{{ route('shipping.edit', $shipping->id) }}" class="col-link">{{ $shipping->shipping_no }}</a>
                                         </td>
                                         {{-- Customer --}}
-                                        <td class="sticky-col" style="width:150px;left:185px;">
+                                        <td class="sticky-col" style="width:150px;left:155px;">
                                             {{ $shipping->customer->name ?? '' }}
                                         </td>
                                         {{-- Office --}}

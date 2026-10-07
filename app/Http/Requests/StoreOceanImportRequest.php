@@ -13,7 +13,7 @@ class StoreOceanImportRequest extends FormRequest
 
     protected function prepareForValidation()
     {
-        $this->merge([
+        $mergeData = [
             'is_direct_master' => $this->boolean('is_direct_master'),
             'is_ecommerce' => $this->boolean('is_ecommerce'),
             'is_obl_received' => $this->boolean('is_obl_received'),
@@ -21,7 +21,13 @@ class StoreOceanImportRequest extends FormRequest
             'is_isf_3rd_party' => $this->boolean('is_isf_3rd_party'),
             'is_ror' => $this->boolean('is_ror'),
             'is_hold' => $this->boolean('is_hold'),
-        ]);
+        ];
+
+        if (empty($this->bl_type)) $mergeData['bl_type'] = 'NORMAL';
+        if (empty($this->cargo_type)) $mergeData['cargo_type'] = 'GENERAL CARGO';
+        if (empty($this->ship_mode)) $mergeData['ship_mode'] = 'FCL';
+
+        $this->merge($mergeData);
 
         if ($this->has('hbls') && is_array($this->hbls)) {
             $hbls = $this->hbls;

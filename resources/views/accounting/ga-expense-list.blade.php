@@ -193,9 +193,8 @@
                                             <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:50px;text-align:center;">COL.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="party" style="width:150px;left:85px;">Party</th>
-                                        <th class="sticky-col sticky-col-header" data-col="ref_no" style="width:120px;left:235px;">Reference No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="party" style="width:150px;left:50px;">Party</th>
+                                        <th class="sticky-col sticky-col-header" data-col="ref_no" style="width:120px;left:200px;">Reference No.</th>
                                         <th data-col="amt_bf_tax" style="width:110px;text-align:right;cursor:pointer;" onclick="doSort('subtotal')">Amount Before Tax <i class="fa fa-sort" id="sort-subtotal"></i></th>
                                         <th data-col="tax" style="width:90px;text-align:right;">Tax Amount</th>
                                         <th data-col="amount" style="width:110px;text-align:right;cursor:pointer;" onclick="doSort('total_amount')">Amount <i class="fa fa-sort" id="sort-total_amount"></i></th>
@@ -216,8 +215,8 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
-                                        <td class="sticky-col" style="left:85px;"><input class="filter-input" data-col-idx="3" placeholder="Party..." oninput="filterOnInput()"></td>
-                                        <td class="sticky-col" style="left:235px;"><input class="filter-input" data-col-idx="4" placeholder="Reference No..." oninput="filterOnInput()"></td>
+                                        <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="3" placeholder="Party..." oninput="filterOnInput()"></td>
+                                        <td class="sticky-col" style="left:200px;"><input class="filter-input" data-col-idx="4" placeholder="Reference No..." oninput="filterOnInput()"></td>
                                         <td></td><td></td><td></td><td></td><td></td><td></td>
                                         <td></td>
                                         <td></td><td></td><td></td>
@@ -240,11 +239,8 @@
                                         <td class="sticky-col" style="width:25px;left:25px;text-align:center;" onclick="event.stopPropagation()">
                                             <i class="fa {{ $expense->status === 'POSTED' || $expense->status === 'PAID' ? 'fa-lock' : 'fa-unlock' }}" style="color:#94a3b8;cursor:pointer;font-size:10px;" title="Lock status" onclick="toggleLock(this)"></i>
                                         </td>
-                                        <td class="sticky-col" style="width:35px;left:50px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $expense->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $expense->id }}, '{{ $expense->color ?? '' }}')"></span>
-                                        </td>
-                                        <td class="sticky-col" style="width:150px;left:85px;">{{ $expense->billTo ? Str::limit($expense->billTo->name, 18) : '--' }}</td>
-                                        <td class="sticky-col" style="width:120px;left:235px;">
+                                        <td class="sticky-col" style="width:150px;left:50px;">{{ $expense->billTo ? Str::limit($expense->billTo->name, 18) : '--' }}</td>
+                                        <td class="sticky-col" style="width:120px;left:200px;">
                                             <a href="{{ route('accounting.ga-expense.show', $expense->id) }}" class="col-link">{{ $expense->invoice_no }}</a>
                                         </td>
                                         <td style="text-align:right;">{{ number_format($expense->subtotal, 2) }}</td>

@@ -467,8 +467,7 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">File No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color"   style="width:35px;left:160px;text-align:center;">CR</th>
-                                        <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:195px;">MAWB No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:160px;">MAWB No.</th>
                                         <th data-col="status"     style="width:70px;">Status</th>
                                         <th data-col="flight_no"  style="width:80px;">Flight No.</th>
                                         <th data-col="hbl_count"  style="width:40px;text-align:right;">HBL</th>
@@ -496,7 +495,7 @@
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="File No.." oninput="applyFilters()"></td>
                                         <td class="sticky-col" style="left:160px;"></td>
-                                        <td class="sticky-col" style="left:195px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:160px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
@@ -549,10 +548,7 @@
                                         <td class="sticky-col" style="left:50px;" onclick="event.stopPropagation()">
                                             <a href="{{ route('air-export.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
                                         </td>
-                                        <td class="sticky-col" style="left:160px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-                                        </td>
-                                        <td class="sticky-col" style="left:195px;" onclick="event.stopPropagation()">
+                                        <td class="sticky-col" style="left:160px;" onclick="event.stopPropagation()">
                                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                                 <span>{{ $shipment->mawb_no ?: '--' }}</span>
                                                 <i class="fa fa-eye"

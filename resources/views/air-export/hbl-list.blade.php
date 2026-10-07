@@ -251,8 +251,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="hawb_no" style="width:120px;left:50px;">HAWB No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color"    style="width:28px;left:170px;text-align:center;">CR</th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:198px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:163px;">File No.</th>
                                     <th data-col="customer"   style="width:150px;">Customer</th>
                                     <th data-col="shipper"    style="width:150px;">Shipper</th>
                                     <th data-col="consignee"  style="width:150px;">Consignee</th>
@@ -271,7 +270,7 @@
                                     <td class="sticky-col" style="left:25px;background:#eff6ff;"></td>
                                     <td class="sticky-col" style="left:50px;background:#eff6ff;"><input class="filter-input" data-col-idx="2" placeholder="HAWB…" oninput="applyFilters()" style="width:100%;"></td>
                                     <td class="sticky-col" style="left:170px;background:#eff6ff;"></td>
-                                    <td class="sticky-col" style="left:198px;background:#eff6ff;"><input class="filter-input" data-col-idx="4" placeholder="File…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td class="sticky-col" style="left:163px;background:#eff6ff;"><input class="filter-input" data-col-idx="4" placeholder="File…" oninput="applyFilters()" style="width:100%;"></td>
                                     <td><input class="filter-input" data-col-idx="5"  placeholder="Customer…" oninput="applyFilters()" style="width:100%;"></td>
                                     <td><input class="filter-input" data-col-idx="6"  placeholder="Shipper…"   oninput="applyFilters()" style="width:100%;"></td>
                                     <td><input class="filter-input" data-col-idx="7"  placeholder="Consignee…" oninput="applyFilters()" style="width:100%;"></td>
@@ -303,10 +302,7 @@
                                     <td class="sticky-col" style="left:50px;font-weight:600;" onclick="event.stopPropagation()">
                                         <a href="/air-export/{{ $hbl->air_export_id }}/edit" class="col-link">{{ $hbl->hawb_no ?: '--' }}</a>
                                     </td>
-                                    <td class="sticky-col" style="left:170px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $hbl->color ?? '#94a3b8' }}" title="Click to change color" onclick="event.stopPropagation();openColorPicker({{ $hbl->id }}, '{{ $hbl->color ?? '' }}')"></span>
-                                    </td>
-                                    <td class="sticky-col" style="left:198px;">
+                                    <td class="sticky-col" style="left:163px;">
                                         <a href="/air-export/{{ $hbl->air_export_id }}/edit" class="col-link">{{ $hbl->airExport->file_no ?? '--' }}</a>
                                     </td>
                                     <td>{{ $hbl->customer->name ?? '--' }}</td>

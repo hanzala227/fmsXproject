@@ -15,10 +15,7 @@
                 <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;"></i>
             </div>
         </td>
-        <td class="sticky-col" style="left:173px;text-align:center;">
-            <span class="color-mark" style="background:{{ $shipment->color ?: '#94a3b8' }}" title="Click to change color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }},'{{ $shipment->color ?? '' }}')"></span>
-        </td>
-        <td class="sticky-col" style="left:213px;font-weight:600;border-right:1px solid #cbd5e1!important;">
+        <td class="sticky-col" style="left:178px;font-weight:600;border-right:1px solid #cbd5e1!important;">
             <span>{{ $shipment->mawb_no ?: '--' }}</span>
         </td>
         <td>{{ $shipment->overseaAgent->name ?? '--' }}</td>

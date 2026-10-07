@@ -15,12 +15,14 @@ use App\Models\Document;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ShipmentMemoAutoPopulationService;
+use App\Services\DocumentSequenceService;
 
 class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer']);
+        $companyId = auth()->user()->company_id ?? 1;
+        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer'])->where('company_id', $companyId);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -62,6 +64,12 @@ class InvoiceController extends Controller
             $query->where('type', $request->input('filter_type'));
         }
 
+        $docType = null;
+        if ($request->filled('doc_type')) {
+            $docType = strtoupper($request->input('doc_type'));
+            $query->where('document_type', $docType);
+        }
+
         $sortField = $request->get('sort', 'created_at');
         $sortDir = $request->get('dir', 'desc');
         $allowedSorts = ['invoice_no', 'invoice_date', 'due_date', 'total_amount', 'paid_amount', 'balance_amount', 'status', 'created_at'];
@@ -75,7 +83,7 @@ class InvoiceController extends Controller
         $totalPaidAmount = Invoice::where('status', '!=', 'VOID')->sum('paid_amount');
         $totalBalanceAmount = Invoice::where('status', '!=', 'VOID')->sum('balance_amount');
 
-        return view('accounting.invoice-list', compact('invoices', 'totalInvoiceAmount', 'totalPaidAmount', 'totalBalanceAmount'));
+        return view('accounting.invoice-list', compact('invoices', 'totalInvoiceAmount', 'totalPaidAmount', 'totalBalanceAmount', 'docType'));
     }
 
     public function create(Request $request)
@@ -103,10 +111,57 @@ class InvoiceController extends Controller
         $data['paid_amount'] = $data['paid_amount'] ?? 0;
         $data['balance_amount'] = $data['total_amount'] - ($data['paid_amount'] ?? 0);
 
+        if (!empty($data['idempotency_key'])) {
+            $existing = Invoice::where('idempotency_key', $data['idempotency_key'])->first();
+            if ($existing) {
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Invoice already created (idempotent).',
+                        'invoice' => $existing->fresh()->load(['billTo', 'currency', 'office']),
+                        'redirect' => route('accounting.invoices.edit', $existing->id),
+                    ]);
+                }
+                return redirect()->route('accounting.invoices.edit', $existing->id);
+            }
+        }
+
         DB::beginTransaction();
         try {
+            $companyId = auth()->user()->company_id ?? 1;
+            
+            // Determine document type (INV, DN, CN)
+            $partner = TradePartner::find($data['bill_to_id']);
+            $partnerType = $partner ? strtolower($partner->type) : '';
+            $isAgent = str_contains($partnerType, 'agent');
+            
+            if ($request->filled('document_type')) {
+                $docType = $request->input('document_type');
+            } else {
+                if ($data['type'] === 'AR') {
+                    $docType = $isAgent ? 'DN' : 'INV';
+                } else {
+                    $docType = 'CN';
+                }
+            }
+            
+            $sequenceService = app(DocumentSequenceService::class);
+            $seqData = $sequenceService->generateSequence(
+                $companyId, 
+                $data['invoiceable_type'] ?? '', 
+                $data['invoiceable_id'] ?? null, 
+                $docType
+            );
+            
+            $data['invoice_no'] = $seqData['invoice_no'];
+            $data['main_sequence_no'] = $seqData['main_sequence_no'];
+            $data['group_letter'] = $seqData['group_letter'];
+            $data['document_type'] = $docType;
+            $data['verification_status'] = 'Pending Verification';
+
             $invoice = Invoice::create($data);
 
+            // Process manual lines
             if ($request->filled('lines_json')) {
                 $lines = json_decode($request->input('lines_json'), true) ?? [];
                 foreach ($lines as $lineData) {
@@ -121,6 +176,41 @@ class InvoiceController extends Controller
                         ]);
                     }
                 }
+            }
+
+            // Process selected charges
+            if (!empty($data['charge_ids'])) {
+                $charges = DB::table('charges')
+                    ->whereIn('id', $data['charge_ids'])
+                    ->where('company_id', $companyId)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($charges as $c) {
+                    if ($c->is_invoiced) {
+                        throw new \Exception("Charge {$c->charge_code} is already invoiced.");
+                    }
+                    
+                    // Create invoice line from charge
+                    $invoice->lines()->create([
+                        'description' => $c->charge_name ?? $c->charge_code ?? 'Charge',
+                        'qty' => $c->qty ?? 1,
+                        'rate' => $c->rate ?? 0,
+                        'amount' => $c->amount ?? 0,
+                        'charge_code' => $c->charge_code,
+                        'type' => $c->type,
+                    ]);
+                }
+
+                // Update charges to marked as invoiced
+                DB::table('charges')
+                    ->whereIn('id', $data['charge_ids'])
+                    ->update([
+                        'is_invoiced' => true,
+                        'invoice_no' => $invoice->invoice_no,
+                        'invoice_date' => $invoice->invoice_date,
+                        'updated_at' => now(),
+                    ]);
             }
 
             DB::commit();
@@ -160,6 +250,16 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        if ($invoice->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'Cannot modify a verified document.'], 403);
+                }
+                abort(403, 'Cannot modify a verified document.');
+            }
+        }
+        
         $data = $request->validated();
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
@@ -223,8 +323,58 @@ class InvoiceController extends Controller
             ->with('success', 'Invoice deleted successfully.');
     }
 
+    public function verifyQueue()
+    {
+        $companyId = auth()->user()->company_id ?? 1;
+        $invoices = Invoice::with(['billTo', 'currency', 'invoiceable'])
+            ->where('company_id', $companyId)
+            ->where('verification_status', 'Pending Verification')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+        return view('accounting.verify', compact('invoices'));
+    }
+
+    public function verify(Invoice $invoice)
+    {
+        $user = auth()->user();
+        if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.verify')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized to verify documents.'], 403);
+        }
+
+        $invoice->update([
+            'verification_status' => 'Verified',
+            'verified_by' => auth()->id(),
+            'verified_at' => now(),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document verified successfully.']);
+    }
+
+    public function reject(Request $request, Invoice $invoice)
+    {
+        $user = auth()->user();
+        if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.verify')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized to reject documents.'], 403);
+        }
+
+        $request->validate(['reject_reason' => 'required|string']);
+        $invoice->update([
+            'verification_status' => 'Rejected',
+            'rejected_by' => auth()->id(),
+            'rejected_at' => now(),
+            'reject_reason' => $request->input('reject_reason'),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document rejected successfully.']);
+    }
+
     public function edit(Invoice $invoice)
     {
+        if ($invoice->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                abort(403, 'Cannot modify a verified document.');
+            }
+        }
+
         $invoice->load(['lines', 'documents.uploader']);
         $tradePartners = TradePartner::all();
         $currencies = Currency::all();

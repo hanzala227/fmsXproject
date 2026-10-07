@@ -110,6 +110,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 // ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
                                 ['url' => '/air-export/booking/mawb-stock', 'label' => 'MAWB Stock List'],
                             ]],
+                            /*
                             ['id' => 'truck', 'label' => 'Trucking', 'icon' => 'fa-truck', 'sub' => [
                                 ['url' => '/truck/create', 'label' => 'New Shipment'],
                                 ['url' => '/truck/create-quote', 'label' => 'New Shipment from Quote'],
@@ -132,9 +133,16 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ]],
                                 ['url' => '/warehouse/automobile', 'label' => 'Automobile List'],
                             ]],
+                            */
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
-                                ['label' => 'Invoice/Cost', 'type' => 'group', 'items' => [
-                                    ['url' => '/accounting/invoice', 'label' => 'Invoice / Cost List'],
+                                ['label' => 'INV/DN/CN', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/invoice', 'label' => 'All'],
+                                    ['url' => '/accounting/invoice?doc_type=INV', 'label' => 'INV'],
+                                    ['url' => '/accounting/invoice?doc_type=DN', 'label' => 'DN'],
+                                    ['url' => '/accounting/invoice?doc_type=CN', 'label' => 'CN'],
+                                    ['url' => '/accounting/invoice/verify-queue', 'label' => 'Verify'],
+                                ]],
+                                ['label' => 'G&A', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Invoice / Expense List'],
                                     ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
                                     ['url' => '/accounting/ga-invoice/create', 'label' => 'Create G&A Invoice'],

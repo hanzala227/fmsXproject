@@ -32,6 +32,12 @@
         function oceanImportModule() {
             return {
                 saved: @json(isset($oceanImport) ? true : false),
+                showAiModal: false,
+                isAiProcessing: false,
+                aiPreviewMode: false,
+                documentPreviewUrl: '',
+                extractedData: [],
+                aiError: '',
                 showCopyModal: false,
                 showBatchEmailModal: false,
                 showCargoManifestStatusModal: false,
@@ -774,6 +780,341 @@
                         }
                     });
                 },
+                // --- AI Auto-Fill Logic ---
+                handleAiUpload(e) {
+                    if (!e.target.files.length) return;
+                    
+                    const file = e.target.files[0];
+                    const formData = new FormData();
+                    formData.append('document', file);
+                    
+                    // Create preview URL
+                    if (this.documentPreviewUrl) {
+                        URL.revokeObjectURL(this.documentPreviewUrl);
+                    }
+                    this.documentPreviewUrl = URL.createObjectURL(file);
+                    
+                    this.isAiProcessing = true;
+                    this.aiPreviewMode = true;
+                    this.extractedData = []; // Clear old data
+                    this.aiError = '';
+
+                    fetch('/api/ai/extract/ocean-import', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        this.isAiProcessing = false;
+                        if (!data.success) {
+                            this.aiError = data.message;
+                            return;
+                        }
+                        
+                        this.extractedData = [];
+                        
+                        // Parse MBL fields
+                        if (data.data.mbl) {
+                            const m = data.data.mbl;
+                            const mblMap = [
+                                { label: 'MB/L No.', key: 'mbl_no', val: m.mbl_no },
+                                { label: 'Booking No.', key: 'booking_no', val: m.booking_no },
+                                { label: 'File No.', key: 'file_no', val: m.file_no },
+                                { label: 'Post Date', key: 'post_date', val: m.post_date },
+                                { label: 'Vessel Name', key: 'vessel_id', val: m.vessel_id, display: m.vessel_name, nameKey: 'vessel_name' },
+                                { label: 'Voyage No.', key: 'voyage', val: m.voyage },
+                                { label: 'Port of Loading', key: 'pol_id', val: m.pol_id, display: m.pol_name, nameKey: 'pol_name' },
+                                { label: 'Port of Discharge', key: 'pod_id', val: m.pod_id, display: m.pod_name, nameKey: 'pod_name' },
+                                { label: 'Place of Delivery', key: 'del_id', val: m.del_id, display: m.del_name, nameKey: 'del_name' },
+                                { label: 'Final Destination', key: 'fdest_id', val: m.fdest_id, display: m.fdest_name, nameKey: 'fdest_name' },
+                                { label: 'CY Location', key: 'cy_location_id', val: m.cy_location_id, display: m.cy_location_name, nameKey: 'cy_location_name' },
+                                { label: 'CFS Location', key: 'cfs_location_id', val: m.cfs_location_id, display: m.cfs_location_name, nameKey: 'cfs_location_name' },
+                                { label: 'Forwarding Agent', key: 'forwarding_agent_id', val: m.forwarding_agent_id, display: m.forwarding_agent_name, nameKey: 'forwarding_agent_name' },
+                                { label: 'Carrier', key: 'carrier_id', val: m.carrier_id, display: m.carrier_name, nameKey: 'carrier_name' },
+                                { label: 'Co-Loader', key: 'co_loader_id', val: m.co_loader_id, display: m.co_loader_name, nameKey: 'co_loader_name' },
+                                { label: 'Oversea Agent', key: 'oversea_agent_id', val: m.oversea_agent_id, display: m.oversea_agent_name, nameKey: 'oversea_agent_name' },
+                                { label: 'Operator', key: 'op_id', val: m.op_id, display: m.op_name, nameKey: 'op_name' },
+                                { label: 'Sales Person', key: 'dm_sales_person_id', val: m.dm_sales_person_id, display: m.dm_sales_person_name, nameKey: 'dm_sales_person_name' },
+                                { label: 'Agent Ref No.', key: 'agent_ref_no', val: m.agent_ref_no },
+                                { label: 'Contract No.', key: 'contract_no', val: m.contract_no },
+                                { label: 'Sales Type', key: 'sales_type', val: m.sales_type },
+                                { label: 'B/L Type', key: 'bl_type', val: m.bl_type },
+                                { label: 'Cargo Type', key: 'cargo_type', val: m.cargo_type },
+                                { label: 'Description', key: 'description', val: m.description },
+                                { label: 'ETA', key: 'eta', val: m.eta },
+                                { label: 'ETD', key: 'etd', val: m.etd },
+                            ];
+                            
+                            mblMap.forEach(field => {
+                                if (field.val || field.display) {
+                                    this.extractedData.push({
+                                        label: field.label,
+                                        parent: 'mbl',
+                                        key: field.key,
+                                        value: field.val,
+                                        displayValue: field.display || field.val,
+                                        nameKey: field.nameKey || null,
+                                        selected: true
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // Parse HBL fields (Ocean Import usually has 1 or more, we'll map the first one)
+                        if (data.data.hbls && data.data.hbls.length > 0) {
+                            const h = data.data.hbls[0];
+                            const hblMap = [
+                                { label: 'HB/L No.', key: 'hbl_no', val: h.hbl_no },
+                                { label: 'Shipper', key: 'shipper_id', val: h.shipper_id, display: h.shipper_name, nameKey: 'shipper_name' },
+                                { label: 'Consignee', key: 'consignee_id', val: h.consignee_id, display: h.consignee_name, nameKey: 'consignee_name' },
+                                { label: 'Notify Party', key: 'notify_id', val: h.notify_id, display: h.notify_party_name, nameKey: 'notify_party_name' },
+                                { label: 'Gross Weight', key: 'weight', val: h.weight },
+                                { label: 'Volume (CBM)', key: 'volume', val: h.volume },
+                                { label: 'Pieces', key: 'pieces', val: h.pieces },
+                            ];
+                            
+                            hblMap.forEach(field => {
+                                if (field.val || field.display) {
+                                    this.extractedData.push({
+                                        label: field.label,
+                                        parent: 'hbl',
+                                        key: field.key,
+                                        value: field.val,
+                                        displayValue: field.display || field.val,
+                                        nameKey: field.nameKey || null,
+                                        selected: true
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // Parse Containers
+                        if (data.data.containers && data.data.containers.length > 0) {
+                            data.data.containers.forEach((c, idx) => {
+                                this.extractedData.push({
+                                    label: `Container ${idx+1}`,
+                                    parent: 'containers',
+                                    key: `container_${idx}`,
+                                    value: c.container_no,
+                                    displayValue: `${c.container_no || ''} ${c.container_type ? '('+c.container_type+')' : ''}`,
+                                    originalData: c,
+                                    selected: true
+                                });
+                            });
+                        }
+                        
+                        this.aiPreviewMode = true;
+                        e.target.value = ''; // reset file input
+                    })
+                    .catch(err => {
+                        this.isAiProcessing = false;
+                        this.aiError = 'An error occurred while connecting to the AI service.';
+                        console.error(err);
+                    });
+                },
+                applyAiData() {
+                    let dataToApply = { mbl: {}, hbl: {}, hbls: [], containers: [] };
+                    
+                    this.extractedData.forEach(item => {
+                        if (item.selected) {
+                            if (item.parent === 'containers') {
+                                dataToApply.containers.push(item.originalData);
+                            } else if (item.parent === 'mbl') {
+                                dataToApply.mbl[item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.mbl[item.nameKey] = item.displayValue;
+                                }
+                            } else if (item.parent === 'hbl') {
+                                dataToApply.hbl[item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.hbl[item.nameKey] = item.displayValue;
+                                }
+                            }
+                        }
+                    });
+                    
+                    if (Object.keys(dataToApply.hbl).length > 0) {
+                        dataToApply.hbls.push(dataToApply.hbl);
+                    }
+                    
+                    this.populateAiData(dataToApply);
+                    this.showAiModal = false;
+                    this.aiPreviewMode = false;
+                    this.extractedData = [];
+                    if (typeof showToast === 'function') showToast('success', 'Data applied successfully!');
+                },
+
+                populateAiData(data) {
+                    // Helper function to inject missing options into dropdowns dynamically
+                    const ensureOptionExists = (selectName, id, text) => {
+                        if (!id) return;
+                        const el = document.querySelector(`[name="${selectName}"]`);
+                        if (el) {
+                            let exists = false;
+                            for (let i = 0; i < el.options.length; i++) {
+                                if (el.options[i].value == id) { exists = true; break; }
+                            }
+                            if (!exists) {
+                                const opt = document.createElement('option');
+                                opt.value = id;
+                                opt.text = text;
+                                el.appendChild(opt);
+                            }
+                        }
+                    };
+
+                    // MBL Mapping
+                    if (data.mbl) {
+                        // Standard Fields
+                        if (data.mbl.mbl_no) this.form.mbl_no = data.mbl.mbl_no;
+                        if (data.mbl.file_no && !this.saved) this.form.file_no = data.mbl.file_no;
+                        if (data.mbl.post_date) this.form.post_date = data.mbl.post_date;
+                        if (data.mbl.agent_ref_no) this.form.agent_ref_no = data.mbl.agent_ref_no;
+                        if (data.mbl.contract_no) this.form.contract_no = data.mbl.contract_no;
+                        if (data.mbl.sales_type) this.form.sales_type = data.mbl.sales_type;
+                        if (data.mbl.bl_type) this.form.bl_type = data.mbl.bl_type;
+                        if (data.mbl.sub_bl_no) this.form.sub_bl_no = data.mbl.sub_bl_no;
+                        if (data.mbl.cargo_type) this.form.cargo_type = data.mbl.cargo_type;
+                        if (data.mbl.voyage) this.form.voyage = data.mbl.voyage;
+                        if (data.mbl.etd) this.form.etd = data.mbl.etd;
+                        if (data.mbl.eta) this.form.eta = data.mbl.eta;
+                        if (data.mbl.atd) this.form.atd = data.mbl.atd;
+                        if (data.mbl.ata) this.form.ata = data.mbl.ata;
+                        if (data.mbl.final_eta) this.form.final_eta = data.mbl.final_eta;
+                        if (data.mbl.etb) this.form.etb = data.mbl.etb;
+                        if (data.mbl.latest_gate_in) this.form.latest_gate_in = data.mbl.latest_gate_in;
+                        if (data.mbl.freight_term) this.form.freight_term = data.mbl.freight_term;
+                        if (data.mbl.obl_type) this.form.obl_type = data.mbl.obl_type;
+                        if (data.mbl.ship_mode) this.form.ship_mode = data.mbl.ship_mode;
+                        if (data.mbl.is_express_bl !== undefined && !data.mbl.bl_type) this.form.bl_type = data.mbl.is_express_bl ? 'Express' : 'Original';
+                        if (data.mbl.obl_received_date) {
+                            this.form.is_obl_received = 1;
+                            this.form.obl_received_date = data.mbl.obl_received_date;
+                        }
+                        if (data.mbl.released_date) {
+                            this.form.is_released = 1;
+                            this.form.released_date = data.mbl.released_date;
+                        }
+                        
+                        // Foreign Keys (Jugaar)
+                        const mblFks = [
+                            {id: 'pol_id', name: 'pol_name', fallback: 'POL'},
+                            {id: 'pod_id', name: 'pod_name', fallback: 'POD'},
+                            {id: 'del_id', name: 'del_name', fallback: 'Delivery Port'},
+                            {id: 'fdest_id', name: 'fdest_name', fallback: 'Final Destination'},
+                            {id: 'forwarding_agent_id', name: 'forwarding_agent_name', fallback: 'Forwarding Agent'},
+                            {id: 'op_id', name: 'op_name', fallback: 'Operator'},
+                            {id: 'dm_sales_person_id', name: 'dm_sales_person_name', fallback: 'Sales Person'},
+                            {id: 'oversea_agent_id', name: 'oversea_agent_name', fallback: 'Oversea Agent'},
+                            {id: 'co_loader_id', name: 'co_loader_name', fallback: 'Co-Loader'},
+                            {id: 'carrier_id', name: 'carrier_name', fallback: 'Carrier'},
+                            {id: 'acct_carrier_id', name: 'acct_carrier_name', fallback: 'Acct Carrier'},
+                            {id: 'dm_notify_id', name: 'dm_notify_name', fallback: 'Notify'},
+                            {id: 'cy_location_id', name: 'cy_location_name', fallback: 'CY Location'},
+                            {id: 'cfs_location_id', name: 'cfs_location_name', fallback: 'CFS Location'},
+                            {id: 'business_referred_by_id', name: 'business_referred_by_name', fallback: 'Referred By'},
+                            {id: 'vessel_id', name: 'vessel_name', fallback: 'Vessel'},
+                        ];
+                        
+                        mblFks.forEach(fk => {
+                            if (data.mbl[fk.id]) {
+                                ensureOptionExists(fk.id, data.mbl[fk.id], data.mbl[fk.name] || fk.fallback);
+                                this.form[fk.id] = data.mbl[fk.id];
+                            }
+                        });
+
+                        // Add Route / Transportation
+                        if (data.mbl.eta || data.mbl.etd || data.mbl.pol_id || data.mbl.pod_id || data.mbl.vessel_name) {
+                            if (!this.form.routes || this.form.routes.length === 0) {
+                                this.addRoute();
+                            }
+                            const r = this.form.routes[0];
+                            if (data.mbl.eta) r.eta = data.mbl.eta;
+                            if (data.mbl.etd) r.etd = data.mbl.etd;
+                            if (data.mbl.ata) r.ata = data.mbl.ata;
+                            if (data.mbl.atd) r.atd = data.mbl.atd;
+                            
+                            if (data.mbl.pol_id) {
+                                ensureOptionExists('routes[0][airport_id]', data.mbl.pol_id, data.mbl.pol_name || 'POL');
+                                r.airport_id = data.mbl.pol_id;
+                            }
+                            
+                            if (data.mbl.vessel_name) {
+                                r.flight_no = data.mbl.vessel_name + (data.mbl.voyage ? ' / ' + data.mbl.voyage : '');
+                            }
+                            
+                            if (data.mbl.carrier_id) {
+                                ensureOptionExists('routes[0][carrier_id]', data.mbl.carrier_id, data.mbl.carrier_name || 'Carrier');
+                                r.carrier_id = data.mbl.carrier_id;
+                            }
+                            
+                            // Force Alpine reactivity
+                            this.form.routes = [...this.form.routes];
+                        }
+                    }
+
+                    // HBL Mapping (Fill the first HBL tab if it's empty, or create one)
+                    if (data.hbls && data.hbls.length > 0) {
+                        if (this.hbls.length === 0) {
+                            this.addHbl();
+                        }
+                        const hbl = data.hbls[0];
+                        if (hbl.hbl_no) this.hbls[0].hbl_no = hbl.hbl_no;
+                        if (hbl.pieces) this.hbls[0].total_pieces = hbl.pieces;
+                        if (hbl.weight) this.hbls[0].gross_weight_kg = hbl.weight;
+                        if (hbl.volume) this.hbls[0].volume_cbm = hbl.volume;
+                        if (hbl.hbl_description) this.hbls[0].hbl_description = hbl.hbl_description;
+                        if (hbl.hbl_mark) this.hbls[0].hbl_mark = hbl.hbl_mark;
+                        if (hbl.bl_type) this.hbls[0].bl_type = hbl.bl_type;
+                        if (hbl.cargo_type) this.hbls[0].cargo_type = hbl.cargo_type;
+                        if (hbl.freight_term) this.hbls[0].freight_term = hbl.freight_term;
+                        
+                        // Foreign Keys (Jugaar)
+                        if (hbl.shipper_id) {
+                            ensureOptionExists('dm_shipper_id', hbl.shipper_id, hbl.shipper_name || 'Shipper');
+                            this.hbls[0].shipper_id = hbl.shipper_id;
+                            if (!this.form.dm_shipper_id) this.form.dm_shipper_id = hbl.shipper_id;
+                        }
+                        if (hbl.consignee_id) {
+                            ensureOptionExists('dm_consignee_id', hbl.consignee_id, hbl.consignee_name || 'Consignee');
+                            ensureOptionExists('dm_customer_id', hbl.consignee_id, hbl.consignee_name || 'Customer');
+                            this.hbls[0].consignee_id = hbl.consignee_id;
+                            if (!this.form.dm_consignee_id) this.form.dm_consignee_id = hbl.consignee_id;
+                            if (!this.form.dm_customer_id) this.form.dm_customer_id = hbl.consignee_id; // Default customer to consignee
+                        }
+                        if (hbl.notify_id) {
+                            ensureOptionExists('notify_id', hbl.notify_id, hbl.notify_party_name || 'Notify');
+                            this.hbls[0].notify_id = hbl.notify_id;
+                        }
+                        if (hbl.customer_id) {
+                            ensureOptionExists('customer_id', hbl.customer_id, hbl.customer_name || 'Customer');
+                            this.hbls[0].customer_id = hbl.customer_id;
+                        }
+                        if (hbl.sales_person_id) {
+                            ensureOptionExists('sales_person_id', hbl.sales_person_id, hbl.sales_person_name || 'Sales Person');
+                            this.hbls[0].sales_person_id = hbl.sales_person_id;
+                        }
+                        if (hbl.forwarding_agent_id) {
+                            ensureOptionExists('forwarding_agent_id', hbl.forwarding_agent_id, hbl.forwarding_agent_name || 'Forwarding Agent');
+                            this.hbls[0].forwarding_agent_id = hbl.forwarding_agent_id;
+                        }
+                    }
+
+                    // Containers Mapping
+                    if (data.containers && data.containers.length > 0) {
+                        data.containers.forEach((cont, index) => {
+                            if (this.form.containers.length <= index) {
+                                this.addContainer();
+                            }
+                            if (cont.container_no) this.form.containers[index].container_no = cont.container_no;
+                            if (cont.seal_no) this.form.containers[index].seal_no = cont.seal_no;
+                        });
+                    }
+                },
+
                 toolsAction(action, hblIdx = 0) {
                     console.log('[Tools] action called:', action);
                     console.log('[Tools] this:', this);
@@ -1235,6 +1576,7 @@
                 addHblCommodity(hbl) {
                     hbl.commodities.push({
                         selected: false,
+                        hbl_no: hbl.hbl_no || '',
                         commodity_desc: '',
                         hts_code: '',
                         container_no: '',
@@ -1700,16 +2042,27 @@
                         showToast('error', 'Please save shipment first.');
                         return;
                     }
-                    if (!confirm('Generate Freight Invoice for this shipment?')) return;
+                    
+                    let selectedIds = this.chargesList.filter(c => c._selected && !c.is_invoiced && c.id).map(c => c.id);
+                    if (selectedIds.length === 0) {
+                        showToast('error', 'Please select at least one uninvoiced charge.');
+                        return;
+                    }
+
+                    if (!confirm('Generate Invoice for selected charges?')) return;
                     fetch(`/ocean-import/${this.form.id}/charges/invoice`, {
                         method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                        headers: { 
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ ids: selectedIds })
                     })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
                             showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            window.open(data.freight_invoice_url || `/shipments/ocean-import/${this.form.id}/freight-invoice`, '_blank');
                             setTimeout(() => { window.location.reload(); }, 800);
                         } else {
                             showToast('error', 'Failed to create invoice: ' + data.message);
@@ -2125,6 +2478,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h1 class="caption-subject" style="font-size: 18px;">{{ isset($oceanImport) ? 'Edit' : 'Create' }} Ocean Import Shipment</h1>
             <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-freightx" style="background: linear-gradient(135deg, #6366f1, #a855f7); border: none; color: white;" @click="showAiModal = true">
+                    <i class="fa fa-magic"></i> AI Auto-Fill
+                </button>
                 <template x-if="!saved">
                     <button type="button" class="btn-freightx" @click="saveMainTab" :disabled="isSaving" style="background:#f59e0b;">
                         <i class="fa" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
@@ -2399,9 +2755,7 @@
                     <thead>
                         <tr style="background: #f1f3f6;">
                             <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 6px; border-radius: 2px; cursor: pointer; display: inline-block;">
-                                    <i class="fa fa-plus"></i>
-                                </button>
+                                <input type="checkbox" @change="toggleAllCharges($event)" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
                             </th>
                             <th style="padding: 6px 8px;">Party</th>
                             <th style="padding: 6px 8px;">Party Name</th>
@@ -2419,20 +2773,21 @@
                             <th style="padding: 6px 8px;">L.Amnt</th>
                             <th style="padding: 6px 8px;">Inv/Dr/Cr/No</th>
                             <th style="padding: 6px 8px;">Fin. Dt</th>
-                            <th style="padding: 6px 8px;">JV</th>
-                            <th style="padding: 6px 8px;">EQ/BL NO.</th>
-                            <th style="padding: 6px 8px;">Remark</th>
                             <th style="padding: 6px 8px;">MBL#</th>
+                            <th style="padding: 6px 8px;">Remark</th>
+                            <th style="padding: 6px 8px; width: 30px; text-align: center;">
+                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 6px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="(charge, idx) in chargesList" :key="idx">
-                            <tr x-show="shouldShowChargeRow(charge)">
+                            <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
                                 <td style="padding: 5px 8px; text-align: center;">
+                                    <input type="checkbox" x-model="charge._selected" :disabled="charge.is_invoiced" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                     <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
-                                    <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
                                 </td>
                                 <td style="padding: 5px 8px;">
                                     <select class="form-control-gf" style="width: 70px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
@@ -2504,23 +2859,22 @@
                                     <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
                                 </td>
                                 <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 110px;" x-model="charge.inv_no" :name="'charges[' + idx + '][inv_no]'" placeholder="INV/DR/CR No.">
+                                    <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
+                                    <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
                                 </td>
                                 <td style="padding: 5px 8px;">
                                     <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
                                 </td>
                                 <td style="padding: 5px 8px;">
-                                    <span style="background: #4b77be; color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 9px;">JV</span>
-                                </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 100px;" x-model="charge.eq_bl_no" :name="'charges[' + idx + '][eq_bl_no]'" placeholder="EQ/BL No.">
-                                </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="hidden" :name="'charges[' + idx + '][remark]'" value="0">
-                                    <input type="checkbox" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" value="1" style="width: 16px; height: 16px;">
-                                </td>
-                                <td style="padding: 5px 8px;">
                                     <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
+                                </td>
+                                <td style="padding: 5px 8px;">
+                                    <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
+                                </td>
+                                <td style="padding: 5px 8px; text-align: center;">
+                                    <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                         </template>
@@ -2533,7 +2887,8 @@
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="addNewCharge">Parcs</button>
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="openCertificateModal">Certificate</button>
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="applyTemplate">Template</button>
-                <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="generateFreightInvoice">Generate Freight Invoice</button>
+                <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="createInvoice">Generate Invoice</button>
+
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="prorataCharges">Prorata</button>
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="setDefaultCharges">Default</button>
                 <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="reloadCharges">Reload</button>
@@ -3473,6 +3828,104 @@
 
     
 
+
+        <!-- AI Auto-Fill Modal (Advanced Split Pane) -->
+        <div x-show="showAiModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;" @click.self="!isAiProcessing && !aiPreviewMode ? showAiModal = false : null" x-transition>
+            <div class="modal-container" style="max-width: 1100px; width: 95vw; padding: 0; display: flex; flex-direction: column; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="background:#337ab7; color:white; border-radius: 8px 8px 0 0; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight:700; font-size: 16px;"><i class="fa fa-file-text-o"></i> AI Document Extraction</span>
+                    <i class="fa fa-times cursor-pointer" @click="!isAiProcessing ? showAiModal = false : null" style="color:white; font-size: 16px;"></i>
+                </div>
+                
+                <div class="modal-body" style="padding: 20px; background: #fff;" x-data="{ fileName: '' }">
+                    <div x-show="aiError" style="background: #fef2f2; color: #dc2626; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; border: 1px solid #f87171;">
+                        <i class="fa fa-exclamation-triangle"></i> <span x-text="aiError"></span>
+                    </div>
+
+                    <!-- State 1: Upload (Not Preview Mode) -->
+                    <div x-show="!aiPreviewMode">
+                        <p style="margin-bottom: 15px; font-size: 14px; color: #555;">Upload a Bill of Lading, Invoice, or Packing List (PDF, Image, CSV). Our AI will analyze the document and automatically fill the form.</p>
+                        <label class="ai-dropzone">
+                            <i class="fa fa-cloud-upload ai-dropzone-icon"></i>
+                            <div class="ai-dropzone-title">Click to browse or drag file here</div>
+                            <div class="ai-dropzone-desc">Supports PDF, PNG, JPG, CSV, TXT</div>
+                            <input x-ref="aiFileInput" type="file" style="display: none;" @change="handleAiUpload" accept=".pdf,.txt,.csv,.jpg,.jpeg,.png">
+                        </label>
+                    </div>
+                    
+                    <!-- State 2: Review (Preview Mode) -->
+                    <div x-show="aiPreviewMode" class="ai-split-layout" style="display: none;">
+                        <!-- Left Pane: Document Preview -->
+                        <div class="ai-pane-left" style="padding:0; border:1px solid #cbd5e1; background: #334155; overflow: hidden;">
+                            <div style="width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;">
+                                <template x-if="documentPreviewUrl">
+                                    <iframe :src="documentPreviewUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH'" style="width: 100%; height: 100%; border: none; pointer-events: none;"></iframe>
+                                </template>
+                                <template x-if="!documentPreviewUrl">
+                                    <div style="display:flex; align-items:center; justify-content:center; height:100%; background: url('https://www.transparenttextures.com/patterns/cubes.png') #f8fafc; width: 100%;">
+                                        <i class="fa fa-file-text-o" style="font-size: 80px; color: #cbd5e1;"></i>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="isAiProcessing" class="ai-scanner-line-large" style="display: none;"></div>
+                                <div x-show="isAiProcessing" class="ai-scanner-badge" style="display: none;">
+                                    <i class="fa fa-magic"></i> AI Analyzing...
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Pane: Extracted Data Review -->
+                        <div class="ai-pane-right">
+                            <div class="ai-table-header">
+                                <span>Shipment Information</span>
+                            </div>
+                            
+                            <div class="ai-table-container">
+                                <table class="ai-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Field Name</th>
+                                            <th>Extracted Data</th>
+                                            <th style="text-align: center; width: 60px;">Select</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Loading State -->
+                                        <tr x-show="isAiProcessing">
+                                            <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">
+                                                <i class="fa fa-circle-o-notch fa-spin" style="font-size: 24px; margin-bottom: 10px; color: #3b82f6;"></i>
+                                                <div>Extracting fields from document...</div>
+                                            </td>
+                                        </tr>
+                                        
+                                        <!-- Done State -->
+                                        <template x-for="(item, index) in extractedData" :key="index">
+                                            <tr>
+                                                <td x-text="item.label" style="font-weight: 500;"></td>
+                                                <td><span class="ai-extracted-value" x-text="item.displayValue"></span></td>
+                                                <td style="text-align: center;">
+                                                    <input type="checkbox" class="ai-checkbox" x-model="item.selected">
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!isAiProcessing && extractedData.length === 0">
+                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 20px;">No fields extracted.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; border-radius: 0 0 8px 8px;">
+                    <button type="button" class="btn-default-gf" @click="showAiModal = false; aiPreviewMode = false;" :disabled="isAiProcessing">Cancel</button>
+                    <button type="button" class="btn-freightx" style="background:#337ab7; color:white; border-color:#286090;" @click="aiPreviewMode ? applyAiData() : $refs.aiFileInput.click()" :disabled="isAiProcessing">
+                        <i class="fa" :class="aiPreviewMode ? 'fa-check' : 'fa-cogs'"></i> <span x-text="aiPreviewMode ? 'Create Shipment' : 'Extract Data'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
     </div><!-- end Alpine scope -->
 

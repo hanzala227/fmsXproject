@@ -65,6 +65,7 @@ use App\Http\Controllers\SuperAdmin\CompanyController as SuperAdminCompanyContro
 // All data fetching must be done on the client side via the /api routes.
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/global-search', [GlobalSearchController::class, 'search'])->name('api.global-search');
+    Route::post('/api/documents/email', [\App\Http\Controllers\DocumentEmailController::class, 'sendEmail'])->name('documents.email');
     Route::get('/', function () {
         if (auth()->check() && auth()->user()->isSuperAdmin()) {
             return redirect()->route('super-admin.dashboard');
@@ -91,9 +92,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/email-settings', [ProfileController::class, 'updateEmailSettings'])->name('profile.email-settings');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Ocean Operations
+    // AI Document Extraction Routes
+    Route::post('/api/ai/extract/ocean-import', [\App\Http\Controllers\AiExtractionController::class, 'extractOceanImport'])->name('ai.extract.ocean-import');
+    Route::post('/api/ai/extract/ocean-export', [\App\Http\Controllers\AiExtractionController::class, 'extractOceanExport'])->name('ai.extract.ocean-export');
+    Route::post('/api/ai/extract/air-import', [\App\Http\Controllers\AiExtractionController::class, 'extractAirImport'])->name('ai.extract.air-import');
+    Route::post('/api/ai/extract/air-export', [\App\Http\Controllers\AiExtractionController::class, 'extractAirExport'])->name('ai.extract.air-export');
+
     Route::get('/ocean-import/list', [OceanImportController::class, 'index'])->name('ocean-import.index');
     Route::get('/ocean-import/create', [OceanImportController::class, 'create'])->name('ocean-import.create');
     Route::get('/ocean-import/create-quote', [OceanImportController::class, 'create'])->name('ocean-import.create-quote');
@@ -884,10 +892,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/accounting/invoice/{invoice}/documents', [InvoiceController::class, 'uploadDocument'])->name('accounting.invoices.documents.store');
     Route::delete('/accounting/invoice/documents/{document}', [InvoiceController::class, 'deleteDocument'])->name('accounting.invoices.documents.destroy');
     Route::get('/accounting/invoice/documents/{document}/download', [InvoiceController::class, 'downloadDocument'])->name('accounting.invoices.documents.download');
+    Route::get('/accounting/invoice/verify-queue', [InvoiceController::class, 'verifyQueue'])->name('accounting.invoices.verify-queue');
     // Wildcard {invoice} routes — must come AFTER literal routes
     Route::get('/accounting/invoice/{invoice}', [InvoiceController::class, 'show'])->name('accounting.invoices.show');
     Route::get('/accounting/invoice/{invoice}/edit', [InvoiceController::class, 'edit'])->name('accounting.invoices.edit');
     Route::put('/accounting/invoice/{invoice}', [InvoiceController::class, 'update'])->name('accounting.invoices.update');
+    Route::post('/accounting/invoice/{invoice}/verify', [InvoiceController::class, 'verify'])->name('accounting.invoices.verify');
+    Route::post('/accounting/invoice/{invoice}/reject', [InvoiceController::class, 'reject'])->name('accounting.invoices.reject');
     Route::delete('/accounting/invoice/{invoice}', [InvoiceController::class, 'destroy'])->name('accounting.invoices.destroy');
     // Accounting — G&A Expense (AP Invoices)
     Route::get('/accounting/ga-expense-list', [GaExpenseController::class, 'index'])->name('accounting.ga-expense.index');
@@ -1110,12 +1121,12 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
     Route::get('/companies', [SuperAdminCompanyController::class, 'index'])->name('companies.index');
     Route::get('/companies/create', [SuperAdminCompanyController::class, 'create'])->name('companies.create');
     Route::post('/companies', [SuperAdminCompanyController::class, 'store'])->name('companies.store');
+    Route::get('/companies/export-csv', [SuperAdminCompanyController::class, 'exportCsv'])->name('companies.export-csv');
     Route::get('/companies/{company}', [SuperAdminCompanyController::class, 'show'])->name('companies.show');
     Route::get('/companies/{company}/edit', [SuperAdminCompanyController::class, 'edit'])->name('companies.edit');
     Route::put('/companies/{company}', [SuperAdminCompanyController::class, 'update'])->name('companies.update');
     Route::patch('/companies/{company}/toggle-status', [SuperAdminCompanyController::class, 'toggleStatus'])->name('companies.toggle-status');
     Route::post('/companies/{company}/reset-password', [SuperAdminCompanyController::class, 'resetPassword'])->name('companies.reset-password');
-    Route::get('/companies/export-csv', [SuperAdminCompanyController::class, 'exportCsv'])->name('companies.export-csv');
 
     // Users (Accounts & Access)
     Route::resource('users', App\Http\Controllers\SuperAdmin\SuperAdminUserController::class);

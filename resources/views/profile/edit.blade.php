@@ -173,6 +173,48 @@
             </div>
         </div>
 
+    <!-- Company Email Configuration -->
+        <div class="profile-card">
+            <div class="profile-card-header">
+                <i class="fa fa-envelope" style="color: #4b77be;"></i>
+                <h3>Company Email Configuration</h3>
+            </div>
+            <div class="profile-card-body">
+                <p style="font-size: 13px; color: #718096; margin-bottom: 20px;">Configure the email account used to send documents (Invoices, HBL, etc.) on behalf of your company. We use Gmail's secure servers by default.</p>
+                <form method="post" action="{{ route('profile.email-settings') }}">
+                    @csrf
+                    @method('patch')
+
+                    <!-- Hidden default fields for SMTP -->
+                    <input type="hidden" name="smtp_host" value="smtp.gmail.com">
+                    <input type="hidden" name="smtp_port" value="587">
+                    <input type="hidden" name="smtp_encryption" value="tls">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label" for="smtp_username">Email Address</label>
+                            @php
+                                $company = $user->company ?? ($user->isSuperAdmin() ? \App\Models\Company::first() : null);
+                            @endphp
+                            <input type="email" id="smtp_username" name="smtp_username" class="form-input" value="{{ old('smtp_username', $company->smtp_username ?? '') }}" placeholder="youremail@gmail.com" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="smtp_password">App Password</label>
+                            <input type="password" id="smtp_password" name="smtp_password" class="form-input" placeholder="Leave blank to keep current password">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button type="submit" class="btn-profile">Save Email Settings</button>
+                        @if (session('status') === 'email-settings-updated')
+                            <p class="status-message">Email settings saved successfully.</p>
+                        @endif
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Delete Account -->
         <div class="profile-card" style="border-top: 3px solid #d05454;">
             <div class="profile-card-header" style="background: rgba(208, 84, 84, 0.05);">

@@ -96,5 +96,10 @@ class OceanExportHbl extends Model
         return $this->belongsToMany(OceanExportContainer::class, 'ocean_export_container_hbl', 'hbl_id', 'container_id');
     }
 
+    public function commodities()
+    {
+        return $this->hasMany(OceanExportHblCommodity::class, 'hbl_id');
+    }
+
     public function charges() { return $this->morphMany(Charge::class, 'chargeable'); }
 }

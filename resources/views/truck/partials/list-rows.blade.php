@@ -22,10 +22,6 @@
         <td class="sticky-col" style="width:110px;left:50px;" onclick="event.stopPropagation()">
             <a href="{{ route('truck.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
         </td>
-        {{-- Color --}}
-        <td class="sticky-col" style="width:35px;left:160px;text-align:center;">
-            <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-        </td>
         {{-- Post Date --}}
         <td>{{ $shipment->post_date ? $shipment->post_date->format('m-d-Y') : '--' }}</td>
         {{-- Customer --}}

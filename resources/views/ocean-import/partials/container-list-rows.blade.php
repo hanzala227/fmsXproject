@@ -8,13 +8,6 @@
     <td data-col="flag" class="sticky-col" style="left:25px;text-align:center;">
         <i class="fa fa-flag" style="color:{{ $c->is_dg ? '#ef4444' : '#cbd5e1' }};font-size:10px;"></i>
     </td>
-    <td data-col="file_no" class="sticky-col" style="left:50px;" onclick="event.stopPropagation()">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <a href="{{ $c->oceanImport ? route('ocean-import.edit', $c->oceanImport?->id) : '#' }}" class="col-link">{{ $c->oceanImport?->file_no ?? 'N/A' }}</a>
-            <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;" title="Open"></i>
-        </div>
-    </td>
-    <td data-col="color" class="sticky-col" style="left:185px;text-align:center;">
         <span class="color-mark" style="background:{{ $c->oceanImport?->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $c->oceanImport?->id ?? 0 }}, '{{ $c->oceanImport?->color ?? '' }}')"></span>
     </td>
     <td data-col="container_no" class="sticky-col" style="left:220px;">{{ $c->container_no ?? 'N/A' }}</td>

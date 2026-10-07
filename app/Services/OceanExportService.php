@@ -32,7 +32,13 @@ class OceanExportService
                             $hblData[$hk] = null;
                         }
                     }
-                    $oceanExport->hbls()->create($hblData);
+                    $newHbl = $oceanExport->hbls()->create($hblData);
+                    
+                    if (isset($hblData['commodities']) && is_array($hblData['commodities'])) {
+                        foreach ($hblData['commodities'] as $commodityData) {
+                            $newHbl->commodities()->create($commodityData);
+                        }
+                    }
                 }
             }
 
@@ -77,8 +83,29 @@ class OceanExportService
                         }
                     } else {
                         $hblData = array_merge($this->getHblDefaults(), $hblData);
-                        $newHbl = $oceanExport->hbls()->create($hblData);
-                        $submittedHblIds[] = $newHbl->id;
+                        $hbl = $oceanExport->hbls()->create($hblData);
+                        $submittedHblIds[] = $hbl->id;
+                    }
+                    
+                    if (isset($hbl)) {
+                        if (isset($hblData['commodities']) && is_array($hblData['commodities'])) {
+                            $submittedCommIds = [];
+                            foreach ($hblData['commodities'] as $commData) {
+                                if (isset($commData['id'])) {
+                                    $commModel = $hbl->commodities()->find($commData['id']);
+                                    if ($commModel) {
+                                        $commModel->update($commData);
+                                        $submittedCommIds[] = $commModel->id;
+                                    }
+                                } else {
+                                    $newComm = $hbl->commodities()->create($commData);
+                                    $submittedCommIds[] = $newComm->id;
+                                }
+                            }
+                            $hbl->commodities()->whereNotIn('id', $submittedCommIds)->delete();
+                        } else {
+                            $hbl->commodities()->delete();
+                        }
                     }
                 }
             }

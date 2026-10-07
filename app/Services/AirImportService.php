@@ -18,6 +18,9 @@ class AirImportService
             // Handle HBLs
             if (isset($data['hbls'])) {
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no'])) {
+                        continue;
+                    }
                     $airImport->hbls()->create($hblData);
                 }
             }
@@ -64,6 +67,9 @@ class AirImportService
                 $airImport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
 
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no']) && empty($hblData['id'])) {
+                        continue;
+                    }
                     if (isset($hblData['id'])) {
                         $hbl = AirImportHbl::find($hblData['id']);
                         if ($hbl) $hbl->update($hblData);

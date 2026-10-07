@@ -163,7 +163,6 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:53px;">File No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:40px;text-align:center;left:173px;">Color</th>
                                     <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:213px;">MAWB No.</th>
                                     <th data-col="oversea_agent" style="width:150px;">Oversea Agent</th>
                                     <th data-col="shipper" style="width:150px;">Shipper</th>

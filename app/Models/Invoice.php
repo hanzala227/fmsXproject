@@ -37,6 +37,16 @@ class Invoice extends Model
         'shipping_amount',
         'color',
         'internal_remark',
+        'verification_status',
+        'verified_by',
+        'verified_at',
+        'rejected_by',
+        'rejected_at',
+        'reject_reason',
+        'main_sequence_no',
+        'group_letter',
+        'document_type',
+        'idempotency_key',
     ];
 
     protected $casts = [

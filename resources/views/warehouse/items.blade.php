@@ -72,7 +72,6 @@
             
             /* Hide checkboxes and color columns */
             th[data-col="check"], td:nth-child(1),
-            th[data-col="color"], td:nth-child(2) {
                 display: none !important;
             }
             
@@ -545,8 +544,7 @@
                                     <th class="sticky-col sticky-col-header" data-col="check" style="width:25px;text-align:center;left:0;">
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:30px;left:25px;text-align:center;">Color</th>
-                                    <th class="sticky-col sticky-col-header" data-col="warehouse" style="width:140px;left:55px;">
+                                    <th class="sticky-col sticky-col-header" data-col="warehouse" style="width:140px;left:25px;">
                                         <a href="javascript:;" onclick="toggleSort('warehouse_id')" style="color:inherit;text-decoration:none;">Warehouse <i class="fa fa-sort" id="sort-warehouse_id"></i></a>
                                     </th>
                                     <th data-col="sku" style="width:110px;">
@@ -571,8 +569,7 @@
                                 </tr>
                                 <tr id="filter-row" class="filter-row" style="display:none;">
                                     <td class="sticky-col" data-col="check" style="left:0;"></td>
-                                    <td class="sticky-col" data-col="color" style="left:25px;"></td>
-                                    <td class="sticky-col" data-col="warehouse" style="left:55px;"><input class="filter-input" data-col-idx="2" placeholder="Warehouse..." oninput="applyFilters()"></td>
+                                    <td class="sticky-col" data-col="warehouse" style="left:25px;"><input class="filter-input" data-col-idx="2" placeholder="Warehouse..." oninput="applyFilters()"></td>
                                     <td data-col="sku"><input class="filter-input" data-col-idx="3" placeholder="SKU..." oninput="applyFilters()"></td>
                                     <td data-col="item_name"><input class="filter-input" data-col-idx="4" placeholder="Product Name..." oninput="applyFilters()"></td>
                                     <td data-col="description"><input class="filter-input" data-col-idx="5" placeholder="Description..." oninput="applyFilters()"></td>
@@ -609,10 +606,7 @@
                                     <td class="sticky-col" style="width:25px;text-align:center;left:0;" onclick="event.stopPropagation()">
                                         <input type="checkbox" name="ids[]" value="{{ $item->id }}" class="row-check" onchange="updateToolbar()">
                                     </td>
-                                    <td class="sticky-col" style="width:30px;left:25px;text-align:center;">
-                                        <span class="color-mark" style="background:{{ $item->color ?? '#94a3b8' }}" title="Click to change color" onclick="event.stopPropagation();openColorPicker({{ $item->id }}, '{{ $item->color ?? '' }}')"></span>
-                                    </td>
-                                    <td class="sticky-col" style="width:140px;left:55px;">{{ $item->warehouse->name ?? '—' }}</td>
+                                    <td class="sticky-col" style="width:140px;left:25px;">{{ $item->warehouse->name ?? '—' }}</td>
                                     <td data-col="sku"><a href="javascript:;" class="col-link" onclick="event.stopPropagation();openEditModal(this)">{{ $item->sku }}</a></td>
                                     <td data-col="item_name">{{ $item->item_name }}</td>
                                     <td data-col="description" style="font-size:9px;color:#64748b;">{{ Str::limit($item->description, 50) }}</td>
