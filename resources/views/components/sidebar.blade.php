@@ -66,7 +66,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/customer-portal/shipments/ocean-export', 'label' => 'Ocean Export'],
                                 ['url' => '/customer-portal/shipments/air-import', 'label' => 'Air Import'],
                                 ['url' => '/customer-portal/shipments/air-export', 'label' => 'Air Export'],
-                                ['url' => '/customer-portal/shipments/truck', 'label' => 'Trucking'],
                             ]],
                             ['id' => 'quotes', 'label' => 'Quotes', 'icon' => 'fa-file-text-o', 'url' => '/customer-portal/quotes', 'sub' => []],
                             ['id' => 'invoices', 'label' => 'Invoices', 'icon' => 'fa-calculator', 'url' => '/customer-portal/invoices', 'sub' => []],
@@ -109,28 +108,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/air-export/booking/entry?load_from_quotation=true', 'label' => 'New Booking from Quote'],
                                 ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
                                 ['url' => '/air-export/booking/mawb-stock', 'label' => 'MAWB Stock List'],
-                            ]],
-                            ['id' => 'truck', 'label' => 'Trucking', 'icon' => 'fa-truck', 'sub' => [
-                                ['url' => '/truck/create', 'label' => 'New Shipment'],
-                                ['url' => '/truck/create-quote', 'label' => 'New Shipment from Quote'],
-                                ['url' => '/truck/my-shipment-list', 'label' => 'My Shipment List'],
-                                ['url' => '/truck/list', 'label' => 'Master B/L List'],
-                            ]],
-                            ['id' => 'warehouse', 'label' => 'Warehouse', 'icon' => 'fa-building', 'sub' => [
-                                ['label' => 'Receipt', 'type' => 'group', 'items' => [
-                                    ['url' => '/warehouse/receipt/create', 'label' => 'New Receipt'],
-                                    ['url' => '/warehouse/receipt/list', 'label' => 'Receipt List'],
-                                ]],
-                                ['label' => 'Receiving & Shipping', 'type' => 'group', 'items' => [
-                                    ['url' => '/warehouse/receiving/create', 'label' => 'New Receiving'],
-                                    ['url' => '/warehouse/receiving/list', 'label' => 'Receiving List'],
-                                    ['url' => '/warehouse/shipping/create', 'label' => 'New Shipping'],
-                                    ['url' => '/warehouse/shipping/list', 'label' => 'Shipping List'],
-                                    ['url' => '/warehouse/items', 'label' => 'Item List'],
-                                    ['url' => '/warehouse/inventory/summary', 'label' => 'Inventory Summary'],
-                                    ['url' => '/warehouse/inventory/detail', 'label' => 'Inventory Detail'],
-                                ]],
-                                ['url' => '/warehouse/automobile', 'label' => 'Automobile List'],
                             ]],
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
                                 ['label' => 'Invoice/Cost', 'type' => 'group', 'items' => [
@@ -258,7 +235,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                 <a href="/crm" class="sidebar-nav-item flex items-center transition-all duration-200 {{ request()->is('crm*') ? 'active-link' : 'nav-link' }}" style="text-decoration: none;" :class="isCollapsed ? 'justify-center px-0' : 'px-5'">
                     <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
                         <i class="fa fa-users text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
-                        <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Customers</span>
+                        <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Clients</span>
                     </div>
                 </a>
 
@@ -335,9 +312,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                         </a>
                         
                         <!-- HBL Templates Link -->
-                        <a href="/settings/hbl-templates" class="block text-[9px] transition-all duration-200 {{ Request::is('settings/hbl-templates*') ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
-                            <i class="fa fa-file-text-o mr-2" style="font-size: 8px;"></i> HBL Templates
-                        </a>
                         
                     </div>
                 </div>

@@ -519,15 +519,33 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">
-                            <input type="checkbox" name="is_released" value="1" x-model="form.is_released" class="mr-1"> Released Date
-                        </label>
-                        <div class="form-input-container">
-                            <input type="date" name="released_date" class="form-control-gf" x-model="form.released_date">
-                            <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i>
-                        </div>
-                    </div>
+                   <div class="form-group-gf">
+    <label class="form-label-gf">
+        <input
+            type="checkbox"
+            name="is_released"
+            value="1"
+            x-model="form.is_released"
+            class="mr-1"
+        >
+        Released Date
+    </label>
+
+    <div class="form-input-container">
+        <input
+            type="date"
+            name="released_date"
+            class="form-control-gf"
+            x-model="form.released_date"
+            :disabled="!form.is_released"
+        >
+
+        <i
+            class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer"
+            @click="if (form.is_released) $el.previousElementSibling.showPicker()"
+        ></i>
+    </div>
+</div>
                 </div>
 
                 <!-- Column 4 -->

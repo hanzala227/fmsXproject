@@ -198,8 +198,8 @@ class QuotationController extends Controller
                     'commodity' => $q->commodity,
                     'service_term' => $q->service_term,
                     'items' => $q->items->map(fn($item) => [
-                        'type' => $item->type, 'rate' => $item->rate,
-                        'currency_code' => $item->currency?->code, 'unit' => $item->unit,
+                    'type' => $item->type, 'rate' => $item->rate,
+                    'currency_code' => $item->currency?->code, 'unit' => $item->unit,
                     ]),
                 ];
             });

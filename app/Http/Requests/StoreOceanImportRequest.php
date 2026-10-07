@@ -376,7 +376,7 @@ class StoreOceanImportRequest extends FormRequest
             'pod_id' => 'Port of Discharge',
             'del_id' => 'Place of Delivery',
             'fdest_id' => 'Final Destination',
-            'dm_customer_id' => 'Customer',
+            'dm_customer_id' => 'client',
             'dm_shipper_id' => 'Shipper',
             'dm_consignee_id' => 'Consignee',
             'dm_notify_id' => 'Notify Party',

@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'check-status' => \App\Http\Middleware\CheckAccountStatus::class,
             'module-access' => \App\Http\Middleware\CheckModuleAccess::class,
             'customer-access' => \App\Http\Middleware\CheckCustomerAccess::class,
+            'client' => \App\Http\Middleware\ClientMiddleware::class,
+            
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckAccountStatus::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckModuleAccess::class);

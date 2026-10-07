@@ -154,7 +154,7 @@ class OceanExportController extends Controller
         $chargesList = [];
 
         $oceanExport = null;
-        if ($request->query('copy')) {
+        if ($request->query('copy')){
             $copyId = $request->query('copy');
             $source = OceanExport::with(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'containers.containerType', 'charges'])->find($copyId);
             if (!$source) {
@@ -913,7 +913,7 @@ class OceanExportController extends Controller
             'hbl_remark'        => $hbl->hbl_remark ?? '',
             'marks_numbers'     => '',
             'no_of_packages'    => '',
-            'description'       => '',
+            'description'       => $hbl->description?->description ?? '',
             'gross_weight'      => '',
             'measurement'       => '',
         ];
@@ -941,6 +941,8 @@ class OceanExportController extends Controller
             $data['no_of_packages'] = $totalPkg > 0 ? number_format($totalPkg) : '';
             $data['gross_weight'] = $totalWeight > 0 ? number_format($totalWeight, 2) . ' KGS' : '';
             $data['measurement'] = $totalMeasure > 0 ? number_format($totalMeasure, 3) . ' CBM' : '';
+            $data['description'] = $descriptions ? implode("\n", $descriptions) : '';
+
         }
 
         // Template list

@@ -2533,13 +2533,7 @@
 
             <!-- Buttons Row - Exactly as per image -->
             <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; align-items: center; padding: 10px 0; border-top: 1px solid #e7ecf1;">
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="addNewCharge">Parcs</button>
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="openCertificateModal">Certificate</button>
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="applyTemplate">Template</button>
                 <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="generateFreightInvoice">Generate Freight Invoice</button>
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="prorataCharges">Prorata</button>
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="setDefaultCharges">Default</button>
-                <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="reloadCharges">Reload</button>
                 <button type="button" class="btn-freightx" style="background: #4b77be; padding: 6px 20px; font-size: 11px;" @click="saveCharges">Save</button>
             </div>
 

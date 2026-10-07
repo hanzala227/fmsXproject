@@ -297,7 +297,7 @@ class TradePartnerController extends Controller
                 if ($existingUser) {
                     $existingUser->update([
                         'password' => \Hash::make($portalPassword),
-                        'role' => 'Customer',
+                        'role' => 'client',
                         'company_id' => auth()->user()->company_id,
                         'trade_partner_id' => $partner->id
                     ]);
@@ -306,7 +306,7 @@ class TradePartnerController extends Controller
                         'name' => $partner->name,
                         'email' => $portalEmail,
                         'password' => \Hash::make($portalPassword),
-                        'role' => 'Customer',
+                        'role' => 'client',
                         'company_id' => auth()->user()->company_id,
                         'trade_partner_id' => $partner->id
                     ]);
@@ -437,7 +437,7 @@ class TradePartnerController extends Controller
             
             // Check type restriction (customer to oversea agent)
             if ($tradePartner->type === 'CS' && ($data['type'] ?? '') === 'PR') {
-                throw new \Exception('TP Type cannot be changed to Oversea Agent for active Customer accounts.');
+                throw new \Exception('TP Type cannot be changed to Oversea Agent for active client accounts.');
             }
 
             $tradePartner->update($data);
@@ -448,7 +448,7 @@ class TradePartnerController extends Controller
             if (!empty($portalEmail)) {
                 $existingUser = \App\Models\User::where('email', $portalEmail)->first();
                 $updateData = [
-                    'role' => 'Customer',
+                    'role' => 'client',
                     'company_id' => auth()->user()->company_id,
                     'trade_partner_id' => $tradePartner->id
                 ];
@@ -631,7 +631,7 @@ class TradePartnerController extends Controller
         if ($user) {
             $user->update([
                 'password' => \Illuminate\Support\Facades\Hash::make($request->password),
-                'role' => 'Customer',
+                'role' => 'client',
                 'trade_partner_id' => $tradePartner->id,
                 'company_id' => auth()->user()->company_id,
             ]);
@@ -640,7 +640,7 @@ class TradePartnerController extends Controller
                 'name' => $tradePartner->name,
                 'email' => $request->email,
                 'password' => \Illuminate\Support\Facades\Hash::make($request->password),
-                'role' => 'Customer',
+                'role' => 'client',
                 'trade_partner_id' => $tradePartner->id,
                 'company_id' => auth()->user()->company_id,
                 'status' => 'Enable',

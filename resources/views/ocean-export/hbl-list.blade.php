@@ -274,6 +274,20 @@
 
     <div class="toast-container" id="toast-container"></div>
 
+    {{-- ═══════════════════════ HBL QUICK-VIEW MODAL ═══════════════════════ --}}
+    <div class="overlay" id="hbl-overlay" onclick="if(event.target===this) closeHblQuickView()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-header-title">
+                    <i class="fa fa-eye" style="color:#3b82f6;"></i>
+                    <span id="hbl-modal-title">HBL Quick View</span>
+                </div>
+                <button class="modal-close" onclick="closeHblQuickView()"><i class="fa fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="hbl-body"></div>
+        </div>
+    </div>
+
     {{-- ═══════════════════════ DELETE CONFIRM MODAL ═══════════════════════ --}}
     <div class="overlay" id="confirm-overlay" onclick="if(event.target===this) closeConfirm()">
         <div class="confirm-box">
@@ -471,16 +485,16 @@
             </div>
 
             {{-- ── PAGINATION ── --}}
-                                 <div class="portlet-tool bottom">
-                                     <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                                         <div id="pagination-container">
-                                             {{ $hbls->appends(request()->query())->links('vendor.pagination.custom') }}
-                                         </div>
-                                         <div style="font-size:10px;color:#64748b;">
-                                             Showing <span id="stat-first">{{ $hbls->firstItem() ?? 0 }}</span> – <span id="stat-last">{{ $hbls->lastItem() ?? 0 }}</span> of <span id="stat-total">{{ $hbls->total() }}</span> records
-                                         </div>
-                                     </div>
-                                 </div>
+            <div class="portlet-tool bottom">
+                <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+                    <div id="pagination-container">
+                        {{ $hbls->appends(request()->query())->links('vendor.pagination.custom') }}
+                    </div>
+                    <div style="font-size:10px;color:#64748b;">
+                        Showing <span id="stat-first">{{ $hbls->firstItem() ?? 0 }}</span> – <span id="stat-last">{{ $hbls->lastItem() ?? 0 }}</span> of <span id="stat-total">{{ $hbls->total() }}</span> records
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -670,7 +684,7 @@
     }
 
     /* ================================================================
-       DELETE
+       COPY / DELETE
     ================================================================ */
     function copySelected() {
         var checked = document.querySelectorAll('.row-check:checked');
@@ -990,10 +1004,51 @@
     });
 
     /* ================================================================
-       HBL QUICK VIEW
+       HBL QUICK VIEW  (eye icon in HB/L No. column)
+       Row ke cells se data uthata hai, table headers (data-col) ke hisaab se.
     ================================================================ */
+    var QV_SKIP_COLS = ['check', 'lock', 'flag', 'color'];
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function showHblQuickView(id, hblNo) {
-        showToast('info', 'HBL Quick View: ' + hblNo);
+        var row = document.querySelector('#grid-body tr[data-id="' + id + '"]');
+        if (!row) {
+            showToast('error', 'Row not found');
+            return;
+        }
+
+        var headers = document.querySelectorAll('#header-row th[data-col]');
+        var cells = row.children;
+        var html = '';
+
+        for (var i = 0; i < headers.length; i++) {
+            var col = headers[i].dataset.col;
+            if (QV_SKIP_COLS.indexOf(col) !== -1) continue;
+            var cell = cells[i];
+            if (!cell) continue;
+
+            var val = cell.textContent.replace(/\s+/g, ' ').trim();
+            var label = headers[i].textContent.replace(/\s+/g, ' ').trim();
+            html += '<div class="mbl-row"><span class="lbl">' + escapeHtml(label) +
+                    '</span><span class="val">' + (val ? escapeHtml(val) : '--') + '</span></div>';
+        }
+
+        document.getElementById('hbl-modal-title').textContent =
+            'HBL Quick View' + (hblNo ? ' - ' + hblNo : '');
+        document.getElementById('hbl-body').innerHTML = html;
+        document.getElementById('hbl-overlay').classList.add('open');
+    }
+
+    function closeHblQuickView() {
+        document.getElementById('hbl-overlay').classList.remove('open');
     }
 
     /* ================================================================

@@ -1511,7 +1511,34 @@
                             <!-- Column 3 -->
                             <div class="space-y-[4px]">
                                 <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select name="service_term_from_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_from_id"><option value="">Select...</option>@foreach($serviceTerms as $st)<option value="{{ $st->id }}">{{ $st->code }}</option>@endforeach</select><span class="mx-1">~</span><select name="service_term_to_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_to_id"><option value="">Select...</option>@foreach($serviceTerms as $st)<option value="{{ $st->id }}">{{ $st->code }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf"><input type="checkbox" name="is_released" value="1" class="mr-1"> Released Date</label><div class="form-input-container"><input type="date" name="released_date" class="form-control-gf" x-model="form.released_date"> <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i></div></div>
+                               <div class="form-group-gf">
+    <label class="form-label-gf">
+        <input
+            type="checkbox"
+            name="is_released"
+            value="1"
+            x-model="form.is_released"
+            @change="if (!form.is_released) form.released_date = null"
+            class="mr-1"
+        >
+        Released Date
+    </label>
+
+    <div class="form-input-container">
+        <input
+            type="date"
+            name="released_date"
+            class="form-control-gf"
+            x-model="form.released_date"
+            :disabled="!form.is_released"
+        >
+
+        <i
+            class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer"
+            @click="if (form.is_released) $el.previousElementSibling.showPicker()"
+        ></i>
+    </div>
+</div>
                             </div>
 
                             <!-- Column 4 -->
@@ -1890,7 +1917,7 @@ C.Hold <input type="checkbox" :name="'hbls['+index+'][is_customs_hold]'" value="
                             </div>
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                    <label class="caption-subject" style="font-size: 11px;">Description</label>
+                                    <label class="caption-subject" style="font-size: 11px;">Description....</label>
                                    <button class="btn-tool" style="padding: 2px 8px; font-size: 10px;">Copy from All HB/L</button>
                                 </div>
                                 <textarea class="form-control-gf" style="height: 80px;"></textarea>
@@ -2126,14 +2153,7 @@ C.Hold <input type="checkbox" :name="'hbls['+index+'][is_customs_hold]'" value="
 
             <!-- Buttons Row - Exactly as per image -->
             <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; align-items: center; padding: 10px 0; border-top: 1px solid #e7ecf1;">
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="addNewCharge">Parcs</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="openCertificateModal">Certificate</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="applyTemplate">Template</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="copyFromQuote">Copy From</button>
                <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="generateFreightInvoice">Generate Freight Invoice</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="prorataCharges">Prorata</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="setDefaultCharges">Default</button>
-               <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="reloadCharges">Reload</button>
                <button type="button" class="btn-freightx" style="background: #4b77be; padding: 6px 20px; font-size: 11px;" @click="saveCharges">Save</button>
             </div>
 
