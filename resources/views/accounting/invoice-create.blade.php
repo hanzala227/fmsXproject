@@ -121,7 +121,7 @@
                 <li :class="(activeTab === 'notes' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'notes' : null">
                     <a @click="switchTab('notes')">Notes</a>
                 </li>
-                <li :class="(activeTab === 'doc' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'doc' : null">
+                <li style="display: none !important;" :class="(activeTab === 'doc' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'doc' : null">
                     <a @click="switchTab('doc')">Doc Center</a>
                 </li>
             </ul>
@@ -136,9 +136,9 @@
                         <div class="form-grid-4">
                             <!-- Column 1 -->
                             <div>
-                                <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Invoice No.</label>
+                                <div class="form-group-gf"><label class="form-label-gf">Invoice No.</label>
                                     <div class="form-input-container">
-                                        <input type="text" name="invoice_no" class="form-control-gf" x-model="form.invoice_no" required>
+                                        <input type="text" name="invoice_no" class="form-control-gf" x-model="form.invoice_no" placeholder="(Auto Generated on Save)" readonly style="background:#f1f5f9;color:#64748b;font-weight:600;">
                                     </div>
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Invoice Date</label>
@@ -229,6 +229,11 @@
                             </div>
                             <!-- Column 4 -->
                             <div>
+                                <div class="form-group-gf"><label class="form-label-gf">MBL No.</label>
+                                    <div class="form-input-container">
+                                        <input type="text" name="mbl_no" class="form-control-gf" x-model="form.mbl_no" placeholder="MBL / MAWB No.">
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Shipping/Other</label>
                                     <div class="form-input-container">
                                         <input type="number" step="0.01" name="shipping_amount" class="form-control-gf input-number" x-model="form.shipping_amount" @input="recalcTotals()">

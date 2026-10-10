@@ -180,7 +180,7 @@
             <!-- Tabs -->
             <ul class="gf-tabs">
                 <li :class="activeTab === 'basic' ? 'active' : ''"><a @click="activeTab = 'basic'">Basic</a></li>
-                <li :class="(activeTab === 'docs' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
+                <li style="display: none !important;" :class="(activeTab === 'docs' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
             </ul>
 
             <!-- ==================== BASIC TAB ==================== -->

@@ -117,6 +117,19 @@
         </div>
 
         {{-- ═══════════════════ INVOICE DETAILS ═══════════════════ --}}
+        @php
+            $shipment = $invoice->invoiceable;
+            $mblNo = $invoice->mbl_no ?? $shipment?->mbl_no ?? $shipment?->mawb_no ?? $shipment?->file_no ?? '--';
+            $fileNo = $shipment?->file_no ?? $shipment?->bkg_no ?? '--';
+            $vessel = $shipment?->vessel?->name ?? $shipment?->vessel_name ?? '--';
+            if ($shipment?->voyage && $vessel !== '--') {
+                $vessel .= ' / ' . $shipment->voyage;
+            }
+            $pol = $shipment?->portOfLoading?->name ?? $shipment?->depPort?->name ?? '--';
+            $pod = $shipment?->portOfDischarge?->name ?? $shipment?->dstPort?->name ?? '--';
+            $etd = $shipment?->etd?->format('M d, Y') ?? '--';
+            $eta = $shipment?->eta?->format('M d, Y') ?? '--';
+        @endphp
         <div class="portlet light">
             <div class="portlet-title">
                 <span class="caption-subject"><i class="fa fa-info-circle"></i> Invoice Details</span>
@@ -126,6 +139,14 @@
                     <div class="detail-item">
                         <span class="detail-label">Invoice No.</span>
                         <span class="detail-value">{{ $invoice->invoice_no }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">MBL / MAWB No.</span>
+                        <span class="detail-value" style="color:#2563eb;">{{ $mblNo }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">File / Job No.</span>
+                        <span class="detail-value">{{ $fileNo }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Invoice Date</span>
@@ -148,24 +169,32 @@
                         <span class="detail-value">{{ $invoice->currency->code ?? 'USD' }}</span>
                     </div>
                     <div class="detail-item">
+                        <span class="detail-label">Vessel / Voyage</span>
+                        <span class="detail-value">{{ $vessel }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">POL / POD</span>
+                        <span class="detail-value">{{ $pol }} &rarr; {{ $pod }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">ETD / ETA</span>
+                        <span class="detail-value">{{ $etd }} &rarr; {{ $eta }}</span>
+                    </div>
+                    <div class="detail-item">
                         <span class="detail-label">Office</span>
-                        <span class="detail-value">{{ $invoice->office->code ?? '--' }}</span>
+                        <span class="detail-value">{{ $invoice->office->code ?? $invoice->office->name ?? '--' }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Issued By</span>
-                        <span class="detail-value">{{ $invoice->issuer->name ?? '--' }}</span>
+                        <span class="detail-value">{{ $invoice->issuer->name ?? auth()->user()->name ?? '--' }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Billing Address</span>
-                        <span class="detail-value">{{ $invoice->billing_address ?? '--' }}</span>
+                        <span class="detail-value">{{ $invoice->billing_address ?? $invoice->billTo->address ?? '--' }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Created</span>
                         <span class="detail-value">{{ $invoice->created_at?->format('M d, Y h:i A') ?? '--' }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Last Updated</span>
-                        <span class="detail-value">{{ $invoice->updated_at?->format('M d, Y h:i A') ?? '--' }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Internal Remark</span>

@@ -61,6 +61,46 @@ class TruckShipment extends Model
         return $this->belongsTo(TradePartner::class, 'customer_id');
     }
 
+    public function dmCustomer()
+    {
+        return $this->belongsTo(TradePartner::class, 'customer_id');
+    }
+
+    public function dmShipper()
+    {
+        return $this->belongsTo(TradePartner::class, 'shipper_id');
+    }
+
+    public function dmConsignee()
+    {
+        return $this->belongsTo(TradePartner::class, 'consignee_id');
+    }
+
+    public function dmNotify()
+    {
+        return $this->belongsTo(TradePartner::class, 'consignee_id');
+    }
+
+    public function agent()
+    {
+        return $this->belongsTo(TradePartner::class, 'trucker_id');
+    }
+
+    public function forwardingAgent()
+    {
+        return $this->belongsTo(TradePartner::class, 'trucker_id');
+    }
+
+    public function overseaAgent()
+    {
+        return $this->belongsTo(TradePartner::class, 'trucker_id');
+    }
+
+    public function deliveryAgent()
+    {
+        return $this->belongsTo(TradePartner::class, 'trucker_id');
+    }
+
     public function shipper()
     {
         return $this->belongsTo(TradePartner::class, 'shipper_id');

@@ -37,11 +37,26 @@ class InvoiceGenerationService
         // Group charges by bill_to_id and PR (Payable/Receivable)
         $groups = [];
         foreach ($charges as $charge) {
-            $billToId = $charge->bill_to_id ?? 0;
-            // $charge->type usually indicates if it's AR or AP. 
+            $billToId = null;
+            $rawId = $charge->bill_to_id ?: ($charge->vendor_id ?: null);
+            if ($rawId && $rawId > 0 && TradePartner::where('id', $rawId)->exists()) {
+                $billToId = (int)$rawId;
+            } elseif (!empty($charge->party_name)) {
+                $partner = TradePartner::where('name', trim($charge->party_name))
+                    ->orWhere('code', trim($charge->party_name))
+                    ->first();
+                if ($partner) {
+                    $billToId = $partner->id;
+                }
+            }
+
+            if (!$billToId) {
+                $billToId = $this->resolveShipmentPartnerId($sourceType, $sourceId);
+            }
+
             $pr = $charge->type ?? 'AR'; 
             
-            $key = $billToId . '_' . $pr;
+            $key = ($billToId ?? 'null') . '_' . $pr;
             if (!isset($groups[$key])) {
                 $groups[$key] = [
                     'bill_to_id' => $billToId,
@@ -75,6 +90,19 @@ class InvoiceGenerationService
                 $invoiceNo = $seqData['invoice_no'];
                 $generatedInvoiceNos[] = $invoiceNo;
 
+                // Attempt to fetch MBL / MAWB No from source object
+                $mblNo = null;
+                if ($sourceType && $sourceId) {
+                    try {
+                        $sourceObj = $sourceType::find($sourceId);
+                        if ($sourceObj) {
+                            $mblNo = $sourceObj->mbl_no ?? $sourceObj->mawb_no ?? $sourceObj->file_no ?? null;
+                        }
+                    } catch (\Throwable $e) {
+                        // Ignore if model query fails
+                    }
+                }
+
                 // Create Invoice Record
                 $invoice = Invoice::create([
                     'company_id' => $companyId,
@@ -90,7 +118,8 @@ class InvoiceGenerationService
                     'verification_status' => 'Pending Verification',
                     'invoice_date' => now(),
                     'due_date' => now()->addDays(30),
-                    'currency_id' => $groupCharges[0]->currency_id ?? null,
+                    'currency_id' => $groupCharges[0]->currency_id ?? \App\Models\Currency::where('code', 'USD')->value('id') ?? 1,
+                    'mbl_no' => $mblNo,
                     'subtotal' => 0,
                     'total_amount' => 0,
                     'balance_amount' => 0,
@@ -108,10 +137,15 @@ class InvoiceGenerationService
 
                     $lineAmount = (float)($charge->total_amount ?? $charge->amount);
 
+                    $chrgCode = !empty($charge->charge_code) ? $charge->charge_code : (!empty($charge->chrg_code) ? $charge->chrg_code : 'FREIGHT');
+                    $chrgDesc = (!empty($charge->charge_name) && $charge->charge_name !== 'Charge') 
+                        ? $charge->charge_name 
+                        : (!empty($charge->charge_code) ? $charge->charge_code : (!empty($charge->chrg_code) ? $charge->chrg_code : 'Freight & Handling Charge'));
+
                     InvoiceLine::create([
                         'invoice_id' => $invoice->id,
-                        'charge_code' => $charge->charge_code,
-                        'description' => $charge->charge_name ?? $charge->charge_code ?? 'Charge',
+                        'charge_code' => $chrgCode,
+                        'description' => $chrgDesc,
                         'type' => $pr,
                         'qty' => $charge->qty ?? 1,
                         'rate' => $charge->rate ?? $lineAmount,
@@ -161,8 +195,10 @@ class InvoiceGenerationService
         }
 
         $partner = TradePartner::find($billToId);
-        $partnerType = $partner ? strtolower($partner->type) : '';
-        $isAgent = str_contains($partnerType, 'agent');
+        $partnerType = $partner ? strtoupper(trim($partner->type)) : '';
+        
+        $agentTypes = ['PR', 'AGENT', 'FR', 'FORWARDER', 'FW', 'AG', 'OA'];
+        $isAgent = in_array($partnerType, $agentTypes) || str_contains(strtolower($partnerType), 'agent');
 
         if ($isAgent) {
             if ($pr === 'AR') {
@@ -176,6 +212,35 @@ class InvoiceGenerationService
             } else {
                 return 'INV';
             }
+        }
+    }
+
+    /**
+     * Helper to resolve a valid trade partner ID from shipment source object when charge bill_to_id is missing.
+     */
+    protected function resolveShipmentPartnerId(string $sourceType, int $sourceId): ?int
+    {
+        if (!$sourceType || !$sourceId) return null;
+        try {
+            $sourceObj = $sourceType::find($sourceId);
+            if (!$sourceObj) return null;
+
+            $candidateId = $sourceObj->customer_id 
+                ?? $sourceObj->consignee_id 
+                ?? $sourceObj->shipper_id 
+                ?? $sourceObj->agent_id 
+                ?? $sourceObj->dm_customer_id 
+                ?? null;
+
+            if ($candidateId && TradePartner::where('id', $candidateId)->exists()) {
+                return (int)$candidateId;
+            }
+
+            $firstPartner = TradePartner::first();
+            return $firstPartner ? $firstPartner->id : null;
+        } catch (\Throwable $e) {
+            $firstPartner = TradePartner::first();
+            return $firstPartner ? $firstPartner->id : null;
         }
     }
 }

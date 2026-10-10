@@ -69,6 +69,7 @@ use App\Http\Controllers\SuperAdmin\CompanyController as SuperAdminCompanyContro
 // Views routing - purely rendering blade templates.
 // All data fetching must be done on the client side via the /api routes.
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/frex/process', [\App\Http\Controllers\FrexAssistantController::class, 'process'])->name('frex.process');
     Route::get('/api/global-search', [GlobalSearchController::class, 'search'])->name('api.global-search');
     Route::post('/api/documents/email', [\App\Http\Controllers\DocumentEmailController::class, 'sendEmail'])->name('documents.email');
     Route::get('/', function () {

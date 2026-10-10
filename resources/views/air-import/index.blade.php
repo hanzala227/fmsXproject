@@ -166,6 +166,7 @@
                 wrSearchResults: [],
                 showDocModal: false,
                 showDimensionsModal: false,
+                dimensionTarget: 'mawb',
                 newStatusMessage: '',
                 dimensions: {
                     length: '',
@@ -212,8 +213,9 @@
                     { selected: false, length: '', width: '', height: '', pcs: 1 }
                 ],
                 
-                openDimensionsModal() {
-                    console.log('🟡 openDimensionsModal() called');
+                openDimensionsModal(target = 'mawb') {
+                    console.log('🟡 openDimensionsModal() called with target:', target);
+                    this.dimensionTarget = target;
                     console.log('showDimensionsModal before:', this.showDimensionsModal);
                     this.showDimensionsModal = true;
                     console.log('showDimensionsModal after:', this.showDimensionsModal);
@@ -246,6 +248,10 @@
                     if (this.dimensionRows.length === 0) {
                         this.addDimensionRow();
                     }
+                },
+                
+                calcRowGrossLb(row) {
+                    return (parseFloat(row.gross_weight) || 0) * 2.20462;
                 },
                 
                 calcRowPcs(row) {
@@ -301,30 +307,58 @@
                     return this.totalDimVolKg * 2.20462;
                 },
 
+                get totalDimGrossKg() {
+                    return this.dimensionRows.reduce((sum, r) => sum + (parseFloat(r.gross_weight) || 0), 0);
+                },
+
                 applyDimensions() {
                     const cbm = this.totalDimCbm;
                     const volKg = this.totalDimVolKg;
                     const totalPcs = this.totalDimPcs;
+                    const grossKg = this.totalDimGrossKg;
+                    const chargeableKg = Math.max(grossKg, volKg);
 
-                    const volCbmInputs = document.querySelectorAll('[name="volume_cbm"]');
-                    volCbmInputs.forEach(input => input.value = cbm.toFixed(2));
-
-                    const volKgInputs = document.querySelectorAll('[name="volume_weight_kg"]');
-                    volKgInputs.forEach(input => input.value = volKg.toFixed(2));
-
-                    if (totalPcs > 0) {
-                        const pkgInputs = document.querySelectorAll('[name="pkg_qty"]');
-                        pkgInputs.forEach(input => {
-                            if (!input.value || parseFloat(input.value) === 0) {
-                                input.value = totalPcs;
+                    if (this.dimensionTarget === 'mawb') {
+                        this.updateDOMInput('volume_cbm', cbm.toFixed(2));
+                        this.updateDOMInput('volume_weight_kg', volKg.toFixed(2));
+                        this.updateDOMInput('gross_weight_kg', grossKg.toFixed(2));
+                        this.updateDOMInput('gross_weight_lb', (grossKg * 2.20462).toFixed(2));
+                        this.updateDOMInput('chargeable_weight_kg', chargeableKg.toFixed(2));
+                        this.updateDOMInput('chargeable_weight_lb', (chargeableKg * 2.20462).toFixed(2));
+                        if (totalPcs > 0) {
+                            const pkgInput = document.querySelector('[name="pkg_qty"]');
+                            if (pkgInput && (!pkgInput.value || parseFloat(pkgInput.value) === 0)) {
+                                pkgInput.value = totalPcs;
+                                pkgInput.dispatchEvent(new Event('input', { bubbles: true }));
                             }
-                        });
+                        }
+                    } else {
+                        const index = parseInt(this.dimensionTarget);
+                        if (!isNaN(index) && this.hawbs[index]) {
+                            this.hawbs[index].volume_cbm = cbm.toFixed(2);
+                            this.hawbs[index].volume_weight_kg = volKg.toFixed(2);
+                            this.hawbs[index].gross_weight_kg = grossKg.toFixed(2);
+                            this.hawbs[index].gross_weight_lb = (grossKg * 2.20462).toFixed(2);
+                            this.hawbs[index].chargeable_weight_kg = chargeableKg.toFixed(2);
+                            this.hawbs[index].chargeable_weight_lb = (chargeableKg * 2.20462).toFixed(2);
+                            if (totalPcs > 0 && (!this.hawbs[index].pkg_qty || parseFloat(this.hawbs[index].pkg_qty) === 0)) {
+                                this.hawbs[index].pkg_qty = totalPcs;
+                            }
+                        }
                     }
-
                     this.closeDimensionsModal();
                 },
+
+                updateDOMInput(name, value) {
+                    const el = document.querySelector(`[name="${name}"]`);
+                    if (el) {
+                        el.value = value;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                },
                 // ============ CHARGES SECTION FUNCTIONS ============
-                chargesList: @json(isset($airImport) && $airImport->charges && count($airImport->charges) > 0 ? $airImport->charges : []),
+                chargesList: @json($chargesData ?? []),
 
                 calculateTotalCharges() {
                     if (!this.chargesList || this.chargesList.length === 0) return 0;
@@ -357,15 +391,15 @@
                 },
 
                 updateChargeAmount(idx) {
-                    this.$forceUpdate();
+                    if (typeof this.$forceUpdate === 'function') this.$forceUpdate();
                 },
 
                 updateLocalAmount(idx) {
-                    this.$forceUpdate();
+                    if (typeof this.$forceUpdate === 'function') this.$forceUpdate();
                 },
 
                 saveCharges() {
-                    if (!this.validateForm()) return;
+                    if (typeof this.validateForm === 'function' && !this.validateForm()) return;
                     const formEl = document.querySelector('form[action*="air-import"]');
                     if (formEl) {
                         formEl.submit();
@@ -376,10 +410,18 @@
                     if (typeof showToast === 'function') showToast('info', 'Certificate functionality - coming soon');
                 },
 
+                toggleAllCharges(e) {
+                    const isChecked = e ? e.target.checked : false;
+                    this.chargesList.forEach(c => {
+                        c._selected = isChecked;
+                        c.selected = isChecked;
+                    });
+                },
+
                 setDefaultCharges() {
                     this.chargesList = [
-                        { id: null, selected: false, party: 'Custom', party_name_id: '', sal: 'Air', pr: 'Rec', ppc: 'Colle', chrg_code: 'OFC', currency: 'USD', rate: 50, qty: 1, qty_type: 'B/L', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' },
-                        { id: null, selected: false, party: 'Custom', party_name_id: '', sal: 'Air', pr: 'Rec', ppc: 'Colle', chrg_code: 'THC', currency: 'USD', rate: 10, qty: 1, qty_type: 'CBM', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' }
+                        { id: null, _selected: false, selected: false, party: 'Freight', party_name: '', party_name_id: '', sal: 'Air', pr: 'Rec', ppc: 'Colle', chrg_code: 'OFC', currency: 'USD', rate: 50, qty: 1, qty_type: 'B/L', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' },
+                        { id: null, _selected: false, selected: false, party: 'THC', party_name: '', party_name_id: '', sal: 'Air', pr: 'Rec', ppc: 'Colle', chrg_code: 'THC', currency: 'USD', rate: 10, qty: 1, qty_type: 'CBM', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' }
                     ];
                 },
 
@@ -423,7 +465,7 @@
                     this.chargesList.push({
                         id: null,
                         selected: false,
-                        party: 'Custom',
+                        party: 'Freight',
                         party_name_id: '',
                         sal: 'Air',
                         pr: 'Rec',
@@ -465,33 +507,52 @@
                     });
                 },
 
-                generateFreightInvoice() {
+                createInvoice() {
                     if (!this.form.id) {
-                        if (typeof showToast === 'function') showToast('error', 'Please save the shipment first.');
+                        showToast('error', 'Please save shipment first.');
                         return;
                     }
-                    let selectedIds = this.chargesList.filter(c => c.selected && !c.is_invoiced && c.id).map(c => c.id);
-                    if (selectedIds.length === 0) {
-                        if (typeof showToast === 'function') showToast('error', 'Please select at least one uninvoiced charge.');
+                    
+                    let selectedCharges = this.chargesList.filter(c => (c._selected || c.selected) && c.id);
+                    if (selectedCharges.length === 0) {
+                        showToast('error', 'Please select at least one charge using checkbox.');
                         return;
                     }
-                    if (!confirm('Generate Invoice for selected charges?')) return;
+
+                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').join(', ');
+                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
+                    }
+
+                    let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
+                    if (uninvoicedCharges.length === 0) {
+                        return;
+                    }
+
+                    let selectedIds = uninvoicedCharges.map(c => c.id);
+
+                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' charge(s)?')) return;
                     fetch(`/air-import/${this.form.id}/charges/invoice`, {
                         method: 'POST',
-                        headers: {
+                        headers: { 
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({ ids: selectedIds })
-                    }).then(res => res.json()).then(data => {
-                        if (data.success && data.freight_invoice_url) {
-                            if (typeof showToast === 'function') showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            window.open(data.freight_invoice_url, '_blank');
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
                             setTimeout(() => { window.location.reload(); }, 800);
-                            if (typeof showToast === 'function') showToast('success', 'Freight Invoice generated successfully.');
                         } else {
-                            if (typeof showToast === 'function') showToast('error', data.message || 'Failed to generate freight invoice.');
+                            showToast('error', 'Failed to create invoice: ' + (data.message || 'Unknown error'));
                         }
+                    })
+                    .catch(err => {
+                        showToast('error', 'Failed to create invoice.');
                     });
                 },
 
@@ -743,6 +804,34 @@
                                     }
                                 });
                             }
+                            
+                            // Parse Flights
+                            if (data.data.flights && data.data.flights.length > 0) {
+                                data.data.flights.forEach((r, idx) => {
+                                    const legLabel = `Flight Leg ${idx+1}`;
+                                    const fields = [
+                                        { label: `${legLabel} - Flight No.`, key: 'flight_no', val: r.flight_no },
+                                        { label: `${legLabel} - POL`, key: 'pol_name', val: r.pol_name, nameKey: 'pol_id', idVal: r.pol_id },
+                                        { label: `${legLabel} - POD`, key: 'pod_name', val: r.pod_name, nameKey: 'pod_id', idVal: r.pod_id },
+                                        { label: `${legLabel} - ETD`, key: 'etd', val: r.etd },
+                                        { label: `${legLabel} - ETA`, key: 'eta', val: r.eta }
+                                    ];
+                                    fields.forEach(f => {
+                                        if (f.val) {
+                                            this.extractedData.push({
+                                                label: f.label,
+                                                parent: 'routes', // Using 'routes' to match frontend naming for transport legs
+                                                index: idx,
+                                                key: f.key,
+                                                value: f.idVal !== undefined ? f.idVal : f.val,
+                                                displayValue: f.val,
+                                                nameKey: f.nameKey || null,
+                                                selected: true
+                                            });
+                                        }
+                                    });
+                                });
+                            }
                         } else {
                             this.aiError = data.message || 'Failed to extract data.';
                         }
@@ -772,11 +861,19 @@
                         }
                     };
 
-                    let dataToApply = { mbl: {}, hbl: {} };
+                    let dataToApply = { mbl: {}, hbl: {}, routes: [] };
                     
                     this.extractedData.forEach(item => {
                         if (item.selected) {
-                            if (item.parent === 'mbl') {
+                            if (item.parent === 'routes') {
+                                if (!dataToApply.routes[item.index]) {
+                                    dataToApply.routes[item.index] = {};
+                                }
+                                dataToApply.routes[item.index][item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.routes[item.index][item.nameKey] = item.displayValue;
+                                }
+                            } else if (item.parent === 'mbl') {
                                 dataToApply.mbl[item.key] = item.value;
                                 if(item.nameKey && item.displayValue) {
                                     dataToApply.mbl[item.nameKey] = item.displayValue;
@@ -812,7 +909,31 @@
                     if(dataToApply.mbl.etd) this.form.etd = dataToApply.mbl.etd;
 
                     // Add Route / Transportation
-                    if (dataToApply.mbl.eta || dataToApply.mbl.etd || dataToApply.mbl.pol_id || dataToApply.mbl.pod_id || dataToApply.mbl.flight_no) {
+                    if (dataToApply.routes && dataToApply.routes.length > 0) {
+                        dataToApply.routes.forEach((route, index) => {
+                            if (!this.form.routes || this.form.routes.length <= index) {
+                                this.addRoute();
+                            }
+                            const r = this.form.routes[index];
+                            if (route.eta) r.eta = route.eta;
+                            if (route.etd) r.etd = route.etd;
+                            
+                            if (route.pol_id) {
+                                ensureOptionExists(`routes[${index}][airport_id]`, route.pol_id, route.pol_name || 'POL');
+                                r.airport_id = route.pol_id;
+                            }
+                            
+                            if (route.pod_id) {
+                                ensureOptionExists(`routes[${index}][pod_id]`, route.pod_id, route.pod_name || 'POD');
+                                r.pod_id = route.pod_id;
+                            }
+                            
+                            if (route.flight_no) {
+                                r.flight_no = route.flight_no;
+                            }
+                        });
+                        this.form.routes = [...this.form.routes];
+                    } else if (dataToApply.mbl.eta || dataToApply.mbl.etd || dataToApply.mbl.pol_id || dataToApply.mbl.pod_id || dataToApply.mbl.flight_no) {
                         if (!this.form.routes || this.form.routes.length === 0) {
                             this.addRoute();
                         }
@@ -1007,6 +1128,7 @@
                     subHawbs: []
                 },
                 form: {
+                    id: @json(isset($airImport) ? $airImport->id : null),
                     file_no: '{{ old('file_no', $airImport->file_no ?? 'MAI-'.date('ymd').'-'.str_pad((\App\Models\AirImport::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT)) }}',
                     mawb_number: '',
                     office_id: '',
@@ -1207,10 +1329,34 @@
                         this.showQuoteModal = true;
                     }
                     
-                    // Watch for changes to verify it's updating
-                    this.$watch('showQuoteModal', (value) => {
-                        if (value) { this.quoteStep = 1; }
-                    });
+                    if (this.chargesList && Array.isArray(this.chargesList)) {
+                        this.chargesList = this.chargesList.map(c => {
+                            return {
+                                id: c.id || null,
+                                _selected: false,
+                                selected: false,
+                                party: c.party || (c.type === 'AP' ? 'Agent' : 'Custom'),
+                                party_name: c.party_name || '',
+                                party_name_id: c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || ''),
+                                sal: c.sal || 'Air',
+                                pr: c.type === 'AP' ? 'Pay' : 'Rec',
+                                ppc: c.pc === 'PREPAID' ? 'Prepaid' : 'Colle',
+                                chrg_code: c.charge_code || '',
+                                currency: (c.currency && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
+                                rate: parseFloat(c.rate) || 0,
+                                qty: parseFloat(c.qty) || 1,
+                                qty_type: c.unit || 'B/L',
+                                roe: parseFloat(c.roe) || 1.0,
+                                vat: parseFloat(c.vat) || 0,
+                                inv_no: c.invoice_no || '',
+                                financial_date: c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0],
+                                eq_bl_no: c.remark || '',
+                                remark: !!c.remark,
+                                mbl_no: c.mbl_no || '',
+                                is_invoiced: !!c.is_invoiced
+                            };
+                        });
+                    }
                 },
                 quoteItems: {
                     @foreach($quotations as $q)
@@ -1250,7 +1396,7 @@
 
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <h1 class="caption-subject" style="font-size: 18px; text-transform: uppercase;">{{ isset($airImport) ? 'Edit' : 'New' }} Air Import Shipment</h1>
+            <h1 class="caption-subject" style="font-size: 18px; text-transform: uppercase;">{{ isset($airImport) ? 'AIR IMPORT SHIPMENT' : 'New Air Import Shipment' }}</h1>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button type="button" @click="showAiModal = true" class="btn-freightx" style="background:#337ab7; border-color:#286090; color:white; font-weight:bold;">
                     <i class="fa fa-magic"></i> AI Auto-Fill
@@ -1275,11 +1421,18 @@
                 <span style="border-left:2px solid #e5e7eb;height:20px;display:inline-block;"></span>
             </div>
 
-            <!-- Tools Options (Scrollable) -->
-            <div style="flex:1;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;-ms-overflow-style:none;">
-                <ul class="gf-tabs" style="border-bottom:none;margin-bottom:0;display:flex;white-space:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;">
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? openTrackTrace() : null"><a>Track-Trace</a></li>
-                </ul>
+            <!-- Tools Options (Dropdown) -->
+            <div style="display:flex; align-items:center; padding:0 10px; margin-left: auto;">
+                <div style="position: relative;" x-data="{ showToolsMenu: false }" @click.away="showToolsMenu = false" x-show="saved">
+                    <button type="button" @click="showToolsMenu = !showToolsMenu" class="btn-default-gf" :class="!saved ? 'disabled-tab' : ''" style="display:flex; align-items:center; gap:5px; height: 28px; background: #fff;">
+                        <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
+                    </button>
+                    <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 180px; display: none;">
+                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                            <li><button type="button" @click="saved ? openTrackTrace() : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1337,7 +1490,7 @@
                             <div class="form-group-gf"><label class="form-label-gf">AWB Type</label><div class="form-input-container"><select name="awb_type" class="form-control-gf"><option value="NORMAL" {{ old('awb_type', $airImport->awb_type ?? 'NORMAL') == 'NORMAL' ? 'selected' : '' }}>NORMAL</option><option value="DIRECT" {{ old('awb_type', $airImport->awb_type ?? '') == 'DIRECT' ? 'selected' : '' }}>DIRECT</option></select></div></div>
 
                             <!-- Row 2 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Post Date</label><div class="form-input-container"><input type="date" name="post_date" class="form-control-gf" value="{{ old('post_date', $airImport->post_date ?? date('Y-m-d')) }}" readonly style="background:#f5f5f5;"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Post Date</label><div class="form-input-container"><input type="date" name="post_date" class="form-control-gf" value="{{ old('post_date', isset($airImport->post_date) ? (is_string($airImport->post_date) ? substr($airImport->post_date, 0, 10) : $airImport->post_date->format('Y-m-d')) : date('Y-m-d')) }}" readonly style="background:#f5f5f5;"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Oversea Agent</label><div class="form-input-container"><select name="oversea_agent_id" class="form-control-gf"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}" {{ old('oversea_agent_id', $airImport->oversea_agent_id ?? '') == $agent->id ? 'selected' : '' }}>{{ $agent->name }}</option>@endforeach</select></div></div>
                             <!-- Hidden per client instruction -->
                             <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Carrier</label><div class="form-input-container"><select name="carrier_id" class="form-control-gf"><option value="">Select...</option>@foreach($carriers as $carrier)<option value="{{ $carrier->id }}" {{ old('carrier_id', $airImport->carrier_id ?? '') == $carrier->id ? 'selected' : '' }}>{{ $carrier->name }}</option>@endforeach</select></div></div>
@@ -1488,7 +1641,7 @@
                             <div class="form-group-gf" style="grid-column: span 2;">
                                 <label class="form-label-gf">Volume Weight</label>
                                 <div class="form-input-container" style="gap: 8px; align-items:center;">
-                                    <button type="button" @click="console.log('🔴 Button clicked!'); openDimensionsModal()" class="btn-tool" style="background:#5c9bd1; border:none; padding:2px 8px; flex-shrink:0;">Set Dimensions</button>
+                                    <button type="button" @click="console.log('🔴 Button clicked!'); openDimensionsModal('mawb')" class="btn-tool" style="background:#5c9bd1; border:none; padding:2px 8px; flex-shrink:0;">Set Dimensions</button>
                                     <input type="number" name="volume_weight_kg" class="form-control-gf" style="flex:1; min-width:0;" value="{{ old('volume_weight_kg', $airImport->volume_weight_kg ?? '') }}" step="0.01" min="0"> <span style="font-size:10px; color:#555;">KG</span>
                                     <input type="number" name="volume_cbm" class="form-control-gf" style="flex:1; min-width:0;" value="{{ old('volume_cbm', $airImport->volume_cbm ?? '') }}" step="0.001" min="0"> <span style="font-size:10px; color:#555;">CBM</span>
                                 </div>
@@ -1644,7 +1797,7 @@
                                 <!-- Row 1 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Package</label><div class="form-input-container" style="gap:2px;"><input type="text" class="form-control-gf" style="width:40%;" :name="'hbls['+index+'][pkg_qty]'" x-model="hawb.pkg_qty"><select class="form-control-gf" style="width:60%;" :name="'hbls['+index+'][pkg_unit_id]'" x-model="hawb.pkg_unit_id"><option value="">Select...</option>@foreach($packageUnits as $unit)<option value="{{ $unit->id }}">{{ $unit->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Chargeable Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][chargeable_weight_kg]'" x-model="hawb.chargeable_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][chargeable_weight_lb]'" x-model="hawb.chargeable_weight_lb"> <span style="font-size:10px;">LB</span></div></div>
-                                <div class="form-group-gf" style="grid-column: span 2;"><label class="form-label-gf">Volume Weight</label><div class="form-input-container" style="gap:8px; align-items:center;"><button type="button" class="btn-tool" style="background:#5c9bd1; border:none; padding:2px 8px; flex-shrink:0;" @click="openDimensionsModal()">Set Dimensions</button><input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][volume_weight_kg]'" x-model="hawb.volume_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][volume_cbm]'" x-model="hawb.volume_cbm"> <span style="font-size:10px;">CBM</span></div></div>
+                                <div class="form-group-gf" style="grid-column: span 2;"><label class="form-label-gf">Volume Weight</label><div class="form-input-container" style="gap:8px; align-items:center;"><button type="button" class="btn-tool" style="background:#5c9bd1; border:none; padding:2px 8px; flex-shrink:0;" @click="openDimensionsModal(index)">Set Dimensions</button><input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][volume_weight_kg]'" x-model="hawb.volume_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][volume_cbm]'" x-model="hawb.volume_cbm"> <span style="font-size:10px;">CBM</span></div></div>
 
                                 <!-- Row 2 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Gross Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][gross_weight_kg]'" x-model="hawb.gross_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1;" :name="'hbls['+index+'][gross_weight_lb]'" x-model="hawb.gross_weight_lb"> <span style="font-size:10px;">LB</span></div></div>
@@ -1869,6 +2022,11 @@
                         <span class="caption-subject"><i class="fa fa-money"></i> Charge Manifestation</span>
                     </div>
                     <div class="portlet-body">
+                        <script>
+                            if (!window.tradePartnersList) {
+                                window.tradePartnersList = {!! json_encode(collect($allAgents ?? ($agents ?? []))->map(function($tp) { return ['id' => $tp->id, 'name' => $tp->name, 'label' => $tp->name . ' (' . ($tp->type ?? 'Partner') . ')']; })->toArray()) !!};
+                            }
+                        </script>
 
                         <!-- Header Info Row -->
                         <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
@@ -1907,7 +2065,7 @@
                         </div>
 
                         <!-- Charges Table -->
-                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px;">
+                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px;">
                             <table class="table-custom" style="font-size: 11px; min-width: 1200px;">
                                 <thead>
                                     <tr style="background: #f1f3f6;">
@@ -1941,22 +2099,55 @@
                                 </thead>
                                 <tbody>
                                     <template x-for="(charge, idx) in chargesList" :key="idx">
-                                        <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge.selected }">
+                                        <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
                                             <td style="padding: 5px 8px; text-align: center;">
-                                                <input type="checkbox" x-model="charge.selected" :disabled="charge.is_invoiced" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
+                                                <input type="checkbox" x-model="charge._selected" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                                 <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
                                             </td>
                                             <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 70px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
-                                                    <option value="Agent">Agent</option>
-                                                    <option value="C&F/CN">C&F/CN</option>
-                                                    <option value="Custom">Custom</option>
-                                                    <option value="Shipper">Shipper</option>
-                                                    <option value="Consignee">Consignee</option>
+                                                <select class="form-control-gf" style="width: 80px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
+                                                    <option value="Freight">Freight</option>
+                                                    <option value="THC">THC</option>
+                                                    <option value="Handling">Handling</option>
+                                                    <option value="Documentation">Documentation</option>
+                                                    <option value="Customs">Customs</option>
                                                 </select>
                                             </td>
                                             <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 90px;" x-model="charge.party_name" :name="'charges[' + idx + '][party_name]'" placeholder="Party Name">
+                                                <div x-data="{ 
+                                                    open: false, 
+                                                    search: charge.party_name || '',
+                                                    get filteredAgents() {
+                                                        let list = window.tradePartnersList || [];
+                                                        let q = (this.search || '').toLowerCase();
+                                                        if (q === '') return list;
+                                                        return list.filter(tp => (tp.label || '').toLowerCase().includes(q));
+                                                    }
+                                                }" @click.away="open = false" style="position: relative;">
+                                                    <div style="position: relative;">
+                                                        <input type="text" class="form-control-gf" style="width: 120px; font-size: 10px; padding-right: 20px;" 
+                                                            x-model="search" 
+                                                            @input="charge.party_name = search; open = true"
+                                                            @focus="open = true"
+                                                            @click="open = true"
+                                                            :name="'charges[' + idx + '][party_name]'" 
+                                                            placeholder="Search Party..." 
+                                                            autocomplete="off">
+                                                        <input type="hidden" :name="'charges[' + idx + '][party_name_id]'" x-model="charge.party_name_id">
+                                                        <i class="fa fa-caret-down" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer;" @click="open = !open"></i>
+                                                    </div>
+                                                    
+                                                    <div x-show="open" style="display: none; position: absolute; z-index: 9999; background: white; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 2px;">
+                                                        <template x-for="tp in filteredAgents" :key="tp.name">
+                                                            <div style="padding: 6px 10px; font-size: 10px; cursor: pointer; border-bottom: 1px solid #eee;" 
+                                                                 @click="charge.party_name = tp.name; charge.party_name_id = tp.id; search = tp.name; open = false"
+                                                                 @mouseover="$el.style.backgroundColor='#f3f4f6'"
+                                                                 @mouseout="$el.style.backgroundColor='transparent'"
+                                                                 x-text="tp.label"></div>
+                                                        </template>
+                                                        <div x-show="filteredAgents.length === 0" style="padding: 6px 10px; font-size: 10px; color: #999;">No match found</div>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td style="padding: 5px 8px;">
                                                 <select class="form-control-gf" style="width: 50px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
@@ -2003,15 +2194,35 @@
                                                     @endforeach
                                                 </select>
                                             </td>
-                                        </tr>
-                                    </tbody>
-                                </template>
-                                <tbody>
-                                    <template x-if="filteredCharges.length === 0">
-                                        <tr>
-                                            <td colspan="21" style="text-align: center; padding: 30px; color: #999;">
-                                                <i class="fa fa-inbox" style="font-size: 40px; opacity: 0.3; display: block; margin-bottom: 10px;"></i>
-                                                <span x-text="form.charges.length === 0 ? 'No charges added yet. Click "+ Add Row" button to start.' : 'No charges match the selected manifest filter.'"></span>
+                                            <td style="padding: 5px 8px;">
+                                                <span x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0)).toFixed(2)" style="display: inline-block; min-width: 50px; text-align: right;">0.00</span>
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <input type="number" class="form-control-gf" style="width: 55px; text-align: right;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
+                                                <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
+                                            </td>
+                                            <td style="padding: 5px 8px;">
+                                                <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
+                                            </td>
+                                            <td style="padding: 5px 8px; text-align: center;">
+                                                <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     </template>
@@ -2019,12 +2230,12 @@
                             </table>
                         </div>
 
-                        <!-- Buttons Row -->
+                        <!-- Buttons Row - Exactly as per Ocean Import -->
                         <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; align-items: center; padding: 10px 0; border-top: 1px solid #e7ecf1;">
                             <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="addNewCharge">Parcs</button>
                             <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="openCertificateModal">Certificate</button>
                             <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="applyTemplate">Template</button>
-                            <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="generateFreightInvoice">Generate Invoice</button>
+                            <button type="button" class="btn-freightx" style="background: #16a34a; color: white; border: none; padding: 6px 14px; font-weight: 600; border-radius: 3px; font-size: 11px; cursor: pointer;" @click="createInvoice">Generate Invoice</button>
 
                             <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="prorataCharges">Prorata</button>
                             <button type="button" class="btn-default-gf" style="background: #fff; border: 1px solid #ccc; padding: 6px 15px; font-size: 11px;" @click="setDefaultCharges">Default</button>
@@ -2217,111 +2428,16 @@
                     </div>
                 </div>
             </div> <!-- End of filing tab -->
+        @include('partials.ai-modal')
 
-        <!-- AI Auto-Fill Modal (Advanced Split Pane) -->
-        <div x-show="showAiModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;" @click.self="!isAiProcessing && !aiPreviewMode ? showAiModal = false : null" x-transition>
-            <div class="modal-container" style="max-width: 1100px; width: 95vw; padding: 0; display: flex; flex-direction: column; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div class="modal-header" style="background:#337ab7; color:white; border-radius: 8px 8px 0 0; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight:700; font-size: 16px;"><i class="fa fa-file-text-o"></i> AI Document Extraction</span>
-                    <i class="fa fa-times cursor-pointer" @click="!isAiProcessing ? showAiModal = false : null" style="color:white; font-size: 16px;"></i>
-                </div>
-                
-                <div class="modal-body" style="padding: 20px; background: #fff;" x-data="{ fileName: '' }">
-                    <div x-show="aiError" style="background: #fef2f2; color: #dc2626; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; border: 1px solid #f87171;">
-                        <i class="fa fa-exclamation-triangle"></i> <span x-text="aiError"></span>
-                    </div>
-
-                    <!-- State 1: Upload (Not Preview Mode) -->
-                    <div x-show="!aiPreviewMode">
-                        <p style="margin-bottom: 15px; font-size: 14px; color: #555;">Upload a Bill of Lading, Invoice, or Packing List (PDF, Image, CSV). Our AI will analyze the document and automatically fill the form.</p>
-                        <label class="ai-dropzone">
-                            <i class="fa fa-cloud-upload ai-dropzone-icon"></i>
-                            <div class="ai-dropzone-title">Click to browse or drag file here</div>
-                            <div class="ai-dropzone-desc">Supports PDF, PNG, JPG, CSV, TXT</div>
-                            <input x-ref="aiFileInput" type="file" style="display: none;" @change="handleAiUpload" accept=".pdf,.txt,.csv,.jpg,.jpeg,.png">
-                        </label>
-                    </div>
-                    
-                    <!-- State 2: Review (Preview Mode) -->
-                    <div x-show="aiPreviewMode" class="ai-split-layout" style="display: none;">
-                        <!-- Left Pane: Document Preview -->
-                        <div class="ai-pane-left" style="padding:0; border:1px solid #cbd5e1; background: #334155; overflow: hidden;">
-                            <div style="width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;">
-                                <template x-if="documentPreviewUrl">
-                                    <iframe :src="documentPreviewUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH'" style="width: 100%; height: 100%; border: none; pointer-events: none;"></iframe>
-                                </template>
-                                <template x-if="!documentPreviewUrl">
-                                    <div style="display:flex; align-items:center; justify-content:center; height:100%; background: url('https://www.transparenttextures.com/patterns/cubes.png') #f8fafc; width: 100%;">
-                                        <i class="fa fa-file-text-o" style="font-size: 80px; color: #cbd5e1;"></i>
-                                    </div>
-                                </template>
-                                
-                                <div x-show="isAiProcessing" class="ai-scanner-line-large" style="display: none;"></div>
-                                <div x-show="isAiProcessing" class="ai-scanner-badge" style="display: none;">
-                                    <i class="fa fa-magic"></i> AI Analyzing...
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Right Pane: Extracted Data Review -->
-                        <div class="ai-pane-right">
-                            <div class="ai-table-header">
-                                <span>Shipment Information</span>
-                            </div>
-                            
-                            <div class="ai-table-container">
-                                <table class="ai-data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Field Name</th>
-                                            <th>Extracted Data</th>
-                                            <th style="text-align: center; width: 60px;">Select</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Loading State -->
-                                        <tr x-show="isAiProcessing">
-                                            <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">
-                                                <i class="fa fa-circle-o-notch fa-spin" style="font-size: 24px; margin-bottom: 10px; color: #3b82f6;"></i>
-                                                <div>Extracting fields from document...</div>
-                                            </td>
-                                        </tr>
-                                        
-                                        <!-- Done State -->
-                                        <template x-for="(item, index) in extractedData" :key="index">
-                                            <tr>
-                                                <td x-text="item.label" style="font-weight: 500;"></td>
-                                                <td><span class="ai-extracted-value" x-text="item.displayValue"></span></td>
-                                                <td style="text-align: center;">
-                                                    <input type="checkbox" class="ai-checkbox" x-model="item.selected">
-                                                </td>
-                                            </tr>
-                                        </template>
-                                        <tr x-show="!isAiProcessing && extractedData.length === 0">
-                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 20px;">No fields extracted.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; border-radius: 0 0 8px 8px;">
-                    <button type="button" class="btn-default-gf" @click="showAiModal = false; aiPreviewMode = false;" :disabled="isAiProcessing">Cancel</button>
-                    <button type="button" class="btn-freightx" style="background:#337ab7; color:white; border-color:#286090;" @click="aiPreviewMode ? applyAiData() : $refs.aiFileInput.click()" :disabled="isAiProcessing">
-                        <i class="fa" :class="aiPreviewMode ? 'fa-check' : 'fa-cogs'"></i> <span x-text="aiPreviewMode ? 'Create Shipment' : 'Extract Data'"></span>
-                    </button>
-                </div>
-            </div>
-        </div>
         </form>
 
         <!-- Dimensions Modal -->
     <!-- Volume & Gross Weight Calculator Modal -->
     <div x-show="showDimensionsModal" 
-         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex !important; align-items: center; justify-content: center;"
-         @click.self="closeDimensionsModal()">
+         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999;"
+         x-cloak>
+         <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;" @click.self="closeDimensionsModal()">
         <div style="background: white; border-radius: 4px; width: 750px; max-width: 95%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); font-size: 11px;">
             <!-- Modal Header -->
             <div style="padding: 12px 18px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">

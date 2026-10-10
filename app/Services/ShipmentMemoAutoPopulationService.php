@@ -90,17 +90,23 @@ class ShipmentMemoAutoPopulationService
      */
     private function getNestedValue($object, $path)
     {
+        if (!$object) return null;
         $keys = explode('.', $path);
         $value = $object;
 
         foreach ($keys as $key) {
-            if (is_object($value) && isset($value->$key)) {
-                $value = $value->$key;
-            } elseif (is_array($value) && isset($value[$key])) {
-                $value = $value[$key];
-            } else {
+            try {
+                if (is_object($value)) {
+                    $value = $value->{$key} ?? null;
+                } elseif (is_array($value) && isset($value[$key])) {
+                    $value = $value[$key];
+                } else {
+                    return null;
+                }
+            } catch (\Throwable $e) {
                 return null;
             }
+            if ($value === null) return null;
         }
 
         return $value;

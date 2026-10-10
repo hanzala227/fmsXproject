@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('air_import_hawbs', function (Blueprint $table) {
-            if (!Schema::hasColumn('air_import_hawbs', 'freight')) {
+        // Table was renamed to air_import_hbls; apply to correct table if it exists
+        $tableName = Schema::hasTable('air_import_hbls') ? 'air_import_hbls' : (Schema::hasTable('air_import_hawbs') ? 'air_import_hawbs' : null);
+        if (!$tableName) return;
+
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+            if (!Schema::hasColumn($tableName, 'freight')) {
                 $table->string('freight')->nullable();
             }
-            if (!Schema::hasColumn('air_import_hawbs', 'transportation')) {
+            if (!Schema::hasColumn($tableName, 'transportation')) {
                 $table->string('transportation')->nullable();
             }
         });
@@ -26,11 +30,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('air_import_hawbs', function (Blueprint $table) {
-            if (Schema::hasColumn('air_import_hawbs', 'freight')) {
+        $tableName = Schema::hasTable('air_import_hbls') ? 'air_import_hbls' : (Schema::hasTable('air_import_hawbs') ? 'air_import_hawbs' : null);
+        if (!$tableName) return;
+
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+            if (Schema::hasColumn($tableName, 'freight')) {
                 $table->dropColumn('freight');
             }
-            if (Schema::hasColumn('air_import_hawbs', 'transportation')) {
+            if (Schema::hasColumn($tableName, 'transportation')) {
                 $table->dropColumn('transportation');
             }
         });

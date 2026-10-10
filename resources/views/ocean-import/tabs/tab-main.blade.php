@@ -278,9 +278,6 @@
                     </div>
                 </div>
             </div>
-
-            <div style="height: 15px;"></div>
-
             <!-- LOGISTICS & ROUTING GRID -->
             <div class="form-grid-4">
                 <!-- Column 1 -->
@@ -404,17 +401,14 @@
                     </div>
                 </div>
             </div>
-
-            <div style="height: 15px;"></div>
-
             <!-- DYNAMIC ROUTE / TRANSPORTATION SECTION -->
-            <div class="portlet light bordered" style="margin-bottom: 15px;">
-                <div class="portlet-title" style="min-height: 30px; border-bottom: 1px solid #eee; margin-bottom: 0;">
+            <div style="margin-bottom: 15px; width: 100%;">
+                <div style="min-height: 20px; margin-bottom: 4px;">
                     <div class="caption" style="padding: 5px 0;">
                         <span class="caption-subject" style="font-size: 13px; font-weight: bold; color: #32c5d2;"><i class="fa fa-ship"></i> Route / Transportation</span>
                     </div>
                 </div>
-                <div class="portlet-body" style="padding: 10px 0;">
+                <div>
                     <div style="overflow-x: auto;">
                         <table class="table-custom" style="width: 100%;">
                             <thead>
@@ -730,7 +724,6 @@
                                 </select>
                             </div>
                         </div>
-                        <div style="height: 5px;"></div>
                         <div class="form-group-gf">
                             <label class="form-label-gf">Customs Broker</label>
                             <div class="form-input-container">
@@ -964,8 +957,6 @@
                         </div>
                     </div>
                 </div>
-
-                <div style="height: 15px;"></div>
 
                 <!-- Hidden per client instruction: Express B/L, Door Move, Referred By, OB/L Recv, FR Released, AN Sent, More section -->
                 <div style="display: none;">

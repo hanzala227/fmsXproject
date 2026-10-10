@@ -1,0 +1,151 @@
+                                        value: field.val,
+                                        displayValue: field.display || field.val,
+                                        nameKey: field.nameKey || null,
+                                        selected: true
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // Parse Containers
+                        if (data.data.containers && data.data.containers.length > 0) {
+                            data.data.containers.forEach((c, idx) => {
+                                this.extractedData.push({
+                                    label: `Container ${idx+1}`,
+                                    parent: 'containers',
+                                    key: `container_${idx}`,
+                                    value: c.container_no,
+                                    displayValue: `${c.container_no || ''} ${c.container_type ? '('+c.container_type+')' : ''}`,
+                                    originalData: c,
+                                    selected: true
+                                });
+                            });
+                        }
+                        
+                        this.aiPreviewMode = true;
+                        e.target.value = ''; // reset file input
+                    })
+                    .catch(err => {
+                        this.isAiProcessing = false;
+                        this.aiError = 'An error occurred while connecting to the AI service.';
+                        console.error(err);
+                    });
+                },
+                applyAiData() {
+                    let dataToApply = { mbl: {}, hbl: {}, hbls: [], containers: [] };
+                    
+                    this.extractedData.forEach(item => {
+                        if (item.selected) {
+                            if (item.parent === 'containers') {
+                                dataToApply.containers.push(item.originalData);
+                            } else if (item.parent === 'mbl') {
+                                dataToApply.mbl[item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.mbl[item.nameKey] = item.displayValue;
+                                }
+                            } else if (item.parent === 'hbl') {
+                                dataToApply.hbl[item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.hbl[item.nameKey] = item.displayValue;
+                                }
+                            }
+                        }
+                    });
+                    
+                    if (Object.keys(dataToApply.hbl).length > 0) {
+                        dataToApply.hbls.push(dataToApply.hbl);
+                    }
+                    
+                    this.populateAiData(dataToApply);
+                    this.showAiModal = false;
+                    this.aiPreviewMode = false;
+                    this.extractedData = [];
+                    if (typeof showToast === 'function') showToast('success', 'Data applied successfully!');
+                },
+
+                populateAiData(data) {
+                    // Helper function to inject missing options into dropdowns dynamically
+                    const ensureOptionExists = (selectName, id, text) => {
+                        if (!id) return;
+                        const el = document.querySelector(`[name="${selectName}"]`);
+                        if (el) {
+                            let exists = false;
+                            for (let i = 0; i < el.options.length; i++) {
+                                if (el.options[i].value == id) { exists = true; break; }
+                            }
+                            if (!exists) {
+                                const opt = document.createElement('option');
+                                opt.value = id;
+                                opt.text = text;
+                                el.appendChild(opt);
+                            }
+                        }
+                    };
+
+                    // MBL Mapping
+                    if (data.mbl) {
+                        // Standard Fields
+                        if (data.mbl.mbl_no) this.form.mbl_no = data.mbl.mbl_no;
+                        // Removed file_no overwrite to preserve unique auto-generated number
+                        if (data.mbl.post_date) this.form.post_date = data.mbl.post_date;
+                        if (data.mbl.agent_ref_no) this.form.agent_ref_no = data.mbl.agent_ref_no;
+                        if (data.mbl.contract_no) this.form.contract_no = data.mbl.contract_no;
+                        if (data.mbl.sales_type) this.form.sales_type = data.mbl.sales_type;
+                        if (data.mbl.bl_type) this.form.bl_type = data.mbl.bl_type;
+                        if (data.mbl.sub_bl_no) this.form.sub_bl_no = data.mbl.sub_bl_no;
+                        if (data.mbl.cargo_type) this.form.cargo_type = data.mbl.cargo_type;
+                        if (data.mbl.voyage) this.form.voyage = data.mbl.voyage;
+                        if (data.mbl.etd) this.form.etd = data.mbl.etd;
+                        if (data.mbl.eta) this.form.eta = data.mbl.eta;
+                        if (data.mbl.atd) this.form.atd = data.mbl.atd;
+                        if (data.mbl.ata) this.form.ata = data.mbl.ata;
+                        if (data.mbl.final_eta) this.form.final_eta = data.mbl.final_eta;
+                        if (data.mbl.etb) this.form.etb = data.mbl.etb;
+                        if (data.mbl.latest_gate_in) this.form.latest_gate_in = data.mbl.latest_gate_in;
+                        if (data.mbl.freight_term) this.form.freight_term = data.mbl.freight_term;
+                        if (data.mbl.obl_type) this.form.obl_type = data.mbl.obl_type;
+                        if (data.mbl.ship_mode) this.form.ship_mode = data.mbl.ship_mode;
+                        if (data.mbl.is_express_bl !== undefined && !data.mbl.bl_type) this.form.bl_type = data.mbl.is_express_bl ? 'Express' : 'Original';
+                        if (data.mbl.obl_received_date) {
+                            this.form.is_obl_received = 1;
+                            this.form.obl_received_date = data.mbl.obl_received_date;
+                        }
+                        if (data.mbl.released_date) {
+                            this.form.is_released = 1;
+                            this.form.released_date = data.mbl.released_date;
+                        }
+                        
+                        // Foreign Keys (Jugaar)
+                        const mblFks = [
+                            {id: 'pol_id', name: 'pol_name', fallback: 'POL'},
+                            {id: 'pod_id', name: 'pod_name', fallback: 'POD'},
+                            {id: 'del_id', name: 'del_name', fallback: 'Delivery Port'},
+                            {id: 'fdest_id', name: 'fdest_name', fallback: 'Final Destination'},
+                            {id: 'forwarding_agent_id', name: 'forwarding_agent_name', fallback: 'Forwarding Agent'},
+                            {id: 'op_id', name: 'op_name', fallback: 'Operator'},
+                            {id: 'dm_sales_person_id', name: 'dm_sales_person_name', fallback: 'Sales Person'},
+                            {id: 'oversea_agent_id', name: 'oversea_agent_name', fallback: 'Oversea Agent'},
+                            {id: 'co_loader_id', name: 'co_loader_name', fallback: 'Co-Loader'},
+                            {id: 'carrier_id', name: 'carrier_name', fallback: 'Carrier'},
+                            {id: 'acct_carrier_id', name: 'acct_carrier_name', fallback: 'Acct Carrier'},
+                            {id: 'dm_notify_id', name: 'dm_notify_name', fallback: 'Notify'},
+                            {id: 'cy_location_id', name: 'cy_location_name', fallback: 'CY Location'},
+                            {id: 'cfs_location_id', name: 'cfs_location_name', fallback: 'CFS Location'},
+                            {id: 'business_referred_by_id', name: 'business_referred_by_name', fallback: 'Referred By'},
+                            {id: 'vessel_id', name: 'vessel_name', fallback: 'Vessel'},
+                        ];
+                        
+                        mblFks.forEach(fk => {
+                            if (data.mbl[fk.id]) {
+                                ensureOptionExists(fk.id, data.mbl[fk.id], data.mbl[fk.name] || fk.fallback);
+                                this.form[fk.id] = data.mbl[fk.id];
+                            }
+                        });
+
+                        // Add Route / Transportation
+                        if (data.mbl.eta || data.mbl.etd || data.mbl.pol_id || data.mbl.pod_id || data.mbl.vessel_name) {
+                            if (!this.form.routes || this.form.routes.length === 0) {
+                                this.addRoute();
+                            }
+                            const r = this.form.routes[0];
+                            if (data.mbl.eta) r.eta = data.mbl.eta;

@@ -106,7 +106,7 @@
                                         @endphp
                                         {{ $shipper ?: ($consignee ?: '-') }}
                                     </td>
-                                    <td>{{ $row->invoiceable->mbl_no ?? $row->invoiceable->file_no ?? '-' }}</td>
+                                    <td>{{ $row->mbl_no ?? optional($row->invoiceable)->mbl_no ?? optional($row->invoiceable)->file_no ?? '-' }}</td>
                                     <td style="text-align:right;">
                                         {{ $row->currency->code ?? '' }} {{ number_format($row->total_amount, 2) }}
                                     </td>

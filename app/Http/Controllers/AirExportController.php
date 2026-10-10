@@ -253,6 +253,10 @@ class AirExportController extends Controller
             ];
 
             $requestData = $request->validated();
+        \Log::info("AirExportController Request Payload:", $request->all());
+            if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
+            if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
+            if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
             $filled = [];
             $empty = [];
 
@@ -376,6 +380,7 @@ class AirExportController extends Controller
                 'eq_bl_no' => $c->remark ?? '',
                 'remark' => false,
                 'mbl_no' => $airExport->file_no ?? ($airExport->mawb_no ?? ''),
+                'is_invoiced' => $c->is_invoiced,
             ])
             : collect();
         
@@ -421,6 +426,10 @@ class AirExportController extends Controller
         ];
 
         $requestData = $request->validated();
+        \Log::info("AirExportController Request Payload:", $request->all());
+        if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
+        if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
+        if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
         $filled = [];
         $empty = [];
 

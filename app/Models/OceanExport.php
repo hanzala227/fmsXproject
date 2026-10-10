@@ -31,7 +31,7 @@ class OceanExport extends Model
         'entry_no', 'entry_doc_sent_date', 'go_date', 'available_date',
         'c_released_date', 'released_by_id', 'is_ror', 'is_hold',
         'door_delivery_date', 'trucker_id', 'expiry_date', 'sales_type', 'incoterm_id',
-        'color',
+        'color', 'routes',
     ];
 
     protected $casts = [
@@ -77,6 +77,7 @@ class OceanExport extends Model
     // Trade Partner Relations
     public function forwardingAgent() { return $this->belongsTo(TradePartner::class, 'forwarding_agent_id'); }
     public function overseaAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function deliveryAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
     public function coLoader() { return $this->belongsTo(TradePartner::class, 'co_loader_id'); }
     public function carrier() { return $this->belongsTo(TradePartner::class, 'carrier_id'); }
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }

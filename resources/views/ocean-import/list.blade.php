@@ -938,9 +938,40 @@
             ['Containers',       d.containers],
             ['HBLs',             d.hbls],
         ];
-        document.getElementById('mbl-body').innerHTML = rows.map(([l, v]) =>
+        let html = rows.map(([l, v]) =>
             `<div class="mbl-row"><span class="lbl">${l}</span><span class="val">${v ?? '--'}</span></div>`
         ).join('');
+
+        if (d.routes && Array.isArray(d.routes) && d.routes.length > 0) {
+            html += `<div style="margin-top:15px; border-top:1px solid #e2e8f0; padding-top:10px;">
+                <div style="font-weight:bold; font-size:12px; color:#32c5d2; margin-bottom:6px;"><i class="fa fa-ship"></i> Route / Transportation</div>
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; text-align:left;">
+                            <th style="padding:4px;">Type</th>
+                            <th style="padding:4px;">ETA</th>
+                            <th style="padding:4px;">ATA</th>
+                            <th style="padding:4px;">ETD</th>
+                            <th style="padding:4px;">ATD</th>
+                            <th style="padding:4px;">Vessel / Flight</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            d.routes.forEach((r, idx) => {
+                const typeLabel = idx === 0 ? 'Departure' : (idx === d.routes.length - 1 && d.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx);
+                html += `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:4px; font-weight:600;">${typeLabel}</td>
+                    <td style="padding:4px;">${r.eta || '--'}</td>
+                    <td style="padding:4px;">${r.ata || '--'}</td>
+                    <td style="padding:4px;">${r.etd || '--'}</td>
+                    <td style="padding:4px;">${r.atd || '--'}</td>
+                    <td style="padding:4px;">${r.flight_no || '--'}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        document.getElementById('mbl-body').innerHTML = html;
         document.getElementById('mbl-overlay').classList.add('open');
     }
     function closeMbl() {

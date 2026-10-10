@@ -116,8 +116,8 @@
             <ul class="gf-tabs">
                 <li :class="activeTab === 'basic' ? 'active' : ''" @click="activeTab = 'basic'"><a>Basic</a></li>
                 <li :class="(activeTab === 'accounting' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'accounting' : showToast('warning', 'Save schedule first to access Accounting')"><a>Accounting</a></li>
-                <li :class="(activeTab === 'document' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'document' : showToast('warning', 'Save schedule first to access Doc Center')"><a>Doc Center</a></li>
-                <li :class="(activeTab === 'workorder' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'workorder' : showToast('warning', 'Save schedule first to access Work Order')"><a>Work Order</a></li>
+                <li style="display: none !important;" :class="(activeTab === 'document' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'document' : showToast('warning', 'Save schedule first to access Doc Center')"><a>Doc Center</a></li>
+                <li style="display: none !important;" :class="(activeTab === 'workorder' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'workorder' : showToast('warning', 'Save schedule first to access Work Order')"><a>Work Order</a></li>
                 <li :class="(activeTab === 'status' ? 'active' : '') + (saved ? '' : ' disabled-tab')" @click="saved ? activeTab = 'status' : showToast('warning', 'Save schedule first to access Status')"><a>Status</a></li>
             </ul>
 

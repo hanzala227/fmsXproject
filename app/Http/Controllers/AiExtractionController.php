@@ -60,6 +60,15 @@ class AiExtractionController extends Controller
         return $user ? $user->id : null;
     }
 
+    // Helper to find ContainerType
+    private function getContainerType($name)
+    {
+        if (empty($name)) return null;
+        $search = trim($name);
+        $ct = \App\Models\ContainerType::where('name', 'like', '%' . $search . '%')->first();
+        return $ct ? $ct->id : null;
+    }
+
     public function extractOceanImport(Request $request)
     {
         $request->validate([
@@ -110,6 +119,19 @@ class AiExtractionController extends Controller
                     if (!empty($hbl['customer_name'])) $hbl['customer_id'] = $this->getOrCreateTradePartner($hbl['customer_name']);
                     if (!empty($hbl['sales_person_name'])) $hbl['sales_person_id'] = $this->getOrCreateTradePartner($hbl['sales_person_name']);
                     if (!empty($hbl['forwarding_agent_name'])) $hbl['forwarding_agent_id'] = $this->getOrCreateTradePartner($hbl['forwarding_agent_name']);
+                }
+            }
+
+            if (isset($data['routes']) && is_array($data['routes'])) {
+                foreach ($data['routes'] as &$route) {
+                    if (!empty($route['pol_name'])) $route['pol_id'] = $this->getOrCreatePort($route['pol_name']);
+                    if (!empty($route['pod_name'])) $route['pod_id'] = $this->getOrCreatePort($route['pod_name']);
+                }
+            }
+
+            if (isset($data['containers']) && is_array($data['containers'])) {
+                foreach ($data['containers'] as &$container) {
+                    if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
                 }
             }
             
@@ -184,6 +206,25 @@ class AiExtractionController extends Controller
                     if (!empty($hbl['customer_name'])) $hbl['customer_id'] = $this->getOrCreateTradePartner($hbl['customer_name']);
                     if (!empty($hbl['sales_person_name'])) $hbl['sales_person_id'] = $this->getOrCreateTradePartner($hbl['sales_person_name']);
                     if (!empty($hbl['forwarding_agent_name'])) $hbl['forwarding_agent_id'] = $this->getOrCreateTradePartner($hbl['forwarding_agent_name']);
+                    
+                    if (!empty($hbl['pol_name'])) $hbl['pol_id'] = $this->getOrCreatePort($hbl['pol_name']);
+                    if (!empty($hbl['pod_name'])) $hbl['pod_id'] = $this->getOrCreatePort($hbl['pod_name']);
+                    if (!empty($hbl['receipt_name'])) $hbl['receipt_id'] = $this->getOrCreatePort($hbl['receipt_name']);
+                    if (!empty($hbl['del_name'])) $hbl['del_id'] = $this->getOrCreatePort($hbl['del_name']);
+                    if (!empty($hbl['fdest_name'])) $hbl['fdest_id'] = $this->getOrCreatePort($hbl['fdest_name']);
+                }
+            }
+
+            if (isset($data['routes']) && is_array($data['routes'])) {
+                foreach ($data['routes'] as &$route) {
+                    if (!empty($route['pol_name'])) $route['pol_id'] = $this->getOrCreatePort($route['pol_name']);
+                    if (!empty($route['pod_name'])) $route['pod_id'] = $this->getOrCreatePort($route['pod_name']);
+                }
+            }
+
+            if (isset($data['containers']) && is_array($data['containers'])) {
+                foreach ($data['containers'] as &$container) {
+                    if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
                 }
             }
             
@@ -231,6 +272,13 @@ class AiExtractionController extends Controller
                 }
             }
             
+            if (isset($data['flights']) && is_array($data['flights'])) {
+                foreach ($data['flights'] as &$flight) {
+                    if (!empty($flight['pol_name'])) $flight['pol_id'] = $this->getOrCreatePort($flight['pol_name']);
+                    if (!empty($flight['pod_name'])) $flight['pod_id'] = $this->getOrCreatePort($flight['pod_name']);
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'data' => $data,
@@ -266,6 +314,13 @@ class AiExtractionController extends Controller
                     if (!empty($hbl['shipper_name'])) $hbl['shipper_id'] = $this->getOrCreateTradePartner($hbl['shipper_name']);
                     if (!empty($hbl['consignee_name'])) $hbl['consignee_id'] = $this->getOrCreateTradePartner($hbl['consignee_name']);
                     if (!empty($hbl['notify_party_name'])) $hbl['notify_id'] = $this->getOrCreateTradePartner($hbl['notify_party_name']);
+                }
+            }
+            
+            if (isset($data['flights']) && is_array($data['flights'])) {
+                foreach ($data['flights'] as &$flight) {
+                    if (!empty($flight['pol_name'])) $flight['pol_id'] = $this->getOrCreatePort($flight['pol_name']);
+                    if (!empty($flight['pod_name'])) $flight['pod_id'] = $this->getOrCreatePort($flight['pod_name']);
                 }
             }
             

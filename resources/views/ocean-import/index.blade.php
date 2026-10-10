@@ -1,6 +1,18 @@
 <x-layout>
     @push('styles')
     <x-form-styles />
+    <style>
+        /* Specific overrides for Ocean Import Form to reduce excessive gaps */
+        .form-grid-4 {
+            gap: 2px 6px !important;
+        }
+        .form-group-gf {
+            margin-bottom: 2px !important;
+        }
+        .form-label-gf {
+            width: 95px !important; /* Standardize and slightly reduce label width */
+        }
+    </style>
     @endpush
 
     <form action="{{ isset($oceanImport) ? route('ocean-import.update', $oceanImport->id) : route('ocean-import.store') }}" method="POST">
@@ -558,7 +570,7 @@
                 documents: @json(isset($oceanImport) && $oceanImport->documents ? $oceanImport->documents : []),
                 form: {
                     id: @json(isset($oceanImport) ? $oceanImport->id : null),
-                    file_no: @json(isset($oceanImport) ? $oceanImport->file_no : 'MOI-' . date('ymdHis')),
+                    file_no: @json(isset($oceanImport) ? $oceanImport->file_no : 'MOI-' . date('ymdHis') . '-' . strtoupper(substr(uniqid(), -4))),
                     mbl_no: @json(isset($oceanImport) ? $oceanImport->mbl_no : ''),
                     office_id: @json(isset($oceanImport) ? $oceanImport->office_id : ''),
                     post_date: @json(isset($oceanImport) && $oceanImport->post_date ? $oceanImport->post_date->format('Y-m-d') : date('Y-m-d')),
@@ -664,24 +676,27 @@
                     this.chargesList = this.chargesList.map(c => {
                         return {
                             id: c.id || null,
+                            _selected: false,
                             selected: false,
-                            party: c.type === 'AP' ? 'Agent' : 'Custom',
+                            party: c.party || (c.type === 'AP' ? 'Agent' : 'Custom'),
+                            party_name: c.party_name || '',
                             party_name_id: c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || ''),
                             sal: c.sal || 'Sea',
                             pr: c.type === 'AP' ? 'Pay' : 'Rec',
                             ppc: c.pc === 'PREPAID' ? 'Prepaid' : 'Colle',
                             chrg_code: c.charge_code || '',
-                            currency: (c.currency && c.currency.code) ? c.currency.code : 'USD',
+                            currency: (c.currency && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
                             rate: parseFloat(c.rate) || 0,
                             qty: parseFloat(c.qty) || 1,
                             qty_type: c.unit || 'B/L',
                             roe: parseFloat(c.roe) || 1.0,
                             vat: parseFloat(c.vat) || 0,
                             inv_no: c.invoice_no || '',
-                            financial_date: c.invoice_date ? c.invoice_date.substring(0, 10) : new Date().toISOString().split('T')[0],
+                            financial_date: c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0],
                             eq_bl_no: c.remark || '',
                             remark: !!c.remark,
-                            mbl_no: ''
+                            mbl_no: c.mbl_no || '',
+                            is_invoiced: !!c.is_invoiced
                         };
                     });
 
@@ -871,6 +886,17 @@
                                 { label: 'Shipper', key: 'shipper_id', val: h.shipper_id, display: h.shipper_name, nameKey: 'shipper_name' },
                                 { label: 'Consignee', key: 'consignee_id', val: h.consignee_id, display: h.consignee_name, nameKey: 'consignee_name' },
                                 { label: 'Notify Party', key: 'notify_id', val: h.notify_id, display: h.notify_party_name, nameKey: 'notify_party_name' },
+                                { label: 'HBL Vessel', key: 'vessel_name', val: h.vessel_name },
+                                { label: 'HBL Voyage', key: 'voyage', val: h.voyage },
+                                { label: 'Pre-Carriage By', key: 'pre_carriage_by', val: h.pre_carriage_by },
+                                { label: 'Place of Receipt', key: 'receipt_id', val: h.receipt_id, display: h.receipt_name, nameKey: 'receipt_name' },
+                                { label: 'Port of Loading', key: 'pol_id', val: h.pol_id, display: h.pol_name, nameKey: 'pol_name' },
+                                { label: 'Port of Discharge', key: 'pod_id', val: h.pod_id, display: h.pod_name, nameKey: 'pod_name' },
+                                { label: 'Place of Delivery', key: 'del_id', val: h.del_id, display: h.del_name, nameKey: 'del_name' },
+                                { label: 'Final Destination', key: 'fdest_id', val: h.fdest_id, display: h.fdest_name, nameKey: 'fdest_name' },
+                                { label: 'Date of Issue', key: 'date_of_issue', val: h.date_of_issue },
+                                { label: 'S/C No', key: 'sc_no', val: h.sc_no },
+                                { label: 'Ship Mode', key: 'ship_mode', val: h.ship_mode },
                                 { label: 'Gross Weight', key: 'weight', val: h.weight },
                                 { label: 'Volume (CBM)', key: 'volume', val: h.volume },
                                 { label: 'Pieces', key: 'pieces', val: h.pieces },
@@ -891,6 +917,35 @@
                             });
                         }
                         
+                        // Parse Routes
+                        if (data.data.routes && data.data.routes.length > 0) {
+                            data.data.routes.forEach((r, idx) => {
+                                const legLabel = `Route Leg ${idx+1}`;
+                                const fields = [
+                                    { label: `${legLabel} - Vessel`, key: 'vessel_name', val: r.vessel_name },
+                                    { label: `${legLabel} - Voyage`, key: 'voyage', val: r.voyage },
+                                    { label: `${legLabel} - POL`, key: 'pol_name', val: r.pol_name, nameKey: 'pol_id', idVal: r.pol_id },
+                                    { label: `${legLabel} - POD`, key: 'pod_name', val: r.pod_name, nameKey: 'pod_id', idVal: r.pod_id },
+                                    { label: `${legLabel} - ETD`, key: 'etd', val: r.etd },
+                                    { label: `${legLabel} - ETA`, key: 'eta', val: r.eta }
+                                ];
+                                fields.forEach(f => {
+                                    if (f.val) {
+                                        this.extractedData.push({
+                                            label: f.label,
+                                            parent: 'routes',
+                                            index: idx,
+                                            key: f.key,
+                                            value: f.idVal !== undefined ? f.idVal : f.val,
+                                            displayValue: f.val,
+                                            nameKey: f.nameKey || null,
+                                            selected: true
+                                        });
+                                    }
+                                });
+                            });
+                        }
+
                         // Parse Containers
                         if (data.data.containers && data.data.containers.length > 0) {
                             data.data.containers.forEach((c, idx) => {
@@ -916,12 +971,20 @@
                     });
                 },
                 applyAiData() {
-                    let dataToApply = { mbl: {}, hbl: {}, hbls: [], containers: [] };
+                    let dataToApply = { mbl: {}, hbl: {}, hbls: [], containers: [], routes: [] };
                     
                     this.extractedData.forEach(item => {
                         if (item.selected) {
                             if (item.parent === 'containers') {
                                 dataToApply.containers.push(item.originalData);
+                            } else if (item.parent === 'routes') {
+                                if (!dataToApply.routes[item.index]) {
+                                    dataToApply.routes[item.index] = {};
+                                }
+                                dataToApply.routes[item.index][item.key] = item.value;
+                                if(item.nameKey && item.displayValue) {
+                                    dataToApply.routes[item.index][item.nameKey] = item.displayValue;
+                                }
                             } else if (item.parent === 'mbl') {
                                 dataToApply.mbl[item.key] = item.value;
                                 if(item.nameKey && item.displayValue) {
@@ -970,7 +1033,7 @@
                     if (data.mbl) {
                         // Standard Fields
                         if (data.mbl.mbl_no) this.form.mbl_no = data.mbl.mbl_no;
-                        if (data.mbl.file_no && !this.saved) this.form.file_no = data.mbl.file_no;
+                        // Removed file_no overwrite to preserve unique auto-generated number
                         if (data.mbl.post_date) this.form.post_date = data.mbl.post_date;
                         if (data.mbl.agent_ref_no) this.form.agent_ref_no = data.mbl.agent_ref_no;
                         if (data.mbl.contract_no) this.form.contract_no = data.mbl.contract_no;
@@ -1027,7 +1090,31 @@
                         });
 
                         // Add Route / Transportation
-                        if (data.mbl.eta || data.mbl.etd || data.mbl.pol_id || data.mbl.pod_id || data.mbl.vessel_name) {
+                        if (data.routes && data.routes.length > 0) {
+                            data.routes.forEach((route, index) => {
+                                if (this.form.routes.length <= index) {
+                                    this.addRoute();
+                                }
+                                const r = this.form.routes[index];
+                                if (route.eta) r.eta = route.eta;
+                                if (route.etd) r.etd = route.etd;
+                                
+                                if (route.pol_id) {
+                                    ensureOptionExists(`routes[${index}][airport_id]`, route.pol_id, route.pol_name || 'POL');
+                                    r.airport_id = route.pol_id;
+                                }
+                                
+                                if (route.pod_id) {
+                                    ensureOptionExists(`routes[${index}][pod_id]`, route.pod_id, route.pod_name || 'POD');
+                                    r.pod_id = route.pod_id;
+                                }
+                                
+                                if (route.vessel_name) {
+                                    r.flight_no = route.vessel_name + (route.voyage ? ' / ' + route.voyage : '');
+                                }
+                            });
+                            this.form.routes = [...this.form.routes];
+                        } else if (data.mbl.eta || data.mbl.etd || data.mbl.pol_id || data.mbl.pod_id || data.mbl.vessel_name) {
                             if (!this.form.routes || this.form.routes.length === 0) {
                                 this.addRoute();
                             }
@@ -1071,6 +1158,12 @@
                         if (hbl.bl_type) this.hbls[0].bl_type = hbl.bl_type;
                         if (hbl.cargo_type) this.hbls[0].cargo_type = hbl.cargo_type;
                         if (hbl.freight_term) this.hbls[0].freight_term = hbl.freight_term;
+                        if (hbl.vessel_name) this.hbls[0].vessel_name = hbl.vessel_name;
+                        if (hbl.voyage) this.hbls[0].voyage_no = hbl.voyage;
+                        if (hbl.pre_carriage_by) this.hbls[0].pre_carriage_by = hbl.pre_carriage_by;
+                        if (hbl.date_of_issue) this.hbls[0].date_of_issue = hbl.date_of_issue;
+                        if (hbl.sc_no) this.hbls[0].sc_no = hbl.sc_no;
+                        if (hbl.ship_mode) this.hbls[0].ship_mode = hbl.ship_mode;
                         
                         // Foreign Keys (Jugaar)
                         if (hbl.shipper_id) {
@@ -1101,6 +1194,26 @@
                             ensureOptionExists('forwarding_agent_id', hbl.forwarding_agent_id, hbl.forwarding_agent_name || 'Forwarding Agent');
                             this.hbls[0].forwarding_agent_id = hbl.forwarding_agent_id;
                         }
+                        if (hbl.receipt_id) {
+                            ensureOptionExists('receipt_id', hbl.receipt_id, hbl.receipt_name || 'Receipt');
+                            this.hbls[0].receipt_id = hbl.receipt_id;
+                        }
+                        if (hbl.pol_id) {
+                            ensureOptionExists('pol_id', hbl.pol_id, hbl.pol_name || 'POL');
+                            this.hbls[0].pol_id = hbl.pol_id;
+                        }
+                        if (hbl.pod_id) {
+                            ensureOptionExists('pod_id', hbl.pod_id, hbl.pod_name || 'POD');
+                            this.hbls[0].pod_id = hbl.pod_id;
+                        }
+                        if (hbl.del_id) {
+                            ensureOptionExists('delivery_location_id', hbl.del_id, hbl.del_name || 'Delivery Loc');
+                            this.hbls[0].delivery_location_id = hbl.del_id;
+                        }
+                        if (hbl.fdest_id) {
+                            ensureOptionExists('fdest_id', hbl.fdest_id, hbl.fdest_name || 'Final Dest');
+                            this.hbls[0].fdest_id = hbl.fdest_id;
+                        }
                     }
 
                     // Containers Mapping
@@ -1111,6 +1224,13 @@
                             }
                             if (cont.container_no) this.form.containers[index].container_no = cont.container_no;
                             if (cont.seal_no) this.form.containers[index].seal_no = cont.seal_no;
+                            if (cont.container_type_id) {
+                                ensureOptionExists(`containers[${index}][container_type_id]`, cont.container_type_id, cont.container_type || 'Type');
+                                this.form.containers[index].container_type_id = cont.container_type_id;
+                            }
+                            if (cont.pieces) this.form.containers[index].pkg = cont.pieces;
+                            if (cont.weight) this.form.containers[index].weight = cont.weight;
+                            if (cont.volume) this.form.containers[index].measurement = cont.volume;
                         });
                     }
                 },
@@ -1493,7 +1613,7 @@
                     const containerMap = {};
                     let unassignedPkg = 0, unassignedWgt = 0, unassignedVol = 0;
 
-                    this.hbls.forEach(h => {
+                    this.hbls.forEach(h         => {
                         (h.containers || []).forEach(c => {
                             const pkg = parseFloat(c.pkg_qty) || 0;
                             const wgt = parseFloat(c.weight_kg) || 0;
@@ -1905,11 +2025,11 @@
                 },
 
                 updateChargeAmount(idx) {
-                    this.$forceUpdate();
+                    if (typeof this.$forceUpdate === 'function') this.$forceUpdate();
                 },
 
                 updateLocalAmount(idx) {
-                    this.$forceUpdate();
+                    if (typeof this.$forceUpdate === 'function') this.$forceUpdate();
                 },
 
                 saveCharges() {
@@ -1924,10 +2044,18 @@
                     showToast('info', 'Certificate functionality - coming soon');
                 },
 
+                toggleAllCharges(e) {
+                    const isChecked = e ? e.target.checked : false;
+                    this.chargesList.forEach(c => {
+                        c._selected = isChecked;
+                        c.selected = isChecked;
+                    });
+                },
+
                 setDefaultCharges() {
                     this.chargesList = [
-                        { id: null, selected: false, party: 'Custom', party_name_id: '', sal: 'Sea', pr: 'Rec', ppc: 'Colle', chrg_code: 'OFC', currency: 'USD', rate: 50, qty: 1, qty_type: 'B/L', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' },
-                        { id: null, selected: false, party: 'Custom', party_name_id: '', sal: 'Sea', pr: 'Rec', ppc: 'Colle', chrg_code: 'THC', currency: 'USD', rate: 10, qty: 1, qty_type: 'CBM', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' }
+                        { id: null, _selected: false, selected: false, party: 'Custom', party_name: '', party_name_id: '', sal: 'Sea', pr: 'Rec', ppc: 'Colle', chrg_code: 'OFC', currency: 'USD', rate: 50, qty: 1, qty_type: 'B/L', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' },
+                        { id: null, _selected: false, selected: false, party: 'Custom', party_name: '', party_name_id: '', sal: 'Sea', pr: 'Rec', ppc: 'Colle', chrg_code: 'THC', currency: 'USD', rate: 10, qty: 1, qty_type: 'CBM', roe: 120.0, vat: 0, inv_no: '', financial_date: new Date().toISOString().split('T')[0], eq_bl_no: '', remark: false, mbl_no: '' }
                     ];
                 },
 
@@ -1975,8 +2103,10 @@
                     }
                     this.chargesList.push({
                         id: null,
+                        _selected: false,
                         selected: false,
                         party: 'Custom',
+                        party_name: '',
                         party_name_id: '',
                         sal: 'Sea',
                         pr: 'Rec',
@@ -2043,13 +2173,26 @@
                         return;
                     }
                     
-                    let selectedIds = this.chargesList.filter(c => c._selected && !c.is_invoiced && c.id).map(c => c.id);
-                    if (selectedIds.length === 0) {
-                        showToast('error', 'Please select at least one uninvoiced charge.');
+                    let selectedCharges = this.chargesList.filter(c => c._selected || c.selected);
+                    if (selectedCharges.length === 0) {
+                        showToast('error', 'Please select at least one charge.');
                         return;
                     }
 
-                    if (!confirm('Generate Invoice for selected charges?')) return;
+                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Already Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
+                    }
+
+                    let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
+                    let selectedIds = uninvoicedCharges.filter(c => c.id).map(c => c.id);
+
+                    if (selectedIds.length === 0) {
+                        return;
+                    }
+
+                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' selected uninvoiced charge(s)?')) return;
                     fetch(`/ocean-import/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: { 
@@ -2476,7 +2619,7 @@
 
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <h1 class="caption-subject" style="font-size: 18px;">{{ isset($oceanImport) ? 'Edit' : 'Create' }} Ocean Import Shipment</h1>
+            <h1 class="caption-subject" style="font-size: 18px;">{{ isset($oceanImport) ? 'OCEAN IMPORT SHIPMENT' : 'Create Ocean Import Shipment' }}</h1>
             <div style="display: flex; gap: 8px;">
                 <button type="button" class="btn-freightx" style="background: linear-gradient(135deg, #6366f1, #a855f7); border: none; color: white;" @click="showAiModal = true">
                     <i class="fa fa-magic"></i> AI Auto-Fill
@@ -2503,35 +2646,35 @@
                 <li :class="[activeTab === 'filing' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'filing' : null"><a>Filing</a></li>
             </ul>
 
-            <!-- Divider -->
-            <div style="display:flex;align-items:center;padding:0 4px;flex-shrink:0;">
-                <span style="border-left:2px solid #e5e7eb;height:20px;display:inline-block;"></span>
-            </div>
-
-            <!-- Tools Options (Scrollable) -->
-            <div style="flex:1;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;-ms-overflow-style:none;">
-                <ul class="gf-tabs" style="border-bottom:none;margin-bottom:0;display:flex;white-space:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;">
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('block') : null"><a>Block</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('unblock') : null"><a>Unblock</a></li>
-
-                    <template x-if="activeTab==='basic'">
-                        <div style="display:flex;">
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('copy') : null"><a>Copy</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('apply_all_hbl') : null"><a>Apply to all HB/Ls</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('delete') : null"><a style="color:#ef4444;">Delete</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('batch_email') : null"><a>Batch Email</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('batch_print') : null"><a>Batch Print</a></li>
-                        </div>
-                    </template>
-
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('manifest') : null"><a>Manifest</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('dev_seg') : null"><a>DEV/SEG</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('delivery_order') : null"><a>Delivery Order</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('profit_summary') : null"><a>Profit Summary</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('profit_detail') : null"><a>Profit Detail</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('cargo_manifest_status') : null"><a>Cargo Manifest</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('track_trace') : null"><a>Track-Trace</a></li>
-                </ul>
+            <!-- Tools Options (Dropdown) -->
+            <div style="display:flex; align-items:center; padding:0 10px; margin-left: auto;">
+                <div style="position: relative;" x-data="{ showToolsMenu: false }" @click.away="showToolsMenu = false" x-show="saved">
+                    <button type="button" @click.stop.prevent="showToolsMenu = !showToolsMenu" class="btn-default-gf" :class="!saved ? 'disabled-tab' : ''" :disabled="!saved" style="display:flex; align-items:center; gap:5px; height: 28px; background: #fff;">
+                        <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
+                    </button>
+                    <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 180px; display: none;">
+                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                            <li><button type="button" @click="saved ? toolsAction('block') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('unblock') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock" style="width:14px; text-align:center; margin-right:4px;"></i> Unblock</button></li>
+                            <template x-if="activeTab==='basic'">
+                                <div>
+                                    <li><button type="button" @click="saved ? toolsAction('copy') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('apply_all_hbl') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-square-o" style="width:14px; text-align:center; margin-right:4px;"></i> Apply to all HB/Ls</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('delete') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer; color:#ef4444;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('batch_email') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-envelope-o" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Email</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('batch_print') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Print</button></li>
+                                </div>
+                            </template>
+                            <li><button type="button" @click="saved ? toolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('dev_seg') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-th-large" style="width:14px; text-align:center; margin-right:4px;"></i> DEV/SEG</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('delivery_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('profit_summary') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('profit_detail') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Detail</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('cargo_manifest_status') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-ship" style="width:14px; text-align:center; margin-right:4px;"></i> Cargo Manifest</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('track_trace') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2712,6 +2855,11 @@
             <span class="caption-subject"><i class="fa fa-money"></i> Charge Manifestation</span>
         </div>
         <div class="portlet-body">
+            <script>
+                if (!window.tradePartnersList) {
+                    window.tradePartnersList = {!! json_encode(collect($agents ?? [])->map(function($tp) { return ['id' => $tp->id, 'name' => $tp->name, 'label' => $tp->name . ' (' . ($tp->type ?? 'Partner') . ')']; })->toArray()) !!};
+                }
+            </script>
 
             <!-- Header Info Row -->
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
@@ -2750,7 +2898,7 @@
             </div>
 
             <!-- Charges Table -->
-            <div class="table-responsive charges-table-container" style="margin-bottom: 15px;">
+            <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px;">
                 <table class="table-custom" style="font-size: 11px; min-width: 1200px;">
                     <thead>
                         <tr style="background: #f1f3f6;">
@@ -2786,20 +2934,53 @@
                         <template x-for="(charge, idx) in chargesList" :key="idx">
                             <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
                                 <td style="padding: 5px 8px; text-align: center;">
-                                    <input type="checkbox" x-model="charge._selected" :disabled="charge.is_invoiced" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
+                                    <input type="checkbox" x-model="charge._selected" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                     <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
                                 </td>
                                 <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 70px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
-                                        <option value="Agent">Agent</option>
-                                        <option value="C&F/CN">C&F/CN</option>
-                                        <option value="Custom">Custom</option>
-                                        <option value="Shipper">Shipper</option>
-                                        <option value="Consignee">Consignee</option>
+                                    <select class="form-control-gf" style="width: 80px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
+                                        <option value="Freight">Freight</option>
+                                        <option value="THC">THC</option>
+                                        <option value="Handling">Handling</option>
+                                        <option value="Documentation">Documentation</option>
+                                        <option value="Customs">Customs</option>
                                     </select>
                                 </td>
                                 <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 90px;" x-model="charge.party_name" :name="'charges[' + idx + '][party_name]'" placeholder="Party Name">
+                                    <div x-data="{ 
+                                        open: false, 
+                                        search: charge.party_name || '',
+                                        get filteredAgents() {
+                                            let list = window.tradePartnersList || [];
+                                            let q = (this.search || '').toLowerCase();
+                                            if (q === '') return list;
+                                            return list.filter(tp => (tp.label || '').toLowerCase().includes(q));
+                                        }
+                                    }" @click.away="open = false" style="position: relative;">
+                                        <div style="position: relative;">
+                                            <input type="text" class="form-control-gf" style="width: 120px; font-size: 10px; padding-right: 20px;" 
+                                                x-model="search" 
+                                                @input="charge.party_name = search; open = true"
+                                                @focus="open = true"
+                                                @click="open = true"
+                                                :name="'charges[' + idx + '][party_name]'" 
+                                                placeholder="Search Party..." 
+                                                autocomplete="off">
+                                            <input type="hidden" :name="'charges[' + idx + '][party_name_id]'" x-model="charge.party_name_id">
+                                            <i class="fa fa-caret-down" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer;" @click="open = !open"></i>
+                                        </div>
+                                        
+                                        <div x-show="open" style="display: none; position: absolute; z-index: 9999; background: white; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 2px;">
+                                            <template x-for="tp in filteredAgents" :key="tp.name">
+                                                <div style="padding: 6px 10px; font-size: 10px; cursor: pointer; border-bottom: 1px solid #eee;" 
+                                                     @click="charge.party_name = tp.name; charge.party_name_id = tp.id; search = tp.name; open = false"
+                                                     @mouseover="$el.style.backgroundColor='#f3f4f6'"
+                                                     @mouseout="$el.style.backgroundColor='transparent'"
+                                                     x-text="tp.label"></div>
+                                            </template>
+                                            <div x-show="filteredAgents.length === 0" style="padding: 6px 10px; font-size: 10px; color: #999;">No match found</div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td style="padding: 5px 8px;">
                                     <select class="form-control-gf" style="width: 50px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
@@ -2976,7 +3157,6 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><x-inline-select name="dm_shipper_id" :options="$agents" module="trade-partner" type="shipper" x-model="form.dm_shipper_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Bill To</label><div class="form-input-container"><x-inline-select name="dm_bill_to_id" :options="$agents" module="trade-partner" type="customer" x-model="form.dm_bill_to_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_bill_to_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Oversea Agent</label><div class="form-input-container"><x-inline-select name="oversea_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.oversea_agent_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'oversea_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
-                                <div style="height: 5px;"></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Trucker</label><div class="form-input-container"><select name="trucker_id" class="form-control-gf" x-model="form.trucker_id"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">P.O.D ETA</label><div class="form-input-container"><input type="date" name="eta" class="form-control-gf" x-model="form.eta"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Ship Mode</label><div class="form-input-container"><select name="ship_mode" class="form-control-gf" x-model="form.ship_mode"><option value="FCL">FCL</option><option value="LCL">LCL</option></select></div></div>
@@ -2987,7 +3167,6 @@
                             <div class="flex flex-col">
                                 <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><x-inline-select name="dm_consignee_id" :options="$agents" module="trade-partner" type="consignee" x-model="form.dm_consignee_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sub B/L No.</label><div class="form-input-container"><input type="text" name="sub_bl_no" class="form-control-gf" x-model="form.sub_bl_no"></div></div>
-                                <div style="height: 5px;"></div>
                                 <div class="form-group-gf"><label class="form-label-gf">CY/CFS Loc.</label><div class="form-input-container"><select name="cfs_location_id" class="form-control-gf" x-model="form.cfs_location_id"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Final Dest.</label><div class="form-input-container"><x-inline-select name="fdest_id" :options="$ports" module="port" x-model="form.fdest_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Freight</label><div class="form-input-container"><select name="freight_term" class="form-control-gf" x-model="form.freight_term"><option value="Prepaid">Prepaid</option><option value="Collect">Collect</option></select></div></div>
@@ -2998,8 +3177,6 @@
                             <div class="flex flex-col">
                                 <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><x-inline-select name="dm_notify_id" :options="$agents" module="trade-partner" type="notify" x-model="form.dm_notify_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">OP</label><div class="form-input-container"><input type="text" class="form-control-gf" value="{{ auth()->user()->name ?? 'DEMO_USER' }}" disabled style="background:#f5f5f5;"></div></div>
-                                <div style="height: 19px;"></div>
-                                <div style="height: 5px;"></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Available</label><div class="form-input-container"><input type="date" name="available_date" class="form-control-gf" x-model="form.available_date"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" name="final_eta" class="form-control-gf" x-model="form.final_eta"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">LFD</label><div class="form-input-container"><input type="date" name="lfd" class="form-control-gf" x-model="form.lfd"></div></div>
@@ -3825,107 +4002,8 @@
 
         </div>
     </div>
+        @include('partials.ai-modal')
 
-    
-
-
-        <!-- AI Auto-Fill Modal (Advanced Split Pane) -->
-        <div x-show="showAiModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;" @click.self="!isAiProcessing && !aiPreviewMode ? showAiModal = false : null" x-transition>
-            <div class="modal-container" style="max-width: 1100px; width: 95vw; padding: 0; display: flex; flex-direction: column; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div class="modal-header" style="background:#337ab7; color:white; border-radius: 8px 8px 0 0; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight:700; font-size: 16px;"><i class="fa fa-file-text-o"></i> AI Document Extraction</span>
-                    <i class="fa fa-times cursor-pointer" @click="!isAiProcessing ? showAiModal = false : null" style="color:white; font-size: 16px;"></i>
-                </div>
-                
-                <div class="modal-body" style="padding: 20px; background: #fff;" x-data="{ fileName: '' }">
-                    <div x-show="aiError" style="background: #fef2f2; color: #dc2626; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; border: 1px solid #f87171;">
-                        <i class="fa fa-exclamation-triangle"></i> <span x-text="aiError"></span>
-                    </div>
-
-                    <!-- State 1: Upload (Not Preview Mode) -->
-                    <div x-show="!aiPreviewMode">
-                        <p style="margin-bottom: 15px; font-size: 14px; color: #555;">Upload a Bill of Lading, Invoice, or Packing List (PDF, Image, CSV). Our AI will analyze the document and automatically fill the form.</p>
-                        <label class="ai-dropzone">
-                            <i class="fa fa-cloud-upload ai-dropzone-icon"></i>
-                            <div class="ai-dropzone-title">Click to browse or drag file here</div>
-                            <div class="ai-dropzone-desc">Supports PDF, PNG, JPG, CSV, TXT</div>
-                            <input x-ref="aiFileInput" type="file" style="display: none;" @change="handleAiUpload" accept=".pdf,.txt,.csv,.jpg,.jpeg,.png">
-                        </label>
-                    </div>
-                    
-                    <!-- State 2: Review (Preview Mode) -->
-                    <div x-show="aiPreviewMode" class="ai-split-layout" style="display: none;">
-                        <!-- Left Pane: Document Preview -->
-                        <div class="ai-pane-left" style="padding:0; border:1px solid #cbd5e1; background: #334155; overflow: hidden;">
-                            <div style="width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;">
-                                <template x-if="documentPreviewUrl">
-                                    <iframe :src="documentPreviewUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH'" style="width: 100%; height: 100%; border: none; pointer-events: none;"></iframe>
-                                </template>
-                                <template x-if="!documentPreviewUrl">
-                                    <div style="display:flex; align-items:center; justify-content:center; height:100%; background: url('https://www.transparenttextures.com/patterns/cubes.png') #f8fafc; width: 100%;">
-                                        <i class="fa fa-file-text-o" style="font-size: 80px; color: #cbd5e1;"></i>
-                                    </div>
-                                </template>
-                                
-                                <div x-show="isAiProcessing" class="ai-scanner-line-large" style="display: none;"></div>
-                                <div x-show="isAiProcessing" class="ai-scanner-badge" style="display: none;">
-                                    <i class="fa fa-magic"></i> AI Analyzing...
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Right Pane: Extracted Data Review -->
-                        <div class="ai-pane-right">
-                            <div class="ai-table-header">
-                                <span>Shipment Information</span>
-                            </div>
-                            
-                            <div class="ai-table-container">
-                                <table class="ai-data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Field Name</th>
-                                            <th>Extracted Data</th>
-                                            <th style="text-align: center; width: 60px;">Select</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Loading State -->
-                                        <tr x-show="isAiProcessing">
-                                            <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">
-                                                <i class="fa fa-circle-o-notch fa-spin" style="font-size: 24px; margin-bottom: 10px; color: #3b82f6;"></i>
-                                                <div>Extracting fields from document...</div>
-                                            </td>
-                                        </tr>
-                                        
-                                        <!-- Done State -->
-                                        <template x-for="(item, index) in extractedData" :key="index">
-                                            <tr>
-                                                <td x-text="item.label" style="font-weight: 500;"></td>
-                                                <td><span class="ai-extracted-value" x-text="item.displayValue"></span></td>
-                                                <td style="text-align: center;">
-                                                    <input type="checkbox" class="ai-checkbox" x-model="item.selected">
-                                                </td>
-                                            </tr>
-                                        </template>
-                                        <tr x-show="!isAiProcessing && extractedData.length === 0">
-                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 20px;">No fields extracted.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; border-radius: 0 0 8px 8px;">
-                    <button type="button" class="btn-default-gf" @click="showAiModal = false; aiPreviewMode = false;" :disabled="isAiProcessing">Cancel</button>
-                    <button type="button" class="btn-freightx" style="background:#337ab7; color:white; border-color:#286090;" @click="aiPreviewMode ? applyAiData() : $refs.aiFileInput.click()" :disabled="isAiProcessing">
-                        <i class="fa" :class="aiPreviewMode ? 'fa-check' : 'fa-cogs'"></i> <span x-text="aiPreviewMode ? 'Create Shipment' : 'Extract Data'"></span>
-                    </button>
-                </div>
-            </div>
-        </div>
 
     </div><!-- end Alpine scope -->
 

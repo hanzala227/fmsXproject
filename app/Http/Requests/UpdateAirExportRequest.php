@@ -132,13 +132,6 @@ class UpdateAirExportRequest extends FormRequest
             'hbls.*.remark' => 'nullable|string',
 
             'charges' => 'nullable|array',
-            'charges.*.charge_code' => 'nullable|string',
-            'charges.*.description' => 'nullable|string',
-            'charges.*.term' => 'nullable|string',
-            'charges.*.rate' => 'nullable|numeric',
-            'charges.*.amount' => 'nullable|numeric',
-            'charges.*.currency' => 'nullable|string',
-            'charges.*.type' => 'nullable|string|in:origin_revenue,destination_revenue,origin_cost',
             
             'routes' => 'nullable|array',
             'routes.*.airport_id' => 'nullable|exists:ports,id',

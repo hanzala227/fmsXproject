@@ -846,7 +846,7 @@
             <li :class="{ 'active': activeTab === 'accounting', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'accounting' }">Accounting Setting</a></li>
             <li :class="{ 'active': activeTab === 'commodity', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'commodity' }">Commodity Setting</a></li>
             <li :class="{ 'active': activeTab === 'filing', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'filing' }">Filing Setting</a></li>
-            <li :class="{ 'active': activeTab === 'doc', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'doc' }">Doc Center</a></li>
+            <li style="display: none !important;" :class="{ 'active': activeTab === 'doc', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'doc' }">Doc Center</a></li>
             <li :class="{ 'active': activeTab === 'status', 'disabled-tab': !firstTabSaved }"><a @click="if(firstTabSaved){ activeTab = 'status' }">Status</a></li>
         </ul>
 

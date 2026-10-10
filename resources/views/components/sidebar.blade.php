@@ -117,16 +117,18 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     ['url' => '/accounting/invoice?doc_type=CN', 'label' => 'CN'],
                                     ['url' => '/accounting/invoice/verify-queue', 'label' => 'Verify'],
                                 ]],
-                                ['label' => 'G&A', 'type' => 'group', 'items' => [
-                                    ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Invoice / Expense List'],
-                                    ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
-                                    ['url' => '/accounting/ga-invoice/create', 'label' => 'Create G&A Invoice'],
-                                ]],
-                                ['label' => 'Payment', 'type' => 'group', 'items' => [
+                                ['label' => 'Receivable', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/payment/receive', 'label' => 'Receive Payment'],
-                                    ['url' => '/accounting/payment/make', 'label' => 'Make Payment'],
                                     ['url' => '/accounting/payment/received-list', 'label' => 'Payment Received List (A/R)'],
+                                ]],
+                                ['label' => 'Payable', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/payment/make', 'label' => 'Make Payment'],
                                     ['url' => '/accounting/payment/made-list', 'label' => 'Payment Made List (A/P)'],
+                                    ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Expense List'],
+                                    ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
+                                ]],
+                                ['label' => 'Agent A/C', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/report/agent-local-statement', 'label' => 'Agent / Local Statement'],
                                 ]],
                                 ['label' => 'Bank', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/bank/book-balance', 'label' => 'Bank Book Balance'],
@@ -140,18 +142,15 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     ['url' => '/accounting/journal/entry', 'label' => 'Journal Entry'],
                                     ['url' => '/accounting/general-journal', 'label' => 'General Journal'],
                                     ['url' => '/accounting/journal/block', 'label' => 'Accounting Block / Unblock'],
-                                    ['url' => '/accounting/journal/block/maintenance', 'label' => 'Accounting Block Maintenance'],
-                                    ['url' => '/accounting/journal/block/history', 'label' => 'Accounting Block History'],
                                     ['url' => '/accounting/year-end-closing', 'label' => 'Year End Closing'],
                                 ]],
-                                ['label' => 'Report', 'type' => 'group', 'items' => [
+                                ['label' => 'Reports', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/report/balance-sheet', 'label' => 'Balance Sheet'],
                                     ['url' => '/accounting/report/trial-balance', 'label' => 'Trial Balance'],
                                     ['url' => '/accounting/report/general-ledger', 'label' => 'General Ledger Report'],
                                     ['url' => '/accounting/report/aging-report', 'label' => 'Aging Report'],
                                     ['url' => '/accounting/report/income-statement', 'label' => 'Income Statement'],
                                     ['url' => '/accounting/report/revenue-cost', 'label' => 'Revenue / Cost Report'],
-                                    ['url' => '/accounting/report/agent-local-statement', 'label' => 'Agent / Local Statement'],
                                     ['url' => '/accounting/report/freight-statement', 'label' => 'Freight Statement'],
                                     ['url' => '/accounting/report/1099-report', 'label' => '1099 Report'],
                                     ['url' => '/accounting/report/journal-report', 'label' => 'Journal Report'],

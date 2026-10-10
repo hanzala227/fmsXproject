@@ -278,6 +278,16 @@
     
     <x-add-new-modal />
     <x-track-trace />
+    
+    {{-- 
+    <script>
+        window.FrexConfig = {
+            userName: "{{ auth()->user()->name ?? 'Boss' }}"
+        };
+    </script>
+    <script src="{{ asset('js/frex-voice.js') }}"></script>
+    --}}
+    
     @stack('scripts')
 </body>
 </html>

@@ -316,6 +316,9 @@ class OceanImportController extends Controller
             ];
 
             $requestData = $request->validated();
+        if ($request->has("charges")) $requestData["charges"] = $request->input("charges");
+        if ($request->has("hbls")) $requestData["hbls"] = $request->input("hbls");
+        if ($request->has("routes")) $requestData["routes"] = $request->input("routes");
             $filled = [];
             $empty = [];
 
@@ -515,11 +518,14 @@ class OceanImportController extends Controller
             $data['ppc'] = $charge->pc === 'PREPAID' ? 'Prepaid' : 'Colle';
             $data['qty_type'] = $charge->unit ?? 'UNIT';
             $data['inv_no'] = $charge->invoice_no ?? '';
+            $data['is_invoiced'] = $charge->is_invoiced;
             $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
             $data['currency'] = $charge->currency ? $charge->currency->code : '';
             
-            // Reconstruct party info from billTo / vendor relationships
-            if ($charge->type === 'AP' && $charge->vendor) {
+            // Reconstruct party info from saved charge fields or billTo/vendor relationships
+            if ($charge->party_name) {
+                $data['party_name'] = $charge->party_name;
+            } else if ($charge->type === 'AP' && $charge->vendor) {
                 $data['party_name'] = $charge->vendor->name;
                 $data['party_name_id'] = $charge->vendor_id;
             } else if ($charge->type !== 'AP' && $charge->billTo) {
@@ -530,8 +536,8 @@ class OceanImportController extends Controller
                 $data['party_name_id'] = '';
             }
             
-            $data['party'] = 'Custom'; 
-            $data['sal'] = 'Sea'; 
+            $data['party'] = $charge->party ?: 'Custom'; 
+            $data['sal'] = $charge->sal ?: 'Sea'; 
             $data['mbl_no'] = $oceanImport->file_no; 
             $data['eq_bl_no'] = $charge->remark ?? ''; 
             $data['remark'] = $charge->remark ?? false;
@@ -606,6 +612,9 @@ class OceanImportController extends Controller
             ];
 
             $requestData = $request->validated();
+        if ($request->has("charges")) $requestData["charges"] = $request->input("charges");
+        if ($request->has("hbls")) $requestData["hbls"] = $request->input("hbls");
+        if ($request->has("routes")) $requestData["routes"] = $request->input("routes");
             $filled = [];
             $empty = [];
 

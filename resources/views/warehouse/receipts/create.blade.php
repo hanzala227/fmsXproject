@@ -89,7 +89,7 @@
             <!-- Tabs -->
             <ul class="gf-tabs">
                 <li :class="activeTab === 'basic' ? 'active' : ''"><a @click="activeTab = 'basic'">Basic</a></li>
-                <li :class="activeTab === 'doc' ? 'active' : ''" class="@if(!isset($receipt)) disabled-tab @endif">
+                <li style="display: none !important;" :class="activeTab === 'doc' ? 'active' : ''" class="@if(!isset($receipt)) disabled-tab @endif">
                     <a @if(isset($receipt)) @click="activeTab = 'doc'" @endif>
                         Doc Center
                         @if(!isset($receipt)) <span style="font-size:8px;color:#94a3b8;margin-left:3px;">(Save first)</span> @endif

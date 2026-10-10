@@ -986,6 +986,29 @@
             var val = rows[i][1] || '--';
             html += '<div class="mbl-row"><span class="lbl">' + lbl + '</span><span class="val">' + val + '</span></div>';
         }
+
+        if (d.routes && Array.isArray(d.routes) && d.routes.length > 0) {
+            html += '<div style="margin-top:15px; border-top:1px solid #e2e8f0; padding-top:10px;">';
+            html += '<div style="font-weight:bold; font-size:12px; color:#32c5d2; margin-bottom:6px;"><i class="fa fa-ship"></i> Route / Transportation</div>';
+            html += '<table style="width:100%; border-collapse:collapse; font-size:11px;">';
+            html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; text-align:left;">';
+            html += '<th style="padding:4px;">Type</th><th style="padding:4px;">ETA</th><th style="padding:4px;">ATA</th><th style="padding:4px;">ETD</th><th style="padding:4px;">ATD</th><th style="padding:4px;">Vessel / Flight</th>';
+            html += '</tr></thead><tbody>';
+            for (var rIdx = 0; rIdx < d.routes.length; rIdx++) {
+                var r = d.routes[rIdx];
+                var typeLabel = rIdx === 0 ? 'Departure' : (rIdx === d.routes.length - 1 && d.routes.length > 1 ? 'Final Destination' : 'Trans ' + rIdx);
+                html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+                html += '<td style="padding:4px; font-weight:600;">' + typeLabel + '</td>';
+                html += '<td style="padding:4px;">' + (r.eta || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.ata || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.etd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.atd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.flight_no || '--') + '</td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+        }
+
         document.getElementById('mbl-body').innerHTML = html;
         document.getElementById('mbl-overlay').classList.add('open');
     }

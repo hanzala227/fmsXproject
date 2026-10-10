@@ -76,7 +76,7 @@ class ReportController extends Controller
 
     $query = Quotation::query()
         ->with([
-            'items',
+            'items.currency',
             'customer',
             'office',
             'salesPerson',
@@ -171,8 +171,8 @@ class ReportController extends Controller
     foreach ($quotations as $q) {
 
         foreach ($q->items as $item) {
-
-            $amount = (float) ($item->total_amount ?? 0);
+            $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+            $amount = (float) ($item->total_amount ?? 0) / $rate;
 
             if ($item->type === 'AR') {
                 $totalAr += $amount;
@@ -295,8 +295,8 @@ class ReportController extends Controller
         foreach ($monthQ as $q) {
 
             foreach ($q->items as $item) {
-
-                $amount = (float) ($item->total_amount ?? 0);
+                $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                $amount = (float) ($item->total_amount ?? 0) / $rate;
 
                 if ($item->type === 'AR') {
                     $monthAr += $amount;
@@ -391,10 +391,8 @@ class ReportController extends Controller
             foreach ($qs as $q) {
 
                 foreach ($q->items as $item) {
-
-                    $amount = (float) (
-                        $item->total_amount ?? 0
-                    );
+                    $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                    $amount = (float) ($item->total_amount ?? 0) / $rate;
 
                     if ($item->type === 'AR') {
                         $ar += $amount;
@@ -457,10 +455,8 @@ class ReportController extends Controller
             foreach ($qs as $q) {
 
                 foreach ($q->items as $item) {
-
-                    $amount = (float) (
-                        $item->total_amount ?? 0
-                    );
+                    $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                    $amount = (float) ($item->total_amount ?? 0) / $rate;
 
                     if ($item->type === 'AR') {
                         $ar += $amount;
@@ -540,10 +536,8 @@ class ReportController extends Controller
             foreach ($qs as $q) {
 
                 foreach ($q->items as $item) {
-
-                    $amount = (float) (
-                        $item->total_amount ?? 0
-                    );
+                    $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                    $amount = (float) ($item->total_amount ?? 0) / $rate;
 
                     if ($item->type === 'AR') {
                         $ar += $amount;
@@ -1066,7 +1060,7 @@ $yearlyAverage = $totalYears > 0
         };
 
         $query = Quotation::query()
-            ->with(['items', 'salesPerson', 'office', 'customer', 'pol', 'pod'])
+            ->with(['items.currency', 'salesPerson', 'office', 'customer', 'pol', 'pod'])
             ->whereNull('deleted_at')
             ->whereNotNull('sales_person_id');
 
@@ -1098,25 +1092,46 @@ $yearlyAverage = $totalYears > 0
             $shippingBreakdown = [];
 
             foreach ($qs as $q) {
+                $qAr = 0;
+                $qAp = 0;
+                
+                // Only count revenue/cost if Quote is Verified/Accepted/Won
+                $isValid = in_array(strtoupper($q->status), ['ACCEPTED', 'WON']);
+
                 foreach ($q->items as $item) {
-                    if ($item->type === 'AR') $ar += (float) $item->total_amount;
-                    elseif ($item->type === 'AP') $ap += (float) $item->total_amount;
+                    $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                    $amount = (float) $item->total_amount / $rate;
+                    
+                    if ($isValid) {
+                        if ($item->type === 'AR') {
+                            $qAr += $amount;
+                            $ar += $amount;
+                        } elseif ($item->type === 'AP') {
+                            $qAp += $amount;
+                            $ap += $amount;
+                        }
+                    }
                 }
-                $vol += (float) ($q->volume_cbm ?? 0);
+                
+                if ($isValid) {
+                    $vol += (float) ($q->volume_cbm ?? 0);
+                }
+
                 $status = $q->status ?: 'Unknown';
                 $statuses[$status] = ($statuses[$status] ?? 0) + 1;
                 $st = $q->shipping_type ?: 'Unspecified';
+                
                 if (!isset($shippingBreakdown[$st])) {
                     $shippingBreakdown[$st] = ['count' => 0, 'profit' => 0];
                 }
                 $shippingBreakdown[$st]['count']++;
-                $shippingBreakdown[$st]['profit'] += $ar - $ap;
+                $shippingBreakdown[$st]['profit'] += ($qAr - $qAp);
             }
 
             $profit = $ar - $ap;
-            $margin = $ar > 0 ? round(($profit / $ar) * 100, 1) : 0;
+            $margin = $ar != 0 ? round(($profit / abs($ar)) * 100, 1) : 0;
 
-            $wonCount = $statuses['Won'] ?? 0;
+            $wonCount = ($statuses['Won'] ?? 0) + ($statuses['ACCEPTED'] ?? 0) + ($statuses['Accepted'] ?? 0);
             $totalQuotes = $qs->count();
             $winRate = $totalQuotes > 0 ? round(($wonCount / $totalQuotes) * 100, 1) : 0;
 
@@ -1155,17 +1170,32 @@ $yearlyAverage = $totalYears > 0
         };
         $sorted = $sorted->values();
 
-        $allAr = $quotations->sum(fn($q) => $q->items->where('type', 'AR')->sum('total_amount'));
-        $allAp = $quotations->sum(fn($q) => $q->items->where('type', 'AP')->sum('total_amount'));
-        $allVol = $quotations->sum(fn($q) => (float) ($q->volume_cbm ?? 0));
+        $allAr = 0; $allAp = 0; $allVol = 0;
+        foreach ($quotations as $q) {
+            $isValid = in_array(strtoupper($q->status), ['ACCEPTED', 'WON']);
+            if ($isValid) {
+                foreach ($q->items as $item) {
+                    $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                    $amount = (float) $item->total_amount / $rate;
+                    if ($item->type === 'AR') $allAr += $amount;
+                    elseif ($item->type === 'AP') $allAp += $amount;
+                }
+                $allVol += (float) ($q->volume_cbm ?? 0);
+            }
+        }
         $topPerformer = $sorted->sortByDesc('profit')->first();
 
         $byShippingType = $quotations->groupBy(fn($q) => $q->shipping_type ?: 'Unspecified')->map(function ($qs, $key) {
             $ar = 0; $ap = 0;
             foreach ($qs as $q) {
-                foreach ($q->items as $item) {
-                    if ($item->type === 'AR') $ar += (float) $item->total_amount;
-                    elseif ($item->type === 'AP') $ap += (float) $item->total_amount;
+                $isValid = in_array(strtoupper($q->status), ['ACCEPTED', 'WON']);
+                if ($isValid) {
+                    foreach ($q->items as $item) {
+                        $rate = ($item->currency && $item->currency->exchange_rate > 0) ? (float) $item->currency->exchange_rate : 1;
+                        $amount = (float) $item->total_amount / $rate;
+                        if ($item->type === 'AR') $ar += $amount;
+                        elseif ($item->type === 'AP') $ap += $amount;
+                    }
                 }
             }
             return ['label' => $key, 'revenue' => round($ar, 2), 'cost' => round($ap, 2), 'profit' => round($ar - $ap, 2), 'count' => $qs->count()];
@@ -1937,113 +1967,4 @@ $yearlyAverage = $totalYears > 0
     }
 
 
-public function volumeProfitChart()
-{
-    // Offices
-    $offices = Office::where('is_active', true)
-        ->orderBy('name')
-        ->get(['id', 'name', 'code']);
-
-    // Sales Persons
-    $salesPersons = User::orderBy('name')
-        ->get(['id', 'name']);
-
-    // Shipping Types
-    $shippingTypes = [
-        'Ocean Export',
-        'Ocean Import',
-        'Air Export',
-        'Air Import',
-        'Trucking',
-        'Misc',
-        'Warehouse',
-    ];
-
-    // Volume Units
-    // Blade expects: $vu['value'] and $vu['label']
-    $volumeUnits = [
-        [
-            'value' => 'cbm',
-            'label' => 'CBM',
-        ],
-        [
-            'value' => 'cft',
-            'label' => 'CFT',
-        ],
-        [
-            'value' => 'bl',
-            'label' => 'BL',
-        ],
-        [
-            'value' => 'teu',
-            'label' => 'TEU',
-        ],
-    ];
-
-    // Chart Types / X-Axis
-    // Blade expects: $ct['value'] and $ct['label']
-    $chartTypes = [
-        [
-            'value' => 'month',
-            'label' => 'Month',
-        ],
-        [
-            'value' => 'quarter',
-            'label' => 'Quarter',
-        ],
-        [
-            'value' => 'year',
-            'label' => 'Year',
-        ],
-        [
-            'value' => 'shipping_type',
-            'label' => 'Shipping Type',
-        ],
-        [
-            'value' => 'office',
-            'label' => 'Office',
-        ],
-    ];
-
-    // Bar Segment
-    // Blade expects: $bs['value'] and $bs['label']
-    $barSegments = [
-        [
-            'value' => 'shipping_type',
-            'label' => 'Shipping Type',
-        ],
-        [
-            'value' => 'office',
-            'label' => 'Office',
-        ],
-        [
-            'value' => 'sales_person',
-            'label' => 'Sales Person',
-        ],
-    ];
-
-    // Status Filters
-    // Blade converts these to lowercase for the radio value
-    $statuses = [
-        'All',
-        'Draft',
-        'Sent',
-        'Pending',
-        'Won',
-        'Lost',
-        'Expired',
-        'Cancelled',
-        'Ghosted',
-    ];
-
-    return view('report.volume-profit-chart', compact(
-        'offices',
-        'salesPersons',
-        'shippingTypes',
-        'volumeUnits',
-        'chartTypes',
-        'barSegments',
-        'statuses'
-    ));
-}
 }

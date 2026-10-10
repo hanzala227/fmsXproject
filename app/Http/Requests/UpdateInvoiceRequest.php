@@ -44,6 +44,8 @@ class UpdateInvoiceRequest extends FormRequest
             'discount_pct' => 'nullable|numeric|min:0|max:100',
             'tax_pct' => 'nullable|numeric|min:0|max:100',
             'shipping_amount' => 'nullable|numeric|min:0',
+            'mbl_no' => 'nullable|string',
+            'remark' => 'nullable|string',
             'internal_remark' => 'nullable|string',
         ];
     }

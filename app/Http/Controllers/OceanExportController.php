@@ -402,7 +402,9 @@ class OceanExportController extends Controller
             $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
             $data['currency'] = $charge->currency ? $charge->currency->code : '';
             
-            if ($charge->type === 'AP' && $charge->vendor) {
+            if ($charge->party_name) {
+                $data['party_name'] = $charge->party_name;
+            } else if ($charge->type === 'AP' && $charge->vendor) {
                 $data['party_name'] = $charge->vendor->name;
                 $data['party_name_id'] = $charge->vendor_id;
             } else if ($charge->type !== 'AP' && $charge->billTo) {
@@ -413,8 +415,8 @@ class OceanExportController extends Controller
                 $data['party_name_id'] = '';
             }
             
-            $data['party'] = 'Custom'; 
-            $data['sal'] = 'Sea'; 
+            $data['party'] = $charge->party ?: 'Custom'; 
+            $data['sal'] = $charge->sal ?: 'Sea'; 
             $data['mbl_no'] = $oceanExport->file_no; 
             $data['eq_bl_no'] = $charge->remark ?? ''; 
             $data['remark'] = $charge->remark ?? false;
@@ -453,6 +455,7 @@ class OceanExportController extends Controller
                     'id' => $c->id,
                     'selected' => false,
                     'party' => $c->type === 'AP' ? 'Agent' : 'Custom',
+                    'party_name' => $c->party_name ?? ($c->billTo->name ?? ($c->vendor->name ?? '')),
                     'party_name_id' => $c->type === 'AP' ? ($c->vendor_id ?? '') : ($c->bill_to_id ?? ''),
                     'sal' => 'Sea',
                     'pr' => $c->type === 'AP' ? 'Pay' : 'Rec',
@@ -465,6 +468,7 @@ class OceanExportController extends Controller
                     'roe' => 1.0,
                     'vat' => (float)($c->tax_percent ?? 0),
                     'inv_no' => $c->invoice_no ?? '',
+                'is_invoiced' => $c->is_invoiced,
                     'financial_date' => $c->invoice_date ? (is_string($c->invoice_date) ? $c->invoice_date : $c->invoice_date->format('Y-m-d')) : '',
                     'eq_bl_no' => $c->remark ?? '',
                     'remark' => (bool)($c->remark ?? false),

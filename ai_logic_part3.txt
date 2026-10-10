@@ -1,0 +1,61 @@
+                            if (data.mbl.eta) r.eta = data.mbl.eta;
+                            if (data.mbl.etd) r.etd = data.mbl.etd;
+                            if (data.mbl.ata) r.ata = data.mbl.ata;
+                            if (data.mbl.atd) r.atd = data.mbl.atd;
+                            
+                            if (data.mbl.pol_id) {
+                                ensureOptionExists('routes[0][airport_id]', data.mbl.pol_id, data.mbl.pol_name || 'POL');
+                                r.airport_id = data.mbl.pol_id;
+                            }
+                            
+                            if (data.mbl.vessel_name) {
+                                r.flight_no = data.mbl.vessel_name + (data.mbl.voyage ? ' / ' + data.mbl.voyage : '');
+                            }
+                            
+                            if (data.mbl.carrier_id) {
+                                ensureOptionExists('routes[0][carrier_id]', data.mbl.carrier_id, data.mbl.carrier_name || 'Carrier');
+                                r.carrier_id = data.mbl.carrier_id;
+                            }
+                            
+                            // Force Alpine reactivity
+                            this.form.routes = [...this.form.routes];
+                        }
+                    }
+
+                    // HBL Mapping (Fill the first HBL tab if it's empty, or create one)
+                    if (data.hbls && data.hbls.length > 0) {
+                        if (this.hbls.length === 0) {
+                            this.addHbl();
+                        }
+                        const hbl = data.hbls[0];
+                        if (hbl.hbl_no) this.hbls[0].hbl_no = hbl.hbl_no;
+                        if (hbl.pieces) this.hbls[0].total_pieces = hbl.pieces;
+                        if (hbl.weight) this.hbls[0].gross_weight_kg = hbl.weight;
+                        if (hbl.volume) this.hbls[0].volume_cbm = hbl.volume;
+                        if (hbl.hbl_description) this.hbls[0].hbl_description = hbl.hbl_description;
+                        if (hbl.hbl_mark) this.hbls[0].hbl_mark = hbl.hbl_mark;
+                        if (hbl.bl_type) this.hbls[0].bl_type = hbl.bl_type;
+                        if (hbl.cargo_type) this.hbls[0].cargo_type = hbl.cargo_type;
+                        if (hbl.freight_term) this.hbls[0].freight_term = hbl.freight_term;
+                        
+                        // Foreign Keys (Jugaar)
+                        if (hbl.shipper_id) {
+                            ensureOptionExists('dm_shipper_id', hbl.shipper_id, hbl.shipper_name || 'Shipper');
+                            this.hbls[0].shipper_id = hbl.shipper_id;
+                            if (!this.form.dm_shipper_id) this.form.dm_shipper_id = hbl.shipper_id;
+                        }
+                        if (hbl.consignee_id) {
+                            ensureOptionExists('dm_consignee_id', hbl.consignee_id, hbl.consignee_name || 'Consignee');
+                            ensureOptionExists('dm_customer_id', hbl.consignee_id, hbl.consignee_name || 'Customer');
+                            this.hbls[0].consignee_id = hbl.consignee_id;
+                            if (!this.form.dm_consignee_id) this.form.dm_consignee_id = hbl.consignee_id;
+                            if (!this.form.dm_customer_id) this.form.dm_customer_id = hbl.consignee_id; // Default customer to consignee
+                        }
+                        if (hbl.notify_id) {
+                            ensureOptionExists('notify_id', hbl.notify_id, hbl.notify_party_name || 'Notify');
+                            this.hbls[0].notify_id = hbl.notify_id;
+                        }
+                        if (hbl.customer_id) {
+                            ensureOptionExists('customer_id', hbl.customer_id, hbl.customer_name || 'Customer');
+                            this.hbls[0].customer_id = hbl.customer_id;
+                        }

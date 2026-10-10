@@ -110,7 +110,7 @@
                 <li :class="(activeTab === 'status' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'status' : null">
                     <a @click="switchTab('status')">Status</a>
                 </li>
-                <li :class="(activeTab === 'doc' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'doc' : null">
+                <li style="display: none !important;" :class="(activeTab === 'doc' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'doc' : null">
                     <a @click="switchTab('doc')">Doc Center</a>
                 </li>
             </ul>

@@ -93,7 +93,18 @@ class AiExtractionService
              }
         }
 
-        $systemPrompt = "You are a professional freight forwarding AI assistant. Your job is to extract shipping data from the provided document text and return it STRICTLY as a JSON object matching the requested schema. DO NOT include any markdown formatting, explanations, or additional text. Just the raw JSON object.";
+        $systemPrompt = "You are a senior, highly experienced 30+ year freight forwarding AI expert. Your task is to extract shipping data from the provided document text and return it STRICTLY as a JSON object matching the requested schema. You must extract with 100% accuracy and zero mistakes.
+
+CRITICAL INSTRUCTIONS:
+1. EXHAUSTIVE EXTRACTION: Do not miss a single detail. Analyze the entire text meticulously. Look for every field in the schema.
+2. SHIPPER / CONSIGNEE / NOTIFY: Always extract the full company names for Shipper, Consignee, and Notify Party. If they appear in the document (even on a Master Bill), map them into the `hbls` array (as well as `mbl` if applicable) so the system can display them.
+3. MULTIPLE ENTITIES: If there are multiple Notify Parties, combine them or extract the primary one, but DO NOT leave the field empty.
+4. REFERENCES: Extract all Booking Numbers, Export References (INV NO, EXP NO, S/C NO). Put them in `booking_no`, `agent_ref_no`, or `contract_no`.
+5. ROUTING: Distinguish pre-carriage, main carrier, vessel, and flight. Extract EVERY explicitly documented transportation leg into the `routes` or `flights` array. Capture Port of Loading (POL), Port of Discharge (POD), Place of Receipt, and Place of Delivery accurately.
+6. CONTAINERS & PACKAGES: Extract EVERY container into the `containers` array, including Container No, Seal No, Size/Type, Weight, Volume, and Pieces.
+7. COMMODITY & MARKS: Extract Shipping Marks and full Description of packages and goods (including H.S. Codes).
+8. Use null for missing values. DO NOT invent or fabricate missing fields.
+9. STRICT JSON: DO NOT include any markdown formatting (like ```json), explanations, or additional text. Output ONLY the raw JSON object.";
 
         $messages = [
             [
@@ -146,7 +157,13 @@ class AiExtractionService
         $response = preg_replace('/```/i', '', $response);
         $response = trim($response);
 
-        return json_decode($response, true);
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::error("AI JSON Parse Error: " . json_last_error_msg() . "\nRaw Response: " . $response);
+            return null;
+        }
+
+        return $decoded;
     }
 
     private function getSchemaPrompt(string $module): string
@@ -159,6 +176,9 @@ class AiExtractionService
         }
         if ($module === 'air_import') {
             return $this->getAirImportSchema();
+        }
+        if ($module === 'air_export') {
+            return $this->getAirExportSchema();
         }
 
         throw new Exception("Module '$module' schema not defined.");
@@ -199,6 +219,16 @@ class AiExtractionService
                 "business_referred_by_name" => "string (Business referred by)",
                 "description" => "string (Cargo description or remarks)"
             ],
+            "routes" => [
+                [
+                    "vessel_name" => "string (Name of the vessel)",
+                    "voyage" => "string (Voyage number)",
+                    "pol_name" => "string (Port of Loading)",
+                    "pod_name" => "string (Port of Discharge)",
+                    "etd" => "YYYY-MM-DD (Estimated Time of Departure)",
+                    "eta" => "YYYY-MM-DD (Estimated Time of Arrival)"
+                ]
+            ],
             "hbls" => [
                 [
                     "hbl_no" => "string (House Bill of Lading Number)",
@@ -215,14 +245,28 @@ class AiExtractionService
                     "weight" => "float (Total gross weight in KG)",
                     "volume" => "float (Total volume in CBM)",
                     "hbl_description" => "string (Specific description for this HBL)",
-                    "hbl_mark" => "string (Marks and numbers)"
+                    "hbl_mark" => "string (Marks and numbers)",
+                    "vessel_name" => "string (Name of the vessel)",
+                    "voyage" => "string (Voyage number)",
+                    "pol_name" => "string (Port of Loading)",
+                    "pod_name" => "string (Port of Discharge)",
+                    "receipt_name" => "string (Place of Receipt)",
+                    "del_name" => "string (Place of Delivery)",
+                    "fdest_name" => "string (Final Destination)",
+                    "pre_carriage_by" => "string (Pre-Carriage By)",
+                    "date_of_issue" => "YYYY-MM-DD (Date of Issue)",
+                    "sc_no" => "string (S/C No or Export References)",
+                    "ship_mode" => "string (Ship Mode, e.g., FCL, LCL, CY/CY)"
                 ]
             ],
             "containers" => [
                 [
                     "container_no" => "string (e.g. TCNU1234567)",
                     "seal_no" => "string",
-                    "container_type" => "string (e.g. 20GP, 40HQ)"
+                    "container_type" => "string (e.g. 20GP, 40HQ)",
+                    "weight" => "float (Gross weight in KG if specific to this container)",
+                    "volume" => "float (Volume in CBM if specific to this container)",
+                    "pieces" => "integer (Pieces/Packages if specific to this container)"
                 ]
             ]
         ], JSON_PRETTY_PRINT);
@@ -284,6 +328,16 @@ class AiExtractionService
                 "is_express_bl" => "boolean (true if express BL)",
                 "description" => "string (Cargo description or remarks)"
             ],
+            "routes" => [
+                [
+                    "vessel_name" => "string (Name of the vessel)",
+                    "voyage" => "string (Voyage number)",
+                    "pol_name" => "string (Port of Loading)",
+                    "pod_name" => "string (Port of Discharge)",
+                    "etd" => "YYYY-MM-DD (Estimated Time of Departure)",
+                    "eta" => "YYYY-MM-DD (Estimated Time of Arrival)"
+                ]
+            ],
             "hbls" => [
                 [
                     "hbl_no" => "string (House Bill of Lading Number)",
@@ -300,14 +354,28 @@ class AiExtractionService
                     "weight" => "float (Total gross weight in KG)",
                     "volume" => "float (Total volume in CBM)",
                     "hbl_description" => "string (Specific description for this HBL)",
-                    "hbl_mark" => "string (Marks and numbers)"
+                    "hbl_mark" => "string (Marks and numbers)",
+                    "vessel_name" => "string (Name of the vessel)",
+                    "voyage" => "string (Voyage number)",
+                    "pol_name" => "string (Port of Loading)",
+                    "pod_name" => "string (Port of Discharge)",
+                    "receipt_name" => "string (Place of Receipt)",
+                    "del_name" => "string (Place of Delivery)",
+                    "fdest_name" => "string (Final Destination)",
+                    "pre_carriage_by" => "string (Pre-Carriage By)",
+                    "date_of_issue" => "YYYY-MM-DD (Date of Issue)",
+                    "sc_no" => "string (S/C No or Export References)",
+                    "ship_mode" => "string (Ship Mode, e.g., FCL, LCL, CY/CY)"
                 ]
             ],
             "containers" => [
                 [
                     "container_no" => "string (e.g. TCNU1234567)",
                     "seal_no" => "string",
-                    "container_type" => "string (e.g. 20GP, 40HQ)"
+                    "container_type" => "string (e.g. 20GP, 40HQ)",
+                    "weight" => "float (Gross weight in KG if specific to this container)",
+                    "volume" => "float (Volume in CBM if specific to this container)",
+                    "pieces" => "integer (Pieces/Packages if specific to this container)"
                 ]
             ]
         ], JSON_PRETTY_PRINT);
@@ -340,6 +408,67 @@ class AiExtractionService
                 "bl_type" => "string",
                 "cargo_type" => "string",
                 "description" => "string"
+            ],
+            "flights" => [
+                [
+                    "flight_no" => "string (Flight Number)",
+                    "pol_name" => "string (Port of Loading Name or Departure Airport)",
+                    "pod_name" => "string (Port of Discharge Name or Destination Airport)",
+                    "etd" => "YYYY-MM-DD",
+                    "eta" => "YYYY-MM-DD"
+                ]
+            ],
+            "hbls" => [
+                [
+                    "hbl_no" => "string (House Air Waybill Number)",
+                    "shipper_name" => "string",
+                    "consignee_name" => "string",
+                    "notify_party_name" => "string",
+                    "weight" => "number (Gross Weight)",
+                    "volume" => "number (Volume Weight/Chargeable)",
+                    "pieces" => "number (Quantity of packages/cartons)",
+                    "description" => "string (Nature of goods)"
+                ]
+            ]
+        ], JSON_PRETTY_PRINT);
+    }
+
+    private function getAirExportSchema(): string
+    {
+        return json_encode([
+            "mbl" => [
+                "file_no" => "string (File number if present)",
+                "mbl_no" => "string (Master Air Waybill Number)",
+                "booking_no" => "string",
+                "post_date" => "YYYY-MM-DD",
+                "carrier_name" => "string (Name of Carrier)",
+                "flight_no" => "string (Flight Number)",
+                "pol_name" => "string (Port of Loading Name or Departure Airport)",
+                "pod_name" => "string (Port of Discharge Name or Destination Airport)",
+                "etd" => "YYYY-MM-DD",
+                "eta" => "YYYY-MM-DD",
+                "atd" => "YYYY-MM-DD",
+                "ata" => "YYYY-MM-DD",
+                "forwarding_agent_name" => "string",
+                "op_name" => "string",
+                "dm_sales_person_name" => "string",
+                "oversea_agent_name" => "string",
+                "co_loader_name" => "string",
+                "agent_ref_no" => "string",
+                "contract_no" => "string",
+                "sales_type" => "string",
+                "bl_type" => "string",
+                "cargo_type" => "string",
+                "description" => "string"
+            ],
+            "flights" => [
+                [
+                    "flight_no" => "string (Flight Number)",
+                    "pol_name" => "string (Port of Loading Name or Departure Airport)",
+                    "pod_name" => "string (Port of Discharge Name or Destination Airport)",
+                    "etd" => "YYYY-MM-DD",
+                    "eta" => "YYYY-MM-DD"
+                ]
             ],
             "hbls" => [
                 [

@@ -1556,8 +1556,6 @@
                                     <td style="text-align:center;">
                                         <input type="checkbox" 
                                                x-model="charge._selected" 
-                                               :disabled="charge.is_invoiced" 
-                                               x-show="!charge.is_invoiced"
                                                style="margin:0; width:13px; height:13px; cursor:pointer;"
                                         >
                                     </td>
@@ -3088,24 +3086,36 @@
                 toggleAllCharges(e) {
                     const checked = e.target.checked;
                     this.charges.forEach(c => {
-                        if (!c.is_invoiced) {
-                            c._selected = checked;
-                        }
+                        c._selected = checked;
                     });
                 },
                 async createInvoiceFromCharges(type) {
                     @if(isset($truckShipment))
-                    const selectedCharges = this.charges.filter(c => c._selected && !c.is_invoiced && c.type === type);
+                    const selectedCharges = this.charges.filter(c => c._selected && (c.type === type || !c.type));
                     
                     if (selectedCharges.length === 0) {
-                        alert(`Please select at least one unbilled ${type} charge to generate an invoice.`);
+                        if (typeof showToast === 'function') showToast('error', `Please select at least one ${type} charge.`);
+                        else alert(`Please select at least one ${type} charge.`);
+                        return;
+                    }
+
+                    const alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.invoice_no && c.invoice_no !== 'Draft'));
+                    if (alreadyInvoiced.length > 0) {
+                        const invNos = alreadyInvoiced.map(c => c.invoice_no || 'Already Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        if (typeof showToast === 'function') showToast('warning', `Invoice already created for selected charge(s): ${invNos}`);
+                        else alert(`Invoice already created for selected charge(s): ${invNos}`);
+                    }
+
+                    const uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.invoice_no || c.invoice_no === 'Draft'));
+                    if (uninvoicedCharges.length === 0) {
                         return;
                     }
 
                     try {
-                        const chargeIds = selectedCharges.map(c => c.id).filter(id => id); // Only take saved charges
-                        if (chargeIds.length !== selectedCharges.length) {
-                            alert('Some selected charges are not saved. Please save the shipment first.');
+                        const chargeIds = uninvoicedCharges.map(c => c.id).filter(id => id); // Only take saved charges
+                        if (chargeIds.length !== uninvoicedCharges.length) {
+                            if (typeof showToast === 'function') showToast('error', 'Some selected charges are not saved. Please save the shipment first.');
+                            else alert('Some selected charges are not saved. Please save the shipment first.');
                             return;
                         }
 

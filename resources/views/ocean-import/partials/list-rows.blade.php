@@ -54,7 +54,8 @@
                    obl_type:   '{{ addslashes($shipment->obl_type ?? "--") }}',
                    bl_type:    '{{ addslashes($shipment->bl_type ?? "--") }}',
                    containers: {{ $shipment->containers->count() }},
-                   hbls:       {{ $shipment->hbls->count() }}
+                   hbls:       {{ $shipment->hbls->count() }},
+                   routes:     @json($shipment->routes ?? [])
                })"></i>
         </div>
     </td>

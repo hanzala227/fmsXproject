@@ -211,6 +211,9 @@ class OceanExportService
         }
 
         $mapped = [
+            'party' => $data['party'] ?? 'Freight',
+            'party_name' => $data['party_name'] ?? '',
+            'sal' => $data['sal'] ?? 'Sea',
             'charge_code' => $data['chrg_code'] ?? '',
             'charge_name' => $data['chrg_code'] ?? 'Charge',
             'type' => $type,
