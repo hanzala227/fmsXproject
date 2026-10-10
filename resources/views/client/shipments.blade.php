@@ -1,386 +1,144 @@
 @extends('layouts.userapp')
-@section('title', 'Client Dashboard')
-
+@section('title', 'Client Shipments')
 
 @section('content')
 
-<div class="container">
+@php
+    /*
+     | Har section ke liye: title, data variable, table columns, aur details (modal) fields.
+     | 'columns' = table mein jo dikhna hai, 'details' = anchor click par jo poori detail khulni hai.
+     | Details mein aur fields chahiye to bas yahan label => column_name add kar do.
+     | NOTE: client ko sirf wohi fields dikhao jo uske dekhne ke liye theek hain
+     | (balance, cost, margin jaisi cheezein yahan mat daalna).
+     */
+    $sections = [
+        [
+            'id' => 'air-import', 'title' => 'AIR IMPORT SHIPMENTS', 'icon' => 'fa-plane', 'rows' => $airImports,
+            'columns' => ['MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['File No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+        ],
+        [
+            'id' => 'air-export', 'title' => 'AIR EXPORT SHIPMENTS', 'icon' => 'fa-plane', 'rows' => $airExports,
+            'columns' => ['MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['File No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+        ],
+        [
+            'id' => 'ocean-import', 'title' => 'OCEAN IMPORT SHIPMENTS', 'icon' => 'fa-ship', 'rows' => $oceanImports,
+            'columns' => ['MBL No' => 'mbl_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'POL' => 'pol_id', 'POD' => 'pod_id', 'ETA' => 'eta'],
+            'details' => ['File No' => 'file_no', 'MBL No' => 'mbl_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'POL' => 'pol_id', 'POD' => 'pod_id', 'ETA' => 'eta'],
+        ],
+        [
+            'id' => 'ocean-export', 'title' => 'OCEAN EXPORT SHIPMENTS', 'icon' => 'fa-ship', 'rows' => $oceanExports,
+            'columns' => ['MBL No' => 'mbl_no', 'Booking No' => 'booking_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['File No' => 'file_no', 'MBL No' => 'mbl_no', 'Booking No' => 'booking_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'ETD' => 'etd', 'ETA' => 'eta'],
+        ],
+    ];
+@endphp
 
-    <div class="mb-4">
-        <h1>My Shipments</h1>
-
-        <p>
-            Company ID:
-            <strong>{{ auth()->user()->company_id }}</strong>
-        </p>
-    </div>
-
-
-    {{-- ========================= --}}
-    {{-- AIR IMPORT --}}
-    {{-- ========================= --}}
-
-    <div class="shipment-section">
-
-        <h2>Air Import Shipments</h2>
-
-        <div class="table-responsive">
-
-            <table class="shipment-table">
-
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File No</th>
-                        <th>MAWB No</th>
-                        <th>Flight No</th>
-                        <th>Departure</th>
-                        <th>Destination</th>
-                        <th>ETD</th>
-                        <th>ETA</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @forelse($airImports as $shipment)
-
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-
-                            <td>
-                                {{ $shipment->file_no }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->mawb_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->flight_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->dep_port_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->dst_port_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->etd ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->eta ?? '-' }}
-                            </td>
-                        </tr>
-
-                    @empty
-
-                        <tr>
-                            <td colspan="8">
-                                No Air Import shipments found.
-                            </td>
-                        </tr>
-
-                    @endforelse
-
-                </tbody>
-
-            </table>
-
+{{-- ===== Details modal ===== --}}
+<div class="overlay" id="details-overlay" onclick="if(event.target===this) closeDetails()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-header-title"><i class="fa fa-info-circle" style="color:#3b82f6;"></i> <span id="details-title">Shipment Details</span></div>
+            <button class="modal-close" onclick="closeDetails()"><i class="fa fa-times"></i></button>
         </div>
-
+        <div class="modal-body"><div class="kv-grid" id="details-grid"></div></div>
     </div>
-
-
-    {{-- ========================= --}}
-    {{-- AIR EXPORT --}}
-    {{-- ========================= --}}
-
-    <div class="shipment-section">
-
-        <h2>Air Export Shipments</h2>
-
-        <div class="table-responsive">
-
-            <table class="shipment-table">
-
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File No</th>
-                        <th>MAWB No</th>
-                        <th>Flight No</th>
-                        <th>Departure</th>
-                        <th>Destination</th>
-                        <th>ETD</th>
-                        <th>ETA</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @forelse($airExports as $shipment)
-
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-
-                            <td>
-                                {{ $shipment->file_no }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->mawb_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->flight_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->dep_port_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->dst_port_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->etd ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->eta ?? '-' }}
-                            </td>
-                        </tr>
-
-                    @empty
-
-                        <tr>
-                            <td colspan="8">
-                                No Air Export shipments found.
-                            </td>
-                        </tr>
-
-                    @endforelse
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-
-    {{-- ========================= --}}
-    {{-- OCEAN IMPORT --}}
-    {{-- ========================= --}}
-
-    <div class="shipment-section">
-
-        <h2>Ocean Import Shipments</h2>
-
-        <div class="table-responsive">
-
-            <table class="shipment-table">
-
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File No</th>
-                        <th>MBL No</th>
-                        <th>Vessel</th>
-                        <th>Voyage</th>
-                        <th>POL</th>
-                        <th>POD</th>
-                        <th>ETA</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @forelse($oceanImports as $shipment)
-
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-
-                            <td>
-                                {{ $shipment->file_no }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->mbl_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->vessel_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->voyage ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->pol_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->pod_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->eta ?? '-' }}
-                            </td>
-                        </tr>
-
-                    @empty
-
-                        <tr>
-                            <td colspan="8">
-                                No Ocean Import shipments found.
-                            </td>
-                        </tr>
-
-                    @endforelse
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-
-    {{-- ========================= --}}
-    {{-- OCEAN EXPORT --}}
-    {{-- ========================= --}}
-
-    <div class="shipment-section">
-
-        <h2>Ocean Export Shipments</h2>
-
-        <div class="table-responsive">
-
-            <table class="shipment-table">
-
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>File No</th>
-                        <th>MBL No</th>
-                        <th>Booking No</th>
-                        <th>Vessel</th>
-                        <th>Voyage</th>
-                        <th>ETD</th>
-                        <th>ETA</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @forelse($oceanExports as $shipment)
-
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-
-                            <td>
-                                {{ $shipment->file_no }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->mbl_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->booking_no ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->vessel_id ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->voyage ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->etd ?? '-' }}
-                            </td>
-
-                            <td>
-                                {{ $shipment->eta ?? '-' }}
-                            </td>
-                        </tr>
-
-                    @empty
-
-                        <tr>
-                            <td colspan="8">
-                                No Ocean Export shipments found.
-                            </td>
-                        </tr>
-
-                    @endforelse
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
 </div>
 
+<div class="page-content">
+    <div class="page-bar">
+        <ul class="page-breadcrumb">
+            <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
+            <li><span style="color:#333;font-weight:700;">My Shipments</span></li>
+        </ul>
+        <div class="company-tag">Company ID: <strong>{{ auth()->user()->company_id }}</strong></div>
+    </div>
 
-<style>
+    @foreach($sections as $s)
+        <div class="portlet light">
+            <div class="portlet-title">
+                <div class="caption">
+                    <i class="fa {{ $s['icon'] }}" style="color:#3b82f6;"></i>
+                    <span class="caption-subject">{{ $s['title'] }}</span>
+                    <span class="count-badge">{{ count($s['rows']) }}</span>
+                </div>
+                <div class="portlet-search">
+                    <i class="fa fa-search"></i>
+                    <input type="text" class="input-inline" placeholder="Quick search..." oninput="quickSearch('{{ $s['id'] }}', this.value)">
+                </div>
+            </div>
 
-.container {
-    width: 95%;
-    margin: 30px auto;
+            <div class="portlet-body">
+                <div class="grid-wrapper">
+                    <table class="grid-table" id="grid-{{ $s['id'] }}">
+                        <thead>
+                            <tr>
+                                <th style="width:30px;text-align:center;">#</th>
+                                <th style="width:130px;">File No.</th>
+                                @foreach($s['columns'] as $label => $col)
+                                    <th>{{ $label }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($s['rows'] as $shipment)
+                                @php
+                                    $detail = [];
+                                    foreach ($s['details'] as $label => $col) {
+                                        $detail[$label] = $shipment->{$col} ?? '-';
+                                    }
+                                @endphp
+                                <tr>
+                                    <td style="text-align:center;color:#94a3b8;">{{ $loop->iteration }}</td>
+                                    <td>
+                                        <a href="#" class="row-link"
+                                           data-title="{{ $s['title'] }} - {{ $shipment->file_no }}"
+                                           data-details="{{ json_encode($detail) }}"
+                                           onclick="openDetails(event, this)">{{ $shipment->file_no }}</a>
+                                    </td>
+                                    @foreach($s['columns'] as $label => $col)
+                                        <td>{{ $shipment->{$col} ?? '-' }}</td>
+                                    @endforeach
+                                </tr>
+                            @empty
+                                <tr class="empty-row">
+                                    <td colspan="{{ count($s['columns']) + 2 }}">No shipments found.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+<link rel="stylesheet" href="{{ asset('css/client-portal.css') }}">
+
+<script>
+function openDetails(e, el) {
+    e.preventDefault();
+    var data = JSON.parse(el.dataset.details);
+    var grid = document.getElementById('details-grid');
+    grid.innerHTML = '';
+    Object.keys(data).forEach(function (label) {
+        var k = document.createElement('div'); k.className = 'k'; k.textContent = label;
+        var v = document.createElement('div'); v.className = 'v'; v.textContent = data[label];
+        grid.appendChild(k); grid.appendChild(v);
+    });
+    document.getElementById('details-title').textContent = el.dataset.title;
+    document.getElementById('details-overlay').classList.add('open');
 }
+function closeDetails() { document.getElementById('details-overlay').classList.remove('open'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetails(); });
 
-.shipment-section {
-    margin-bottom: 40px;
+function quickSearch(id, q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('#grid-' + id + ' tbody tr:not(.empty-row)').forEach(function (tr) {
+        tr.style.display = tr.textContent.toLowerCase().indexOf(q) > -1 ? '' : 'none';
+    });
 }
-
-.shipment-section h2 {
-    margin-bottom: 15px;
-}
-
-.table-responsive {
-    width: 100%;
-    overflow-x: auto;
-}
-
-.shipment-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-}
-
-.shipment-table th,
-.shipment-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-    white-space: nowrap;
-}
-
-.shipment-table th {
-    background: #f5f5f5;
-    font-weight: 600;
-}
-
-.shipment-table tbody tr:hover {
-    background: #fafafa;
-}
-
-</style>
+</script>
 
 @endsection

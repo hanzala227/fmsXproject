@@ -13,7 +13,7 @@
 <body>
 <div class="app">
     @include('layouts.userSidebar')
-    <div class="main">
+    <div class="main" style="width : calc(100% - 200px); margin-left: 200px;">
         @include('layouts.usertopBar')
         <main class="content">
             @yield('content')

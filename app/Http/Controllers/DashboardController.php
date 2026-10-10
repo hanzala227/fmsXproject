@@ -161,6 +161,7 @@ class DashboardController extends Controller
                 elseif (stripos($statusName, 'invoice') !== false) $badgeClass = 'bg-invoice';
 
                 $todos[] = [
+                    'id'         => $shipment->id,
                     'task'       => $statusName,
                     'file_no'    => $fileNo,
                     'eta'        => $eta instanceof \Carbon\Carbon ? $eta->format('m-d-Y') : (is_string($eta) ? $eta : '--'),
@@ -182,6 +183,7 @@ class DashboardController extends Controller
 
                 foreach ($recentShipments as $s) {
                     $todos[] = [
+                        'id'         => $s->id,
                         'task'       => 'Pre-alert',
                         'file_no'    => $s->file_no ?? 'N/A',
                         'eta'        => $s->eta ? $s->eta->format('m-d-Y') : '--',

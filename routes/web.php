@@ -56,6 +56,7 @@ use App\Http\Controllers\Accounting\YearEndClosingController;
 use App\Http\Controllers\VesselScheduleController;
 use App\Http\Controllers\OceanBookingController;
 use App\Http\Controllers\AirBookingController;
+use App\Http\Controllers\ClientComapnyController;
 use App\Http\Controllers\ClientReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GaExpenseController;
@@ -1152,9 +1153,7 @@ Route::prefix('client-portal')
 
         Route::get('/notifications', [ClientController::class, 'notifications']);
 
-        Route::get('/reports', [ClientReportController::class, 'index']);
-
-        Route::get('/company', [ClientController::class, 'company']);
+        Route::get('/company', [ClientComapnyController::class, 'index']);
 
         Route::get('/settings', [ClientController::class, 'settings']);
 
@@ -1167,4 +1166,11 @@ Route::prefix('client-portal')
         Route::get('invoices/{id}', [CustomerInvoiceController::class, 'show'])->name('cp.invoices.show');
 
     });
+
+
+Route::middleware(['auth', 'client'])->prefix('client-portal')->group(function () {
+    Route::get('reports',     [ClientReportController::class, 'index'])->name('client.reports.index');
+    Route::get('reports/pdf', [ClientReportController::class, 'pdf'])->name('client.reports.pdf');
+});
+    
 
