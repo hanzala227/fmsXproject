@@ -422,24 +422,31 @@
                     </thead>
                     <tbody>
                         @forelse($todos as $todo)
-                        <tr style="cursor: pointer;" @click="handleTodoClick('{{ $todo['file_no'] }}', '{{ strtolower(str_replace('Import', '-import', str_replace('Export', '-export', $todo['shipment_type']))) }}')">
-                            <td><span class="badge-status {{ $todo['badgeClass'] }}">{{ $todo['task'] }}</span></td>
-                            <td><a href="/{{ strtolower(str_replace('Import', '-import', str_replace('Export', '-export', $todo['shipment_type']))) }}/list" style="color:#4b77be; font-weight: 600;">{{ $todo['file_no'] }}</a></td>
-                            <td style="font-weight: 500;">{{ $todo['eta'] }}</td>
-                            <td>{{ $todo['mbl'] }}</td>
-                            <td>{{ $todo['hbl'] }}</td>
-                            <td>{{ $todo['pod'] }}</td>
-                            <td>{{ $todo['consignee'] }}</td>
-                            <td style="color:#8e9eae; font-size:10px;">{{ $todo['status'] }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="empty-state">
-                                <i class="fa fa-inbox"></i>
-                                No pending tasks.
-                            </td>
-                        </tr>
-                        @endforelse
+@php
+    $typeSlug = strtolower(str_replace('Import', '-import', str_replace('Export', '-export', $todo['shipment_type'])));
+    $editUrl  = '/' . $typeSlug . '/' . $todo['id'] . '/edit';   // partial ke mutabiq badalna ho to yahan
+@endphp
+<tr style="cursor: pointer;" @click="handleTodoClick('{{ $editUrl }}')">
+    <td><span class="badge-status {{ $todo['badgeClass'] }}">{{ $todo['task'] }}</span></td>
+    <td><a href="{{ $editUrl }}" @click.stop style="color:#4b77be; font-weight: 600;">{{ $todo['file_no'] }}</a></td>
+    <td style="font-weight: 500;">{{ $todo['eta'] }}</td>
+    <td>{{ $todo['mbl'] }}</td>
+    <td>{{ $todo['hbl'] }}</td>
+    <td>{{ $todo['pod'] }}</td>
+    <td>{{ $todo['consignee'] }}</td>
+    <td style="color:#8e9eae; font-size:10px;">{{ $todo['status'] }}</td>
+</tr>
+
+    @empty
+        <tr>
+            <td colspan="8" class="empty-state">
+                <i class="fa fa-inbox"></i>
+                No tasks found.
+            </td>
+        </tr>
+    @endforelse
+</tbody>
+
                     </tbody>
                 </table>
             </div>

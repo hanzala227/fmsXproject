@@ -1664,6 +1664,8 @@
                 <li style="display: none !important;" :class="activeTab === 'doc' ? 'active' : ''" @if(isset($airExport) && $airExport->id) @click="activeTab = 'doc'" @else style="opacity: 0.5; cursor: not-allowed;" title="Save Basic tab first" @endif><a>Doc Center</a></li>
                 <li style="display: none !important;" :class="activeTab === 'workorder' ? 'active' : ''" @if(isset($airExport) && $airExport->id) @click="activeTab = 'workorder'" @else style="opacity: 0.5; cursor: not-allowed;" title="Save Basic tab first" @endif><a>Work Order</a></li>
                 <li :class="activeTab === 'status' ? 'active' : ''" @if(isset($airExport) && $airExport->id) @click="activeTab = 'status'" @else style="opacity: 0.5; cursor: not-allowed;" title="Save Basic tab first" @endif><a>Status</a></li>
+                <li :class="activeTab === 'doc' ? 'active' : ''" @if(isset($airExport) && $airExport->id) @click="activeTab = 'doc'" @else style="opacity: 0.5; cursor: not-allowed;" title="Save Basic tab first" @endif><a></a></li>
+                <li :class="activeTab === 'workorder' ? 'active' : ''" @if(isset($airExport) && $airExport->id) @click="activeTab = 'workorder'" @else style="opacity: 0.5; cursor: not-allowed;" title="Save Basic tab first" @endif><a></a></li>
             </ul>
 
             <!-- Divider -->
@@ -1986,6 +1988,8 @@
                                 <tbody>
                                     <template x-for="(charge, idx) in form.other_charges" :key="idx">
                                         <tr>
+
+                                        
                                             <td style="text-align: center; border:1px solid #ddd;"><i class="fa fa-trash" style="color:red; cursor:pointer;" @click="removeCharge(idx)"></i></td>
                                             <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="charge.charge_code" :name="'charges['+idx+'][charge_code]'"></td>
                                             <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="charge.description" :name="'charges['+idx+'][description]'"></td>

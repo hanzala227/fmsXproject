@@ -1,6 +1,6 @@
 @props(['type' => 'admin'])
 <div class="page-header navbar navbar-fixed-top bg-white border-b border-gray-200 h-[50px] flex items-center justify-between px-3 sm:px-4 shadow-sm relative z-[1001] !overflow-visible">
-    <!-- Left: Sidebar Toggler & Branch Selection -->
+    <!-- Left: Sidebar Toggler, Branch Selection & Search -->
     <div class="flex items-center space-x-2">
         <button onclick="if(window.innerWidth > 768) { document.body.classList.toggle('sidebar-collapsed'); window.dispatchEvent(new CustomEvent('sidebar-toggled')); } else { document.body.classList.toggle('sidebar-mobile-open'); }" class="text-gray-500 hover:text-gray-700 focus:outline-none p-1.5 rounded hover:bg-gray-100 flex items-center justify-center">
             <i class="fa fa-bars text-base text-gray-500"></i>
@@ -28,17 +28,8 @@
                 </a>
             </div>
         </div>
-        @elseif($type === 'superadmin')
-            <span style="font-size: 13px; font-weight: 600; color: #405189; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 12px;">Super Admin Panel</span>
-        @elseif($type === 'customer')
-            <span style="font-size: 13px; font-weight: 600; color: #405189; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 12px;">Customer Portal</span>
-        @endif
-    </div>
 
-    <!-- Right: Search and Menus -->
-    <div class="flex items-center space-x-2 sm:space-x-3 flex-1 justify-end">
-        @if($type === 'admin')
-        <!-- Global Command Palette & Search Bar (Compact Fixed Width) -->
+        <!-- Global Command Palette & Search Bar (Compact Fixed Width) - now on the left, next to Main Branch -->
         <div class="relative flex items-center"
              x-data="{
                 query: '',
@@ -224,13 +215,13 @@
                 </div>
             </div>
 
-            <!-- Autocomplete Results Dropdown -->
+            <!-- Autocomplete Results Dropdown (aligned to the LEFT edge of the search bar) -->
             <div x-show="openDropdown && query.trim().length > 0" 
                  x-cloak 
                  x-transition:enter="transition ease-out duration-100"
                  x-transition:enter-start="opacity-0 translate-y-1"
                  x-transition:enter-end="opacity-100 translate-y-0"
-                 class="absolute right-0 top-[calc(100%+12px)] w-[90vw] sm:w-[460px] max-w-[90vw] bg-white border border-gray-200 shadow-2xl rounded-lg py-2 z-[10000] max-h-[60vh] overflow-y-auto" style = "top:250%; overflow-y: auto; max-height: 60vh; width: 460px; right: 0; left: auto;">
+                 class="absolute left-0 top-[calc(100%+12px)] w-[90vw] sm:w-[460px] max-w-[90vw] bg-white border border-gray-200 shadow-2xl rounded-lg py-2 z-[10000] max-h-[60vh] overflow-y-auto" style = "top:250%; overflow-y: auto; max-height: 60vh; width: 460px; left: 0; right: auto;">
                 
                 <!-- Category 1: Views & Navigation Pages -->
                 <div x-show="filteredPages.length > 0">
@@ -298,8 +289,16 @@
                 </div>
             </div>
         </div>
+        @elseif($type === 'superadmin')
+            <span style="font-size: 13px; font-weight: 600; color: #405189; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 12px;">Super Admin Panel</span>
+        @elseif($type === 'customer')
+            <span style="font-size: 13px; font-weight: 600; color: #405189; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 12px;">Customer Portal</span>
         @endif
+        
+    </div>
 
+    <!-- Right: Menus -->
+    <div class="flex items-center space-x-2 sm:space-x-3 flex-1 justify-end">
         <div class="flex items-center space-x-1">
             <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors relative">
                 <i class="fa fa-list-ul text-[13px]"></i>
@@ -355,5 +354,3 @@
         </div>
     </div>
 </div>
-
-

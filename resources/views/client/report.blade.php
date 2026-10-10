@@ -1,1135 +1,310 @@
 @extends('layouts.userapp')
+@section('title', 'Reports')
 
 @section('content')
 
-<div class="reports-page">
+@php
+    $rt        = $reportType ?? request('report_type');
+    $showShip  = !$rt || $rt === 'shipments';
+    $showInv   = !$rt || $rt === 'invoices';
+    $showQuote = !$rt || $rt === 'quotations';
+    $hasFilter = request()->hasAny(['report_type', 'from_date', 'to_date', 'status']);
+    $total     = (int) ($totalShipments ?? 0);
+    $pct       = fn ($n) => $total > 0 ? min(100, round((($n ?? 0) / $total) * 100)) : 0;
+    $fmtDate   = fn ($d) => $d ? \Carbon\Carbon::parse($d)->format('d M Y') : '-';
+@endphp
 
-```
-{{-- Page Header --}}
-<div class="reports-header">
-    <div>
-        <h1>Reports</h1>
-        <p>View and manage your business reports</p>
-    </div>
-
-    <div class="header-actions">
-        <button type="button" class="filter-btn" onclick="toggleFilters()">
-            ☰ Filters
-        </button>
+{{-- Shipment details popup --}}
+<div class="overlay" id="details-overlay" onclick="if(event.target===this) closeDetails()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-header-title"><i class="fa fa-info-circle" style="color:#3b82f6;"></i> <span id="details-title">Shipment Details</span></div>
+            <button class="modal-close" onclick="closeDetails()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="modal-body"><div class="kv-grid" id="details-grid"></div></div>
     </div>
 </div>
 
+<div class="page-content">
 
-{{-- Filters --}}
-<div class="filters-box" id="filtersBox">
+    <div class="page-bar">
+        <ul class="page-breadcrumb">
+            <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
+            <li><span style="color:#333;font-weight:700;">Reports</span></li>
+        </ul>
+    </div>
 
-    <form method="GET" action="{{ url()->current() }}">
+    {{-- Report cards --}}
+    <div class="report-cards">
+        <a class="report-card" href="{{ route('client.reports.index', ['report_type' => 'shipments']) }}">
+            <div class="report-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000"><path d="M152-80h-32v-80h32q48 0 91.5-10.5T341-204q38 19 66.5 31.5T480-160q44 0 72.5-12.5T619-204q53 23 97.5 33.5T809-160h31v80h-31q-49 0-95.5-9T622-116q-40 19-73 27t-69 8q-36 0-68.5-8T339-116q-45 18-91.5 27T152-80Zm223-200-45-40q-27 27-60.5 46T198-247l-85-273q-5-17 3-31t25-19l59-16v-134q0-33 23.5-56.5T280-800h100v-80h200v80h100q33 0 56.5 23.5T760-720v134l59 16q17 5 25 19t3 31l-85 273q-38-8-71.5-27T630-320l-45 40q-45 40-105 40t-105-40Zm107-40q31 0 55-20.5t44-43.5l46-53 41 42q11 11 22.5 20.5T713-355l46-149-279-73-278 73 46 149q11-10 22.5-19.5T293-395l41-42 46 53q20 24 45 44t57 20ZM280-607l200-53 200 53v-113H280v113Zm201 158Z"/></svg></div>
+            <div><h4>Shipment Report</h4><p>Shipment activity, movement and delivery information.</p><span class="go">View Report <i class="fa fa-angle-right"></i></span></div>
+        </a>
+        <a class="report-card" href="{{ route('client.reports.index', ['report_type' => 'invoices']) }}">
+            <div class="report-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000"><path d="M240-80q-50 0-85-35t-35-85v-120h120v-560l60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60v680q0 50-35 85t-85 35H240Zm480-80q17 0 28.5-11.5T760-200v-560H320v440h360v120q0 17 11.5 28.5T720-160ZM360-600v-80h240v80H360Zm0 120v-80h240v80H360Zm320-120q-17 0-28.5-11.5T640-640q0-17 11.5-28.5T680-680q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600Zm0 120q-17 0-28.5-11.5T640-520q0-17 11.5-28.5T680-560q17 0 28.5 11.5T720-520q0 17-11.5 28.5T680-480ZM240-160h360v-80H200v40q0 17 11.5 28.5T240-160Zm-40 0v-80 80Z"/></svg></div>
+            <div><h4>Invoice Report</h4><p>Invoices, outstanding balances and overdue amounts.</p><span class="go">View Report <i class="fa fa-angle-right"></i></span></div>
+        </a>
+        <a class="report-card" href="{{ route('client.reports.index', ['report_type' => 'quotations']) }}">
+            <div class="report-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000"><path d="M440-200h80v-40h40q17 0 28.5-11.5T600-280v-120q0-17-11.5-28.5T560-440H440v-40h160v-80h-80v-40h-80v40h-40q-17 0-28.5 11.5T360-520v120q0 17 11.5 28.5T400-360h120v40H360v80h80v40ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-560v-160H240v640h480v-480H520ZM240-800v160-160 640-640Z"/></svg></div>
+            <div><h4>Quotation Report</h4><p>Quotation history, status and pricing information.</p><span class="go">View Report <i class="fa fa-angle-right"></i></span></div>
+        </a>
+        <!-- <a class="report-card" href="{{ route('cp.invoices.index') }}">
+            <div class="report-icon"><i class="fa fa-check-circle-o"></i></div>
+            <div><h4>Payment Report</h4><p>Payment history is listed inside each invoice.</p><span class="go">Open Invoices <i class="fa fa-angle-right"></i></span></div>
+        </a> -->
+    </div>
 
-        <div class="filter-grid">
+    {{-- Summary --}}
+    <div class="summary-grid four">
+        <div class="summary-card"><div class="summary-title">Total Shipments</div><div class="summary-value">{{ $totalShipments ?? 0 }}</div><div class="summary-sub">All shipments</div></div>
+        <div class="summary-card"><div class="summary-title">Total Invoices</div><div class="summary-value">{{ $totalInvoices ?? 0 }}</div><div class="summary-sub">Generated invoices</div></div>
+        <div class="summary-card due"><div class="summary-title">Outstanding</div><div class="summary-value">{{ number_format($outstandingInvoiceAmount ?? 0, 2) }}</div><div class="summary-sub">Remaining balance</div></div>
+        <div class="summary-card due"><div class="summary-title">Overdue</div><div class="summary-value">{{ number_format($overdueInvoiceAmount ?? 0, 2) }}</div><div class="summary-sub">Overdue amount</div></div>
+    </div>
 
-            <div class="filter-field">
-                <label>Report Type</label>
-
-                <select name="report_type">
-                    <option value="">All Reports</option>
-                    <option value="shipments"
-                        {{ request('report_type') == 'shipments' ? 'selected' : '' }}>
-                        Shipments
-                    </option>
-
-                    <option value="invoices"
-                        {{ request('report_type') == 'invoices' ? 'selected' : '' }}>
-                        Invoices
-                    </option>
-
-                    <option value="quotations"
-                        {{ request('report_type') == 'quotations' ? 'selected' : '' }}>
-                        Quotations
-                    </option>
-
-                    <option value="payments"
-                        {{ request('report_type') == 'payments' ? 'selected' : '' }}>
-                        Payments
-                    </option>
-                </select>
+    {{-- Filters --}}
+    <div class="portlet">
+        <div class="portlet-title">
+            <div class="caption">
+                <i class="fa fa-filter" style="color:#3b82f6;"></i>
+                <span class="caption-subject">REPORT FILTERS</span>
             </div>
-
-
-            <div class="filter-field">
-                <label>From Date</label>
-
-                <input
-                    type="date"
-                    name="from_date"
-                    value="{{ request('from_date') }}"
-                >
+            <div style="display:flex;gap:6px;">
+                <button type="button" class="btn-tool" onclick="toggleFilters()"><i class="fa fa-filter"></i> Filters</button>
+                <a class="btn-tool green" href="{{ route('client.reports.pdf', request()->query()) }}"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
             </div>
+        </div>
+        <div class="filter-box {{ $hasFilter ? 'open' : '' }}" id="filters-box">
+            <form method="GET" action="{{ url()->current() }}">
+                <div class="filter-grid">
+                    <div class="filter-field">
+                        <label>Report Type</label>
+                        <select name="report_type" class="input-inline">
+                            <option value="">All Reports</option>
+                            <option value="shipments" @selected(request('report_type') === 'shipments')>Shipments</option>
+                            <option value="invoices" @selected(request('report_type') === 'invoices')>Invoices</option>
+                            <option value="quotations" @selected(request('report_type') === 'quotations')>Quotations</option>
+                        </select>
+                    </div>
+                    <div class="filter-field"><label>From Date</label><input type="date" name="from_date" class="input-inline" value="{{ request('from_date') }}"></div>
+                    <div class="filter-field"><label>To Date</label><input type="date" name="to_date" class="input-inline" value="{{ request('to_date') }}"></div>
+                    <div class="filter-field">
+                        <label>Status</label>
+                        <select name="status" class="input-inline">
+                            <option value="">All Statuses</option>
+                            @foreach(['pending' => 'Pending', 'in_transit' => 'In Transit', 'arrived' => 'Arrived', 'delivered' => 'Delivered', 'paid' => 'Paid', 'overdue' => 'Overdue'] as $v => $l)
+                                <option value="{{ $v }}" @selected(request('status') === $v)>{{ $l }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-tool green">Apply</button>
+                        <a href="{{ url()->current() }}" class="btn-tool">Reset</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-
-            <div class="filter-field">
-                <label>To Date</label>
-
-                <input
-                    type="date"
-                    name="to_date"
-                    value="{{ request('to_date') }}"
-                >
+    @if($showShip)
+    {{-- Shipments --}}
+    <div class="portlet">
+        <div class="portlet-title">
+            <div class="caption">
+                <i class="fa fa-ship" style="color:#3b82f6;"></i>
+                <span class="caption-subject">SHIPMENTS</span>
+                <span class="count-badge">{{ $totalShipments ?? 0 }}</span>
             </div>
-
-
-            <div class="filter-field">
-                <label>Status</label>
-
-                <select name="status">
-
-                    <option value="">All Statuses</option>
-
-                    <option value="pending"
-                        {{ request('status') == 'pending' ? 'selected' : '' }}>
-                        Pending
-                    </option>
-
-                    <option value="in_transit"
-                        {{ request('status') == 'in_transit' ? 'selected' : '' }}>
-                        In Transit
-                    </option>
-
-                    <option value="arrived"
-                        {{ request('status') == 'arrived' ? 'selected' : '' }}>
-                        Arrived
-                    </option>
-
-                    <option value="delivered"
-                        {{ request('status') == 'delivered' ? 'selected' : '' }}>
-                        Delivered
-                    </option>
-
-                    <option value="paid"
-                        {{ request('status') == 'paid' ? 'selected' : '' }}>
-                        Paid
-                    </option>
-
-                    <option value="overdue"
-                        {{ request('status') == 'overdue' ? 'selected' : '' }}>
-                        Overdue
-                    </option>
-
-                </select>
+        </div>
+        <div class="portlet-body">
+            <div class="grid-wrapper">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;text-align:center;">#</th>
+                            <th>File No.</th>
+                            <th>Type</th>
+                            <th>MAWB / MBL</th>
+                            <th>Route</th>
+                            <th>ETD</th>
+                            <th>ETA</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($shipments ?? [] as $s)
+                            @php
+                                $detail = [
+                                    'File No'         => $s->file_no,
+                                    'Type'            => $s->type,
+                                    'MAWB / MBL No'   => $s->reference,
+                                    'Flight / Vessel' => $s->carrier_ref,
+                                    'Voyage'          => $s->voyage,
+                                    'Origin'          => $s->origin,
+                                    'Destination'     => $s->destination,
+                                    'ETD'             => $s->etd,
+                                    'ETA'             => $s->eta,
+                                    'Status'          => $s->status,
+                                ];
+                                $detail = array_map(fn ($v) => ($v === null || $v === '') ? '-' : $v, $detail);
+                            @endphp
+                            <tr>
+                                <td style="text-align:center;color:#94a3b8;">{{ $loop->iteration }}</td>
+                                <td>
+                                    <a href="#" class="row-link"
+                                       data-title="SHIPMENT {{ $s->file_no }}"
+                                       data-details="{{ json_encode($detail) }}"
+                                       onclick="openDetails(event, this)">{{ $s->file_no }}</a>
+                                </td>
+                                <td>{{ $s->type }}</td>
+                                <td>{{ $s->reference ?? '-' }}</td>
+                                <td>{{ $s->origin ?? '-' }} <i class="fa fa-long-arrow-right" style="color:#94a3b8;"></i> {{ $s->destination ?? '-' }}</td>
+                                <td>{{ $s->etd ?? '-' }}</td>
+                                <td>{{ $s->eta ?? '-' }}</td>
+                                <td><span class="status-pill">{{ $s->status ?? '-' }}</span></td>
+                            </tr>
+                        @empty
+                            <tr class="empty-row"><td colspan="8"><div class="empty-title">No shipments found</div>There is no shipment data for these filters.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
+        </div>
+    </div>
 
+    {{-- Shipment status --}}
+    <div class="portlet">
+        <div class="portlet-title">
+            <div class="caption"><i class="fa fa-bar-chart" style="color:#3b82f6;"></i><span class="caption-subject">SHIPMENT STATUS</span></div>
+        </div>
+        <div class="status-report-grid">
+            @foreach(['In Transit' => $inTransit ?? 0, 'Arrived' => $arrived ?? 0, 'Delivered' => $delivered ?? 0, 'Pending' => $pending ?? 0] as $label => $n)
+                <div class="status-report-card">
+                    <div class="status-top"><span>{{ $label }}</span><strong>{{ $n }}</strong></div>
+                    <div class="progress"><div class="progress-bar" style="width: {{ $pct($n) }}%"></div></div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
-            <div class="filter-actions">
-
-                <button type="submit" class="apply-btn">
-                    Apply Filters
-                </button>
-
-                <a href="{{ url()->current() }}" class="reset-btn">
-                    Reset
-                </a>
-
+    @if($showInv)
+    {{-- Invoices --}}
+    <div class="portlet">
+        <div class="portlet-title">
+            <div class="caption">
+                <i class="fa fa-file-text-o" style="color:#3b82f6;"></i>
+                <span class="caption-subject">INVOICES</span>
+                <span class="count-badge">{{ count($invoices ?? []) }}</span>
             </div>
-
         </div>
-
-    </form>
-
-</div>
-
-
-{{-- Report Cards --}}
-<div class="report-cards">
-
-    {{-- Shipment Report --}}
-    <div class="report-card">
-
-        <div class="report-icon shipment-icon">
-            🚢
+        <div class="portlet-body">
+            <div class="grid-wrapper">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;text-align:center;">#</th>
+                            <th>Invoice #</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th class="num">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($invoices ?? [] as $invoice)
+                            <tr>
+                                <td style="text-align:center;color:#94a3b8;">{{ $loop->iteration }}</td>
+                                <td><a class="row-link" href="{{ route('cp.invoices.index', ['search' => $invoice->invoice_no]) }}">{{ $invoice->invoice_no ?? 'N/A' }}</a></td>
+                                <td>{{ $fmtDate($invoice->invoice_date) }}</td>
+                                <td><span class="status-pill">{{ ucfirst(strtolower($invoice->status ?? 'Pending')) }}</span></td>
+                                <td class="num">{{ number_format($invoice->total_amount ?? 0, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr class="empty-row"><td colspan="5"><div class="empty-title">No invoices found</div>There is no invoice data for these filters.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
+    </div>
+    @endif
 
-        <div class="report-card-content">
-
-            <h3>Shipment Report</h3>
-
-            <p>
-                View your shipment activity, status,
-                movement and delivery information.
-            </p>
-
-            <a href="#" class="report-link">
-                View Report →
-            </a>
-
+    @if($showQuote)
+    {{-- Quotations --}}
+    <div class="portlet">
+        <div class="portlet-title">
+            <div class="caption">
+                <i class="fa fa-list-alt" style="color:#3b82f6;"></i>
+                <span class="caption-subject">QUOTATIONS</span>
+                <span class="count-badge">{{ count($quotations ?? []) }}</span>
+            </div>
         </div>
-
-    </div>
-
-
-    {{-- Invoice Report --}}
-    <div class="report-card">
-
-        <div class="report-icon invoice-icon">
-            $
+        <div class="portlet-body">
+            <div class="grid-wrapper">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;text-align:center;">#</th>
+                            <th>Quote #</th>
+                            <th>Date</th>
+                            <th>Valid Till</th>
+                            <th>Mode</th>
+                            <th>Commodity</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($quotations ?? [] as $q)
+                            <tr>
+                                <td style="text-align:center;color:#94a3b8;">{{ $loop->iteration }}</td>
+                                <td><a class="row-link" href="{{ route('cp.quotes.index', ['search' => $q->quote_no]) }}">{{ $q->quote_no }}</a></td>
+                                <td>{{ $fmtDate($q->quote_date) }}</td>
+                                <td>{{ $fmtDate($q->expiry_date) }}</td>
+                                <td>{{ $q->transport_mode ?? '-' }}</td>
+                                <td>{{ $q->commodity ?? '-' }}</td>
+                                <td><span class="status-pill">{{ $q->status }}</span></td>
+                            </tr>
+                        @empty
+                            <tr class="empty-row"><td colspan="7"><div class="empty-title">No quotations found</div>There is no quotation data for these filters.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
-
-        <div class="report-card-content">
-
-            <h3>Invoice Report</h3>
-
-            <p>
-                Review invoices, payments, outstanding
-                balances and overdue amounts.
-            </p>
-
-            <a href="#" class="report-link">
-                View Report →
-            </a>
-
-        </div>
-
     </div>
+    @endif
 
-
-    {{-- Quotation Report --}}
-    <div class="report-card">
-
-        <div class="report-icon quotation-icon">
-            #
-        </div>
-
-        <div class="report-card-content">
-
-            <h3>Quotation Report</h3>
-
-            <p>
-                Check your quotation history, quotation
-                status and pricing information.
-            </p>
-
-            <a href="#" class="report-link">
-                View Report →
-            </a>
-
-        </div>
-
-    </div>
-
-
-    {{-- Payment Report --}}
-    <div class="report-card">
-
-        <div class="report-icon payment-icon">
-            ✓
-        </div>
-
-        <div class="report-card-content">
-
-            <h3>Payment Report</h3>
-
-            <p>
-                View your payment history and
-                outstanding payment information.
-            </p>
-
-            <a href="#" class="report-link">
-                View Report →
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-{{-- Summary --}}
-<div class="section-heading">
-
-    <div>
-        <h2>Report Summary</h2>
-        <p>Overview of your account activity</p>
-    </div>
-
-</div>
-
-
-<div class="summary-grid">
-
-    <div class="summary-card">
-
-        <span class="summary-label">
-            Total Shipments
-        </span>
-
-        <strong class="summary-number">
-            {{ $totalShipments ?? 0 }}
-        </strong>
-
-        <span class="summary-description">
-            All shipments
-        </span>
-
-    </div>
-
-
-    <div class="summary-card">
-
-        <span class="summary-label">
-            Total Invoices
-        </span>
-
-        <strong class="summary-number">
-            {{ $totalInvoices ?? 0 }}
-        </strong>
-
-        <span class="summary-description">
-            Generated invoices
-        </span>
-
-    </div>
-
-
-    <div class="summary-card">
-
-        <span class="summary-label">
-            Outstanding
-        </span>
-
-        <strong class="summary-number">
-            {{ number_format($outstandingInvoiceAmount ?? 0, 2) }}
-        </strong>
-
-        <span class="summary-description">
-            Remaining balance
-        </span>
-
-    </div>
-
-
-    <div class="summary-card">
-
-        <span class="summary-label">
-            Overdue
-        </span>
-
-        <strong class="summary-number">
-            {{ number_format($overdueInvoiceAmount ?? 0, 2) }}
-        </strong>
-
-        <span class="summary-description">
-            Overdue amount
-        </span>
-
-    </div>
-
-</div>
-
-
-{{-- Report Activity --}}
-<div class="report-section">
-
-    <div class="section-heading">
-
+    {{-- Export banner --}}
+    <div class="export-banner">
         <div>
-            <h2>Recent Report Activity</h2>
-            <p>Your latest shipment and financial activity</p>
+            <h4>Need a detailed report?</h4>
+            <p>Current filters ke hisaab se summary, shipments, invoices aur quotations ka PDF report download karein.</p>
         </div>
-
-    </div>
-
-
-    <div class="activity-table-wrapper">
-
-        <table class="activity-table">
-
-            <thead>
-
-                <tr>
-                    <th>Reference</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Amount</th>
-                    <th>Action</th>
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                {{-- Dynamic invoices --}}
-                @forelse($invoices ?? [] as $invoice)
-
-                    <tr>
-
-                        <td>
-                            <strong>
-                                {{ $invoice->invoice_no ?? 'N/A' }}
-                            </strong>
-                        </td>
-
-                        <td>
-                            Invoice
-                        </td>
-
-                        <td>
-                            {{ $invoice->invoice_date
-                                ? \Carbon\Carbon::parse($invoice->invoice_date)->format('d M Y')
-                                : 'N/A'
-                            }}
-                        </td>
-
-                        <td>
-
-                            <span class="status-badge
-                                {{ strtolower($invoice->status ?? '') == 'paid'
-                                    ? 'status-paid'
-                                    : 'status-pending'
-                                }}">
-
-                                {{ ucfirst($invoice->status ?? 'Pending') }}
-
-                            </span>
-
-                        </td>
-
-                        <td>
-                            {{ number_format($invoice->total_amount ?? 0, 2) }}
-                        </td>
-
-                        <td>
-
-                            <a href="#" class="view-btn">
-                                View
-                            </a>
-
-                        </td>
-
-                    </tr>
-
-                @empty
-
-                    <tr>
-
-                        <td colspan="6" class="empty-state">
-
-                            <div class="empty-icon">
-                                —
-                            </div>
-
-                            <strong>No report activity</strong>
-
-                            <p>
-                                There is no report data available yet.
-                            </p>
-
-                        </td>
-
-                    </tr>
-
-                @endforelse
-
-            </tbody>
-
-        </table>
-
+        <a class="btn-tool green" href="{{ route('client.reports.pdf', request()->query()) }}"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
     </div>
 
 </div>
 
-
-{{-- Shipment Status --}}
-<div class="report-section">
-
-    <div class="section-heading">
-
-        <div>
-            <h2>Shipment Status</h2>
-            <p>Current status of your shipments</p>
-        </div>
-
-    </div>
-
-
-    <div class="status-report-grid">
-
-        <div class="status-report-card">
-
-            <div class="status-top">
-                <span>In Transit</span>
-
-                <strong>
-                    {{ $inTransit ?? 0 }}
-                </strong>
-            </div>
-
-            <div class="progress">
-                <div
-                    class="progress-bar"
-                    style="width:
-                    {{
-                        ($totalShipments ?? 0) > 0
-                        ? (($inTransit ?? 0) / $totalShipments) * 100
-                        : 0
-                    }}%">
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="status-report-card">
-
-            <div class="status-top">
-                <span>Arrived</span>
-
-                <strong>
-                    {{ $arrived ?? 0 }}
-                </strong>
-            </div>
-
-            <div class="progress">
-                <div
-                    class="progress-bar"
-                    style="width:
-                    {{
-                        ($totalShipments ?? 0) > 0
-                        ? (($arrived ?? 0) / $totalShipments) * 100
-                        : 0
-                    }}%">
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="status-report-card">
-
-            <div class="status-top">
-                <span>Delivered</span>
-
-                <strong>
-                    {{ $delivered ?? 0 }}
-                </strong>
-            </div>
-
-            <div class="progress">
-                <div
-                    class="progress-bar"
-                    style="width:
-                    {{
-                        ($totalShipments ?? 0) > 0
-                        ? (($delivered ?? 0) / $totalShipments) * 100
-                        : 0
-                    }}%">
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="status-report-card">
-
-            <div class="status-top">
-                <span>Pending</span>
-
-                <strong>
-                    {{ $pending ?? 0 }}
-                </strong>
-            </div>
-
-            <div class="progress">
-                <div
-                    class="progress-bar"
-                    style="width:
-                    {{
-                        ($totalShipments ?? 0) > 0
-                        ? (($pending ?? 0) / $totalShipments) * 100
-                        : 0
-                    }}%">
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-{{-- Export Section --}}
-<div class="export-section">
-
-    <div>
-
-        <h3>Need a detailed report?</h3>
-
-        <p>
-            Select your report type and date range,
-            then generate your report.
-        </p>
-
-    </div>
-
-    <div class="export-actions">
-
-        <button type="button" class="export-btn">
-            Export PDF
-        </button>
-
-        <button type="button" class="export-btn secondary">
-            Export Excel
-        </button>
-
-    </div>
-
-</div>
-```
-
-</div>
-
-<style>
-
-/* ==============================
-   REPORTS PAGE
-============================== */
-
-.reports-page {
-    padding: 25px;
-    background: #f7f8f6;
-    min-height: calc(100vh - 80px);
-}
-
-
-/* ==============================
-   HEADER
-============================== */
-
-.reports-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-}
-
-.reports-header h1 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 700;
-    color: #1d4533;
-}
-
-.reports-header p {
-    margin: 6px 0 0;
-    color: #777;
-    font-size: 14px;
-}
-
-.header-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.filter-btn {
-    border: 1px solid #1d4533;
-    background: white;
-    color: #1d4533;
-    padding: 10px 18px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-
-/* ==============================
-   FILTERS
-============================== */
-
-.filters-box {
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 25px;
-}
-
-.filter-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr) auto;
-    gap: 15px;
-    align-items: end;
-}
-
-.filter-field label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 7px;
-    color: #444;
-}
-
-.filter-field input,
-.filter-field select {
-    width: 100%;
-    height: 42px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 0 12px;
-    background: white;
-    outline: none;
-}
-
-.filter-field input:focus,
-.filter-field select:focus {
-    border-color: #1d4533;
-}
-
-.filter-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.apply-btn,
-.reset-btn {
-    height: 42px;
-    padding: 0 16px;
-    border-radius: 5px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.apply-btn {
-    border: none;
-    background: #1d4533;
-    color: white;
-}
-
-.reset-btn {
-    border: 1px solid #ddd;
-    color: #555;
-    background: white;
-}
-
-
-/* ==============================
-   REPORT CARDS
-============================== */
-
-.report-cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-    margin-bottom: 35px;
-}
-
-.report-card {
-    background: white;
-    border: 1px solid #e4e4e4;
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    gap: 15px;
-    transition: 0.2s;
-}
-
-.report-card:hover {
-    transform: translateY(-2px);
-    border-color: #1d4533;
-}
-
-.report-icon {
-    width: 45px;
-    height: 45px;
-    min-width: 45px;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.shipment-icon {
-    background: #eaf2ed;
-}
-
-.invoice-icon {
-    background: #f7eee8;
-}
-
-.quotation-icon {
-    background: #f0eee8;
-}
-
-.payment-icon {
-    background: #e8f1ee;
-}
-
-.report-card-content h3 {
-    margin: 0 0 8px;
-    font-size: 17px;
-    color: #222;
-}
-
-.report-card-content p {
-    margin: 0 0 12px;
-    color: #777;
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.report-link {
-    color: #1d4533;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-
-/* ==============================
-   SECTION HEADING
-============================== */
-
-.section-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.section-heading h2 {
-    margin: 0;
-    font-size: 21px;
-    color: #222;
-}
-
-.section-heading p {
-    margin: 5px 0 0;
-    color: #777;
-    font-size: 13px;
-}
-
-
-/* ==============================
-   SUMMARY
-============================== */
-
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-    margin-bottom: 35px;
-}
-
-.summary-card {
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.summary-label {
-    display: block;
-    color: #777;
-    font-size: 13px;
-    margin-bottom: 8px;
-}
-
-.summary-number {
-    display: block;
-    color: #1d4533;
-    font-size: 25px;
-    margin-bottom: 5px;
-}
-
-.summary-description {
-    color: #999;
-    font-size: 12px;
-}
-
-
-/* ==============================
-   REPORT SECTION
-============================== */
-
-.report-section {
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: 22px;
-    margin-bottom: 30px;
-}
-
-
-/* ==============================
-   TABLE
-============================== */
-
-.activity-table-wrapper {
-    overflow-x: auto;
-}
-
-.activity-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.activity-table th {
-    text-align: left;
-    padding: 13px;
-    font-size: 12px;
-    color: #777;
-    background: #fafafa;
-    border-bottom: 1px solid #eee;
-}
-
-.activity-table td {
-    padding: 15px 13px;
-    border-bottom: 1px solid #eee;
-    font-size: 13px;
-    color: #444;
-}
-
-.activity-table tbody tr:hover {
-    background: #fafcfb;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.status-paid {
-    background: #e5f2e9;
-    color: #1d4533;
-}
-
-.status-pending {
-    background: #fff1df;
-    color: #8a5b20;
-}
-
-.view-btn {
-    text-decoration: none;
-    color: #1d4533;
-    font-weight: 700;
-}
-
-
-/* ==============================
-   EMPTY
-============================== */
-
-.empty-state {
-    text-align: center !important;
-    padding: 50px 20px !important;
-}
-
-.empty-icon {
-    font-size: 28px;
-    color: #aaa;
-    margin-bottom: 10px;
-}
-
-.empty-state strong {
-    display: block;
-    color: #444;
-}
-
-.empty-state p {
-    color: #999;
-    margin-top: 5px;
-}
-
-
-/* ==============================
-   STATUS REPORT
-============================== */
-
-.status-report-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-}
-
-.status-report-card {
-    border: 1px solid #eee;
-    padding: 18px;
-    border-radius: 7px;
-}
-
-.status-top {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-.status-top span {
-    color: #555;
-    font-size: 13px;
-}
-
-.status-top strong {
-    color: #1d4533;
-    font-size: 18px;
-}
-
-.progress {
-    height: 7px;
-    background: #eee;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.progress-bar {
-    height: 100%;
-    background: #1d4533;
-    border-radius: 10px;
-}
-
-
-/* ==============================
-   EXPORT
-============================== */
-
-.export-section {
-    background: #1d4533;
-    color: white;
-    border-radius: 8px;
-    padding: 25px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.export-section h3 {
-    margin: 0 0 7px;
-    font-size: 19px;
-}
-
-.export-section p {
-    margin: 0;
-    font-size: 13px;
-    opacity: 0.8;
-}
-
-.export-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.export-btn {
-    border: none;
-    background: white;
-    color: #1d4533;
-    padding: 11px 18px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: 700;
-}
-
-.export-btn.secondary {
-    background: transparent;
-    border: 1px solid white;
-    color: white;
-}
-
-
-/* ==============================
-   RESPONSIVE
-============================== */
-
-@media (max-width: 1100px) {
-
-    .filter-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .report-cards {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .status-report-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-}
-
-
-@media (max-width: 650px) {
-
-    .reports-page {
-        padding: 15px;
-    }
-
-    .reports-header {
-        align-items: flex-start;
-        gap: 15px;
-    }
-
-    .reports-header h1 {
-        font-size: 23px;
-    }
-
-    .filter-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .report-cards {
-        grid-template-columns: 1fr;
-    }
-
-    .summary-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .status-report-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .export-section {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 20px;
-    }
-
-    .export-actions {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .export-btn {
-        width: 100%;
-    }
-
-}
-
-</style>
+<link rel="stylesheet" href="{{ asset('css/client-portal.css') }}">
 
 <script>
+function toggleFilters() { document.getElementById('filters-box').classList.toggle('open'); }
 
-function toggleFilters()
-{
-    const filtersBox = document.getElementById('filtersBox');
-
-    if (filtersBox.style.display === 'none') {
-        filtersBox.style.display = 'block';
-    } else {
-        filtersBox.style.display = 'none';
-    }
+function openDetails(e, el) {
+    e.preventDefault();
+    var data = JSON.parse(el.dataset.details);
+    var grid = document.getElementById('details-grid');
+    grid.innerHTML = '';
+    Object.keys(data).forEach(function (label) {
+        var k = document.createElement('div'); k.className = 'k'; k.textContent = label;
+        var v = document.createElement('div'); v.className = 'v'; v.textContent = data[label];
+        grid.appendChild(k); grid.appendChild(v);
+    });
+    document.getElementById('details-title').textContent = el.dataset.title;
+    document.getElementById('details-overlay').classList.add('open');
 }
-
+function closeDetails() { document.getElementById('details-overlay').classList.remove('open'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetails(); });
 </script>
 
 @endsection

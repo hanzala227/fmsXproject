@@ -1749,7 +1749,7 @@
 
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                                <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*HAWB No.</label><div class="form-input-container"><input type="hidden" :name="'hbls['+index+'][id]'" x-model="hawb.id"><input type="text" class="form-control-gf" :name="'hbls['+index+'][hawb_no]'" x-model="hawb.hbl_no"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*HAWB No.</label><div class="form-input-container"><input type="text" class="form-control-gf" name="hbl_no" x-model="hawb.hbl_no" required></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Quotation No.</label><div class="form-input-container"><select class="form-control-gf" disabled style="background:#eee;"><option value="">Select...</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">HSN</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][hsn]'" x-model="hawb.hsn"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][customer_id]'" x-model="hawb.customer_id"><option value="">Select...</option>@foreach($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</select></div></div>

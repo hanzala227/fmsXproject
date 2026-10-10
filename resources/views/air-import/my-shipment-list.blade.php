@@ -41,6 +41,7 @@
     </style>
     @endpush
 
+
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <div class="toast-container" id="toast-container"></div>
