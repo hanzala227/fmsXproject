@@ -23,7 +23,7 @@ class StoreInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'invoice_no' => 'required|string|max:255|unique:invoices,invoice_no',
+            'invoice_no' => 'nullable|string',
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
             'bill_to_id' => 'required|exists:trade_partners,id',
@@ -43,8 +43,13 @@ class StoreInvoiceRequest extends FormRequest
             'discount_pct' => 'nullable|numeric|min:0|max:100',
             'tax_pct' => 'nullable|numeric|min:0|max:100',
             'shipping_amount' => 'nullable|numeric|min:0',
+            'mbl_no' => 'nullable|string',
+            'remark' => 'nullable|string',
             'internal_remark' => 'nullable|string',
             'lines_json' => 'nullable|json',
+            'charge_ids' => 'nullable|array',
+            'charge_ids.*' => 'exists:charges,id',
+            'idempotency_key' => 'nullable|string|max:64',
         ];
     }
 }

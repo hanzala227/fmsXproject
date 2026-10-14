@@ -70,22 +70,47 @@ use App\Http\Controllers\SuperAdmin\CompanyController as SuperAdminCompanyContro
 // Views routing - purely rendering blade templates.
 // All data fetching must be done on the client side via the /api routes.
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/frex/process', [\App\Http\Controllers\FrexAssistantController::class, 'process'])->name('frex.process');
     Route::get('/api/global-search', [GlobalSearchController::class, 'search'])->name('api.global-search');
+    Route::post('/api/documents/email', [\App\Http\Controllers\DocumentEmailController::class, 'sendEmail'])->name('documents.email');
     Route::get('/', function () {
-        if (auth()->check() && auth()->user()->isSuperAdmin()) {
-            return redirect()->route('super-admin.dashboard');
-        }
+        if (!auth()->check()) return redirect()->route('login');
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) return redirect()->route('super-admin.dashboard');
+        if ($user->isCustomer()) return redirect()->route('customer.dashboard');
+        if ($user->isClient()) return redirect()->route('client.index');
         return redirect()->route('dashboard');
     });
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('role:Admin,User');
+    Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data')->middleware('role:Admin,User');
+
+    // Data Migration
+    Route::prefix('data-migration')->name('data-migration.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DataMigrationController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\DataMigrationController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('store');
+        Route::get('/{project}/scan', [\App\Http\Controllers\DataMigrationController::class, 'scan'])->name('scan');
+        Route::post('/{project}/execute-scan', [\App\Http\Controllers\DataMigrationController::class, 'executeScan'])->name('execute-scan');
+    });
+    // Support Tickets (Tenant)
+    Route::get('/support/tickets', [\App\Http\Controllers\Tenant\TicketController::class, 'index'])->name('support.tickets.index');
+    Route::post('/support/tickets', [\App\Http\Controllers\Tenant\TicketController::class, 'store'])->name('support.tickets.store');
+    Route::get('/support/tickets/{ticket}', [\App\Http\Controllers\Tenant\TicketController::class, 'show'])->name('support.tickets.show');
+    Route::post('/support/tickets/{ticket}/message', [\App\Http\Controllers\Tenant\TicketController::class, 'message'])->name('support.tickets.message');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/email-settings', [ProfileController::class, 'updateEmailSettings'])->name('profile.email-settings');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Ocean Operations
+    // AI Document Extraction Routes
+    Route::post('/api/ai/extract/ocean-import', [\App\Http\Controllers\AiExtractionController::class, 'extractOceanImport'])->name('ai.extract.ocean-import');
+    Route::post('/api/ai/extract/ocean-export', [\App\Http\Controllers\AiExtractionController::class, 'extractOceanExport'])->name('ai.extract.ocean-export');
+    Route::post('/api/ai/extract/air-import', [\App\Http\Controllers\AiExtractionController::class, 'extractAirImport'])->name('ai.extract.air-import');
+    Route::post('/api/ai/extract/air-export', [\App\Http\Controllers\AiExtractionController::class, 'extractAirExport'])->name('ai.extract.air-export');
+
     Route::get('/ocean-import/list', [OceanImportController::class, 'index'])->name('ocean-import.index');
     Route::get('/ocean-import/create', [OceanImportController::class, 'create'])->name('ocean-import.create');
     Route::get('/ocean-import/create-quote', [OceanImportController::class, 'create'])->name('ocean-import.create-quote');
@@ -876,10 +901,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/accounting/invoice/{invoice}/documents', [InvoiceController::class, 'uploadDocument'])->name('accounting.invoices.documents.store');
     Route::delete('/accounting/invoice/documents/{document}', [InvoiceController::class, 'deleteDocument'])->name('accounting.invoices.documents.destroy');
     Route::get('/accounting/invoice/documents/{document}/download', [InvoiceController::class, 'downloadDocument'])->name('accounting.invoices.documents.download');
+    Route::get('/accounting/invoice/verify-queue', [InvoiceController::class, 'verifyQueue'])->name('accounting.invoices.verify-queue');
     // Wildcard {invoice} routes — must come AFTER literal routes
     Route::get('/accounting/invoice/{invoice}', [InvoiceController::class, 'show'])->name('accounting.invoices.show');
     Route::get('/accounting/invoice/{invoice}/edit', [InvoiceController::class, 'edit'])->name('accounting.invoices.edit');
     Route::put('/accounting/invoice/{invoice}', [InvoiceController::class, 'update'])->name('accounting.invoices.update');
+    Route::post('/accounting/invoice/{invoice}/verify', [InvoiceController::class, 'verify'])->name('accounting.invoices.verify');
+    Route::post('/accounting/invoice/{invoice}/reject', [InvoiceController::class, 'reject'])->name('accounting.invoices.reject');
     Route::delete('/accounting/invoice/{invoice}', [InvoiceController::class, 'destroy'])->name('accounting.invoices.destroy');
     // Accounting — G&A Expense (AP Invoices)
     Route::get('/accounting/ga-expense-list', [GaExpenseController::class, 'index'])->name('accounting.ga-expense.index');
@@ -1093,20 +1121,80 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Super Admin Routes
 // ============================================
 Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->name('super-admin.')->group(function () {
-    Route::get('/', [SuperAdminCompanyController::class, 'dashboard'])->name('dashboard');
+    // Dashboard
+    Route::get('/', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'reports'])->name('dashboard.reports');
+    Route::get('/system-status', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'systemStatus'])->name('dashboard.system-status');
     
     // Company Management
     Route::get('/companies', [SuperAdminCompanyController::class, 'index'])->name('companies.index');
     Route::get('/companies/create', [SuperAdminCompanyController::class, 'create'])->name('companies.create');
     Route::post('/companies', [SuperAdminCompanyController::class, 'store'])->name('companies.store');
+    Route::get('/companies/export-csv', [SuperAdminCompanyController::class, 'exportCsv'])->name('companies.export-csv');
+    Route::get('/companies/{company}', [SuperAdminCompanyController::class, 'show'])->name('companies.show');
     Route::get('/companies/{company}/edit', [SuperAdminCompanyController::class, 'edit'])->name('companies.edit');
     Route::put('/companies/{company}', [SuperAdminCompanyController::class, 'update'])->name('companies.update');
     Route::patch('/companies/{company}/toggle-status', [SuperAdminCompanyController::class, 'toggleStatus'])->name('companies.toggle-status');
     Route::post('/companies/{company}/reset-password', [SuperAdminCompanyController::class, 'resetPassword'])->name('companies.reset-password');
-    Route::get('/companies/export-csv', [SuperAdminCompanyController::class, 'exportCsv'])->name('companies.export-csv');
+
+    // Users (Accounts & Access)
+    Route::resource('users', App\Http\Controllers\SuperAdmin\SuperAdminUserController::class);
+    Route::patch('/users/{user}/toggle-status', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('/users/{user}/reset-password', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::post('/users/{user}/login-as', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'loginAs'])->name('users.login-as');
+
+    // Roles & Rules
+    Route::resource('roles', App\Http\Controllers\SuperAdmin\SuperAdminRoleController::class);
+    Route::post('/roles/{role}/clone', [App\Http\Controllers\SuperAdmin\SuperAdminRoleController::class, 'clone'])->name('roles.clone');
+    Route::resource('permissions', App\Http\Controllers\SuperAdmin\SuperAdminPermissionController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('/role-permissions', [App\Http\Controllers\SuperAdmin\SuperAdminMatrixController::class, 'index'])->name('role-permissions.index');
+    Route::post('/role-permissions', [App\Http\Controllers\SuperAdmin\SuperAdminMatrixController::class, 'update'])->name('role-permissions.update');
     
     // Audit Log
     Route::get('/audit-log', [SuperAdminCompanyController::class, 'auditLog'])->name('audit-log');
+
+    // Bugs & Issues
+    Route::get('/bugs', [\App\Http\Controllers\SuperAdmin\BugController::class, 'index'])->name('bugs.index');
+    Route::get('/bugs/{ticket}', [\App\Http\Controllers\SuperAdmin\BugController::class, 'show'])->name('bugs.show');
+    Route::patch('/bugs/{ticket}/status', [\App\Http\Controllers\SuperAdmin\BugController::class, 'updateStatus'])->name('bugs.update-status');
+    Route::post('/bugs/{ticket}/message', [\App\Http\Controllers\SuperAdmin\BugController::class, 'message'])->name('bugs.message');
+
+    // Support Center
+    Route::prefix('support-center')->name('support-center.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'store'])->name('store');
+        Route::get('/my-tickets', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'myTickets'])->name('my-tickets');
+        Route::get('/sla-management', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'slaManagement'])->name('sla-management');
+        Route::get('/knowledge-base', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'knowledgeBase'])->name('knowledge-base');
+        Route::get('/{ticket}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'show'])->name('show');
+        Route::put('/{ticket}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'update'])->name('update');
+        Route::post('/{ticket}/reply', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'reply'])->name('reply');
+    });
+
+    // Module Management
+    Route::prefix('modules')->name('modules.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'store'])->name('store');
+        Route::get('/packages', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'packages'])->name('packages');
+        Route::post('/packages', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'storePackage'])->name('packages.store');
+        Route::put('/packages/{package}', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'updatePackage'])->name('packages.update');
+        Route::get('/company', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'companyModules'])->name('company');
+        Route::post('/company/{company}/assign', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'assignToCompany'])->name('company.assign');
+        Route::post('/company/{company}/apply-package', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'applyPackageToCompany'])->name('company.apply-package');
+        Route::get('/feature-flags', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'featureFlags'])->name('feature-flags');
+        Route::post('/feature-flags', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'storeFeatureFlag'])->name('feature-flags.store');
+        Route::post('/feature-flags/{flag}/toggle', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
+        Route::get('/{module}', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'show'])->name('show');
+        Route::put('/{module}', [\App\Http\Controllers\SuperAdmin\ModuleManagementController::class, 'update'])->name('update');
+    });
+
+    // Universal AI Engine
+    Route::prefix('ai-settings')->name('ai-settings.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'settings'])->name('index');
+        Route::post('/update', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'updateSettings'])->name('update');
+        Route::post('/test', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'testConnection'])->name('test');
+    });
 });
 
 // ============================================

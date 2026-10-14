@@ -452,9 +452,8 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px;">HB/L</th>
-                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">Booking No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color"   style="width:35px;left:200px;text-align:center;">Color</th>
-                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:235px;">MB/L No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">File No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:130px;left:200px;">MB/L No.</th>
                                         <th data-col="tracking"     style="width:140px;">Tracking EDI Response</th>
                                         <th data-col="sub_status"   style="width:100px;">Submit Status</th>
                                         <th data-col="office"       style="width:80px;">Office</th>
@@ -504,12 +503,11 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
-                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-col-idx="3" placeholder="Booking No…" oninput="applyFilters()"></td>
-                                        <td class="sticky-col" style="left:200px;"></td>
-                                        <td class="sticky-col" style="left:235px;"><input class="filter-input" data-col-idx="5" placeholder="MB/L…" oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-col-idx="3" placeholder="File No…" oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:200px;"><input class="filter-input" data-col-idx="4" placeholder="MB/L…" oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
-                                        <td><input class="filter-input" data-col-idx="8"  placeholder="Office…"    oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="7"  placeholder="Office…"    oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
@@ -987,6 +985,29 @@
             var val = rows[i][1] || '--';
             html += '<div class="mbl-row"><span class="lbl">' + lbl + '</span><span class="val">' + val + '</span></div>';
         }
+
+        if (d.routes && Array.isArray(d.routes) && d.routes.length > 0) {
+            html += '<div style="margin-top:15px; border-top:1px solid #e2e8f0; padding-top:10px;">';
+            html += '<div style="font-weight:bold; font-size:12px; color:#32c5d2; margin-bottom:6px;"><i class="fa fa-ship"></i> Route / Transportation</div>';
+            html += '<table style="width:100%; border-collapse:collapse; font-size:11px;">';
+            html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; text-align:left;">';
+            html += '<th style="padding:4px;">Type</th><th style="padding:4px;">ETA</th><th style="padding:4px;">ATA</th><th style="padding:4px;">ETD</th><th style="padding:4px;">ATD</th><th style="padding:4px;">Vessel / Flight</th>';
+            html += '</tr></thead><tbody>';
+            for (var rIdx = 0; rIdx < d.routes.length; rIdx++) {
+                var r = d.routes[rIdx];
+                var typeLabel = rIdx === 0 ? 'Departure' : (rIdx === d.routes.length - 1 && d.routes.length > 1 ? 'Final Destination' : 'Trans ' + rIdx);
+                html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+                html += '<td style="padding:4px; font-weight:600;">' + typeLabel + '</td>';
+                html += '<td style="padding:4px;">' + (r.eta || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.ata || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.etd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.atd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.flight_no || '--') + '</td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+        }
+
         document.getElementById('mbl-body').innerHTML = html;
         document.getElementById('mbl-overlay').classList.add('open');
     }

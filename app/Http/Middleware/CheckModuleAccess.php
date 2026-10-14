@@ -13,8 +13,11 @@ class CheckModuleAccess
         $user = auth()->user();
         if (!$user) return $next($request);
 
-        // SuperAdmin bypasses module access checks
+        // SuperAdmin should only access super-admin routes
         if ($user->isSuperAdmin()) {
+            if (!$request->is('super-admin*') && !$request->is('logout') && !$request->is('api/*') && !$request->is('frex/*')) {
+                return redirect()->route('super-admin.dashboard');
+            }
             return $next($request);
         }
 
@@ -22,6 +25,14 @@ class CheckModuleAccess
         if ($user->isCustomer()) {
             if (!$request->is('portal*') && !$request->is('logout')) {
                 return redirect()->route('customer.dashboard');
+            }
+            return $next($request);
+        }
+
+        // Clients are strictly confined to the client portal
+        if ($user->role === 'client') {
+            if (!$request->is('client-portal*') && !$request->is('logout')) {
+                return redirect()->route('client.index');
             }
             return $next($request);
         }

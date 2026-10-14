@@ -139,6 +139,8 @@ class OceanImportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = User::all();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
@@ -264,7 +266,7 @@ class OceanImportController extends Controller
             $oceanImport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'hbls.receipts', 'containers.containerType', 'charges.currency', 'memos']);
         }
 
-        return view('ocean-import.index', compact('offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'page', 'quotations', 'oceanImport', 'incoterms', 'currencies', 'serviceTerms'));
+        return view('ocean-import.index', compact('offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'page', 'quotations', 'oceanImport', 'incoterms', 'currencies', 'serviceTerms'));
     }
 
     public function store(StoreOceanImportRequest $request)
@@ -314,6 +316,9 @@ class OceanImportController extends Controller
             ];
 
             $requestData = $request->validated();
+        if ($request->has("charges")) $requestData["charges"] = $request->input("charges");
+        if ($request->has("hbls")) $requestData["hbls"] = $request->input("hbls");
+        if ($request->has("routes")) $requestData["routes"] = $request->input("routes");
             $filled = [];
             $empty = [];
 
@@ -394,21 +399,19 @@ class OceanImportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 if ($request->wantsJson() || $request->ajax()) {
@@ -501,7 +504,45 @@ class OceanImportController extends Controller
                     $data[$field] = null;
                 }
             }
+            return (object) $data;
+        });
+
+        // Format charge data for frontend compatibility
+        $oceanImport->charges = $oceanImport->charges->map(function($charge) use ($oceanImport) {
+            $data = $charge->toArray();
             
+            // Map database columns to frontend Alpine.js expected keys
+            $data['chrg_code'] = $charge->charge_code ?? '';
+            $data['charge_name'] = $charge->charge_name ?? '';
+            $data['pr'] = $charge->type === 'AP' ? 'Pay' : 'Rec';
+            $data['ppc'] = $charge->pc === 'PREPAID' ? 'Prepaid' : 'Colle';
+            $data['qty_type'] = $charge->unit ?? 'UNIT';
+            $data['inv_no'] = $charge->invoice_no ?? '';
+            $data['is_invoiced'] = $charge->is_invoiced;
+            $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
+            $data['currency'] = $charge->currency ? $charge->currency->code : '';
+            
+            // Reconstruct party info from saved charge fields or billTo/vendor relationships
+            if ($charge->party_name) {
+                $data['party_name'] = $charge->party_name;
+            } else if ($charge->type === 'AP' && $charge->vendor) {
+                $data['party_name'] = $charge->vendor->name;
+                $data['party_name_id'] = $charge->vendor_id;
+            } else if ($charge->type !== 'AP' && $charge->billTo) {
+                $data['party_name'] = $charge->billTo->name;
+                $data['party_name_id'] = $charge->bill_to_id;
+            } else {
+                $data['party_name'] = '';
+                $data['party_name_id'] = '';
+            }
+            
+            $data['party'] = $charge->party ?: 'Custom'; 
+            $data['sal'] = $charge->sal ?: 'Sea'; 
+            $data['mbl_no'] = $oceanImport->file_no; 
+            $data['eq_bl_no'] = $charge->remark ?? ''; 
+            $data['remark'] = $charge->remark ?? false;
+            $data['_selected'] = false;
+
             return (object) $data;
         });
 
@@ -509,6 +550,8 @@ class OceanImportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = User::all();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
@@ -517,7 +560,7 @@ class OceanImportController extends Controller
         $serviceTerms = \App\Models\ServiceTerm::all();
         $quotations = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Ocean Import')->latest()->get();
 
-        return view('ocean-import.index', compact('oceanImport', 'offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'quotations', 'incoterms', 'currencies', 'serviceTerms'));
+        return view('ocean-import.index', compact('oceanImport', 'offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'quotations', 'incoterms', 'currencies', 'serviceTerms'));
     }
 
     public function update(UpdateOceanImportRequest $request, OceanImport $oceanImport)
@@ -569,6 +612,9 @@ class OceanImportController extends Controller
             ];
 
             $requestData = $request->validated();
+        if ($request->has("charges")) $requestData["charges"] = $request->input("charges");
+        if ($request->has("hbls")) $requestData["hbls"] = $request->input("hbls");
+        if ($request->has("routes")) $requestData["routes"] = $request->input("routes");
             $filled = [];
             $empty = [];
 
@@ -624,21 +670,19 @@ class OceanImportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -1865,7 +1909,7 @@ class OceanImportController extends Controller
         return view('ocean-import.print-charges', compact('shipment'));
     }
 
-    public function createInvoiceFromCharges(Request $request, $oceanImportId)
+    public function createInvoiceFromCharges(Request $request, $oceanImportId, \App\Services\InvoiceGenerationService $invoiceService)
     {
         $this->authorize('update', OceanImport::findOrFail($oceanImportId));
 
@@ -1882,6 +1926,24 @@ class OceanImportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = OceanImportCharge::where('ocean_import_id', $oceanImportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             // Check if charges exist that are already invoiced
             $allChargesCount = OceanImportCharge::where('ocean_import_id', $oceanImportId)->count();
             if ($allChargesCount > 0) {
@@ -1896,14 +1958,21 @@ class OceanImportController extends Controller
             return response()->json(['success' => false, 'message' => 'No charges found for this shipment. Please add charges first.'], 400);
         }
 
-        $invNo = 'SCL' . sprintf('%08d', $oceanImportId);
-        foreach ($charges as $charge) {
-            $charge->update([
-                'is_invoiced' => true,
-                'invoice_no' => $invNo,
-                'invoice_date' => now()
-            ]);
+        $companyId = auth()->user()->company_id ?? 1;
+        $result = $invoiceService->generateInvoicesFromCharges(
+            $companyId,
+            'App\Models\OceanImport',
+            $oceanImportId,
+            'Import',
+            'Sea',
+            $charges
+        );
+
+        if (!$result['success']) {
+            return response()->json($result, 400);
         }
+
+        $invNo = implode(', ', $result['invoices']);
 
         // === AUTO-POPULATION INTEGRATION ===
         // Load shipment with relationships for auto-population
@@ -1926,7 +1995,7 @@ class OceanImportController extends Controller
         OceanImportHistory::create([
             'ocean_import_id' => $oceanImportId,
             'action' => 'Create Invoice',
-            'details' => "Created invoice {$invNo} for " . $charges->count() . " charges.",
+            'details' => "Created invoice(s) {$invNo} for " . $charges->count() . " charges.",
             'user_id' => auth()->id()
         ]);
 

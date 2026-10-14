@@ -135,6 +135,8 @@ class AirExportController extends Controller
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
 
         $page = $request->segment(2);
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
@@ -166,7 +168,7 @@ class AirExportController extends Controller
             $airExport->post_date = now();
             
             $chargesData = collect();
-            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData', 'booking'));
+            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData', 'booking'));
         }
 
         // Handle copy - load data from existing shipment
@@ -208,12 +210,12 @@ class AirExportController extends Controller
                     'mbl_no' => '',
                 ])
                 : collect();
-            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
+            return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
         }
 
         $chargesData = collect();
 
-        return view('air-export.create', compact('offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
+        return view('air-export.create', compact('offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData'));
     }
 
     public function store(StoreAirExportRequest $request)
@@ -251,6 +253,10 @@ class AirExportController extends Controller
             ];
 
             $requestData = $request->validated();
+        \Log::info("AirExportController Request Payload:", $request->all());
+            if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
+            if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
+            if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
             $filled = [];
             $empty = [];
 
@@ -301,18 +307,19 @@ class AirExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'mawb_no') !== false) {
-                    $errorMessage .= 'MAWB No "' . ($request->mawb_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'hawb_no') !== false) {
-                    $errorMessage .= 'One or more HAWB numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -340,6 +347,9 @@ class AirExportController extends Controller
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
+
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
         
         $chargesData = $airExport->charges->isNotEmpty()
@@ -370,10 +380,11 @@ class AirExportController extends Controller
                 'eq_bl_no' => $c->remark ?? '',
                 'remark' => false,
                 'mbl_no' => $airExport->file_no ?? ($airExport->mawb_no ?? ''),
+                'is_invoiced' => $c->is_invoiced,
             ])
             : collect();
         
-        return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'users', 'packageUnits', 'currencies', 'quotations', 'chargesData'));
+        return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'quotations', 'chargesData'));
     }
 
     public function update(UpdateAirExportRequest $request, AirExport $airExport)
@@ -415,6 +426,10 @@ class AirExportController extends Controller
         ];
 
         $requestData = $request->validated();
+        \Log::info("AirExportController Request Payload:", $request->all());
+        if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
+        if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
+        if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
         $filled = [];
         $empty = [];
 
@@ -1067,11 +1082,11 @@ class AirExportController extends Controller
         ));
     }
 
-    public function createInvoiceFromCharges(Request $request, $airExportId)
+    public function createInvoiceFromCharges(Request $request, $airExportId, \App\Services\InvoiceGenerationService $invoiceService)
     {
         $airExport = AirExport::findOrFail($airExportId);
-        $invNo = 'SCL' . sprintf('%08d', $airExportId);
 
+        $savedChargeIds = [];
         if ($request->has('charges') && is_array($request->charges)) {
             foreach ($request->charges as $cData) {
                 if (empty($cData['chrg_code']) && empty($cData['charge_name'])) continue;
@@ -1107,12 +1122,10 @@ class AirExportController extends Controller
                         'amount' => $amt,
                         'tax_amount' => $taxAmt,
                         'total_amount' => $totAmt,
-                        'invoice_no' => $invNo,
-                        'is_invoiced' => true,
-                        'invoice_date' => now(),
                     ]);
+                    $savedChargeIds[] = $cData['id'];
                 } else {
-                    $airExport->charges()->create([
+                    $newCharge = $airExport->charges()->create([
                         'party' => $cData['party'] ?? 'Custom',
                         'sal' => $cData['sal'] ?? 'Air',
                         'type' => ($cData['pr'] ?? 'Rec') === 'Pay' ? 'AP' : 'AR',
@@ -1128,22 +1141,75 @@ class AirExportController extends Controller
                         'amount' => $amt,
                         'tax_amount' => $taxAmt,
                         'total_amount' => $totAmt,
-                        'invoice_no' => $invNo,
-                        'is_invoiced' => true,
-                        'invoice_date' => now(),
                     ]);
+                    $savedChargeIds[] = $newCharge->id;
                 }
             }
         }
 
-        // Auto mark all charges for this shipment as invoiced
-        Charge::where('chargeable_type', 'App\Models\AirExport')
-            ->where('chargeable_id', $airExportId)
-            ->update([
-                'is_invoiced' => true,
-                'invoice_no' => $invNo,
-                'invoice_date' => now(),
-            ]);
+        $query = Charge::where('chargeable_type', 'App\Models\AirExport')
+            ->where('chargeable_id', $airExportId);
+
+        if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+            $query->whereIn('id', $request->ids);
+        } else if (count($savedChargeIds) > 0) {
+            $query->whereIn('id', $savedChargeIds);
+        } else {
+            $query->where(function($q) {
+                $q->where('is_invoiced', false)->orWhereNull('invoice_no');
+            });
+        }
+
+        $charges = $query->get();
+
+        if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = Charge::where('chargeable_type', 'App\Models\AirExport')
+                    ->where('chargeable_id', $airExportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
+            $allChargesCount = Charge::where('chargeable_type', 'App\Models\AirExport')->where('chargeable_id', $airExportId)->count();
+            if ($allChargesCount > 0) {
+                $existingInv = Charge::where('chargeable_type', 'App\Models\AirExport')->where('chargeable_id', $airExportId)->whereNotNull('invoice_no')->pluck('invoice_no')->first();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Charges are already invoiced. Opening Freight Invoice...',
+                    'invoice_no' => $existingInv ?? 'INV-EXISTING',
+                    'freight_invoice_url' => route('shipments.freight-invoice', ['type' => 'air-export', 'id' => $airExportId])
+                ]);
+            }
+            return response()->json(['success' => false, 'message' => 'No charges found for this shipment. Please add charges first.'], 400);
+        }
+
+        $companyId = auth()->user()->company_id ?? 1;
+        $result = $invoiceService->generateInvoicesFromCharges(
+            $companyId,
+            'App\Models\AirExport',
+            $airExportId,
+            'Export',
+            'Air',
+            $charges
+        );
+
+        if (!$result['success']) {
+            return response()->json($result, 400);
+        }
+
+        $invNo = implode(', ', $result['invoices']);
 
         // === AUTO-POPULATION INTEGRATION ===
         $shipment = AirExport::with([

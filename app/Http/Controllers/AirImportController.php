@@ -10,6 +10,7 @@ use App\Models\Port;
 use App\Models\TradePartner;
 use App\Models\ContainerType;
 use App\Models\Currency;
+use App\Models\Charge;
 use App\Models\ShipmentStatusLog;
 use App\Services\AirImportService;
 use App\Services\ShipmentMemoAutoPopulationService;
@@ -196,6 +197,41 @@ class AirImportController extends Controller
             'forwardingAgent', 'acctCarrier',
             'dmCustomer', 'dmShipper', 'dmConsignee', 'dmNotify', 'dmBillTo', 'dmSalesPerson',
         ]);
+        // Format charge data for frontend compatibility
+        $airImport->charges = $airImport->charges->map(function($charge) use ($airImport) {
+            $data = $charge->toArray();
+            
+            $data['chrg_code'] = $charge->charge_code ?? '';
+            $data['charge_name'] = $charge->charge_name ?? '';
+            $data['pr'] = $charge->type === 'AP' ? 'Pay' : 'Rec';
+            $data['ppc'] = $charge->pc === 'PREPAID' ? 'Prepaid' : 'Colle';
+            $data['qty_type'] = $charge->unit ?? 'UNIT';
+            $data['inv_no'] = $charge->invoice_no ?? '';
+            $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
+            $data['currency'] = $charge->currency ? $charge->currency->code : '';
+            
+            if ($charge->party_name) {
+                $data['party_name'] = $charge->party_name;
+            } else if ($charge->type === 'AP' && $charge->vendor) {
+                $data['party_name'] = $charge->vendor->name;
+                $data['party_name_id'] = $charge->vendor_id;
+            } else if ($charge->type !== 'AP' && $charge->billTo) {
+                $data['party_name'] = $charge->billTo->name;
+                $data['party_name_id'] = $charge->bill_to_id;
+            } else {
+                $data['party_name'] = '';
+                $data['party_name_id'] = '';
+            }
+            
+            $data['party'] = $charge->party ?: 'Custom'; 
+            $data['sal'] = $charge->sal ?: 'Air'; 
+            $data['mbl_no'] = $airImport->file_no; 
+            $data['eq_bl_no'] = $charge->remark ?? ''; 
+            $data['remark'] = $charge->remark ?? false;
+            $data['_selected'] = false;
+
+            return (object) $data;
+        });
         
         $offices = Office::where('is_active', true)->get();
         $ports = Port::orderBy('name')->get();
@@ -232,7 +268,8 @@ class AirImportController extends Controller
                 'id' => $c->id,
                 'selected' => false,
                 'expanded' => false,
-                'party' => $c->party ?? 'Custom',
+                'party' => $c->party ?? 'Freight',
+                'party_name' => $c->party_name ?? ($c->billTo->name ?? ($c->vendor->name ?? '')),
                 'party_name_id' => $c->bill_to_id ?? $c->vendor_id ?? '',
                 'sal' => $c->sal ?? 'Air',
                 'chrg_code' => $c->charge_code,
@@ -247,7 +284,8 @@ class AirImportController extends Controller
                 'vat' => $c->tax_percent ?? 0,
                 'roe' => 1.0,
                 'inv_no' => $c->invoice_no ?? '',
-                'financial_date' => $c->post_date ? $c->post_date->format('Y-m-d') : date('Y-m-d'),
+                'is_invoiced' => $c->is_invoiced,
+                'financial_date' => !empty($c->invoice_date) ? (is_string($c->invoice_date) ? substr($c->invoice_date, 0, 10) : $c->invoice_date->format('Y-m-d')) : date('Y-m-d'),
                 'seal_no2' => $c->seal_no2 ?? '',
                 'pickup_no' => $c->pickup_no ?? '',
                 'cprs_no' => $c->cprs_no ?? '',
@@ -256,28 +294,28 @@ class AirImportController extends Controller
                 'dg' => $c->dg ?? 'No',
                 'temp' => $c->temp ?? '',
                 'vent' => $c->vent ?? '',
-                'storage_start_date' => $c->storage_start_date ? \Carbon\Carbon::parse($c->storage_start_date)->format('Y-m-d') : '',
-                'storage_end_date' => $c->storage_end_date ? \Carbon\Carbon::parse($c->storage_end_date)->format('Y-m-d') : '',
-                'carrier_release' => (bool)$c->carrier_release,
+                'storage_start_date' => !empty($c->storage_start_date) ? \Carbon\Carbon::parse($c->storage_start_date)->format('Y-m-d') : '',
+                'storage_end_date' => !empty($c->storage_end_date) ? \Carbon\Carbon::parse($c->storage_end_date)->format('Y-m-d') : '',
+                'carrier_release' => !empty($c->carrier_release),
                 'yard_location' => $c->yard_location ?? '',
-                'unload_vessel_date' => $c->unload_vessel_date ? \Carbon\Carbon::parse($c->unload_vessel_date)->format('Y-m-d') : '',
-                'gate_in_date' => $c->gate_in_date ? \Carbon\Carbon::parse($c->gate_in_date)->format('Y-m-d') : '',
-                'rail_start_date' => $c->rail_start_date ? \Carbon\Carbon::parse($c->rail_start_date)->format('Y-m-d') : '',
-                'pod_eta_date' => $c->pod_eta_date ? \Carbon\Carbon::parse($c->pod_eta_date)->format('Y-m-d') : '',
-                'available_pickup' => (bool)$c->available_pickup,
+                'unload_vessel_date' => !empty($c->unload_vessel_date) ? \Carbon\Carbon::parse($c->unload_vessel_date)->format('Y-m-d') : '',
+                'gate_in_date' => !empty($c->gate_in_date) ? \Carbon\Carbon::parse($c->gate_in_date)->format('Y-m-d') : '',
+                'rail_start_date' => !empty($c->rail_start_date) ? \Carbon\Carbon::parse($c->rail_start_date)->format('Y-m-d') : '',
+                'pod_eta_date' => !empty($c->pod_eta_date) ? \Carbon\Carbon::parse($c->pod_eta_date)->format('Y-m-d') : '',
+                'available_pickup' => !empty($c->available_pickup),
                 'weight_lb' => $c->weight_lb ?? '',
-                'appt_date' => $c->appt_date ? \Carbon\Carbon::parse($c->appt_date)->format('Y-m-d') : '',
+                'appt_date' => !empty($c->appt_date) ? \Carbon\Carbon::parse($c->appt_date)->format('Y-m-d') : '',
                 'trucker_id' => $c->trucker_id ?? '',
-                'pickup_date' => $c->pickup_date ? \Carbon\Carbon::parse($c->pickup_date)->format('Y-m-d') : '',
-                'gate_out_date' => $c->gate_out_date ? \Carbon\Carbon::parse($c->gate_out_date)->format('Y-m-d') : '',
-                'fdest_eta_date' => $c->fdest_eta_date ? \Carbon\Carbon::parse($c->fdest_eta_date)->format('Y-m-d') : '',
-                'eta_door_date' => $c->eta_door_date ? \Carbon\Carbon::parse($c->eta_door_date)->format('Y-m-d') : '',
-                'ata_door_date' => $c->ata_door_date ? \Carbon\Carbon::parse($c->ata_door_date)->format('Y-m-d') : '',
+                'pickup_date' => !empty($c->pickup_date) ? \Carbon\Carbon::parse($c->pickup_date)->format('Y-m-d') : '',
+                'gate_out_date' => !empty($c->gate_out_date) ? \Carbon\Carbon::parse($c->gate_out_date)->format('Y-m-d') : '',
+                'fdest_eta_date' => !empty($c->fdest_eta_date) ? \Carbon\Carbon::parse($c->fdest_eta_date)->format('Y-m-d') : '',
+                'eta_door_date' => !empty($c->eta_door_date) ? \Carbon\Carbon::parse($c->eta_door_date)->format('Y-m-d') : '',
+                'ata_door_date' => !empty($c->ata_door_date) ? \Carbon\Carbon::parse($c->ata_door_date)->format('Y-m-d') : '',
                 'measurement_cft' => $c->measurement_cft ?? '',
                 'remarks' => $c->container_remarks ?? '',
                 'internal_remarks' => $c->internal_remarks ?? '',
-                'empty_confirmed_date' => $c->empty_confirmed_date ? \Carbon\Carbon::parse($c->empty_confirmed_date)->format('Y-m-d') : '',
-                'empty_return_date' => $c->empty_return_date ? \Carbon\Carbon::parse($c->empty_return_date)->format('Y-m-d') : '',
+                'empty_confirmed_date' => !empty($c->empty_confirmed_date) ? \Carbon\Carbon::parse($c->empty_confirmed_date)->format('Y-m-d') : '',
+                'empty_return_date' => !empty($c->empty_return_date) ? \Carbon\Carbon::parse($c->empty_return_date)->format('Y-m-d') : '',
                 'complete' => (bool)$c->complete,
             ])
             : collect();
@@ -758,7 +796,7 @@ class AirImportController extends Controller
         return \Illuminate\Support\Facades\Storage::disk('public')->download($doc->file_path, $doc->file_name);
     }
 
-    public function createInvoiceFromCharges(Request $request, $airImportId)
+    public function createInvoiceFromCharges(Request $request, $airImportId, \App\Services\InvoiceGenerationService $invoiceService)
     {
         AirImport::findOrFail($airImportId);
 
@@ -776,6 +814,25 @@ class AirImportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = Charge::where('chargeable_type', 'App\Models\AirImport')
+                    ->where('chargeable_id', $airImportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             $allChargesCount = Charge::where('chargeable_type', 'App\Models\AirImport')->where('chargeable_id', $airImportId)->count();
             if ($allChargesCount > 0) {
                 $existingInv = Charge::where('chargeable_type', 'App\Models\AirImport')->where('chargeable_id', $airImportId)->whereNotNull('invoice_no')->pluck('invoice_no')->first();
@@ -789,14 +846,21 @@ class AirImportController extends Controller
             return response()->json(['success' => false, 'message' => 'No charges found for this shipment. Please add charges first.'], 400);
         }
 
-        $invNo = 'SCL' . sprintf('%08d', $airImportId);
-        foreach ($charges as $charge) {
-            $charge->update([
-                'is_invoiced' => true,
-                'invoice_no' => $invNo,
-                'invoice_date' => now(),
-            ]);
+        $companyId = auth()->user()->company_id ?? 1;
+        $result = $invoiceService->generateInvoicesFromCharges(
+            $companyId,
+            'App\Models\AirImport',
+            $airImportId,
+            'Import',
+            'Air',
+            $charges
+        );
+
+        if (!$result['success']) {
+            return response()->json($result, 400);
         }
+
+        $invNo = implode(', ', $result['invoices']);
 
         // === AUTO-POPULATION INTEGRATION ===
         $shipment = AirImport::with([

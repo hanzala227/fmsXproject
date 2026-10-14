@@ -187,6 +187,9 @@ class OceanImportService
 
                     $mapped = [
                         'type' => $type,
+                        'party' => $chargeData['party'] ?? 'Freight',
+                        'party_name' => $chargeData['party_name'] ?? '',
+                        'sal' => $chargeData['sal'] ?? 'Sea',
                         'charge_code' => $chargeData['chrg_code'] ?? '',
                         'charge_name' => $chargeData['chrg_code'] ?? 'Charge',
                         'bill_to_id' => $billToId,

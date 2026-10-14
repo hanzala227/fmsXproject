@@ -418,8 +418,8 @@
                 <button type="button" class="btn-gf-tool" style="height: 14px; border: none; background: transparent; padding: 0;"><i
                         class="fa fa-sliders"></i></button>
             </li>
-            <li :class="[activeTab === 'doc' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'doc' : null"><a>Doc Center</a></li>
-            <li :class="[activeTab === 'work' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'work' : null"><a>Work Order</a></li>
+            <li style="display: none !important;" :class="[activeTab === 'doc' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'doc' : null"><a>Doc Center</a></li>
+            <li style="display: none !important;" :class="[activeTab === 'work' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'work' : null"><a>Work Order</a></li>
             <li :class="[activeTab === 'status' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'status' : null"><a>Status</a></li>
         </ul>
 
@@ -974,7 +974,7 @@
                                             style="text-align: right; width: 80px;" name="measure_cbm" x-model="form.measure_cbm"></td>
                                     <td></td>
                                 </tr>
-                                <tr>
+                                <tr style="display: none !important;">
                                     <td style="text-align: center;"><input type="radio" disabled></td>
                                     <td>Receiving</td>
                                     <td colspan="4">

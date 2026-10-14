@@ -43,15 +43,6 @@ class StoreTruckQuoteRequest extends FormRequest
             'description' => 'nullable|string',
 
             'charges' => 'nullable|array',
-            'charges.*.charge_code' => 'nullable|string|max:50',
-            'charges.*.charge_name' => 'nullable|string|max:255',
-            'charges.*.type' => 'nullable|string|in:AR,AP',
-            'charges.*.amount' => 'nullable|numeric',
-            'charges.*.qty' => 'nullable|numeric',
-            'charges.*.rate' => 'nullable|numeric',
-            'charges.*.unit' => 'nullable|string|max:50',
-            'charges.*.currency_id' => 'nullable|exists:currencies,id',
-            'charges.*.remark' => 'nullable|string',
 
             'documents' => 'nullable|array',
             'documents.*.file_name' => 'nullable|string|max:255',
@@ -67,7 +58,6 @@ class StoreTruckQuoteRequest extends FormRequest
             'sales_person_id.exists' => 'Selected sales person is invalid.',
             'pol_id.exists' => 'Selected port of loading is invalid.',
             'pod_id.exists' => 'Selected port of discharge is invalid.',
-            'charges.*.currency_id.exists' => 'Selected currency is invalid.',
         ];
     }
 }

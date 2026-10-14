@@ -165,13 +165,6 @@
                         </span>
                     </td>
                     <td><strong>{{ $shipment->file_no }}</strong></td>
-                    <td class="text-center">
-                        @if($shipment->color)
-                            <span class="color-mark" style="background:{{ $shipment->color }}"></span>
-                        @else
-                            --
-                        @endif
-                    </td>
                     <td>{{ $shipment->post_date ? $shipment->post_date->format('m-d-Y') : '--' }}</td>
                     <td>{{ $shipment->customer->name ?? '--' }}</td>
                     <td>{{ $shipment->trucker->name ?? '--' }}</td>

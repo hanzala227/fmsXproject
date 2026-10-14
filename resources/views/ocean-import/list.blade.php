@@ -394,10 +394,9 @@
                                             <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                        <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px; display:none;">HB/L</th>
-                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:150px;left:30px;">Booking No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color"   style="width:35px;left:200px;text-align:center;">Color</th>
-                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:235px;">MB/L No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px;">HB/L</th>
+                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">File No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:200px;">MB/L No.</th>
                                         <th data-col="tracking"     style="width:140px;">Tracking EDI Response</th>
                                         <th data-col="sub_status"   style="width:100px;">Submit Status</th>
                                         <th data-col="shipment_status" style="width:120px;">
@@ -451,7 +450,7 @@
                                         <td class="sticky-col" style="left:50px;"></td>
                                         <td class="sticky-col" style="left:90px;"><input class="filter-input" data-param="filter_file_no" placeholder="Booking No..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td class="sticky-col" style="left:200px;"></td>
-                                        <td class="sticky-col" style="left:235px;"><input class="filter-input" data-param="filter_mbl_no" placeholder="MB/L..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                        <td class="sticky-col" style="left:200px;"><input class="filter-input" data-param="filter_mbl_no" placeholder="MB/L..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td><input class="filter-input" data-param="filter_office" placeholder="Office..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
@@ -950,9 +949,40 @@
             ['Containers',       d.containers],
             ['HBLs',             d.hbls],
         ];
-        document.getElementById('mbl-body').innerHTML = rows.map(([l, v]) =>
+        let html = rows.map(([l, v]) =>
             `<div class="mbl-row"><span class="lbl">${l}</span><span class="val">${v ?? '--'}</span></div>`
         ).join('');
+
+        if (d.routes && Array.isArray(d.routes) && d.routes.length > 0) {
+            html += `<div style="margin-top:15px; border-top:1px solid #e2e8f0; padding-top:10px;">
+                <div style="font-weight:bold; font-size:12px; color:#32c5d2; margin-bottom:6px;"><i class="fa fa-ship"></i> Route / Transportation</div>
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; text-align:left;">
+                            <th style="padding:4px;">Type</th>
+                            <th style="padding:4px;">ETA</th>
+                            <th style="padding:4px;">ATA</th>
+                            <th style="padding:4px;">ETD</th>
+                            <th style="padding:4px;">ATD</th>
+                            <th style="padding:4px;">Vessel / Flight</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            d.routes.forEach((r, idx) => {
+                const typeLabel = idx === 0 ? 'Departure' : (idx === d.routes.length - 1 && d.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx);
+                html += `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:4px; font-weight:600;">${typeLabel}</td>
+                    <td style="padding:4px;">${r.eta || '--'}</td>
+                    <td style="padding:4px;">${r.ata || '--'}</td>
+                    <td style="padding:4px;">${r.etd || '--'}</td>
+                    <td style="padding:4px;">${r.atd || '--'}</td>
+                    <td style="padding:4px;">${r.flight_no || '--'}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        document.getElementById('mbl-body').innerHTML = html;
         document.getElementById('mbl-overlay').classList.add('open');
     }
     function closeMbl() {

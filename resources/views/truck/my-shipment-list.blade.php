@@ -402,6 +402,7 @@
     ================================================================ */
     function toggleFilter() {
         var filterRow = document.getElementById('filter-row');
+        if (!filterRow) return;
         var isVisible = filterRow.style.display === 'table-row';
         filterRow.style.display = isVisible ? 'none' : 'table-row';
         document.getElementById('btn-filter').classList.toggle('active', !isVisible);

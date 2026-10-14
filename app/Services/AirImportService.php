@@ -18,6 +18,9 @@ class AirImportService
             // Handle HBLs
             if (isset($data['hbls'])) {
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no'])) {
+                        continue;
+                    }
                     $airImport->hbls()->create($hblData);
                 }
             }
@@ -64,6 +67,9 @@ class AirImportService
                 $airImport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
 
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no']) && empty($hblData['id'])) {
+                        continue;
+                    }
                     if (isset($hblData['id'])) {
                         $hbl = AirImportHbl::find($hblData['id']);
                         if ($hbl) $hbl->update($hblData);
@@ -149,6 +155,7 @@ class AirImportService
             'charge_code' => $data['chrg_code'] ?? '',
             'charge_name' => !empty($data['charge_name']) ? $data['charge_name'] : ($data['chrg_code'] ?? 'Charge'),
             'party' => $data['party'] ?? 'Custom',
+            'party_name' => $data['party_name'] ?? '',
             'sal' => $data['sal'] ?? 'Air',
             'pc' => $pc,
             'qty' => $qty,
@@ -223,6 +230,7 @@ class AirImportService
             'charge_code' => $data['chrg_code'] ?? $charge->charge_code,
             'charge_name' => !empty($data['charge_name']) ? $data['charge_name'] : ($data['chrg_code'] ?? $charge->charge_name),
             'party' => $data['party'] ?? $charge->party ?? 'Custom',
+            'party_name' => $data['party_name'] ?? $charge->party_name ?? '',
             'sal' => $data['sal'] ?? $charge->sal ?? 'Air',
             'pc' => $pc,
             'qty' => $qty,

@@ -141,6 +141,8 @@ class OceanExportController extends Controller
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = \App\Models\User::all();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -221,7 +223,7 @@ class OceanExportController extends Controller
             }));
         }
         
-        return view('ocean-export.index', compact('offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'page', 'quotations', 'oceanExport', 'history', 'chargesList'));
+        return view('ocean-export.index', compact('offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'page', 'quotations', 'oceanExport', 'history', 'chargesList'));
     }
 
     private function sanitizeShipmentData(array $data): array
@@ -306,21 +308,19 @@ class OceanExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -355,7 +355,7 @@ class OceanExportController extends Controller
 
     public function edit(OceanExport $oceanExport)
     {
-        $oceanExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'containers.containerType', 'charges.currency', 'documents', 'statusLogs.user']);
+        $oceanExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'containers.containerType', 'charges.currency', 'documents', 'statusLogs.user']);
         
         // Format container data for frontend input compatibility
         $oceanExport->containers = $oceanExport->containers->map(function($container) {
@@ -388,11 +388,49 @@ class OceanExportController extends Controller
             
             return (object) $data;
         });
+
+        // Format charge data for frontend compatibility
+        $oceanExport->charges = $oceanExport->charges->map(function($charge) use ($oceanExport) {
+            $data = $charge->toArray();
+            
+            $data['chrg_code'] = $charge->charge_code ?? '';
+            $data['charge_name'] = $charge->charge_name ?? '';
+            $data['pr'] = $charge->type === 'AP' ? 'Pay' : 'Rec';
+            $data['ppc'] = $charge->pc === 'PREPAID' ? 'Prepaid' : 'Colle';
+            $data['qty_type'] = $charge->unit ?? 'UNIT';
+            $data['inv_no'] = $charge->invoice_no ?? '';
+            $data['financial_date'] = $charge->invoice_date ? $charge->invoice_date->format('Y-m-d') : null;
+            $data['currency'] = $charge->currency ? $charge->currency->code : '';
+            
+            if ($charge->party_name) {
+                $data['party_name'] = $charge->party_name;
+            } else if ($charge->type === 'AP' && $charge->vendor) {
+                $data['party_name'] = $charge->vendor->name;
+                $data['party_name_id'] = $charge->vendor_id;
+            } else if ($charge->type !== 'AP' && $charge->billTo) {
+                $data['party_name'] = $charge->billTo->name;
+                $data['party_name_id'] = $charge->bill_to_id;
+            } else {
+                $data['party_name'] = '';
+                $data['party_name_id'] = '';
+            }
+            
+            $data['party'] = $charge->party ?: 'Custom'; 
+            $data['sal'] = $charge->sal ?: 'Sea'; 
+            $data['mbl_no'] = $oceanExport->file_no; 
+            $data['eq_bl_no'] = $charge->remark ?? ''; 
+            $data['remark'] = $charge->remark ?? false;
+            $data['_selected'] = false;
+
+            return (object) $data;
+        });
         
         $offices = Office::where('is_active', true)->get();
         $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
+        $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
+        if ($carriers->isEmpty()) $carriers = $agents;
         $users = \App\Models\User::all();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -401,22 +439,25 @@ class OceanExportController extends Controller
         $serviceTerms = ServiceTerm::all();
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Ocean Export')->latest()->get();
         $page = request()->segment(2);
-        $history = $oceanExport->statusLogs && $oceanExport->statusLogs->count()
-            ? $oceanExport->statusLogs->map(function($log) {
+        $history = $oceanExport->statusLogs()
+            ->with('user')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function($log) {
                 return [
-                    'date' => $log->created_at->format('Y-m-d H:i'),
+                    'date' => $log->created_at->format('Y-m-d H:i:s'),
                     'user' => $log->user?->name ?? 'System',
-                    'action' => $log->status_name ?? $log->action ?? 'N/A',
+                    'action' => $log->status_name ?? $log->action ?? 'UPDATED',
                     'details' => $log->details,
                 ];
-            })
-            : [];
+            });
         $chargesList = $oceanExport->charges && $oceanExport->charges->count() > 0
-            ? $oceanExport->charges->map(function($c) {
+            ? $oceanExport->charges->map(function($c) use ($oceanExport) {
                 return [
                     'id' => $c->id,
                     'selected' => false,
                     'party' => $c->type === 'AP' ? 'Agent' : 'Custom',
+                    'party_name' => $c->party_name ?? ($c->billTo->name ?? ($c->vendor->name ?? '')),
                     'party_name_id' => $c->type === 'AP' ? ($c->vendor_id ?? '') : ($c->bill_to_id ?? ''),
                     'sal' => 'Sea',
                     'pr' => $c->type === 'AP' ? 'Pay' : 'Rec',
@@ -429,6 +470,7 @@ class OceanExportController extends Controller
                     'roe' => 1.0,
                     'vat' => (float)($c->tax_percent ?? 0),
                     'inv_no' => $c->invoice_no ?? '',
+                'is_invoiced' => $c->is_invoiced,
                     'financial_date' => $c->invoice_date ? (is_string($c->invoice_date) ? $c->invoice_date : $c->invoice_date->format('Y-m-d')) : '',
                     'eq_bl_no' => $c->remark ?? '',
                     'remark' => (bool)($c->remark ?? false),
@@ -437,7 +479,7 @@ class OceanExportController extends Controller
             })
             : [];
         
-        return view('ocean-export.index', compact('oceanExport', 'offices', 'ports', 'vessels', 'agents', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'quotations', 'page', 'history', 'chargesList'));
+        return view('ocean-export.index', compact('oceanExport', 'offices', 'ports', 'vessels', 'agents', 'carriers', 'users', 'containerTypes', 'packageUnits', 'incoterms', 'currencies', 'serviceTerms', 'quotations', 'page', 'history', 'chargesList'));
     }
 
     public function update(UpdateOceanExportRequest $request, OceanExport $oceanExport)
@@ -456,21 +498,19 @@ class OceanExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-            // Handle duplicate entry errors
+            // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                $errorMessage = 'This record already exists. ';
-                
-                // Check which field is duplicate
-                if (strpos($e->getMessage(), 'file_no') !== false) {
-                    $errorMessage .= 'File No "' . ($request->file_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'mbl_no') !== false) {
-                    $errorMessage .= 'MBL No "' . ($request->mbl_no ?? '') . '" is already used by another shipment.';
-                } elseif (strpos($e->getMessage(), 'hbl_no') !== false) {
-                    $errorMessage .= 'One or more HBL numbers are already used.';
-                } elseif (strpos($e->getMessage(), 'container_no') !== false) {
-                    $errorMessage .= 'One or more container numbers are already used.';
+                if (strpos($e->getMessage(), 'cannot be null') !== false) {
+                    preg_match("/Column '(.*?)' cannot be null/", $e->getMessage(), $matches);
+                    $col = $matches[1] ?? 'A required field';
+                    $errorMessage = "Database Error: {$col} cannot be empty.";
+                } elseif (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/", $e->getMessage(), $matches);
+                    $val = $matches[1] ?? '';
+                    $key = $matches[2] ?? '';
+                    $errorMessage = "Database Error: Duplicate entry '{$val}' for key '{$key}'.";
                 } else {
-                    $errorMessage .= 'Please check your entries and try again.';
+                    $errorMessage = 'Database Integrity Error. ' . $e->getMessage();
                 }
                 
                 return back()->withInput()->with('error', $errorMessage);
@@ -751,6 +791,9 @@ class OceanExportController extends Controller
     public function destroy(OceanExport $oceanExport)
     {
         $oceanExport->delete();
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Shipment deleted successfully.']);
+        }
         return redirect()->route('ocean-export.index')->with('success', 'Shipment deleted.');
     }
 
@@ -768,8 +811,20 @@ class OceanExportController extends Controller
     public function bulkBlock(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:ocean_exports,id']);
-        OceanExport::whereIn('id', $request->ids)->update(['is_hold' => true]);
-        if ($request->expectsJson()) {
+        $shipments = OceanExport::whereIn('id', $request->ids)->get();
+        foreach ($shipments as $shipment) {
+            $shipment->update([
+                'is_hold' => true,
+                'is_blocked' => true,
+            ]);
+            $shipment->statusLogs()->create([
+                'user_id' => auth()->id(),
+                'status_code' => 'BLOCKED',
+                'status_name' => 'BLOCKED',
+                'details' => 'Shipment blocked/placed on hold via Tools menu.',
+            ]);
+        }
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => count($request->ids) . ' shipment(s) blocked.']);
         }
         return back()->with('success', count($request->ids) . ' shipment(s) blocked.');
@@ -778,8 +833,20 @@ class OceanExportController extends Controller
     public function bulkUnblock(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:ocean_exports,id']);
-        OceanExport::whereIn('id', $request->ids)->update(['is_hold' => false]);
-        if ($request->expectsJson()) {
+        $shipments = OceanExport::whereIn('id', $request->ids)->get();
+        foreach ($shipments as $shipment) {
+            $shipment->update([
+                'is_hold' => false,
+                'is_blocked' => false,
+            ]);
+            $shipment->statusLogs()->create([
+                'user_id' => auth()->id(),
+                'status_code' => 'UNBLOCKED',
+                'status_name' => 'UNBLOCKED',
+                'details' => 'Shipment unblocked/released from hold via Tools menu.',
+            ]);
+        }
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => count($request->ids) . ' shipment(s) unblocked.']);
         }
         return back()->with('success', count($request->ids) . ' shipment(s) unblocked.');
@@ -1225,7 +1292,7 @@ class OceanExportController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function createInvoiceFromCharges(Request $request, $oceanExportId)
+    public function createInvoiceFromCharges(Request $request, $oceanExportId, \App\Services\InvoiceGenerationService $invoiceService)
     {
         OceanExport::findOrFail($oceanExportId);
 
@@ -1243,6 +1310,25 @@ class OceanExportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = Charge::where('chargeable_type', 'App\Models\OceanExport')
+                    ->where('chargeable_id', $oceanExportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             $allChargesCount = Charge::where('chargeable_type', 'App\Models\OceanExport')->where('chargeable_id', $oceanExportId)->count();
             if ($allChargesCount > 0) {
                 $existingInv = Charge::where('chargeable_type', 'App\Models\OceanExport')->where('chargeable_id', $oceanExportId)->whereNotNull('invoice_no')->pluck('invoice_no')->first();
@@ -1256,14 +1342,21 @@ class OceanExportController extends Controller
             return response()->json(['success' => false, 'message' => 'No charges found for this shipment. Please add charges first.'], 400);
         }
 
-        $invNo = 'SCL' . sprintf('%08d', $oceanExportId);
-        foreach ($charges as $charge) {
-            $charge->update([
-                'is_invoiced' => true,
-                'invoice_no' => $invNo,
-                'invoice_date' => now(),
-            ]);
+        $companyId = auth()->user()->company_id ?? 1;
+        $result = $invoiceService->generateInvoicesFromCharges(
+            $companyId,
+            'App\Models\OceanExport',
+            $oceanExportId,
+            'Export',
+            'Sea',
+            $charges
+        );
+
+        if (!$result['success']) {
+            return response()->json($result, 400);
         }
+
+        $invNo = implode(', ', $result['invoices']);
 
         // === AUTO-POPULATION INTEGRATION ===
         $shipment = OceanExport::with([

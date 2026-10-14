@@ -17,7 +17,7 @@
   .erp-notebook { bottom: 0; left: 0; width: 360px; height: 368px; }
 
   /* Card */
-  .erp-card { position: relative; z-index: 1; width: 523px; max-width: calc(100% - 32px);
+  .erp-card { position: relative; z-index: 1; width: 420px; max-width: calc(100% - 32px);
     background: #fff; border-radius: 6px; padding: 46px 83px 36px; }
   
 

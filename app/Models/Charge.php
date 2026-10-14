@@ -14,7 +14,7 @@ class Charge extends Model
 
     protected $fillable = [
         'company_id', 'chargeable_type', 'chargeable_id', 'type', 'charge_code', 
-        'charge_name', 'party', 'sal', 'bill_to_id', 'vendor_id', 'pc', 'qty', 'unit', 
+        'charge_name', 'party', 'party_name', 'sal', 'bill_to_id', 'vendor_id', 'pc', 'qty', 'unit', 
         'currency_id', 'rate', 'amount', 'tax_percent', 'tax_amount', 
         'total_amount', 'is_invoiced', 'invoice_no', 'invoice_date', 'remark',
         'seal_no2', 'pickup_no', 'cprs_no', 'cnru_no', 'it_no', 'dg', 

@@ -21,7 +21,6 @@
         @media print {
             th[data-col="check"], td:nth-child(1),
             th[data-col="lock"], td:nth-child(2),
-            th[data-col="color"], td:nth-child(4) {
                 display: none !important;
             }
         }
@@ -163,7 +162,6 @@
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;cursor:pointer;" onclick="toggleSort('file_no')">
                                             Booking No. <i class="fa fa-sort" id="sort-file_no"></i>
                                         </th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">Color</th>
                                         <th data-col="post_date" style="width:90px;cursor:pointer;" onclick="toggleSort('post_date')">
                                             Post Date <i class="fa fa-sort" id="sort-post_date"></i>
                                         </th>

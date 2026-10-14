@@ -44,9 +44,19 @@
                         @focus="$el.style.borderColor='#405189'" @blur="$el.style.borderColor='#cbd5e1'">
                 </div>
                 <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Legal Name</label>
+                    <input type="text" name="legal_name" value="{{ old('legal_name', $company?->legal_name) }}"
+                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;" placeholder="e.g. ACME Corp Ltd.">
+                </div>
+                <div>
                     <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Company Code</label>
                     <input type="text" name="company_code" value="{{ old('company_code', $company?->code) }}"
                         style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;" placeholder="e.g. ACME">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Country</label>
+                    <input type="text" name="country" value="{{ old('country', $company?->country) }}"
+                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
                 </div>
                 <div>
                     <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Company Email</label>
@@ -62,6 +72,40 @@
                     <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Address</label>
                     <textarea name="company_address" rows="2"
                         style="width: 100%; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none; resize: vertical;">{{ old('company_address', $company?->address) }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        {{-- Subscription & Limits --}}
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 12px;">
+            <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #405189;">
+                <i class="fa fa-credit-card" style="margin-right: 4px;"></i> Subscription & Configuration
+            </div>
+            <div style="padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Subscription Status <span style="color: #ef4444;">*</span></label>
+                    <select name="subscription_status" required style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none; background: #fff;">
+                        <option value="active" {{ old('subscription_status', $company?->subscription_status) === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="trial" {{ old('subscription_status', $company?->subscription_status ?? 'trial') === 'trial' ? 'selected' : '' }}>Trial</option>
+                        <option value="suspended" {{ old('subscription_status', $company?->subscription_status) === 'suspended' ? 'selected' : '' }}>Suspended</option>
+                        <option value="expired" {{ old('subscription_status', $company?->subscription_status) === 'expired' ? 'selected' : '' }}>Expired</option>
+                        <option value="cancelled" {{ old('subscription_status', $company?->subscription_status) === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Storage Limit (GB) <span style="color: #ef4444;">*</span></label>
+                    <input type="number" name="storage_limit" value="{{ old('storage_limit', $company?->storage_limit ?? 5) }}" required min="1"
+                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">User Limit <span style="color: #ef4444;">*</span></label>
+                    <input type="number" name="user_limit" value="{{ old('user_limit', $company?->user_limit ?? 10) }}" required min="1"
+                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Timezone</label>
+                    <input type="text" name="timezone" value="{{ old('timezone', $company?->timezone ?? 'UTC') }}"
+                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;" placeholder="e.g. UTC">
                 </div>
             </div>
         </div>
@@ -100,26 +144,35 @@
             </div>
         </div>
 
-        {{-- Module Access --}}
+        {{-- Permissions Access --}}
         <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 12px;">
             <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #405189; display: flex; align-items: center; justify-content: space-between;">
-                <span><i class="fa fa-th-large" style="margin-right: 4px;"></i> Module Access</span>
+                <span><i class="fa fa-key" style="margin-right: 4px;"></i> Company Permissions</span>
                 <label style="font-size: 9px; color: #64748b; font-weight: 400; cursor: pointer; display: flex; align-items: center; gap: 4px;">
                     <input type="checkbox" id="select-all-modules" onclick="toggleAllModules(this)" style="cursor: pointer;"> Select All
                 </label>
             </div>
-            <div style="padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;">
-                @foreach($modules as $key => $mod)
-                <label style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; transition: all 0.15s;
-                    {{ in_array($key, old('modules', $companyModules)) ? 'background: #eff6ff; border-color: #93c5fd;' : '' }}"
-                    onmouseover="this.style.borderColor='#93c5fd'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e2e8f0';">
-                    <input type="checkbox" name="modules[]" value="{{ $key }}" class="module-checkbox"
-                        {{ in_array($key, old('modules', $companyModules)) ? 'checked' : '' }}
-                        onchange="this.closest('label').style.background = this.checked ? '#eff6ff' : ''; this.closest('label').style.borderColor = this.checked ? '#93c5fd' : '#e2e8f0';">
-                    <i class="fa {{ $mod['icon'] }}" style="font-size: 12px; color: #405189; width: 16px; text-align: center;"></i>
-                    <span style="font-size: 10px; font-weight: 500; color: #1e293b;">{{ $mod['label'] }}</span>
-                </label>
-                @endforeach
+            
+            <div style="padding: 14px;">
+                @forelse($permissionsGrouped as $moduleName => $perms)
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 10px; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">{{ $moduleName ?: 'General' }}</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">
+                        @foreach($perms as $perm)
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+                            {{ in_array($perm->name, old('permissions', $companyPermissions)) ? 'background: #eff6ff; border-color: #93c5fd;' : '' }}"
+                            onmouseover="this.style.borderColor='#93c5fd'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e2e8f0';">
+                            <input type="checkbox" name="permissions[]" value="{{ $perm->name }}" class="module-checkbox"
+                                {{ in_array($perm->name, old('permissions', $companyPermissions)) ? 'checked' : '' }}
+                                onchange="this.closest('label').style.background = this.checked ? '#eff6ff' : ''; this.closest('label').style.borderColor = this.checked ? '#93c5fd' : '#e2e8f0';">
+                            <span style="font-size: 10px; font-weight: 500; color: #1e293b;">{{ $perm->name }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+                @empty
+                <div style="font-size: 11px; color: #94a3b8; text-align: center; padding: 10px;">No permissions available. Please create permissions first.</div>
+                @endforelse
             </div>
         </div>
 

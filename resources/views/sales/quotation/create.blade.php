@@ -546,7 +546,7 @@
         <div style="display:flex;align-items:stretch;border-bottom:2px solid #e5e7eb;margin-bottom:15px;">
             <ul class="gf-tabs" style="border-bottom:none;margin-bottom:0;flex:1;display:flex;">
                 <li :class="(activeTab === 'basic' || activeTab === 'main') ? 'active' : ''" @click="activeTab = 'basic'"><a>Basic</a></li>
-                <li :class="[activeTab === 'docs' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
+                <li style="display: none !important;" :class="[activeTab === 'docs' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
             </ul>
 
             <!-- Tools Dropdown on Right Side of Tabs -->

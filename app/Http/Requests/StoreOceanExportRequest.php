@@ -29,10 +29,19 @@ class StoreOceanExportRequest extends FormRequest
             'is_direct_master', 'is_ecommerce', 'is_isf_3rd_party',
             'is_ror', 'is_hold', 'is_blocked',
         ];
+        $mergeData = [];
         foreach ($booleanFields as $field) {
             if ($this->has($field)) {
-                $this->merge([$field => filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN)]);
+                $mergeData[$field] = filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN);
             }
+        }
+        
+        if (empty($this->bl_type)) $mergeData['bl_type'] = 'NORMAL';
+        if (empty($this->cargo_type)) $mergeData['cargo_type'] = 'GENERAL CARGO';
+        if (empty($this->ship_mode)) $mergeData['ship_mode'] = 'FCL';
+        
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
         }
 
         if ($this->has('containers') && is_array($this->containers)) {
@@ -128,6 +137,8 @@ class StoreOceanExportRequest extends FormRequest
             'service_term_from_id' => 'nullable|exists:service_terms,id',
             'service_term_to_id' => 'nullable|exists:service_terms,id',
             'freight_term' => 'nullable|string',
+            'freight' => 'nullable|string',
+            'transportation' => 'nullable|string',
             'obl_type' => 'nullable|string',
             'obl_received_date' => 'nullable|date',
             'released_date' => 'nullable|date',
@@ -258,22 +269,15 @@ class StoreOceanExportRequest extends FormRequest
             'hbls.*.line_code' => 'nullable|string',
             
             'charges' => 'nullable|array',
-            'charges.*.chrg_code' => 'nullable|string',
-            'charges.*.charge_name' => 'nullable|string',
-            'charges.*.party' => 'nullable|string',
-            'charges.*.party_name_id' => 'nullable|integer',
-            'charges.*.pr' => 'nullable|string',
-            'charges.*.ppc' => 'nullable|string',
-            'charges.*.sal' => 'nullable|string',
-            'charges.*.currency' => 'nullable|string',
-            'charges.*.rate' => 'nullable|numeric',
-            'charges.*.qty' => 'nullable|numeric',
-            'charges.*.qty_type' => 'nullable|string',
-            'charges.*.vat' => 'nullable|numeric',
-            'charges.*.inv_no' => 'nullable|string',
-            'charges.*.financial_date' => 'nullable|date',
-            'charges.*.eq_bl_no' => 'nullable|string',
-            'charges.*.remark_text' => 'nullable|string',
+            
+            'routes' => 'nullable|array',
+            'routes.*.airport_id' => 'nullable|exists:ports,id',
+            'routes.*.eta' => 'nullable|date',
+            'routes.*.ata' => 'nullable|date',
+            'routes.*.etd' => 'nullable|date',
+            'routes.*.atd' => 'nullable|date',
+            'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }
 

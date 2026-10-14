@@ -496,7 +496,7 @@
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="Booking No.." oninput="applyFilters()"></td>
                                         <td class="sticky-col" style="left:160px;"></td>
-                                        <td class="sticky-col" style="left:195px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:160px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
@@ -549,10 +549,7 @@
                                         <td class="sticky-col" style="left:50px;" onclick="event.stopPropagation()">
                                             <a href="{{ route('air-export.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
                                         </td>
-                                        <td class="sticky-col" style="left:160px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
-                                        </td>
-                                        <td class="sticky-col" style="left:195px;" onclick="event.stopPropagation()">
+                                        <td class="sticky-col" style="left:160px;" onclick="event.stopPropagation()">
                                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                                 <span>{{ $shipment->mawb_no ?: '--' }}</span>
                                                 <i class="fa fa-eye"
@@ -571,7 +568,8 @@
                                                        oa:         '{{ addslashes($shipment->overseaAgent->name ?? '--') }}',
                                                        customer:   '{{ addslashes($shipment->dmCustomer->name ?? '--') }}',
                                                        operator:   '{{ addslashes($shipment->operator->name ?? '--') }}',
-                                                       hbls:       {{ $shipment->hbls->count() }}
+                                                       hbls:       {{ $shipment->hbls->count() }},
+                                                       routes:     @json($shipment->routes ?? [])
                                                    })"></i>
                                             </div>
                                         </td>
@@ -949,9 +947,33 @@
             ['Operator',     d.operator],
             ['HBLs',         d.hbls],
         ];
-        document.getElementById('mbl-body').innerHTML = rows.map(function(r) {
+        var html = rows.map(function(r) {
             return '<div class="mbl-row"><span class="lbl">' + r[0] + '</span><span class="val">' + (r[1] ?? '--') + '</span></div>';
         }).join('');
+
+        if (d.routes && Array.isArray(d.routes) && d.routes.length > 0) {
+            html += '<div style="margin-top:15px; border-top:1px solid #e2e8f0; padding-top:10px;">';
+            html += '<div style="font-weight:bold; font-size:12px; color:#32c5d2; margin-bottom:6px;"><i class="fa fa-plane"></i> Route / Flight Details</div>';
+            html += '<table style="width:100%; border-collapse:collapse; font-size:11px;">';
+            html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; text-align:left;">';
+            html += '<th style="padding:4px;">Type</th><th style="padding:4px;">ETA</th><th style="padding:4px;">ATA</th><th style="padding:4px;">ETD</th><th style="padding:4px;">ATD</th><th style="padding:4px;">Flight No.</th>';
+            html += '</tr></thead><tbody>';
+            for (var rIdx = 0; rIdx < d.routes.length; rIdx++) {
+                var r = d.routes[rIdx];
+                var typeLabel = rIdx === 0 ? 'Departure' : (rIdx === d.routes.length - 1 && d.routes.length > 1 ? 'Final Destination' : 'Trans ' + rIdx);
+                html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+                html += '<td style="padding:4px; font-weight:600;">' + typeLabel + '</td>';
+                html += '<td style="padding:4px;">' + (r.eta || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.ata || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.etd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.atd || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.flight_no || '--') + '</td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+        }
+
+        document.getElementById('mbl-body').innerHTML = html;
         document.getElementById('mbl-overlay').classList.add('open');
     }
     function closeMbl() { document.getElementById('mbl-overlay').classList.remove('open'); }

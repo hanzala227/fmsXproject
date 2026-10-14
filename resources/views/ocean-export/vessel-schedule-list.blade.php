@@ -278,7 +278,6 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="schedule_no" style="width:160px;left:25px;">Schedule No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color"       style="width:28px;left:185px;text-align:center;">CR</th>
                                     <th class="sticky-col sticky-col-header" data-col="customer"    style="width:140px;left:213px;">Customer</th>
                                     <th data-col="office"        style="width:70px;">Office</th>
                                     <th data-col="vessel"        style="width:120px;">Vessel Name</th>

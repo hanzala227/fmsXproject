@@ -8,13 +8,10 @@
                style="color:{{ optional($hbl->airImport)->is_blocked ? '#94a3b8' : '#22c55e' }};cursor:pointer;font-size:10px;"
                title="{{ optional($hbl->airImport)->is_blocked ? 'Locked' : 'Unlocked' }}"></i>
         </td>
-        <td class="sticky-col" style="left:53px;text-align:center;">
-            <span class="color-mark" style="background:{{ optional($hbl->airImport)->color ?? '#94a3b8' }}" title="Click to change color" onclick="event.stopPropagation();openColorPicker({{ $hbl->air_import_id }}, '{{ optional($hbl->airImport)->color ?? '' }}')"></span>
-        </td>
-        <td class="sticky-col" style="left:81px;">
+        <td class="sticky-col" style="left:46px;">
             <a href="/air-import/{{ $hbl->air_import_id }}/edit" class="col-link">{{ optional($hbl->airImport)->file_no ?? '--' }}</a>
         </td>
-        <td class="sticky-col" style="left:201px;font-weight:600;border-right:1px solid #cbd5e1!important;">
+        <td class="sticky-col" style="left:166px;font-weight:600;border-right:1px solid #cbd5e1!important;">
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <a href="/air-import/{{ $hbl->air_import_id }}/edit" class="col-link">{{ $hbl->hawb_no ?: '--' }}</a>
                 <i class="fa fa-eye" style="color:#3b82f6;font-size:10px;cursor:pointer;" title="Quick view" onclick="event.stopPropagation();showToast('info','HAWB: {{ $hbl->hawb_no }}')"></i>

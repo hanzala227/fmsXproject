@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'module-access' => \App\Http\Middleware\CheckModuleAccess::class,
             'customer-access' => \App\Http\Middleware\CheckCustomerAccess::class,
             'client' => \App\Http\Middleware\ClientMiddleware::class,
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
             
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckAccountStatus::class);

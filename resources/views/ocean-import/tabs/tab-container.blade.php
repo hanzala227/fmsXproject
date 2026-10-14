@@ -347,6 +347,7 @@
                             <thead>
                                 <tr>
                                     <th style="width: 30px;"><input type="checkbox" @change="toggleAllHblCommodities(hbl, $event)"></th>
+                                    <th style="width: 150px;">HB/L No.</th>
                                     <th>* Commodity Description</th>
                                     <th style="width: 200px;">HTS Code</th>
                                     <th style="width: 200px;">Container</th>
@@ -357,6 +358,14 @@
                                 <template x-for="(comm, commIdx) in hbl.commodities" :key="commIdx">
                                     <tr>
                                         <td><input type="checkbox" x-model="comm.selected"></td>
+                                        <td>
+                                            <select :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][hbl_no]'" class="form-control-gf" x-model="comm.hbl_no">
+                                                <option value="">Select HBL...</option>
+                                                <template x-for="h in hbls">
+                                                    <option :value="h.hbl_no" x-text="h.hbl_no"></option>
+                                                </template>
+                                            </select>
+                                        </td>
                                         <td>
                                             <textarea :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][commodity_desc]'" class="form-control-gf" placeholder="Description..." x-model="comm.commodity_desc" required style="min-height: 80px !important; height: 80px !important; width: 100%; resize: vertical; padding: 6px;"></textarea>
                                         </td>
@@ -414,8 +423,8 @@
                     </div>
                 </div>
 
-                <!-- Remark: Tabs for Arrival Notice and Delivery Order -->
-                <div style="margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
+                <!-- Remark: Tabs for Arrival Notice and Delivery Order (Hidden per request) -->
+                <div style="margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; display: none !important;">
                     <div class="flex" style="background: #f5f5f5; border-bottom: 1px solid #ddd;">
                         <button type="button" class="tab-btn" :class="hbl.remark_tab === 'arrival_notice' ? 'active-tab' : ''" @click="hbl.remark_tab = 'arrival_notice'">
                             Arrival Notice
@@ -434,8 +443,8 @@
                     </div>
                 </div>
 
-                <!-- Warehouse Receipt List -->
-                <div>
+                <!-- Warehouse Receipt List (Hidden per request) -->
+                <div style="display: none !important;">
                     <div class="flex justify-between items-center" style="margin-bottom: 6px;">
                         <span style="font-weight: bold; font-size: 12px; color: #333;"><i class="fa fa-file-text-o"></i> Warehouse Receipt List</span>
                         <div class="flex gap-1">

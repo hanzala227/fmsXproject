@@ -1208,17 +1208,19 @@
                     
                     <hr style="border-top:1px solid #e2e8f0;margin:12px 0;">
                     
-                    <!-- Warehouse Receipt List -->
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
-                        <h4 style="font-size: 13px; font-weight: 700; margin: 0; color: #2563eb; margin-right: 4px;">Warehouse Receipt List</h4>
-                        <button type="button" class="btn-default-gf" disabled><i class="fa fa-trash"></i></button>
+                    <!-- Warehouse Receipt List (Hidden per request) -->
+                    <div style="display: none !important;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                            <h4 style="font-size: 13px; font-weight: 700; margin: 0; color: #2563eb; margin-right: 4px;">Warehouse Receipt List</h4>
+                            <button type="button" class="btn-default-gf" disabled><i class="fa fa-trash"></i></button>
+                        </div>
+                        
+                        <table class="memo-table" style="margin-bottom:15px;">
+                            <thead>
+                                <tr><th style="text-align:center;color:#64748b;padding:10px;">No warehouse receipts linked.</th></tr>
+                            </thead>
+                        </table>
                     </div>
-                    
-                    <table class="memo-table" style="margin-bottom:15px;">
-                        <thead>
-                            <tr><th style="text-align:center;color:#64748b;padding:10px;">No warehouse receipts linked.</th></tr>
-                        </thead>
-                    </table>
                     
                     <hr style="border-top:1px solid #e2e8f0;margin:12px 0;">
                     
@@ -1515,20 +1517,20 @@
                     <!-- Accounting Navigation Buttons -->
                     <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
                         <button type="button" @click.prevent="createInvoice('AR')" class="btn-freightx" style="background: #32c5d2; border: none; color: white; padding: 6px 12px; border-radius: 3px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
-                            <i class="fa fa-plus"></i> ORIGIN REVENUE (INVOICE/AR)
+                            <i class="fa fa-plus"></i> ORIGIN REVENUE (INV)
                         </button>
                         <button type="button" @click.prevent="createInvoice('DC')" class="btn-freightx" style="background: #32c5d2; border: none; color: white; padding: 6px 12px; border-radius: 3px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
-                            <i class="fa fa-plus"></i> DESTINATION REVENUE/COST (D/C NOTE)
+                            <i class="fa fa-plus"></i> DESTINATION REVENUE/COST (DN)
                         </button>
                         <button type="button" @click.prevent="createInvoice('AP')" class="btn-freightx" style="background: #32c5d2; border: none; color: white; padding: 6px 12px; border-radius: 3px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
-                            <i class="fa fa-plus"></i> ORIGIN COST (AP)
+                            <i class="fa fa-plus"></i> ORIGIN COST (CN)
                         </button>
                     </div>
 
                     <table class="memo-table" style="text-align: center; margin-bottom: 15px;">
                         <thead>
                             <tr>
-                                <th style="width: 25px;"></th>
+                                <th style="width: 25px;"><input type="checkbox" @change="toggleAllCharges($event)" title="Select All Unbilled"></th>
                                 <th style="width: 25px;"></th>
                                 <th style="text-align: left;">Invoice No.</th>
                                 <th style="text-align: left;">Party</th>
@@ -1553,7 +1555,12 @@
                             </template>
                             <template x-for="(charge, idx) in charges" :key="charge.id || idx">
                                 <tr>
-                                    <td></td>
+                                    <td style="text-align:center;">
+                                        <input type="checkbox" 
+                                               x-model="charge._selected" 
+                                               style="margin:0; width:13px; height:13px; cursor:pointer;"
+                                        >
+                                    </td>
                                     <td></td>
                                     <td style="text-align:left;" x-text="charge.invoice_no || 'Draft'"></td>
                                     <td style="text-align:left;" x-text="charge.party_name || 'N/A'"></td>
@@ -1743,7 +1750,7 @@
         <div class="modal-dialog" style="width:650px;" @click.stop>
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title" x-text="chargeForm.is_dc_note ? 'Create D/C Note' : (chargeForm.type === 'AR' ? 'Create Invoice' : 'Create Cost')"></h4>
+                    <h4 class="modal-title" x-text="chargeForm.is_dc_note ? 'Create DN' : (chargeForm.type === 'AR' ? 'Create INV' : 'Create CN')"></h4>
                     <button type="button" class="close-btn" @click="chargeModalOpen = false">&times;</button>
                 </div>
                 <form @submit.prevent="saveCharge()">
@@ -2682,6 +2689,7 @@
                         rate: 50.00,
                         qty: 1,
                         is_invoiced: false,
+                        _selected: false,
                         party_name: 'Pier Pass Authority'
                     });
                     if (typeof showToast === 'function') {
@@ -3050,6 +3058,7 @@
                     delete chargeData.is_dc_note;
                     chargeData.id = Date.now();
                     chargeData.is_invoiced = false;
+                    chargeData._selected = false;
                     if (this.chargeEditIndex >= 0) {
                         Object.assign(this.charges[this.chargeEditIndex], chargeData);
                     } else {
@@ -3076,24 +3085,84 @@
                     this.charges.splice(idx, 1);
                     @endif
                 },
-                async createInvoiceFromCharges() {
+                toggleAllCharges(e) {
+                    const checked = e.target.checked;
+                    this.charges.forEach(c => {
+                        c._selected = checked;
+                    });
+                },
+                async createInvoiceFromCharges(type) {
                     @if(isset($truckShipment))
+                    const selectedCharges = this.charges.filter(c => c._selected && (c.type === type || !c.type));
+                    
+                    if (selectedCharges.length === 0) {
+                        if (typeof showToast === 'function') showToast('error', `Please select at least one ${type} charge.`);
+                        else alert(`Please select at least one ${type} charge.`);
+                        return;
+                    }
+
+                    const alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.invoice_no && c.invoice_no !== 'Draft'));
+                    if (alreadyInvoiced.length > 0) {
+                        const invNos = alreadyInvoiced.map(c => c.invoice_no || 'Already Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        if (typeof showToast === 'function') showToast('warning', `Invoice already created for selected charge(s): ${invNos}`);
+                        else alert(`Invoice already created for selected charge(s): ${invNos}`);
+                    }
+
+                    const uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.invoice_no || c.invoice_no === 'Draft'));
+                    if (uninvoicedCharges.length === 0) {
+                        return;
+                    }
+
                     try {
+                        const chargeIds = uninvoicedCharges.map(c => c.id).filter(id => id); // Only take saved charges
+                        if (chargeIds.length !== uninvoicedCharges.length) {
+                            if (typeof showToast === 'function') showToast('error', 'Some selected charges are not saved. Please save the shipment first.');
+                            else alert('Some selected charges are not saved. Please save the shipment first.');
+                            return;
+                        }
+
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                        // Add idempotency key
+                        const idempotencyKey = 'inv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+                        
+                        // We use the new logic: pass charge_ids and type to the backend
                         const response = await fetch('/api/truck-shipments/{{ $truckShipment->id }}/create-invoice', {
                             method: 'POST',
-                            headers: { 'X-CSRF-TOKEN': csrfToken || '', 'Accept': 'application/json' }
+                            headers: { 
+                                'X-CSRF-TOKEN': csrfToken || '', 
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                type: type,
+                                charge_ids: chargeIds,
+                                idempotency_key: idempotencyKey
+                            })
                         });
                         const data = await response.json();
                         if (data.success) {
-                            alert(data.message || 'Invoice created successfully.');
-                            // Reload charges
-                            location.reload();
+                            if (typeof showToast === 'function') showToast('success', data.message || 'Invoice created successfully.');
+                            
+                            // Open invoice in new tab
+                            if (data.redirect) {
+                                window.open(data.redirect, '_blank');
+                            }
+                            
+                            // Mark local charges as invoiced
+                            selectedCharges.forEach(c => {
+                                c.is_invoiced = true;
+                                c._selected = false;
+                                if (data.invoice) {
+                                    c.invoice_no = data.invoice.invoice_no;
+                                    c.invoice_date = data.invoice.invoice_date;
+                                }
+                            });
                         } else {
                             alert(data.message || 'Failed to create invoice.');
                         }
                     } catch (e) {
                         console.error('Invoice creation failed:', e);
+                        alert('An error occurred while creating the invoice.');
                     }
                     @else
                     alert('Please save the shipment first before creating an invoice.');
@@ -3102,42 +3171,7 @@
                 
                 // ===== Accounting Navigation Methods =====
                 createInvoice(type) {
-                    // Check if shipment is saved
-                    @if(isset($truckShipment))
-                        const shipmentId = {{ $truckShipment->id }};
-                    @else
-                        const shipmentId = null;
-                    @endif
-                    
-                    if (!shipmentId) {
-                        if (typeof showToast === 'function') {
-                            showToast('error', 'Please save the shipment first before creating invoices');
-                        } else {
-                            alert('Please save the shipment first before creating invoices');
-                        }
-                        return;
-                    }
-                    
-                    // Define routes for each invoice type
-                    const routes = {
-                        'AR': `/accounting/invoice/create?type=AR&shipment_type=truck_shipment&shipment_id=${shipmentId}`,
-                        'DC': `/accounting/invoice/create?type=DC&shipment_type=truck_shipment&shipment_id=${shipmentId}`,
-                        'AP': `/accounting/invoice/create?type=AP&shipment_type=truck_shipment&shipment_id=${shipmentId}`
-                    };
-
-                    // Open invoice creation page in new tab
-                    if (routes[type]) {
-                        window.open(routes[type], '_blank');
-                        if (typeof showToast === 'function') {
-                            showToast('success', `Opening ${type} invoice creation page...`);
-                        }
-                    } else {
-                        if (typeof showToast === 'function') {
-                            showToast('info', `${type} invoice creation - Coming soon`);
-                        } else {
-                            alert(`${type} invoice creation - Coming soon`);
-                        }
-                    }
+                    this.createInvoiceFromCharges(type);
                 },
                 
                 // ===== Tools Dropdown Methods =====

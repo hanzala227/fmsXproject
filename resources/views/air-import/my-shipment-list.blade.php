@@ -163,9 +163,8 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:53px;">Booking No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:40px;text-align:center;left:173px;">Color</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:213px;">MAWB No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:125px;left:53px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:178px;">MAWB No.</th>
                                     
                                     <th data-col="oversea_agent" style="width:150px;">Oversea Agent</th>
                                     <th data-col="shipper" style="width:150px;">Shipper</th>
@@ -191,12 +190,11 @@
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:53px;"><input class="filter-input" data-col-idx="2" placeholder="File…" oninput="applyFilters()"></td>
-                                    <td class="sticky-col" style="left:173px;"></td>
-                                    <td class="sticky-col" style="left:213px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB…" oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="5" placeholder="Agent…" oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="6" placeholder="Shipper…" oninput="applyFilters()"></td>
+                                    <td class="sticky-col" style="left:178px;"><input class="filter-input" data-col-idx="3" placeholder="MAWB…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="4" placeholder="Agent…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="5" placeholder="Shipper…" oninput="applyFilters()"></td>
                                     <td colspan="8"></td>
-                                    <td><input class="filter-input" data-col-idx="15" placeholder="HAWB…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="14" placeholder="HAWB…" oninput="applyFilters()"></td>
                                     <td colspan="7"></td>
                                 </tr>
                             </thead>

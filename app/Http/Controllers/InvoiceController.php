@@ -15,12 +15,17 @@ use App\Models\Document;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ShipmentMemoAutoPopulationService;
+use App\Services\DocumentSequenceService;
 
 class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer']);
+        $companyId = auth()->user()->company_id ?? 1;
+        // Only show verified invoices in the list
+        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer'])
+            ->where('company_id', $companyId)
+            ->where('verification_status', 'Verified');
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -62,6 +67,12 @@ class InvoiceController extends Controller
             $query->where('type', $request->input('filter_type'));
         }
 
+        $docType = null;
+        if ($request->filled('doc_type')) {
+            $docType = strtoupper($request->input('doc_type'));
+            $query->where('document_type', $docType);
+        }
+
         $sortField = $request->get('sort', 'created_at');
         $sortDir = $request->get('dir', 'desc');
         $allowedSorts = ['invoice_no', 'invoice_date', 'due_date', 'total_amount', 'paid_amount', 'balance_amount', 'status', 'created_at'];
@@ -71,11 +82,90 @@ class InvoiceController extends Controller
         $pageSize = $request->input('limit', 15);
         $invoices = $query->orderBy($sortField, $sortDir)->paginate($pageSize)->withQueryString();
 
-        $totalInvoiceAmount = Invoice::where('status', '!=', 'VOID')->sum('total_amount');
-        $totalPaidAmount = Invoice::where('status', '!=', 'VOID')->sum('paid_amount');
-        $totalBalanceAmount = Invoice::where('status', '!=', 'VOID')->sum('balance_amount');
+        $baseCurrencyCode = $request->input('base_currency', 'USD');
+        
+        // Apply filters to totals query
+        $totalsQuery = clone $query;
+        
+        // Sum totals grouped by currency_id and type (AR vs AP), handling CN as negative
+        $totalsGrouped = $totalsQuery->where('status', '!=', 'VOID')
+            ->select(
+                'currency_id', 
+                'type',
+                DB::raw("SUM(CASE WHEN document_type = 'CN' THEN -total_amount ELSE total_amount END) as total_invoice"),
+                DB::raw("SUM(CASE WHEN document_type = 'CN' THEN -paid_amount ELSE paid_amount END) as total_paid"),
+                DB::raw("SUM(CASE WHEN document_type = 'CN' THEN -balance_amount ELSE balance_amount END) as total_balance")
+            )
+            ->groupBy('currency_id', 'type')
+            ->get();
 
-        return view('accounting.invoice-list', compact('invoices', 'totalInvoiceAmount', 'totalPaidAmount', 'totalBalanceAmount'));
+        // Fetch all currencies used in these totals
+        $currencies = Currency::whereIn('id', $totalsGrouped->pluck('currency_id'))->get()->keyBy('id');
+        
+        $totalsByCurrencyAR = [];
+        $totalsByCurrencyAP = [];
+        $grandTotalInvoiceAR = 0; $grandTotalPaidAR = 0; $grandTotalBalanceAR = 0;
+        $grandTotalInvoiceAP = 0; $grandTotalPaidAP = 0; $grandTotalBalanceAP = 0;
+
+        foreach ($totalsGrouped as $item) {
+            $currency = $currencies->get($item->currency_id);
+            $code = $currency ? $currency->code : 'USD'; // Fallback
+            $tType = $item->type === 'AP' ? 'AP' : 'AR';
+            
+            if ($tType === 'AR') {
+                if (!isset($totalsByCurrencyAR[$code])) $totalsByCurrencyAR[$code] = ['invoice' => 0, 'paid' => 0, 'balance' => 0];
+                $totalsByCurrencyAR[$code]['invoice'] += $item->total_invoice;
+                $totalsByCurrencyAR[$code]['paid'] += $item->total_paid;
+                $totalsByCurrencyAR[$code]['balance'] += $item->total_balance;
+            } else {
+                if (!isset($totalsByCurrencyAP[$code])) $totalsByCurrencyAP[$code] = ['invoice' => 0, 'paid' => 0, 'balance' => 0];
+                $totalsByCurrencyAP[$code]['invoice'] += $item->total_invoice;
+                $totalsByCurrencyAP[$code]['paid'] += $item->total_paid;
+                $totalsByCurrencyAP[$code]['balance'] += $item->total_balance;
+            }
+
+            // Conversion to Base Currency
+            $rate = 1;
+            if ($code !== $baseCurrencyCode) {
+                $rateRecord = DB::table('currency_rates')
+                    ->where('from_currency', $code)
+                    ->where('to_currency', $baseCurrencyCode)
+                    ->orderByDesc('as_of_date')
+                    ->first();
+                if ($rateRecord) {
+                    $rate = $rateRecord->rate_internal ?: 1;
+                } else {
+                    // Try reverse rate if direct not found
+                    $reverseRateRecord = DB::table('currency_rates')
+                        ->where('from_currency', $baseCurrencyCode)
+                        ->where('to_currency', $code)
+                        ->orderByDesc('as_of_date')
+                        ->first();
+                    if ($reverseRateRecord && $reverseRateRecord->rate_internal > 0) {
+                        $rate = 1 / $reverseRateRecord->rate_internal;
+                    }
+                }
+            }
+            
+            if ($tType === 'AR') {
+                $grandTotalInvoiceAR += $item->total_invoice * $rate;
+                $grandTotalPaidAR += $item->total_paid * $rate;
+                $grandTotalBalanceAR += $item->total_balance * $rate;
+            } else {
+                $grandTotalInvoiceAP += $item->total_invoice * $rate;
+                $grandTotalPaidAP += $item->total_paid * $rate;
+                $grandTotalBalanceAP += $item->total_balance * $rate;
+            }
+        }
+
+        $availableCurrencies = Currency::orderBy('code')->get();
+
+        return view('accounting.invoice-list', compact(
+            'invoices', 'docType', 
+            'totalsByCurrencyAR', 'grandTotalInvoiceAR', 'grandTotalPaidAR', 'grandTotalBalanceAR', 
+            'totalsByCurrencyAP', 'grandTotalInvoiceAP', 'grandTotalPaidAP', 'grandTotalBalanceAP', 
+            'baseCurrencyCode', 'availableCurrencies'
+        ));
     }
 
     public function create(Request $request)
@@ -103,10 +193,57 @@ class InvoiceController extends Controller
         $data['paid_amount'] = $data['paid_amount'] ?? 0;
         $data['balance_amount'] = $data['total_amount'] - ($data['paid_amount'] ?? 0);
 
+        if (!empty($data['idempotency_key'])) {
+            $existing = Invoice::where('idempotency_key', $data['idempotency_key'])->first();
+            if ($existing) {
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Invoice already created (idempotent).',
+                        'invoice' => $existing->fresh()->load(['billTo', 'currency', 'office']),
+                        'redirect' => route('accounting.invoices.edit', $existing->id),
+                    ]);
+                }
+                return redirect()->route('accounting.invoices.edit', $existing->id);
+            }
+        }
+
         DB::beginTransaction();
         try {
+            $companyId = auth()->user()->company_id ?? 1;
+            
+            // Determine document type (INV, DN, CN)
+            $partner = TradePartner::find($data['bill_to_id']);
+            $partnerType = $partner ? strtolower($partner->type) : '';
+            $isAgent = str_contains($partnerType, 'agent');
+            
+            if ($request->filled('document_type')) {
+                $docType = $request->input('document_type');
+            } else {
+                if ($isAgent) {
+                    $docType = ($data['type'] ?? 'AR') === 'AR' ? 'DN' : 'CN';
+                } else {
+                    $docType = 'INV';
+                }
+            }
+            
+            $sequenceService = app(DocumentSequenceService::class);
+            $seqData = $sequenceService->generateSequence(
+                $companyId, 
+                $data['invoiceable_type'] ?? '', 
+                $data['invoiceable_id'] ?? null, 
+                $docType
+            );
+            
+            $data['invoice_no'] = $seqData['invoice_no'];
+            $data['main_sequence_no'] = $seqData['main_sequence_no'];
+            $data['group_letter'] = $seqData['group_letter'];
+            $data['document_type'] = $docType;
+            $data['verification_status'] = 'Pending Verification';
+
             $invoice = Invoice::create($data);
 
+            // Process manual lines
             if ($request->filled('lines_json')) {
                 $lines = json_decode($request->input('lines_json'), true) ?? [];
                 foreach ($lines as $lineData) {
@@ -121,6 +258,41 @@ class InvoiceController extends Controller
                         ]);
                     }
                 }
+            }
+
+            // Process selected charges
+            if (!empty($data['charge_ids'])) {
+                $charges = DB::table('charges')
+                    ->whereIn('id', $data['charge_ids'])
+                    ->where('company_id', $companyId)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($charges as $c) {
+                    if ($c->is_invoiced) {
+                        throw new \Exception("Charge {$c->charge_code} is already invoiced.");
+                    }
+                    
+                    // Create invoice line from charge
+                    $invoice->lines()->create([
+                        'description' => $c->charge_name ?? $c->charge_code ?? 'Charge',
+                        'qty' => $c->qty ?? 1,
+                        'rate' => $c->rate ?? 0,
+                        'amount' => $c->amount ?? 0,
+                        'charge_code' => $c->charge_code,
+                        'type' => $c->type,
+                    ]);
+                }
+
+                // Update charges to marked as invoiced
+                DB::table('charges')
+                    ->whereIn('id', $data['charge_ids'])
+                    ->update([
+                        'is_invoiced' => true,
+                        'invoice_no' => $invoice->invoice_no,
+                        'invoice_date' => $invoice->invoice_date,
+                        'updated_at' => now(),
+                    ]);
             }
 
             DB::commit();
@@ -160,6 +332,16 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        if ($invoice->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'Cannot modify a verified document.'], 403);
+                }
+                abort(403, 'Cannot modify a verified document.');
+            }
+        }
+        
         $data = $request->validated();
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
@@ -223,8 +405,58 @@ class InvoiceController extends Controller
             ->with('success', 'Invoice deleted successfully.');
     }
 
+    public function verifyQueue()
+    {
+        $companyId = auth()->user()->company_id ?? 1;
+        $invoices = Invoice::with(['billTo', 'currency', 'invoiceable'])
+            ->where('company_id', $companyId)
+            ->where('verification_status', 'Pending Verification')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+        return view('accounting.verify', compact('invoices'));
+    }
+
+    public function verify(Invoice $invoice)
+    {
+        $user = auth()->user();
+        if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.verify')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized to verify documents.'], 403);
+        }
+
+        $invoice->update([
+            'verification_status' => 'Verified',
+            'verified_by' => auth()->id(),
+            'verified_at' => now(),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document verified successfully.']);
+    }
+
+    public function reject(Request $request, Invoice $invoice)
+    {
+        $user = auth()->user();
+        if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.verify')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized to reject documents.'], 403);
+        }
+
+        $request->validate(['reject_reason' => 'required|string']);
+        $invoice->update([
+            'verification_status' => 'Rejected',
+            'rejected_by' => auth()->id(),
+            'rejected_at' => now(),
+            'reject_reason' => $request->input('reject_reason'),
+        ]);
+        return response()->json(['success' => true, 'message' => 'Document rejected successfully.']);
+    }
+
     public function edit(Invoice $invoice)
     {
+        if ($invoice->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                abort(403, 'Cannot modify a verified document.');
+            }
+        }
+
         $invoice->load(['lines', 'documents.uploader']);
         $tradePartners = TradePartner::all();
         $currencies = Currency::all();

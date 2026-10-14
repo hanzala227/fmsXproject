@@ -104,23 +104,25 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/air-export/list', 'label' => 'My Shipment List'],
                                 ['url' => '/air-export/list/mbl', 'label' => 'MAWB List'],
                                 ['url' => '/air-export/list/hbl', 'label' => 'HAWB List'],
-                                ['url' => '/air-export/booking/entry', 'label' => 'New Booking'],
-                                ['url' => '/air-export/booking/entry?load_from_quotation=true', 'label' => 'New Booking from Quote'],
-                                ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
+                                // ['url' => '/air-export/booking/entry', 'label' => 'New Booking'],
+                                // ['url' => '/air-export/booking/entry?load_from_quotation=true', 'label' => 'New Booking from Quote'],
+                                // ['url' => '/air-export/booking/list', 'label' => 'Booking List'],
                                 ['url' => '/air-export/booking/mawb-stock', 'label' => 'MAWB Stock List'],
                             ]],
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
-                                ['label' => 'Invoice/Cost', 'type' => 'group', 'items' => [
-                                    ['url' => '/accounting/invoice', 'label' => 'Invoice / Cost List'],
-                                    ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Invoice / Expense List'],
-                                    ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
-                                    ['url' => '/accounting/ga-invoice/create', 'label' => 'Create G&A Invoice'],
-                                ]],
-                                ['label' => 'Payment', 'type' => 'group', 'items' => [
+                                ['url' => '/accounting/invoice', 'label' => 'INV/DN/CN'],
+                                ['label' => 'Receivable', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/payment/receive', 'label' => 'Receive Payment'],
-                                    ['url' => '/accounting/payment/make', 'label' => 'Make Payment'],
                                     ['url' => '/accounting/payment/received-list', 'label' => 'Payment Received List (A/R)'],
+                                ]],
+                                ['label' => 'Payable', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/payment/make', 'label' => 'Make Payment'],
                                     ['url' => '/accounting/payment/made-list', 'label' => 'Payment Made List (A/P)'],
+                                    ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Expense List'],
+                                    ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
+                                ]],
+                                ['label' => 'Agent A/C', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/report/agent-local-statement', 'label' => 'Agent / Local Statement'],
                                 ]],
                                 ['label' => 'Bank', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/bank/book-balance', 'label' => 'Bank Book Balance'],
@@ -134,18 +136,15 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     ['url' => '/accounting/journal/entry', 'label' => 'Journal Entry'],
                                     ['url' => '/accounting/general-journal', 'label' => 'General Journal'],
                                     ['url' => '/accounting/journal/block', 'label' => 'Accounting Block / Unblock'],
-                                    ['url' => '/accounting/journal/block/maintenance', 'label' => 'Accounting Block Maintenance'],
-                                    ['url' => '/accounting/journal/block/history', 'label' => 'Accounting Block History'],
                                     ['url' => '/accounting/year-end-closing', 'label' => 'Year End Closing'],
                                 ]],
-                                ['label' => 'Report', 'type' => 'group', 'items' => [
+                                ['label' => 'Reports', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/report/balance-sheet', 'label' => 'Balance Sheet'],
                                     ['url' => '/accounting/report/trial-balance', 'label' => 'Trial Balance'],
                                     ['url' => '/accounting/report/general-ledger', 'label' => 'General Ledger Report'],
                                     ['url' => '/accounting/report/aging-report', 'label' => 'Aging Report'],
                                     ['url' => '/accounting/report/income-statement', 'label' => 'Income Statement'],
                                     ['url' => '/accounting/report/revenue-cost', 'label' => 'Revenue / Cost Report'],
-                                    ['url' => '/accounting/report/agent-local-statement', 'label' => 'Agent / Local Statement'],
                                     ['url' => '/accounting/report/freight-statement', 'label' => 'Freight Statement'],
                                     ['url' => '/accounting/report/1099-report', 'label' => '1099 Report'],
                                     ['url' => '/accounting/report/journal-report', 'label' => 'Journal Report'],
@@ -176,8 +175,33 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
 
                 @php
                     if (auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company) {
-                        $allowedModules = auth()->user()->company->moduleKeys();
-                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedModules));
+                        $moduleMapping = [
+                            'Ocean Import' => 'ocean-import',
+                            'Ocean Export' => 'ocean-export',
+                            'Air Import' => 'air-import',
+                            'Air Export' => 'air-export',
+                            'Truck Shipment' => 'truck',
+                            'Warehouse & Distribution' => 'warehouse',
+                            'Accounting' => 'accounting',
+                            'CRM' => 'sales',
+                            'Master Data' => 'trade-partners',
+                            'General' => 'reports',
+                            'Settings' => 'settings'
+                        ];
+                        
+                        $userModules = auth()->user()->permissions->pluck('module_name')
+                            ->map(function($m) {
+                                return array_map('trim', explode(',', $m));
+                            })->flatten()->unique()->toArray();
+                            
+                        $allowedMenuIds = [];
+                        foreach ($userModules as $uMod) {
+                            if (isset($moduleMapping[$uMod])) {
+                                $allowedMenuIds[] = $moduleMapping[$uMod];
+                            }
+                        }
+                        
+                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedMenuIds));
                     }
                 @endphp
 
@@ -219,7 +243,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     </div>
                                 </div>
                             @else
-                                <a href="{{ $sub['url'] }}" class="block text-[9px] transition-all duration-200 {{ Request::is(trim($sub['url'], '/')) ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
+                                <a href="{{ $sub['url'] ?? '#' }}" class="block text-[9px] transition-all duration-200 {{ isset($sub['url']) && Request::is(trim($sub['url'], '/')) ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
                                     {{ $sub['label'] }}
                                 </a>
                             @endif
@@ -227,6 +251,22 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                     </div>
                 </div>
                 @endforeach
+
+                {{-- Support Center (Tenant Admin) --}}
+                @if(auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company)
+                <div class="relative mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                    <a href="{{ route('support.tickets.index') }}"
+                       class="sidebar-nav-item w-full flex items-center transition-all duration-200 nav-link {{ Request::is('support/tickets*') ? 'active-link' : '' }}"
+                       :class="isCollapsed ? 'justify-center px-0' : 'justify-between px-5'"
+                       style="text-decoration: none;">
+                        <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
+                            <i class="fa fa-life-ring text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
+                            <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Support Center</span>
+                        </div>
+                    </a>
+                </div>
+                @endif
+
 
                 @if($type === 'admin')
                 <!-- Intelligence Section -->

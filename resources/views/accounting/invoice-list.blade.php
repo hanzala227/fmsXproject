@@ -98,20 +98,78 @@
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a></li>
                 <li><i class="fa fa-angle-right"></i>Accounting</li>
-                <li><i class="fa fa-angle-right"></i><span style="color: #333; font-weight: 700;">Invoice / Cost List</span></li>
+                <li><i class="fa fa-angle-right"></i><span style="color: #333; font-weight: 700;">{{ $docType ?? 'INV/DN/CN' }} List</span></li>
             </ul>
+        </div>
+
+        {{-- SUB-NAV TABS --}}
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <a href="{{ route('accounting.invoices.index') }}" class="btn-tool {{ empty($docType) ? 'green' : '' }}" style="padding:4px 14px;font-size:11px;font-weight:600;text-decoration:none;">
+                <i class="fa fa-list"></i> All
+            </a>
+            <a href="{{ route('accounting.invoices.index', ['doc_type' => 'INV']) }}" class="btn-tool {{ ($docType ?? '') === 'INV' ? 'green' : '' }}" style="padding:4px 14px;font-size:11px;font-weight:600;text-decoration:none;">
+                <i class="fa fa-file-text-o"></i> INV
+            </a>
+            <a href="{{ route('accounting.invoices.index', ['doc_type' => 'DN']) }}" class="btn-tool {{ ($docType ?? '') === 'DN' ? 'green' : '' }}" style="padding:4px 14px;font-size:11px;font-weight:600;text-decoration:none;">
+                <i class="fa fa-arrow-circle-right"></i> DN
+            </a>
+            <a href="{{ route('accounting.invoices.index', ['doc_type' => 'CN']) }}" class="btn-tool {{ ($docType ?? '') === 'CN' ? 'green' : '' }}" style="padding:4px 14px;font-size:11px;font-weight:600;text-decoration:none;">
+                <i class="fa fa-arrow-circle-left"></i> CN
+            </a>
+            <a href="{{ route('accounting.invoices.verify-queue') }}" class="btn-tool" style="padding:4px 14px;font-size:11px;font-weight:600;text-decoration:none;background:#f59e0b;color:#fff;border-color:#d97706;">
+                <i class="fa fa-check-square-o"></i> Verify
+            </a>
         </div>
 
         <div class="portlet light">
             {{-- PORTLET TITLE --}}
             <div class="portlet-title">
                 <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">INVOICE / COST LIST</span>
-                    <span class="summary-stats">
-                        Invoice: <span class="val" id="stat-inv-total">{{ number_format($totalInvoiceAmount, 2) }}</span>
-                        Paid: <span class="val paid" id="stat-paid-total">{{ number_format($totalPaidAmount, 2) }}</span>
-                        Balance: <span class="val" id="stat-bal-total">{{ number_format($totalBalanceAmount, 2) }}</span>
-                    </span>
+                    <span class="caption-subject">{{ $docType ?? 'INV/DN/CN' }} LIST</span>
+                    <div class="summary-stats" style="display:flex;flex-direction:column;gap:4px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div class="grand-totals" style="background:#eff6ff;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;display:flex;align-items:center;gap:8px;font-size:11px;">
+                                <strong style="color:#1d4ed8;">AR Total:</strong> 
+                                <form action="{{ request()->url() }}" method="GET" style="display:inline-block;margin:0;">
+                                    @foreach(request()->except(['base_currency', 'page']) as $key => $value)
+                                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                                    @endforeach
+                                    <select name="base_currency" onchange="this.form.submit()" style="border:none;background:transparent;font-weight:bold;color:#3b82f6;cursor:pointer;outline:none;padding:0;">
+                                        @foreach($availableCurrencies as $cur)
+                                            <option value="{{ $cur->code }}" {{ $baseCurrencyCode === $cur->code ? 'selected' : '' }}>{{ $cur->code }}</option>
+                                        @endforeach
+                                    </select>
+                                </form>
+                                <span>Inv: <span class="val" style="color:#0f172a;font-weight:600;">{{ number_format($grandTotalInvoiceAR, 2) }}</span></span>
+                                <span>Paid: <span class="val paid" style="color:#10b981;font-weight:600;">{{ number_format($grandTotalPaidAR, 2) }}</span></span>
+                                <span>Bal: <span class="val" style="color:#ef4444;font-weight:600;">{{ number_format($grandTotalBalanceAR, 2) }}</span></span>
+                            </div>
+                            <div class="currency-groups" style="display:flex;gap:12px;font-size:10px;color:#64748b;overflow-x:auto;white-space:nowrap;">
+                                @foreach($totalsByCurrencyAR as $code => $totals)
+                                    <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}">
+                                        <strong>{{ $code }}:</strong> {{ number_format($totals['invoice'], 2) }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                        
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div class="grand-totals" style="background:#fef2f2;padding:2px 8px;border-radius:4px;border:1px solid #fecaca;display:flex;align-items:center;gap:8px;font-size:11px;">
+                                <strong style="color:#b91c1c;">AP Total:</strong> 
+                                <span style="font-weight:bold;color:#b91c1c;">{{ $baseCurrencyCode }}</span>
+                                <span>Inv: <span class="val" style="color:#0f172a;font-weight:600;">{{ number_format($grandTotalInvoiceAP, 2) }}</span></span>
+                                <span>Paid: <span class="val paid" style="color:#10b981;font-weight:600;">{{ number_format($grandTotalPaidAP, 2) }}</span></span>
+                                <span>Bal: <span class="val" style="color:#ef4444;font-weight:600;">{{ number_format($grandTotalBalanceAP, 2) }}</span></span>
+                            </div>
+                            <div class="currency-groups" style="display:flex;gap:12px;font-size:10px;color:#64748b;overflow-x:auto;white-space:nowrap;">
+                                @foreach($totalsByCurrencyAP as $code => $totals)
+                                    <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}">
+                                        <strong>{{ $code }}:</strong> {{ number_format($totals['invoice'], 2) }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
                     <span id="sel-badge" style="display:none;font-size:10px;color:#3b82f6;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:10px;border:1px solid #bfdbfe;"></span>
                 </div>
                 <div class="actions" style="display:flex;gap:4px;position:relative;align-items:center;">
@@ -130,6 +188,17 @@
                     <a class="btn-action-round white" href="{{ route('accounting.invoices.export-csv') }}" title="Download as CSV/Excel" target="_blank">
                         <i class="fa fa-file-excel-o"></i> Excel <i class="fa fa-angle-down"></i>
                     </a>
+                    
+                    <div style="position:relative;display:inline-flex;align-items:center;">
+                        <button class="btn-action-round white" id="btn-tools" onclick="toggleTools()" title="Batch Tools">
+                            <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
+                        </button>
+                        <div class="config-panel" id="tools-panel" style="display:none;min-width:140px;">
+                            <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('POSTED')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-check" style="color:#10b981;width:16px;"></i> Mark as Posted</a>
+                            <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('DRAFT')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-pencil" style="color:#f59e0b;width:16px;"></i> Mark as Draft</a>
+                        </div>
+                    </div>
+
                     <a href="{{ route('accounting.invoices.create') }}" class="btn-action-round green-btn">
                         <i class="fa fa-plus"></i> New Invoice
                     </a>
@@ -151,13 +220,16 @@
                         </button>
                     </div>
                     <div class="btn-group">
-                        <button class="btn-tool green" onclick="makePayment()" title="Make or Receive Payment">
-                            <i class="fa fa-credit-card"></i> Make / Receive Payment
+                        <button class="btn-tool green" onclick="makePayment()" title="Make Payment">
+                            <i class="fa fa-credit-card"></i> Make Payment
                         </button>
-                        <button class="btn-tool green" onclick="openPaymentPortal()" title="Payment Portal">
+                        <button class="btn-tool green" onclick="receivePayment()" title="Receive Payment">
+                            <i class="fa fa-money"></i> Receive Payment
+                        </button>
+                        <button class="btn-tool green" style="display:none !important;" onclick="openPaymentPortal()" title="Payment Portal">
                             Payment Portal <span style="background:#f3c200;padding:0 3px;border-radius:2px;color:white;font-size:8px;margin-left:2px;">New</span>
                         </button>
-                        <button class="btn-tool" onclick="batchUpdateInvoices()" title="Batch update Invoices">
+                        <button class="btn-tool" style="display:none !important;" onclick="batchUpdateInvoices()" title="Batch update Invoices">
                             Batch update Invoices
                         </button>
                     </div>
@@ -201,7 +273,6 @@
                                         <th class="sticky-col sticky-col-header" data-col="party" style="width:130px;left:50px;">Party</th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:90px;left:180px;">Booking No.</th>
                                         <th class="sticky-col sticky-col-header" data-col="inv_no" style="width:100px;left:270px;">Invoice No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:370px;text-align:center;">Color</th>
                                         <th data-col="type" style="width:45px;">Type</th>
                                         <th data-col="post_date" style="width:85px;cursor:pointer;" onclick="doSort('invoice_date')">Post Date <i class="fa fa-sort" id="sort-invoice_date"></i></th>
                                         <th data-col="pub_status" style="width:90px;text-align:center;">Publication Status</th>
@@ -267,10 +338,6 @@
                                         <td class="sticky-col" style="width:100px;left:270px;">
                                             <a href="{{ route('accounting.invoices.show', $invoice) }}" class="col-link">{{ $invoice->invoice_no }}</a>
                                         </td>
-                                        {{-- Color --}}
-                                        <td class="sticky-col" style="width:35px;left:370px;text-align:center;">
-                                            <span class="color-mark" style="background:{{ $invoice->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $invoice->id }}, '{{ $invoice->color ?? '' }}')"></span>
-                                        </td>
                                         {{-- Scrollable columns --}}
                                         <td><span style="font-weight:600;color:{{ $invoice->type === 'AP' ? '#e08283' : '#3b82f6' }};">{{ $invoice->type ?? 'AR' }}</span></td>
                                         <td>{{ $invoice->created_at ? $invoice->created_at->format('m-d-Y') : '' }}</td>
@@ -314,7 +381,7 @@
                                         <td>{{ $invoice->created_at ? $invoice->created_at->format('m-d-Y') : '' }}</td>
                                         <td>--</td>
                                         <td>{{ $invoice->updated_at ? $invoice->updated_at->format('m-d-Y') : '' }}</td>
-                                        <td>{{ optional($invoice->invoiceable)->mbl_no ?? optional($invoice->invoiceable)->mawb_no ?? '--' }}</td>
+                                        <td>{{ $invoice->mbl_no ?? optional($invoice->invoiceable)->mbl_no ?? optional($invoice->invoiceable)->mawb_no ?? '--' }}</td>
                                         <td>{{ optional($invoice->invoiceable)->hbl_no ?? optional($invoice->invoiceable)->hawb_no ?? '--' }}</td>
                                         <td style="text-align:center;"><span class="badge-status {{ $statusBadge }}">{{ $invoice->status }}</span></td>
                                         <td>--</td>
@@ -439,6 +506,43 @@
 
     function getSelectedIds() {
         return [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    }
+
+    function batchUpdateStatus(status) {
+        const panel = document.getElementById('tools-panel');
+        if(panel) panel.style.display = 'none';
+        
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            showToast('warning', 'Please select at least one invoice.');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to change the status of ${ids.length} invoice(s) to ${status}?`)) return;
+
+        showToast('info', 'Updating status...');
+        
+        fetch('{{ route("accounting.invoices.batch-update-status") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ ids: ids, status: status })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                updateGrid(window.location.href);
+            } else {
+                showToast('error', data.message || 'Failed to update status.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('error', 'An error occurred during update.');
+        });
     }
 
     function getSelectedInvoiceData() {
@@ -612,19 +716,32 @@
     }
 
     /* ================================================================
-       MAKE / RECEIVE PAYMENT
+       MAKE PAYMENT (AP) & RECEIVE PAYMENT (AR)
     ================================================================ */
     function makePayment() {
         const selected = getSelectedInvoiceData();
         if (selected.length === 0) {
-            showToast('info', 'Please select one or more invoices to record a payment.');
+            showToast('info', 'Please select one or more invoices to make a payment.');
             return;
         }
         if (selected.length === 1) {
-            window.location.href = '{{ url("accounting/payment/receive") }}?invoice_id=' + selected[0].id;
+            window.location.href = '{{ route("accounting.payment-make") }}?invoice_id=' + encodeURIComponent(selected[0].id);
             return;
         }
-        window.location.href = '{{ url("accounting/payment/receive") }}?invoice_ids=' + selected.map(s => s.id).join(',');
+        window.location.href = '{{ route("accounting.payment-make") }}?invoice_ids=' + encodeURIComponent(selected.map(s => s.id).join(','));
+    }
+
+    function receivePayment() {
+        const selected = getSelectedInvoiceData();
+        if (selected.length === 0) {
+            showToast('info', 'Please select one or more invoices to receive a payment.');
+            return;
+        }
+        if (selected.length === 1) {
+            window.location.href = '{{ route("accounting.payment-receive") }}?invoice_id=' + encodeURIComponent(selected[0].id);
+            return;
+        }
+        window.location.href = '{{ route("accounting.payment-receive") }}?invoice_ids=' + encodeURIComponent(selected.map(s => s.id).join(','));
     }
 
     /* ================================================================
@@ -790,6 +907,13 @@
         document.getElementById('btn-config').classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
+    
+    function toggleTools() {
+        const panel = document.getElementById('tools-panel');
+        const open  = panel.style.display === 'none';
+        panel.style.display = open ? 'block' : 'none';
+        document.getElementById('btn-tools').classList.toggle('active', open);
+    }
 
     function buildConfigPanel() {
         const container = document.getElementById('col-toggles');
@@ -819,11 +943,18 @@
     }
 
     document.addEventListener('click', e => {
-        const panel = document.getElementById('config-panel');
-        const btn   = document.getElementById('btn-config');
-        if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
-            panel.style.display = 'none';
-            btn.classList.remove('active');
+        const configPanel = document.getElementById('config-panel');
+        const configBtn   = document.getElementById('btn-config');
+        if (configPanel && configPanel.style.display !== 'none' && !configPanel.contains(e.target) && !configBtn.contains(e.target)) {
+            configPanel.style.display = 'none';
+            configBtn.classList.remove('active');
+        }
+        
+        const toolsPanel = document.getElementById('tools-panel');
+        const toolsBtn   = document.getElementById('btn-tools');
+        if (toolsPanel && toolsPanel.style.display !== 'none' && !toolsPanel.contains(e.target) && !toolsBtn.contains(e.target)) {
+            toolsPanel.style.display = 'none';
+            toolsBtn.classList.remove('active');
         }
     });
 

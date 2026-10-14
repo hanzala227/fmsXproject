@@ -31,10 +31,11 @@ class OceanImport extends Model
         'entry_no', 'entry_doc_sent_date', 'go_date', 'available_date', 
         'c_released_date', 'released_by_id',         'is_ror', 'is_hold', 
         'door_delivery_date', 'trucker_id', 'expiry_date', 'sales_type', 'incoterm_id',
-        'color', 'is_blocked'
+        'color', 'is_blocked', 'routes'
     ];
 
     protected $casts = [
+        'routes' => 'array',
         'trans_shipments' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
@@ -74,6 +75,7 @@ class OceanImport extends Model
     // Trade Partner Relations
     public function forwardingAgent() { return $this->belongsTo(TradePartner::class, 'forwarding_agent_id'); }
     public function overseaAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function deliveryAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
     public function carrier() { return $this->belongsTo(TradePartner::class, 'carrier_id'); }
     public function dmCustomer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
     public function dmShipper() { return $this->belongsTo(TradePartner::class, 'dm_shipper_id'); }

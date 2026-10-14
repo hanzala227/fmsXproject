@@ -15,23 +15,6 @@ use Illuminate\Validation\Rules\Password;
 class CompanyController extends Controller
 {
     /**
-     * Super Admin Dashboard with stats.
-     */
-    public function dashboard()
-    {
-        $stats = [
-            'total_companies' => Company::count(),
-            'active_companies' => Company::where('status', 'active')->count(),
-            'inactive_companies' => Company::where('status', 'inactive')->count(),
-            'total_users' => User::where('role', '!=', 'SuperAdmin')->count(),
-            'recent_companies' => Company::latest()->take(5)->get(),
-            'recent_logs' => SuperAdminAuditLog::with('user')->latest('created_at')->take(10)->get(),
-        ];
-
-        return view('super-admin.dashboard', compact('stats'));
-    }
-
-    /**
      * Company list with search, filter, pagination.
      */
     public function index(Request $request)
@@ -73,12 +56,12 @@ class CompanyController extends Controller
      */
     public function create()
     {
-        $modules = config('modules');
+        $permissionsGrouped = \Spatie\Permission\Models\Permission::orderBy('module_name')->get()->groupBy('module_name');
         return view('super-admin.companies.form', [
             'company' => null,
             'adminUser' => null,
-            'modules' => $modules,
-            'companyModules' => [],
+            'permissionsGrouped' => $permissionsGrouped,
+            'companyPermissions' => [],
         ]);
     }
 
@@ -89,7 +72,9 @@ class CompanyController extends Controller
     {
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
             'company_code' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
             'company_email' => 'nullable|email|max:255',
             'company_phone' => 'nullable|string|max:50',
             'company_address' => 'nullable|string|max:1000',
@@ -97,24 +82,36 @@ class CompanyController extends Controller
             'admin_email' => 'required|email|max:255|unique:users,email',
             'admin_password' => ['required', 'confirmed', Password::min(8)],
             'company_status' => 'required|in:active,inactive',
-            'modules' => 'nullable|array',
-            'modules.*' => 'string|max:50',
+            'subscription_status' => 'required|in:active,trial,suspended,expired,cancelled',
+            'storage_limit' => 'required|integer|min:1',
+            'user_limit' => 'required|integer|min:1',
+            'default_language' => 'nullable|string|max:10',
+            'timezone' => 'nullable|string|max:50',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|max:255',
         ]);
 
         DB::transaction(function () use ($validated, $request) {
             // Create company
             $company = Company::create([
                 'name' => $validated['company_name'],
+                'legal_name' => $validated['legal_name'] ?? null,
                 'code' => $validated['company_code'] ?? null,
+                'country' => $validated['country'] ?? null,
                 'email' => $validated['company_email'] ?? null,
                 'phone' => $validated['company_phone'] ?? null,
                 'address' => $validated['company_address'] ?? null,
                 'status' => $validated['company_status'],
+                'subscription_status' => $validated['subscription_status'],
+                'storage_limit' => $validated['storage_limit'],
+                'user_limit' => $validated['user_limit'],
+                'default_language' => $validated['default_language'] ?? 'en',
+                'timezone' => $validated['timezone'] ?? 'UTC',
             ]);
 
             // Create admin user for the company
             $nameParts = explode(' ', $validated['admin_name'], 2);
-            User::create([
+            $user = User::create([
                 'company_id' => $company->id,
                 'name' => $validated['admin_name'],
                 'first_name' => $nameParts[0],
@@ -126,22 +123,16 @@ class CompanyController extends Controller
                 'email_verified_at' => now(),
             ]);
 
-            // Save module access
-            if (!empty($validated['modules'])) {
-                $moduleRecords = array_map(fn($key) => [
-                    'company_id' => $company->id,
-                    'module_key' => $key,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ], $validated['modules']);
-                CompanyModule::insert($moduleRecords);
+            // Assign permissions to the admin user
+            if (!empty($validated['permissions'])) {
+                $user->syncPermissions($validated['permissions']);
             }
 
             // Audit log
             SuperAdminAuditLog::log('company_created', 'company', $company->id, [
                 'company_name' => $company->name,
                 'admin_email' => $validated['admin_email'],
-                'modules' => $validated['modules'] ?? [],
+                'permissions' => $validated['permissions'] ?? [],
             ]);
         });
 
@@ -155,10 +146,14 @@ class CompanyController extends Controller
     public function edit(Company $company)
     {
         $adminUser = $company->users()->orderBy('id')->first();
-        $modules = config('modules');
-        $companyModules = $company->moduleKeys();
+        $permissionsGrouped = \Spatie\Permission\Models\Permission::orderBy('module_name')->get()->groupBy('module_name');
+        
+        $companyPermissions = [];
+        if ($adminUser) {
+            $companyPermissions = $adminUser->permissions->pluck('name')->toArray();
+        }
 
-        return view('super-admin.companies.form', compact('company', 'adminUser', 'modules', 'companyModules'));
+        return view('super-admin.companies.form', compact('company', 'adminUser', 'permissionsGrouped', 'companyPermissions'));
     }
 
     /**
@@ -168,29 +163,45 @@ class CompanyController extends Controller
     {
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
             'company_code' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
             'company_email' => 'nullable|email|max:255',
             'company_phone' => 'nullable|string|max:50',
             'company_address' => 'nullable|string|max:1000',
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|max:255|unique:users,email,' . ($company->users()->orderBy('id')->first()?->id ?? 0),
             'company_status' => 'required|in:active,inactive',
-            'modules' => 'nullable|array',
-            'modules.*' => 'string|max:50',
+            'subscription_status' => 'required|in:active,trial,suspended,expired,cancelled',
+            'storage_limit' => 'required|integer|min:1',
+            'user_limit' => 'required|integer|min:1',
+            'default_language' => 'nullable|string|max:10',
+            'timezone' => 'nullable|string|max:50',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|max:255',
         ]);
 
-        DB::transaction(function () use ($validated, $company) {
-            $oldModules = $company->moduleKeys();
+        $adminUser = $company->users()->orderBy('id')->first();
+
+        DB::transaction(function () use ($validated, $company, $adminUser, $request) {
+            $oldPermissions = $adminUser ? $adminUser->permissions->pluck('name')->toArray() : [];
             $oldStatus = $company->status;
 
             // Update company
             $company->update([
                 'name' => $validated['company_name'],
+                'legal_name' => $validated['legal_name'] ?? null,
                 'code' => $validated['company_code'] ?? null,
+                'country' => $validated['country'] ?? null,
                 'email' => $validated['company_email'] ?? null,
                 'phone' => $validated['company_phone'] ?? null,
                 'address' => $validated['company_address'] ?? null,
                 'status' => $validated['company_status'],
+                'subscription_status' => $validated['subscription_status'],
+                'storage_limit' => $validated['storage_limit'],
+                'user_limit' => $validated['user_limit'],
+                'default_language' => $validated['default_language'] ?? 'en',
+                'timezone' => $validated['timezone'] ?? 'UTC',
             ]);
 
             // Update admin user
@@ -204,19 +215,13 @@ class CompanyController extends Controller
                     'email' => $validated['admin_email'],
                     'status' => $validated['company_status'] === 'active' ? 'Enable' : 'Disable',
                 ]);
-            }
-
-            // Sync modules
-            $company->modules()->delete();
-            $newModules = $validated['modules'] ?? [];
-            if (!empty($newModules)) {
-                $moduleRecords = array_map(fn($key) => [
-                    'company_id' => $company->id,
-                    'module_key' => $key,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ], $newModules);
-                CompanyModule::insert($moduleRecords);
+                
+                // Sync permissions
+                if (isset($validated['permissions'])) {
+                    $adminUser->syncPermissions($validated['permissions']);
+                } else {
+                    $adminUser->syncPermissions([]);
+                }
             }
 
             // Audit logs
@@ -231,16 +236,39 @@ class CompanyController extends Controller
                 ]);
             }
 
-            if (array_diff($oldModules, $newModules) || array_diff($newModules, $oldModules)) {
-                SuperAdminAuditLog::log('modules_updated', 'company', $company->id, [
-                    'old_modules' => $oldModules,
-                    'new_modules' => $newModules,
-                ]);
+            if ($adminUser) {
+                $newPermissions = $validated['permissions'] ?? [];
+                if (array_diff($oldPermissions, $newPermissions) || array_diff($newPermissions, $oldPermissions)) {
+                    SuperAdminAuditLog::log('permissions_updated', 'company', $company->id, [
+                        'old_permissions' => $oldPermissions,
+                        'new_permissions' => $newPermissions,
+                    ]);
+                }
             }
         });
 
         return redirect()->route('super-admin.companies.index')
             ->with('success', 'Company updated successfully.');
+    }
+
+    /**
+     * Show company details.
+     */
+    public function show(Company $company)
+    {
+        $company->load(['users' => function($q) {
+            $q->orderBy('created_at', 'desc');
+        }, 'modules']);
+        
+        $adminUser = $company->users->firstWhere('role', 'Admin') ?? $company->users->first();
+        $recentActivity = SuperAdminAuditLog::where('target_type', 'company')
+                                            ->where('target_id', $company->id)
+                                            ->with('user')
+                                            ->latest()
+                                            ->take(10)
+                                            ->get();
+
+        return view('super-admin.companies.show', compact('company', 'adminUser', 'recentActivity'));
     }
 
     /**

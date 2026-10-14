@@ -13,6 +13,7 @@ class OceanImportHblCommodity extends Model
 
     protected $fillable = [
         'hbl_id',
+        'hbl_no',
         'commodity_desc',
         'hts_code',
         'container_no',

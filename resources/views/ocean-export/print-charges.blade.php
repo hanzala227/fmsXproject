@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>Charges Invoice - Shipment {{ $shipment->file_no }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 30px; font-size: 13px; line-height: 1.4; }
         .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); border-radius: 6px; background: #fff; }
@@ -24,11 +27,21 @@
     </style>
 </head>
 <body>
-    <div style="float: right; margin-bottom: 20px;">
-        <a href="{{ route('shipments.freight-invoice', ['type' => 'ocean-export', 'id' => $shipment->id]) }}" class="btn-print" style="text-decoration:none; margin-right: 10px; display: inline-block;" target="_blank">Generate Freight Invoice</a>
-        <button class="btn-print" onclick="window.print()" style="display: inline-block;">Print Invoice</button>
+    @if(!request('pdf'))
+    <div style="float: right; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+        <a href="{{ route('shipments.freight-invoice', ['type' => 'ocean-export', 'id' => $shipment->id]) }}" class="btn-print" style="text-decoration:none; margin: 0; display: inline-block;" target="_blank">Generate Freight Invoice</a>
+        <button class="btn-print" onclick="window.print()" style="margin: 0; display: inline-block;">Print</button>
+        <button class="btn-print" onclick="window.print()" style="margin: 0; display: inline-block;">Save PDF</button>
+        <x-email-document-modal 
+            documentType="ocean-export-charges" 
+            documentId="{{ $shipment->id }}" 
+            documentUrl="{{ url()->full() }}" 
+            documentName="Charges_{{ $shipment->file_no ?? 'Document' }}" 
+        />
     </div>
     <div style="clear: both;"></div>
+    @endif
+    
     <div class="invoice-box">
         <div class="header">
             <div>

@@ -34,6 +34,7 @@ class AirImport extends Model
         // Direct Master fields
         'is_direct_master', 'dm_customer_id', 'dm_shipper_id', 'dm_consignee_id',
         'dm_notify_id', 'dm_bill_to_id', 'dm_sales_person_id', 'is_blocked',
+        'transportation', 'routes',
     ];
 
     protected $casts = [
@@ -69,6 +70,7 @@ class AirImport extends Model
     public function operator() { return $this->belongsTo(User::class, 'op_id'); }
     public function forwardingAgent() { return $this->belongsTo(TradePartner::class, 'forwarding_agent_id'); }
     public function overseaAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function deliveryAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
     public function carrier() { return $this->belongsTo(TradePartner::class, 'carrier_id'); }
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }
     public function depPort() { return $this->belongsTo(Port::class, 'dep_port_id'); }
@@ -91,6 +93,7 @@ class AirImport extends Model
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }
     public function dmBillTo() { return $this->belongsTo(TradePartner::class, 'dm_bill_to_id'); }
     public function dmSalesPerson() { return $this->belongsTo(User::class, 'dm_sales_person_id'); }
+    public function salesPerson() { return $this->belongsTo(User::class, 'dm_sales_person_id'); }
     
     // Polymorphic
     public function charges() { return $this->morphMany(Charge::class, 'chargeable'); }

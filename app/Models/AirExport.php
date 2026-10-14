@@ -25,10 +25,11 @@ class AirExport extends Model
         'incoterm_id', 'mark_number', 'service_term_from', 'service_term_to',
         'agent_id', 'co_loader_id', 'trans_port_id', 'trans_port1_id', 'trans_port2_id', 'trans_port3_id', 'delivery_port_id',
         'route_data', 'itn_no', 'cers_no', 'reference_no', 'awb_date', 'cargo_ready_date',
-        'issuing_carrier', 'awb_type', 'dv_carriage', 'dv_customs', 'insurance', 'wt_val', 'other_term',
+        'issuing_carrier', 'awb_type', 'dv_carriage', 'dv_customs', 'insurance', 'wt_val', 'other_term', 'routes',
     ];
 
     protected $casts = [
+        'routes' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
         'eta' => 'date',
@@ -48,6 +49,9 @@ class AirExport extends Model
     public function operator() { return $this->belongsTo(User::class, 'op_id'); }
     public function forwardingAgent() { return $this->belongsTo(TradePartner::class, 'forwarding_agent_id'); }
     public function overseaAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function deliveryAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function agent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
+    public function coLoader() { return $this->belongsTo(TradePartner::class, 'co_loader_id'); }
     public function carrier() { return $this->belongsTo(TradePartner::class, 'carrier_id'); }
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }
     public function depPort() { return $this->belongsTo(Port::class, 'dep_port_id'); }
@@ -59,6 +63,7 @@ class AirExport extends Model
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }
     public function dmBillTo() { return $this->belongsTo(TradePartner::class, 'dm_bill_to_id'); }
     public function dmConsignee() { return $this->belongsTo(TradePartner::class, 'dm_consignee_id'); }
+    public function salesPerson() { return $this->belongsTo(User::class, 'dm_sales_person_id'); }
     public function shipper() { return $this->belongsTo(TradePartner::class, 'shipper_id'); }
     public function consignee() { return $this->belongsTo(TradePartner::class, 'consignee_id'); }
     public function notifyParty() { return $this->belongsTo(TradePartner::class, 'notify_id'); }
