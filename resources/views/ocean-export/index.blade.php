@@ -1416,7 +1416,7 @@
                         <div class="form-grid-4">
                             <!-- Column 1 -->
                             <div class="flex flex-col">
-                                <div class="form-group-gf"><label class="form-label-gf">File No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly style="background:#f5f5f5;"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly style="background:#f5f5f5;"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Post Date</label><div class="form-input-container"><input type="date" name="post_date" class="form-control-gf" x-model="form.post_date"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Forwarding Agent</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.forwarding_agent_id" class="form-control-gf" /> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'forwarding_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">OP</label><div class="form-input-container"><select name="op_id" class="form-control-gf" x-model="form.op_id">@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div></div>

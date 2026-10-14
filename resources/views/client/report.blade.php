@@ -29,7 +29,7 @@
 
     <div class="page-bar">
         <ul class="page-breadcrumb">
-            <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
+            <li><i class="fa fa-home"></i> <a href="{{ route('client.index') }}">Home</a> <i class="fa fa-angle-right"></i></li>
             <li><span style="color:#333;font-weight:700;">Reports</span></li>
         </ul>
     </div>
@@ -122,7 +122,7 @@
                     <thead>
                         <tr>
                             <th style="width:30px;text-align:center;">#</th>
-                            <th>File No.</th>
+                            <th>Booking No.</th>
                             <th>Type</th>
                             <th>MAWB / MBL</th>
                             <th>Route</th>
@@ -135,7 +135,7 @@
                         @forelse($shipments ?? [] as $s)
                             @php
                                 $detail = [
-                                    'File No'         => $s->file_no,
+                                    'Booking No'         => $s->file_no,
                                     'Type'            => $s->type,
                                     'MAWB / MBL No'   => $s->reference,
                                     'Flight / Vessel' => $s->carrier_ref,

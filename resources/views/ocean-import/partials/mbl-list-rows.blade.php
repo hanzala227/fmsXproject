@@ -15,24 +15,35 @@
     data-hbls="{{ $shipment->hbls->count() }}"
     data-customer="{{ $shipment->dmCustomer->name ?? '--' }}"
     onclick="rowClick(event, this)">
+    
+    <!-- 1. Selection Checkbox -->
     <td class="sticky-col" style="left:0;text-align:center;" onclick="event.stopPropagation()">
         <input type="checkbox" name="ids[]" value="{{ $shipment->id }}" class="row-check" onchange="updateToolbar()">
     </td>
+    <!-- 2. Lock Status -->
     <td class="sticky-col" style="left:25px;text-align:center;" onclick="event.stopPropagation()">
         <i class="fa {{ $shipment->is_hold ? 'fa-lock' : 'fa-unlock' }}" 
            style="color:{{ $shipment->is_hold ? '#94a3b8' : '#22c55e' }};cursor:pointer;font-size:10px;" 
            title="{{ $shipment->is_hold ? 'Locked' : 'Unlocked' }}" 
            onclick="toggleLock(this)"></i>
     </td>
+
+    <!-- [REMOVED: VIEW BUTTON COLUMN WAS HERE] -->
+
+    <!-- 3. File Number -->
     <td class="sticky-col" style="left:50px;" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
             <a href="{{ route('ocean-import.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
             <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;" title="Open in new tab"></i>
         </div>
     </td>
+
+    <!-- 4. Color Mark -->
     <td class="sticky-col" style="left:160px;text-align:center;">
         <span class="color-mark" style="background:{{ $shipment->color ?? '#94a3b8' }}" title="Click to change status color" onclick="event.stopPropagation();openColorPicker({{ $shipment->id }}, '{{ $shipment->color ?? '' }}')"></span>
     </td>
+
+    <!-- 5. MBL Number -->
     <td class="sticky-col" style="left:195px;" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
             <span>{{ $shipment->mbl_no }}</span>
@@ -55,13 +66,9 @@
 
     <td>{{ $shipment->updated_at->format('m-d-Y H:i') }}</td>
     <td><span class="badge-status bg-green">MATCHED</span></td>
-    <td>
-        @if($shipment->hbls->count())
-            <a href="{{ route('ocean-import.edit', $shipment->id) }}#hbls" class="col-link">{{ $shipment->hbls->first()->hbl_no }}</a>
-        @else
-            --
-        @endif
-    </td>
+    
+    <!-- [REMOVED: HBL COUNT / LINK COLUMN WAS HERE] -->
+
     <td style="text-align:right;">{{ $shipment->containers->count() }}</td>
     <td>
         @foreach($shipment->containers->take(2) as $c)
@@ -87,7 +94,8 @@
 </tr>
 @empty
 <tr id="empty-row">
-    <td colspan="50" style="text-align:center;padding:30px 10px;color:#94a3b8;">
+    <!-- Updated colspan to 48 (assuming you had 50 originally and removed 2) -->
+    <td colspan="48" style="text-align:center;padding:30px 10px;color:#94a3b8;">
         <i class="fa fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>
         No Master B/L found.
     </td>

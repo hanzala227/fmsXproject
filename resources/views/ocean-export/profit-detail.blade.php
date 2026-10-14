@@ -55,7 +55,7 @@
 
             <table class="meta-table">
                 <tr>
-                    <td class="lbl">FILE NO. :</td>
+                    <td class="lbl">Booking No. :</td>
                     <td>{{ $shipment->file_no ?? 'MOE-25100001' }}</td>
                     <td class="lbl">MASTER B/L NO. :</td>
                     <td>{{ $shipment->mbl_no ?? 'MBL55555' }}</td>

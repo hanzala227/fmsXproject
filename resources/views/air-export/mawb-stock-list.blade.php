@@ -375,7 +375,7 @@
                                     <th class="sticky-col sticky-col-header" data-col="waybill" style="width:120px;left:190px;">Waybill No.</th>
                                     <th class="sticky-col sticky-col-header" data-col="color"   style="width:40px;left:310px;text-align:center;">Color</th>
                                     <th data-col="carrier" style="width:180px;">Carrier</th>
-                                    <th data-col="file"    style="width:130px;">File No.</th>
+                                    <th data-col="file"    style="width:130px;">Booking No.</th>
                                     <th data-col="office"  style="width:90px;">Office</th>
                                     <th data-col="date"    style="width:130px;">Created Date</th>
                                     <th data-col="actions" style="width:70px;">Actions</th>
@@ -406,7 +406,7 @@
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td><input class="filter-input" data-col-idx="7" placeholder="File No…" oninput="applyFiltersTyping()" onkeyup="if(event.key==='Enter') applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="7" placeholder="Booking No…" oninput="applyFiltersTyping()" onkeyup="if(event.key==='Enter') applyFilters()" style="width:100%;"></td>
                                     <td>
                                         <select class="filter-select" data-col-idx="8" onchange="applyFilters()" style="width:100%;">
                                             <option value="">All Offices</option>
@@ -459,7 +459,7 @@
                                     </td>
                                     {{-- Carrier --}}
                                     <td>{{ $stock->carrier->name ?? '--' }}</td>
-                                    {{-- File No. --}}
+                                    {{-- Booking No. --}}
                                     <td><a href="/air-export/{{ $stock->id }}/edit" class="col-link">{{ $stock->file_no ?? '--' }}</a></td>
                                     {{-- Office --}}
                                     <td>{{ $stock->office->name ?? '-' }}</td>

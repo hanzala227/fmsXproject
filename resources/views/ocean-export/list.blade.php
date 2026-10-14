@@ -452,7 +452,7 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px;">HB/L</th>
-                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">File No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">Booking No.</th>
                                         <th class="sticky-col sticky-col-header" data-col="color"   style="width:35px;left:200px;text-align:center;">Color</th>
                                         <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:235px;">MB/L No.</th>
                                         <th data-col="tracking"     style="width:140px;">Tracking EDI Response</th>
@@ -504,7 +504,7 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
-                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-col-idx="3" placeholder="File No…" oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-col-idx="3" placeholder="Booking No…" oninput="applyFilters()"></td>
                                         <td class="sticky-col" style="left:200px;"></td>
                                         <td class="sticky-col" style="left:235px;"><input class="filter-input" data-col-idx="5" placeholder="MB/L…" oninput="applyFilters()"></td>
                                         <td></td>
@@ -968,7 +968,7 @@
     ================================================================ */
     function showMbl(d) {
         var rows = [
-            ['File No.',         d.file_no],
+            ['Booking No.',         d.file_no],
             ['MBL No.',          d.mbl_no],
             ['Carrier',          d.carrier],
             ['Vessel / Voyage',  d.vessel],

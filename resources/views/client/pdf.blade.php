@@ -57,7 +57,7 @@
 <table>
     <thead>
         <tr>
-            <th>#</th><th>File No.</th><th>Type</th><th>MAWB / MBL</th><th>Flight / Vessel</th>
+            <th>#</th><th>Booking No.</th><th>Type</th><th>MAWB / MBL</th><th>Flight / Vessel</th>
             <th>Voyage</th><th>Route</th><th>ETD</th><th>ETA</th><th>Status</th>
         </tr>
     </thead>

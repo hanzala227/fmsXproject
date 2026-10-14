@@ -269,7 +269,7 @@
                     <td>DEMO_925</td>
                 </tr>
                 <tr>
-                    <td class="lbl">FILE NO. :</td>
+                    <td class="lbl">Booking No. :</td>
                     <td>{{ $shipment->file_no ?? 'MOI-25100001' }}</td>
                     <td class="lbl">SHIP MODE :</td>
                     <td>FCL</td>

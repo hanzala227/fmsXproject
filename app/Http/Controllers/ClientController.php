@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
-
+use Illuminate\Http\Request;
 use App\Models\AirImport;
 use App\Models\AirExport;
 use App\Models\Invoice;
@@ -437,4 +437,59 @@ return view('client.shipments', compact(
     {
         //
     }
+
+    public function search(Request $request)
+{
+    $q = trim((string) $request->query('q', ''));
+ 
+    if (mb_strlen($q) < 2) {
+        return response()->json(['results' => []]);
+    }
+ 
+    // % aur _ ko escape kar do taake user wildcard na laga sake
+    $like = '%' . addcslashes($q, '%_\\') . '%';
+ 
+    $companyId = auth()->user()->company_id;
+ 
+    // id = shipments page ki section id, refs = file_no ke ilawa jin columns mein bhi search ho
+    $tabs = [
+        ['id' => 'air-import',   'label' => 'Air Import',   'mode' => 'air',   'model' => \App\Models\AirImport::class,   'refs' => ['mawb_no']],
+        ['id' => 'air-export',   'label' => 'Air Export',   'mode' => 'air',   'model' => \App\Models\AirExport::class,   'refs' => ['mawb_no']],
+        ['id' => 'ocean-import', 'label' => 'Ocean Import', 'mode' => 'ocean', 'model' => \App\Models\OceanImport::class, 'refs' => ['mbl_no']],
+        ['id' => 'ocean-export', 'label' => 'Ocean Export', 'mode' => 'ocean', 'model' => \App\Models\OceanExport::class, 'refs' => ['mbl_no', 'booking_no']],
+    ];
+ 
+    $found = [];   // file_no => ['file_no' => ..., 'tabs' => [...]]
+ 
+    foreach ($tabs as $tab) {
+        $rows = $tab['model']::query()
+            ->where('company_id', $companyId)            // <-- client.shipments wali hi filter
+            ->where(function ($w) use ($like, $tab) {
+                $w->where('file_no', 'like', $like);
+                foreach ($tab['refs'] as $col) {
+                    $w->orWhere($col, 'like', $like);
+                }
+            })
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get(['file_no']);
+ 
+        foreach ($rows as $row) {
+            $key = $row->file_no;
+            if (empty($key)) continue;
+ 
+            $found[$key]['file_no'] = $key;
+            $found[$key]['tabs'][]  = [
+                'id'    => $tab['id'],
+                'label' => $tab['label'],
+                'mode'  => $tab['mode'],
+            ];
+        }
+    }
+ 
+    return response()->json([
+        'results' => array_slice(array_values($found), 0, 8),
+    ]);
+}
+ 
 }

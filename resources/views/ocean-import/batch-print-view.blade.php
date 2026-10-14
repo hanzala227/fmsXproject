@@ -284,7 +284,7 @@
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
                         <div class="box-cell">
-                            <div class="box-label">FILE NO.</div>
+                            <div class="box-label">Booking No.</div>
                             <input type="text" class="box-input" value="{{ $shipment->file_no ?? 'MOI-25100001' }}">
                         </div>
                         <div class="box-cell">
@@ -597,7 +597,7 @@
                         <div style="height:16px; width:1px; background:#cbd5e1; margin:0 4px;"></div>
                         
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-size:12px;">
-                            <input type="checkbox" x-model="batchEmailForm.show_file_no" @change="generateBatchContent" style="accent-color:#2563eb;"> File No.
+                            <input type="checkbox" x-model="batchEmailForm.show_file_no" @change="generateBatchContent" style="accent-color:#2563eb;"> Booking No.
                         </label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-size:12px;">
                             <input type="checkbox" x-model="batchEmailForm.show_mbl_no" @change="generateBatchContent" style="accent-color:#2563eb;"> MB/L No.
@@ -847,7 +847,7 @@
 
                     if (this.batchEmailForm.show_file_no || this.batchEmailForm.show_mbl_no || this.batchEmailForm.show_eta) {
                         text += `<br><strong>Shipment Details:</strong><br>`;
-                        if (this.batchEmailForm.show_file_no) text += `File No.: {{ $shipment->file_no ?? 'MOI-25100001' }}<br>`;
+                        if (this.batchEmailForm.show_file_no) text += `Booking No.: {{ $shipment->file_no ?? 'MOI-25100001' }}<br>`;
                         if (this.batchEmailForm.show_mbl_no) text += `MB/L No.: {{ $shipment->mbl_no ?? 'MBL55555' }}<br>`;
                         if (this.batchEmailForm.show_eta) text += `ETA: 10-07-2025<br>`;
                     }

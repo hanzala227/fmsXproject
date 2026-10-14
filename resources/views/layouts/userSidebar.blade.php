@@ -10,7 +10,7 @@
         ['Invoices & Payments', 'bi-cash-stack', 'invoices'],
         // ['Requests', 'bi-download', 'requests'],
         // ['Messages', 'bi-envelope', 'messages', 3],
-        ['Notifications', 'bi-bell', 'notifications', 5],
+        ['Notifications', 'bi-bell', 'notifications', ''],
         ['Reports', 'bi-file-earmark-bar-graph', 'reports'],
         ['Company', 'bi-building', 'company', null, true, [
             // ['Profile', 'company'],
@@ -21,6 +21,7 @@
 @endphp
 
 <aside class="sidebar fx-sidebar" id="sidebar">
+
     <!-- Logo Area -->
     <div class="fx-header">
         <a href="{{ route('client.index') }}" class="fx-brand">
@@ -57,14 +58,13 @@
                     <i class="bi {{ $m[1] }} fx-icon"></i>
                     <span class="fx-label">{{ $m[0] }}</span>
                     @if (!empty($m[3]))<em class="badge-dot fx-badge">{{ $m[3] }}</em>@endif
-                    @if (!empty($m[4]))<i class="bi bi-chevron-down caret fx-caret"></i>@endif
                 </a>
             @endif
         @endforeach
     </nav>
 
     <!-- Help box -->
-    <div class="help fx-help">
+    <!-- <div class="help fx-help">
         <div class="help-row fx-help-row">
             <i class="bi bi-headset"></i>
             <div>
@@ -73,10 +73,11 @@
             </div>
         </div>
         <a href="#" class="help-btn fx-help-btn">Contact Support</a>
-    </div>
+    </div> -->
 </aside>
 
 <style>
+/* ---------- Sidebar shell ---------- */
 #sidebar.fx-sidebar {
     display: flex !important;
     flex-direction: column !important;
@@ -92,12 +93,12 @@
     z-index: 2000;
 }
 
-/* Logo area */
+/* ---------- Logo area ---------- */
 #sidebar .fx-header {
     display: flex;
     align-items: center;
-    height: 50px;
-    padding: 0 16px;
+    height: 64px;
+    padding: 0 20px;
     background-color: #405189 !important;
     border-bottom: 1px solid rgba(255,255,255,0.10);
     flex-shrink: 0;
@@ -106,32 +107,30 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    line-height: 1.1;
+    gap: 2px;
+    line-height: 1;
     text-decoration: none !important;
     color: #ffffff !important;
 }
 #sidebar .fx-brand-name {
-    font-size: 13px;
+    font-size: 24px;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.02em;
     color: #ffffff !important;
 }
-#sidebar .fx-brand-name b { color: #ffffff !important; }
+#sidebar .fx-brand-name b { color: #9db8ff !important; font-weight: 800; }
 #sidebar .fx-brand small {
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
     color: #c3cbe4 !important;
 }
 
-/* Nav */
+/* ---------- Nav ---------- */
 #sidebar .fx-nav {
     flex: 1;
     overflow-y: auto;
-    padding: 12px 0 40px;
-    font-size: 10px;
-    font-weight: 500;
+    padding: 14px 10px 40px;
     background-color: #405189 !important;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -141,99 +140,115 @@
 #sidebar .fx-item {
     display: flex !important;
     align-items: center;
+    gap: 10px;
     width: 100%;
-    padding: 10px 20px !important;
-    border-left: 2px solid transparent;
+    margin-bottom: 2px;
+    padding: 10px 12px !important;
+    border-radius: 8px;
+    border-left: 0 !important;
     text-decoration: none !important;
     color: #c3cbe4 !important;
     background: transparent !important;
-    transition: all 0.2s;
+    transition: background-color .18s, color .18s;
 }
 #sidebar .fx-item:hover {
     background-color: rgba(255,255,255,0.10) !important;
     color: #ffffff !important;
 }
 #sidebar .fx-item.active {
-    background-color: rgba(255,255,255,0.15) !important;
+    background-color: rgba(255,255,255,0.18) !important;
     color: #ffffff !important;
-    border-left: 2px solid #ffffff !important;
+    box-shadow: inset 3px 0 0 #9db8ff;
+}
+#sidebar .fx-item:focus-visible,
+#sidebar .fx-sub-link:focus-visible {
+    outline: 2px solid #9db8ff;
+    outline-offset: -2px;
 }
 
 #sidebar .fx-icon {
+    flex: 0 0 20px;
     width: 20px;
-    margin-right: 12px;
+    margin: 0;
     text-align: center;
-    font-size: 12px;
-    opacity: 0.7;
+    font-size: 16px;
+    line-height: 1;
+    opacity: .75;
 }
 #sidebar .fx-item.active .fx-icon,
 #sidebar .fx-item:hover .fx-icon { opacity: 1; }
 
 #sidebar .fx-label {
     flex: 1;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+#sidebar .fx-item.active .fx-label { font-weight: 600; }
 
-/* Badge */
+/* ---------- Badge ---------- */
 #sidebar .fx-badge {
+    flex-shrink: 0;
     font-style: normal;
-    min-width: 16px;
-    padding: 1px 5px;
+    min-width: 20px;
+    padding: 1px 6px;
     border-radius: 999px;
-    background-color: rgba(255,255,255,0.20) !important;
+    background-color: rgba(255,255,255,0.22) !important;
     color: #ffffff !important;
-    font-size: 8px;
-    font-weight: 700;
-    line-height: 1.4;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
     text-align: center;
 }
 
-/* Caret */
+/* ---------- Caret ---------- */
 #sidebar .fx-caret {
-    margin-left: 6px;
-    font-size: 8px;
-    opacity: 0.6;
-    transition: transform 0.2s;
+    flex-shrink: 0;
+    margin: 0;
+    font-size: 11px;
+    opacity: .7;
+    transition: transform .2s;
 }
 #sidebar .fx-caret-open { transform: rotate(180deg); }
 
-/* Submenu */
+/* ---------- Submenu ---------- */
 #sidebar .fx-sub {
-    background-color: #3b4b7a !important;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    margin: 2px 0 4px;
+    padding: 4px 0;
+    border-radius: 8px;
+    background-color: rgba(0,0,0,0.12) !important;
 }
 #sidebar .fx-sub-link {
     display: block;
-    padding: 10px 20px 10px 52px !important;
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    padding: 8px 12px 8px 42px !important;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
     text-decoration: none !important;
-    color: #a0a8c1 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #b4bcd6 !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: all 0.2s;
+    transition: color .18s, background-color .18s;
 }
-#sidebar .fx-sub-link:last-child { border-bottom: none; }
 #sidebar .fx-sub-link:hover {
     color: #ffffff !important;
-    background-color: rgba(255,255,255,0.05) !important;
+    background-color: rgba(255,255,255,0.06) !important;
 }
 
-/* Help box */
+/* ---------- Help box ---------- */
 #sidebar .fx-help {
     flex-shrink: 0;
     margin: 0 12px 12px;
     padding: 12px;
-    border-radius: 4px;
+    border-radius: 8px;
     background-color: rgba(255,255,255,0.08) !important;
     border: 1px solid rgba(255,255,255,0.10);
     color: #ffffff !important;
@@ -244,33 +259,29 @@
     gap: 10px;
     margin-bottom: 10px;
 }
-#sidebar .fx-help-row > i { font-size: 16px; color: #c3cbe4; }
+#sidebar .fx-help-row > i { font-size: 18px; color: #c3cbe4; }
 #sidebar .fx-help-row strong {
     display: block;
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    font-size: 12.5px;
+    font-weight: 600;
     color: #ffffff;
 }
 #sidebar .fx-help-row small {
     display: block;
-    font-size: 8px;
+    font-size: 11px;
     color: #c3cbe4;
 }
 #sidebar .fx-help-btn {
     display: block;
-    padding: 7px 0;
-    border-radius: 3px;
+    padding: 8px 0;
+    border-radius: 6px;
     background-color: rgba(255,255,255,0.15) !important;
     color: #ffffff !important;
-    font-size: 8px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
     text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
     text-decoration: none !important;
-    transition: background-color 0.2s;
+    transition: background-color .2s;
 }
 #sidebar .fx-help-btn:hover { background-color: rgba(255,255,255,0.25) !important; }
 

@@ -8,7 +8,7 @@
 
     <div class="page-bar">
         <ul class="page-breadcrumb">
-            <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
+            <li><i class="fa fa-home"></i> <a href="{{ route('client.index') }}">Home</a> <i class="fa fa-angle-right"></i></li>
             <li><span style="color:#333;font-weight:700;">My Company</span></li>
         </ul>
     </div>

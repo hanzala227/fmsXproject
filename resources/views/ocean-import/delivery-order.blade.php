@@ -323,7 +323,7 @@
                 </div>
 
                 <div class="meta-box">
-                    <div class="meta-label">OUR FILE NO.</div>
+                    <div class="meta-label">OUR Booking No.</div>
                     <input type="text" class="meta-input" value="{{ $shipment->file_no ?? 'MOI-25100001' }}">
                 </div>
 

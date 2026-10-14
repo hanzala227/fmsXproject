@@ -199,7 +199,7 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="party" style="width:130px;left:50px;">Party</th>
-                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:90px;left:180px;">File No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:90px;left:180px;">Booking No.</th>
                                         <th class="sticky-col sticky-col-header" data-col="inv_no" style="width:100px;left:270px;">Invoice No.</th>
                                         <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:370px;text-align:center;">Color</th>
                                         <th data-col="type" style="width:45px;">Type</th>
@@ -232,7 +232,7 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="Party..." oninput="filterOnInput()"></td>
-                                        <td class="sticky-col" style="left:180px;"><input class="filter-input" data-col-idx="3" placeholder="File No..." oninput="filterOnInput()"></td>
+                                        <td class="sticky-col" style="left:180px;"><input class="filter-input" data-col-idx="3" placeholder="Booking No..." oninput="filterOnInput()"></td>
                                         <td class="sticky-col" style="left:270px;"><input class="filter-input" data-col-idx="4" placeholder="Invoice No..." oninput="filterOnInput()"></td>
                                         <td class="sticky-col" style="left:370px;"></td>
                                         <td><input class="filter-input" data-col-idx="6" placeholder="Type..." oninput="filterOnInput()"></td>
@@ -257,7 +257,7 @@
                                         </td>
                                         {{-- Party --}}
                                         <td class="sticky-col" style="width:130px;left:50px;">{{ $invoice->billTo ? Str::limit($invoice->billTo->name, 18) : '' }}</td>
-                                        {{-- File No. --}}
+                                        {{-- Booking No. --}}
                                         <td class="sticky-col" style="width:90px;left:180px;">
                                             @if($invoice->invoiceable)
                                                 <a href="#" class="col-link">{{ Str::limit(method_exists($invoice->invoiceable, 'getFileNoAttribute') ? $invoice->invoiceable->file_no : ($invoice->invoiceable->file_no ?? '--'), 12) }}</a>

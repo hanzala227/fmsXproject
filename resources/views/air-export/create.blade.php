@@ -595,7 +595,7 @@
                                 <div class="header">
                                     <div>
                                         <h1>Air Export Charges Statement</h1>
-                                        <p style="margin: 5px 0 0 0; color: #666; font-size: 13px;">File No: ${this.form.file_no || 'Draft'} | MAWB: ${this.form.mawb_no || 'N/A'}</p>
+                                        <p style="margin: 5px 0 0 0; color: #666; font-size: 13px;">Booking No: ${this.form.file_no || 'Draft'} | MAWB: ${this.form.mawb_no || 'N/A'}</p>
                                     </div>
                                     <div style="text-align: right; font-size: 12px; color: #666;">Date: ${new Date().toISOString().split('T')[0]}</div>
                                 </div>
@@ -1356,7 +1356,7 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">File No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" x-model="form.mawb_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.notify"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>

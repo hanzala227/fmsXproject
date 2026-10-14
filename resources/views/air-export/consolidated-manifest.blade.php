@@ -347,7 +347,7 @@
             <tr>
                 <td class="label">MAWB NO.</td>
                 <td class="value">{{ $shipment->mawb_no ?? '02605203306' }}</td>
-                <td class="label">FILE NO.</td>
+                <td class="label">Booking No.</td>
                 <td class="value" style="color: #2563eb; font-weight: 800;">{{ $shipment->file_no ?? 'MAE-26050015' }}</td>
             </tr>
             <tr>

@@ -176,7 +176,7 @@
                     <td>{{ $shipment->ship_mode ?? '' }}</td>
                 </tr>
                 <tr>
-                    <td class="lbl">FILE NO. :</td>
+                    <td class="lbl">Booking No. :</td>
                     <td class="font-bold">{{ $shipment->file_no ?? 'MAE-26050020' }}</td>
                     <td class="lbl">SERVICE TERM :</td>
                     <td>{{ $shipment->service_term ?? '' }}</td>

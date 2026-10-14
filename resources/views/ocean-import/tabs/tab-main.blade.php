@@ -72,7 +72,7 @@
                 <!-- Column 1 -->
                 <div class="flex flex-col">
                     <div class="form-group-gf">
-                        <label class="form-label-gf">File No.</label>
+                        <label class="form-label-gf">Booking No.</label>
                         <div class="form-input-container">
                             <input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly style="background:#f5f5f5;">
                         </div>

@@ -30,7 +30,7 @@
         </div>
 
         <!-- Global Command Palette & Search Bar (Compact Fixed Width) - now on the left, next to Main Branch -->
-        <div class="relative flex items-center"
+       <div class="absolute left-1/2 -translate-x-1/2 flex items-center z-[1002]"
              x-data="{
                 query: '',
                 selectedModule: 'All',
@@ -173,11 +173,11 @@
              }"
              @click.away="openDropdown = false; moduleOpen = false">
 
-            <div class="flex items-center bg-gray-50 border border-gray-300 rounded px-2 h-[32px] focus-within:ring-1 focus-within:ring-gray-400 focus-within:border-gray-400 transition-all relative w-[240px] sm:w-[280px]">
+            <div class="flex items-center bg-gray-50 border border-gray-300 rounded-lg px-3 h-[40px] focus-within:ring-2 focus-within:ring-gray-300 focus-within:border-gray-400 transition-all relative w-[500px] sm:w-[420px] lg:w-[560px] max-w-[45vw]">
                 
                 <!-- Module Dropdown Selector -->
                 <div class="relative flex items-center h-full border-r border-gray-300 pr-2 mr-2 cursor-pointer select-none flex-shrink-0" @click.stop="moduleOpen = !moduleOpen">
-                    <span class="text-[11px] font-bold text-gray-600 whitespace-nowrap" x-text="selectedModule"></span>
+                    <span class="text-[13px] font-bold text-gray-600 whitespace-nowrap" x-text="selectedModule"></span>
                     <i class="fa fa-angle-down ml-1.5 text-gray-400 text-[10px] transition-transform duration-200" :class="moduleOpen ? 'rotate-180' : ''"></i>
                     
                     <!-- Module Select Options -->
@@ -185,7 +185,7 @@
                          class="absolute left-0 top-[calc(100%+88px)] w-[160px] max-h-[240px] overflow-y-auto bg-white border border-gray-200 shadow-xl rounded-md py-1 z-[10000]" style = "top:10%; ">
                         <template x-for="mod in modules" :key="mod">
                             <div @click.stop="selectedModule = mod; moduleOpen = false; searchDb()"
-                                 class="px-3 py-1.5 text-[11px] font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 cursor-pointer flex items-center justify-between"
+                                 class="px-3 py-1.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 cursor-pointer flex items-center justify-between"
                                  :class="selectedModule === mod ? 'bg-gray-100 text-gray-900 font-bold' : ''">
                                 <span x-text="mod"></span>
                                 <i class="fa fa-check text-[10px] text-gray-500" x-show="selectedModule === mod"></i>
@@ -200,17 +200,17 @@
                        @input="onInput()"
                        @focus="openDropdown = true"
                        @keydown="onKeyDown($event)"
-                       class="bg-transparent border-none text-[11px] w-full focus:outline-none focus:ring-0 placeholder-gray-400 font-medium text-gray-700 min-w-[80px] p-0" 
+                       class="bg-transparent border-none text-[13px] w-full focus:outline-none focus:ring-0 placeholder-gray-400 font-medium text-gray-700 min-w-[80px] p-0" 
                        placeholder="Search views, file #, MBL...">
 
                 <!-- Loading / Clear / Search Icon -->
                 <div class="flex items-center space-x-1 flex-shrink-0 ml-1">
-                    <i x-show="loading" class="fa fa-circle-o-notch fa-spin text-gray-500 text-[11px]" x-cloak></i>
+                    <i x-show="loading" class="fa fa-circle-o-notch fa-spin text-gray-500 text-[13px]" x-cloak></i>
                     <button type="button" x-show="query" @click="query = ''; dbResults = []; openDropdown = false" class="text-gray-400 hover:text-gray-600 flex items-center justify-center p-0.5" x-cloak>
                         <i class="fa fa-times text-[10px] text-gray-400"></i>
                     </button>
                     <button type="button" @click="openDropdown = true; searchDb()" class="text-gray-400 hover:text-gray-600 flex items-center justify-center p-0.5">
-                        <i class="fa fa-search text-[11px] text-gray-400"></i>
+                        <i class="fa fa-search text-[13px] text-gray-400"></i>
                     </button>
                 </div>
             </div>

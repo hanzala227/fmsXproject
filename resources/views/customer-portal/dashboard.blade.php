@@ -50,7 +50,7 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
                 <thead style="background: #fff; border-bottom: 2px solid #e2e8f0;">
                     <tr>
-                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">File No</th>
+                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Booking No</th>
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Routing (POL &rarr; POD)</th>
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Vessel / Voyage</th>
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Dates (ETD &rarr; ETA)</th>

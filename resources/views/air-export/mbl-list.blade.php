@@ -219,7 +219,7 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">Booking No.</th>
                                     <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">CR</th>
                                     <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:195px;">MAWB No.</th>
 
@@ -246,7 +246,7 @@
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
-                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-col-idx="2" placeholder="File No.." oninput="applyFilters()"></td>
+                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-col-idx="2" placeholder="Booking No.." oninput="applyFilters()"></td>
                                     <td class="sticky-col" style="left:160px;"></td>
                                     <td class="sticky-col" style="left:195px;"><input class="filter-input" style="width:100%;" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
                                     <td colspan="3"></td>
@@ -778,7 +778,7 @@
     ================================================================ */
     function showMbl(d) {
         var rows = [
-            ['File No.',         d.file_no],
+            ['Booking No.',         d.file_no],
             ['MAWB No.',         d.mawb_no],
             ['Carrier',          d.carrier],
             ['Flight No.',       d.flight_no],

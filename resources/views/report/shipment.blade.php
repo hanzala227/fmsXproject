@@ -116,7 +116,7 @@
         {{-- Page Bar --}}
         <div class="page-bar">
             <ul class="page-breadcrumb">
-                <li><a href="/" target="_blank"><i class="fa fa-home"></i></a></li>
+                <li><a href="#" target="_blank"><i class="fa fa-home"></i></a></li>
                 <li><i class="fa fa-angle-right"></i></li>
                 <li><a href="/report" style="color:#337ab7;">Reports</a></li>
                 <li><i class="fa fa-angle-right"></i></li>

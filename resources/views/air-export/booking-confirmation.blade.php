@@ -339,7 +339,7 @@
                 <div class="card-header" style="border: 1px solid #cbd5e1;">BOOKING INFORMATION</div>
                 <table class="table-custom" style="margin-top: -1px;">
                     <tr>
-                        <td class="label">FILE NO.</td>
+                        <td class="label">Booking No.</td>
                         <td class="value" style="color: #2563eb; font-weight: 800;">{{ $shipment->file_no ?? 'MAE-26050015' }}</td>
                     </tr>
                     <tr>

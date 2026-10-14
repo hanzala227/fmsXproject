@@ -193,7 +193,7 @@ body { background:#475569; font-family: Arial, Helvetica, sans-serif; font-size:
 /* Box: "Airport of Departure(Addr. of First Carrier) and Requested Routing" */
 #hawb_airport_departure  {  top: 33.8%; left:8%; width: 38%; height: 1.8%; font-size: 9px; }
 
-/* Box: "File No." (MAE-202607020182249) */
+/* Box: "Booking No." (MAE-202607020182249) */
 #hawb_file_no            { top: 34.1%; left: 47%; width: 14.5%; height: 1.5%; font-size: 9px; font-weight: bold; }
 
 /* Box: "Optional Shipping Information" */
@@ -491,7 +491,7 @@ body { background:#475569; font-family: Arial, Helvetica, sans-serif; font-size:
         <!-- Box: "Airport of Departure(Addr. of First Carrier) and Requested Routing" -->
         <input type="text" id="hawb_airport_departure" class="hawb-field" value="{{ $data['airport_departure'] }}">
         
-        <!-- Box: "File No." (MAE-202607020182249) -->
+        <!-- Box: "Booking No." (MAE-202607020182249) -->
         <input type="text" id="hawb_file_no" class="hawb-field" value="{{ $data['file_no'] }}">
         
         <!-- Box: "Optional Shipping Information" -->

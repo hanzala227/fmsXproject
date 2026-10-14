@@ -249,7 +249,7 @@
                     <td>{{ $shipment->operator->name ?? 'DEMO_925' }}</td>
                 </tr>
                 <tr>
-                    <td class="lbl">FILE NO. :</td>
+                    <td class="lbl">Booking No. :</td>
                     <td>{{ $shipment->file_no ?? 'MOE-25100001' }}</td>
                     <td class="lbl">SHIP MODE :</td>
                     <td>{{ $shipment->ship_mode ?? 'FCL' }}</td>
