@@ -657,14 +657,28 @@
         <div class="portlet light" style="margin-top: 5px;">
             <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hbl.show = !hbl.show">
                 <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-file-text-o"></i> HB/L Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small></span>
-                <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
-                    <!-- HBL Tools Inline -->
-                    <button type="button" @click="toolsAction('hbl_print', index)"
-                        style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
-                        <i class="fa fa-print" style="color: #4b5563; font-size: 10px;"></i> HBL Print
-                    </button>
-                    <i @click="removeHbl(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer;" title="Remove HB/L"></i>
-                    <i class="fa fa-angle-down transition-transform" :class="hbl.show ? 'rotate-180' : ''" style="font-size: 12px;" @click="hbl.show = !hbl.show"></i>
+                <div class="actions" style="display: flex; gap: 6px; align-items: center;" @click.stop>
+                    <!-- HBL Tools Dropdown -->
+                    <div style="position: relative;" x-data="{ openHblMenu: false }" @click.away="openHblMenu = false">
+                        <button type="button" @click="openHblMenu = !openHblMenu"
+                            style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                            <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                        </button>
+                        <div x-show="openHblMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
+                            <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                <li><button type="button" @click="toolsAction('copy_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                <li><button type="button" @click="toolsAction('move_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
+                                <li><button type="button" @click="toolsAction('proof_of_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
+                                <li><button type="button" @click="toolsAction('release_order', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
+                                <li><button type="button" @click="toolsAction('carrier_certificate', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
+                                <li><button type="button" @click="toolsAction('pickup_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
+                                <li><button type="button" @click="toolsAction('forwarder_cargo_receipt', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <i @click="removeHbl(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer; color: #fff; margin-left: 4px;" title="Remove HB/L"></i>
+                    <i class="fa fa-angle-down transition-transform" :class="hbl.show ? 'rotate-180' : ''" style="font-size: 12px; color: #fff;" @click="hbl.show = !hbl.show"></i>
                 </div>
             </div>
             <div class="portlet-body" x-show="hbl.show" x-collapse>

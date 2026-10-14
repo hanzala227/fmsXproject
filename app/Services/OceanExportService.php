@@ -23,6 +23,13 @@ class OceanExportService
             // We rely on OceanExportController's sanitization for foreign key existence
             $oceanExport = OceanExport::create($data);
 
+            if (isset($data['containers'])) {
+                foreach ($data['containers'] as $containerData) {
+                    $containerData = array_merge($this->getContainerDefaults(), $containerData);
+                    $oceanExport->containers()->create($containerData);
+                }
+            }
+
             if (isset($data['hbls'])) {
                 foreach ($data['hbls'] as $hblData) {
                     $hblData = array_merge($this->getHblDefaults(), $hblData);
@@ -33,19 +40,7 @@ class OceanExportService
                         }
                     }
                     $newHbl = $oceanExport->hbls()->create($hblData);
-                    
-                    if (isset($hblData['commodities']) && is_array($hblData['commodities'])) {
-                        foreach ($hblData['commodities'] as $commodityData) {
-                            $newHbl->commodities()->create($commodityData);
-                        }
-                    }
-                }
-            }
-
-            if (isset($data['containers'])) {
-                foreach ($data['containers'] as $containerData) {
-                    $containerData = array_merge($this->getContainerDefaults(), $containerData);
-                    $oceanExport->containers()->create($containerData);
+                    $this->syncHblRelations($newHbl, $hblData, $oceanExport);
                 }
             }
 
@@ -70,48 +65,58 @@ class OceanExportService
     public function update(OceanExport $oceanExport, array $data)
     {
         return DB::transaction(function () use ($oceanExport, $data) {
+            $user = auth()->user();
+            $userName = $user ? $user->name : 'System';
+
+            // Snapshot old states
+            $oldMblAttributes = $oceanExport->getAttributes();
+            $oldContainerCount = $oceanExport->containers()->count();
+            $oldHblCount = $oceanExport->hbls()->count();
+            $oldChargeCount = $oceanExport->charges()->count();
+
+            // Perform MBL update
             $oceanExport->update($data);
 
-            $submittedHblIds = [];
-            if (isset($data['hbls'])) {
-                foreach ($data['hbls'] as $hblData) {
-                    if (isset($hblData['id'])) {
-                        $hbl = OceanExportHbl::find($hblData['id']);
-                        if ($hbl && $hbl->ocean_export_id === $oceanExport->id) {
-                            $hbl->update($hblData);
-                            $submittedHblIds[] = $hbl->id;
-                        }
-                    } else {
-                        $hblData = array_merge($this->getHblDefaults(), $hblData);
-                        $hbl = $oceanExport->hbls()->create($hblData);
-                        $submittedHblIds[] = $hbl->id;
-                    }
-                    
-                    if (isset($hbl)) {
-                        if (isset($hblData['commodities']) && is_array($hblData['commodities'])) {
-                            $submittedCommIds = [];
-                            foreach ($hblData['commodities'] as $commData) {
-                                if (isset($commData['id'])) {
-                                    $commModel = $hbl->commodities()->find($commData['id']);
-                                    if ($commModel) {
-                                        $commModel->update($commData);
-                                        $submittedCommIds[] = $commModel->id;
-                                    }
-                                } else {
-                                    $newComm = $hbl->commodities()->create($commData);
-                                    $submittedCommIds[] = $newComm->id;
-                                }
-                            }
-                            $hbl->commodities()->whereNotIn('id', $submittedCommIds)->delete();
-                        } else {
-                            $hbl->commodities()->delete();
-                        }
-                    }
+            // Compute changed MBL attributes
+            $changes = [];
+            $friendlyFieldNames = [
+                'mbl_no' => 'MBL No.',
+                'booking_no' => 'Booking No.',
+                'post_date' => 'Post Date',
+                'vessel_id' => 'Vessel',
+                'voyage' => 'Voyage',
+                'pol_id' => 'Port of Loading',
+                'pod_id' => 'Port of Discharge',
+                'etd' => 'ETD',
+                'eta' => 'ETA',
+                'ship_mode' => 'Ship Mode',
+                'carrier_id' => 'Carrier',
+                'oversea_agent_id' => 'Oversea Agent',
+                'forwarding_agent_id' => 'Forwarding Agent',
+                'sub_bl_no' => 'Sub B/L No.',
+                'internal_remark' => 'Internal Remark',
+                'is_hold' => 'Hold Status',
+                'is_blocked' => 'Blocked Status',
+                'obl_type' => 'OBL Type',
+                'bl_type' => 'BL Type',
+                'cargo_type' => 'Cargo Type'
+            ];
+
+            foreach ($oceanExport->getChanges() as $field => $newVal) {
+                if (in_array($field, ['updated_at', 'created_at', 'id'])) continue;
+                $label = $friendlyFieldNames[$field] ?? ucwords(str_replace('_', ' ', $field));
+                $oldVal = $oldMblAttributes[$field] ?? 'empty';
+                $oldValStr = is_null($oldVal) || $oldVal === '' ? '(empty)' : (string)$oldVal;
+                $newValStr = is_null($newVal) || $newVal === '' ? '(empty)' : (string)$newVal;
+                if ($oldValStr !== $newValStr) {
+                    $changes[] = "$label changed from \"$oldValStr\" to \"$newValStr\"";
                 }
             }
-            $oceanExport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
 
+            // Sync containers
             $submittedContainerIds = [];
+            $containersAdded = 0;
+            $containersUpdated = 0;
             if (isset($data['containers'])) {
                 foreach ($data['containers'] as $containerData) {
                     if (isset($containerData['id'])) {
@@ -119,33 +124,119 @@ class OceanExportService
                         if ($container && $container->ocean_export_id === $oceanExport->id) {
                             $container->update($containerData);
                             $submittedContainerIds[] = $container->id;
+                            $containersUpdated++;
                         }
                     } else {
                         $containerData = array_merge($this->getContainerDefaults(), $containerData);
                         $newContainer = $oceanExport->containers()->create($containerData);
                         $submittedContainerIds[] = $newContainer->id;
+                        $containersAdded++;
                     }
                 }
             }
-            $oceanExport->containers()->whereNotIn('id', $submittedContainerIds)->delete();
+            $containersDeleted = $oceanExport->containers()->whereNotIn('id', $submittedContainerIds)->delete();
+            if ($containersAdded > 0) $changes[] = "$containersAdded container(s) added";
+            if ($containersDeleted > 0) $changes[] = "$containersDeleted container(s) removed";
 
+            // Sync HBLs
+            $submittedHblIds = [];
+            $hblsAdded = 0;
+            $hblsUpdated = 0;
+            if (isset($data['hbls'])) {
+                foreach ($data['hbls'] as $hblData) {
+                    if (isset($hblData['id'])) {
+                        $hbl = OceanExportHbl::find($hblData['id']);
+                        if ($hbl && $hbl->ocean_export_id === $oceanExport->id) {
+                            $hbl->update($hblData);
+                            $submittedHblIds[] = $hbl->id;
+                            $hblsUpdated++;
+                        }
+                    } else {
+                        $hblData = array_merge($this->getHblDefaults(), $hblData);
+                        $hbl = $oceanExport->hbls()->create($hblData);
+                        $submittedHblIds[] = $hbl->id;
+                        $hblsAdded++;
+                    }
+                    
+                    if (isset($hbl)) {
+                        $this->syncHblRelations($hbl, $hblData, $oceanExport);
+                    }
+                }
+            }
+            $hblsDeleted = $oceanExport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
+            if ($hblsAdded > 0) $changes[] = "$hblsAdded House B/L added";
+            if ($hblsDeleted > 0) $changes[] = "$hblsDeleted House B/L removed";
+
+            // Sync charges
             if (isset($data['charges'])) {
                 $oceanExport->charges()->delete();
+                $chargeCount = 0;
                 foreach ($data['charges'] as $chargeData) {
                     $chargeData = array_merge($this->getChargeDefaults(), $chargeData);
                     $oceanExport->charges()->create($this->mapChargeData($chargeData));
+                    $chargeCount++;
+                }
+                if ($chargeCount !== $oldChargeCount) {
+                    $changes[] = "Charges updated ($chargeCount total charges)";
                 }
             }
+
+            // Create descriptive detailed log entry
+            $details = count($changes) > 0
+                ? implode('; ', $changes) . '.'
+                : 'Shipment saved without field changes.';
 
             $oceanExport->statusLogs()->create([
                 'user_id' => auth()->id(),
                 'status_code' => 'UPDATED',
                 'status_name' => 'UPDATED',
-                'details' => 'Ocean Export shipment updated.',
+                'details' => $details,
             ]);
 
             return $oceanExport;
         });
+    }
+
+    protected function syncHblRelations(OceanExportHbl $hbl, array $hblData, OceanExport $oceanExport)
+    {
+        // 1. Containers
+        $syncData = [];
+        if (isset($hblData['containers']) && is_array($hblData['containers'])) {
+            foreach ($hblData['containers'] as $cData) {
+                $containerNo = $cData['container_no'] ?? '';
+                if ($containerNo) {
+                    $container = $oceanExport->containers()->where('container_no', $containerNo)->first();
+                    if (!$container) {
+                        $container = $oceanExport->containers()->create([
+                            'container_no' => $containerNo,
+                            'pkg_qty' => $cData['pkg_qty'] ?? null,
+                            'weight_kg' => $cData['weight_kg'] ?? null,
+                            'measure_cbm' => $cData['measure_cbm'] ?? null,
+                        ]);
+                    }
+                    if ($container) {
+                        $syncData[$container->id] = [
+                            'pkg_qty' => $cData['pkg_qty'] ?? null,
+                            'pkg_unit' => $cData['pkg_unit'] ?? null,
+                            'weight_kg' => $cData['weight_kg'] ?? null,
+                            'weight_unit' => $cData['weight_unit'] ?? null,
+                            'measure_cbm' => $cData['measure_cbm'] ?? null,
+                            'measure_unit' => $cData['measure_unit'] ?? null,
+                            'po_no' => $cData['po_no'] ?? null,
+                        ];
+                    }
+                }
+            }
+        }
+        $hbl->containers()->sync($syncData);
+
+        // 2. Commodities
+        $hbl->commodities()->delete();
+        if (isset($hblData['commodities']) && is_array($hblData['commodities'])) {
+            foreach ($hblData['commodities'] as $commData) {
+                $hbl->commodities()->create($commData);
+            }
+        }
     }
 
     private function getHblDefaults(): array

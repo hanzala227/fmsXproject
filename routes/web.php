@@ -74,14 +74,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/global-search', [GlobalSearchController::class, 'search'])->name('api.global-search');
     Route::post('/api/documents/email', [\App\Http\Controllers\DocumentEmailController::class, 'sendEmail'])->name('documents.email');
     Route::get('/', function () {
-        if (auth()->check() && auth()->user()->isSuperAdmin()) {
-            return redirect()->route('super-admin.dashboard');
-        }
+        if (!auth()->check()) return redirect()->route('login');
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) return redirect()->route('super-admin.dashboard');
+        if ($user->isCustomer()) return redirect()->route('customer.dashboard');
+        if ($user->isClient()) return redirect()->route('client.index');
         return redirect()->route('dashboard');
     });
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('role:Admin,User');
+    Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data')->middleware('role:Admin,User');
 
     // Data Migration
     Route::prefix('data-migration')->name('data-migration.')->group(function () {

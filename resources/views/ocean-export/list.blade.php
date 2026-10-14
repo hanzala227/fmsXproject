@@ -453,7 +453,7 @@
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px;">HB/L</th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">File No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:235px;">MB/L No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:130px;left:200px;">MB/L No.</th>
                                         <th data-col="tracking"     style="width:140px;">Tracking EDI Response</th>
                                         <th data-col="sub_status"   style="width:100px;">Submit Status</th>
                                         <th data-col="office"       style="width:80px;">Office</th>
@@ -504,11 +504,10 @@
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
                                         <td class="sticky-col" style="left:90px;"><input class="filter-input" data-col-idx="3" placeholder="File No…" oninput="applyFilters()"></td>
-                                        <td class="sticky-col" style="left:200px;"></td>
-                                        <td class="sticky-col" style="left:235px;"><input class="filter-input" data-col-idx="5" placeholder="MB/L…" oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:200px;"><input class="filter-input" data-col-idx="4" placeholder="MB/L…" oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
-                                        <td><input class="filter-input" data-col-idx="8"  placeholder="Office…"    oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="7"  placeholder="Office…"    oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>

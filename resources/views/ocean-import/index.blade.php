@@ -1290,6 +1290,13 @@
                         },
                         batch_email: () => self.openBatchEmailModal(),
                         batch_print: () => this.openBatchPrintModal(),
+                        copy_to: () => showToast('info', 'Copy To - feature coming soon.'),
+                        move_to: () => showToast('info', 'Move To - feature coming soon.'),
+                        proof_of_delivery: () => { if (shipmentId) window.open(`/ocean-import/${shipmentId}/proof-of-delivery`, '_blank'); },
+                        release_order: () => { if (shipmentId) window.open(`/ocean-import/${shipmentId}/release-order`, '_blank'); },
+                        carrier_certificate: () => { if (shipmentId) window.open(`/ocean-import/${shipmentId}/carrier-certificate`, '_blank'); },
+                        pickup_delivery: () => { if (shipmentId) window.open(`/ocean-import/${shipmentId}/pickup-delivery-instruction`, '_blank'); },
+                        forwarder_cargo_receipt: () => { if (shipmentId) window.open(`/ocean-import/${shipmentId}/forwarder-cargo-receipt`, '_blank'); },
                         hbl_print: () => window.open(`/ocean-import/${shipmentId}/hbl-print/${hblIdx}`, '_blank'),
                         dev_seg: () => window.open(`/ocean-import/${shipmentId}/dev-seg`, '_blank'),
                         manifest: () => window.open(`/ocean-import/${shipmentId}/export-pdf`, '_blank'),
@@ -1992,6 +1999,30 @@
                     }
                     return '';
                 },
+                showInvoiceModal: false,
+                invoiceModalData: {
+                    fin_date: new Date().toISOString().split('T')[0],
+                    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    currency: 'USD',
+                    tax: false,
+                    internal_ref: '',
+                    dec: '2',
+                    type: 'INV',
+                    manif_amt: 0,
+                    loc_amt: 0,
+                    cr_days: 30,
+                    cr_limit: 0,
+                    bal_limit: 0,
+                    group: true,
+                    party_info: '',
+                    remarks: '',
+                    bank_details: '',
+                    charges_count: 0,
+                    selected_ids: [],
+                    progress: 0,
+                    attachment_name: '',
+                    file: null
+                },
                 chargesList: @json(isset($oceanImport) && $oceanImport->charges && count($oceanImport->charges) > 0 ? $oceanImport->charges : []),
 
                 calculateTotalCharges() {
@@ -2175,24 +2206,79 @@
                     
                     let selectedCharges = this.chargesList.filter(c => c._selected || c.selected);
                     if (selectedCharges.length === 0) {
-                        showToast('error', 'Please select at least one charge.');
+                        showToast('error', 'Please select at least one charge using the checkbox.');
                         return;
                     }
 
+                    // 1. Check for unsaved charges (new rows that haven't been saved yet)
+                    let unsavedCharges = selectedCharges.filter(c => !c.id);
+                    if (unsavedCharges.length > 0) {
+                        showToast('warning', 'You have ' + unsavedCharges.length + ' unsaved charge(s). Please click "Save" first before generating an invoice.');
+                        return;
+                    }
+
+                    // 2. Check for already invoiced charges
                     let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
-                    if (alreadyInvoiced.length > 0) {
-                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Already Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
-                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
-                    }
-
                     let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
-                    let selectedIds = uninvoicedCharges.filter(c => c.id).map(c => c.id);
 
-                    if (selectedIds.length === 0) {
+                    if (uninvoicedCharges.length === 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('warning', 'Selected charge(s) are already invoiced (' + invNos + ').');
                         return;
                     }
 
-                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' selected uninvoiced charge(s)?')) return;
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('info', 'Skipping already invoiced charge(s): ' + invNos);
+                    }
+
+                    let selectedIds = uninvoicedCharges.map(c => c.id);
+
+                    // Calculate totals
+                    let foreignAmt = 0;
+                    let localAmt = 0;
+                    let firstCurrency = 'USD';
+                    let firstParty = '';
+
+                    uninvoicedCharges.forEach(c => {
+                        let f = (parseFloat(c.rate) || 0) * (parseFloat(c.qty) || 0);
+                        let l = this.calculateLocalAmount(c);
+                        foreignAmt += f;
+                        localAmt += l;
+                        if (c.currency) firstCurrency = c.currency;
+                        if (!firstParty && c.party_name) firstParty = c.party_name;
+                    });
+
+                    // Prepare party address / info
+                    let partyDisplay = firstParty || this.customerName || 'General Customer';
+                    if (this.form.file_no) {
+                        partyDisplay += "\nRef: " + this.form.file_no;
+                    }
+
+                    this.invoiceModalData.selected_ids = selectedIds;
+                    this.invoiceModalData.charges_count = selectedIds.length;
+                    this.invoiceModalData.manif_amt = foreignAmt;
+                    this.invoiceModalData.loc_amt = localAmt;
+                    this.invoiceModalData.currency = firstCurrency;
+                    this.invoiceModalData.party_info = partyDisplay;
+                    this.invoiceModalData.fin_date = new Date().toISOString().split('T')[0];
+                    this.invoiceModalData.due_date = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+                    this.invoiceModalData.progress = 0;
+                    this.invoiceModalData.attachment_name = '';
+                    this.invoiceModalData.file = null;
+
+                    this.showInvoiceModal = true;
+                },
+
+                processInvoiceModal() {
+                    if (!this.invoiceModalData.selected_ids || this.invoiceModalData.selected_ids.length === 0) {
+                        showToast('error', 'No charges selected.');
+                        return;
+                    }
+
+                    this.invoiceModalData.progress = 30;
+                    showToast('info', 'Generating invoice...');
+
                     fetch(`/ocean-import/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: { 
@@ -2200,17 +2286,62 @@
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ ids: selectedIds })
+                        body: JSON.stringify({ 
+                            ids: this.invoiceModalData.selected_ids,
+                            fin_date: this.invoiceModalData.fin_date,
+                            due_date: this.invoiceModalData.due_date,
+                            internal_ref: this.invoiceModalData.internal_ref,
+                            type: this.invoiceModalData.type,
+                            remarks: this.invoiceModalData.remarks,
+                            bank_details: this.invoiceModalData.bank_details
+                        })
                     })
                     .then(res => res.json())
                     .then(data => {
+                        this.invoiceModalData.progress = 100;
                         if (data.success) {
                             showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            setTimeout(() => { window.location.reload(); }, 800);
+                            this.showInvoiceModal = false;
+                            setTimeout(() => { window.location.reload(); }, 600);
                         } else {
-                            showToast('error', 'Failed to create invoice: ' + data.message);
+                            showToast('error', 'Failed to create invoice: ' + (data.message || 'Unknown error'));
                         }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast('error', 'Error generating invoice.');
                     });
+                },
+
+                previewInvoiceModal() {
+                    if (!this.form.id) {
+                        showToast('error', 'Please save shipment first.');
+                        return;
+                    }
+                    window.open(`/shipments/ocean-import/${this.form.id}/freight-invoice`, '_blank');
+                },
+
+                handleInvoiceModalFile(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.invoiceModalData.file = file;
+                        if (!this.invoiceModalData.attachment_name) {
+                            this.invoiceModalData.attachment_name = file.name;
+                        }
+                        this.invoiceModalData.progress = 10;
+                    }
+                },
+
+                uploadInvoiceModalFile() {
+                    if (!this.invoiceModalData.file) {
+                        showToast('info', 'Please select a file to upload first.');
+                        return;
+                    }
+                    this.invoiceModalData.progress = 60;
+                    showToast('success', 'File ' + this.invoiceModalData.attachment_name + ' attached.');
+                    setTimeout(() => {
+                        this.invoiceModalData.progress = 100;
+                    }, 400);
                 },
 
                 generateFreightInvoice() {
@@ -2665,6 +2796,18 @@
                                     <li><button type="button" @click="saved ? toolsAction('batch_print') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Print</button></li>
                                 </div>
                             </template>
+                            <template x-if="activeTab==='container'">
+                                <div>
+                                    <li style="border-top:1px solid #f3f4f6; padding:4px 12px;"><span style="font-size:10px; color:#9ca3af; font-weight:600;">HBL Actions</span></li>
+                                    <li><button type="button" @click="saved ? toolsAction('copy_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('move_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('proof_of_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('release_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('carrier_certificate') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('pickup_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('forwarder_cargo_receipt') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
+                                </div>
+                            </template>
                             <li><button type="button" @click="saved ? toolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
                             <li><button type="button" @click="saved ? toolsAction('dev_seg') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-th-large" style="width:14px; text-align:center; margin-right:4px;"></i> DEV/SEG</button></li>
                             <li><button type="button" @click="saved ? toolsAction('delivery_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
@@ -2847,6 +2990,9 @@
                 </div>
             </div>
 
+            <!-- Include Generate Invoice Popup Modal -->
+            @include('partials.charges-invoice-modal')
+
           <!-- CHARGES TAB -->
 <!-- CHARGES TAB -->
 <div x-show="activeTab === 'charges'" class="main-grid">
@@ -2861,26 +3007,7 @@
                 }
             </script>
 
-            <!-- Header Info Row -->
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-weight: 700; color: #4b77be;">KG :</span>
-                    <span style="color: #333;" x-text="form.file_no || '-'"></span>
-                </div>
-                <template x-for="h in hbls" :key="h.id || h.hbl_no">
-                    <div style="display: flex; align-items: center; gap: 5px;" x-show="h.hbl_no">
-                        <span style="font-weight: 700; color: #4b77be;">GP :</span>
-                        <span style="color: #333;" x-text="h.hbl_no"></span>
-                    </div>
-                </template>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <button type="button" class="btn-default-gf" style="border: 1px solid #4b77be; color: #4b77be; padding: 2px 8px;" @click="activeChargeFilter = 'All'">GP : Show All of this BKG</button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                    <span style="font-weight: 700; color: #4b77be;">CM :</span>
-                    <span style="color: #333; font-weight: 700;" x-text="calculateTotalCharges().toFixed(2)">56,612.75</span>
-                </div>
-            </div>
+
 
             <!-- Filter Row -->
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; padding: 6px 8px; background: #fff; border: 1px solid #e7ecf1; border-radius: 4px; align-items: center;">

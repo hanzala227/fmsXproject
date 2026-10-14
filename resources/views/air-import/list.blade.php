@@ -162,8 +162,8 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:53px;">File No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:213px;">MAWB No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:125px;left:53px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:178px;">MAWB No.</th>
                                     <th data-col="oversea_agent" style="width:150px;">Oversea Agent</th>
                                     <th data-col="shipper" style="width:150px;">Shipper</th>
                                     <th data-col="hawb_shipper" style="width:150px;">HAWB Shipper</th>
@@ -185,8 +185,7 @@
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:53px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File…" oninput="applyFiltersTyping()"></td>
-                                    <td class="sticky-col" style="left:173px;"></td>
-                                    <td class="sticky-col" style="left:213px;"><input class="filter-input" style="width:100%;" data-param="filter_mawb" placeholder="MAWB…" oninput="applyFiltersTyping()"></td>
+                                    <td class="sticky-col" style="left:178px;"><input class="filter-input" style="width:100%;" data-param="filter_mawb" placeholder="MAWB…" oninput="applyFiltersTyping()"></td>
                                     <td><input class="filter-input" style="width:100%;" data-param="filter_agent" placeholder="Agent…" oninput="applyFiltersTyping()"></td>
                                     <td><input class="filter-input" style="width:100%;" data-param="filter_shipper" placeholder="Shipper…" oninput="applyFiltersTyping()"></td>
                                     <td colspan="8"></td>

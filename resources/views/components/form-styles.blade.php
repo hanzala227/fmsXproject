@@ -123,7 +123,7 @@
         }
         textarea.form-control-gf {
             height: auto;
-            min-height: 140px !important;
+            min-height: 50px;
             line-height: 1.4;
             padding: 6px 8px;
         }
@@ -143,10 +143,13 @@
             font-weight: 600;
             color: #475569;
             display: inline-block;
-            width: 115px;
+            width: 105px;
+            max-width: 105px;
             text-align: right;
-            margin-right: 6px;
+            margin-right: 5px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             flex-shrink: 0;
             line-height: 26px;
             height: 26px;
@@ -158,6 +161,7 @@
             margin-bottom: 4px;
             width: 100%;
             min-height: 26px;
+            min-width: 0;
         }
         .form-input-container {
             flex: 1;
@@ -166,6 +170,7 @@
             gap: 3px;
             position: relative;
             min-width: 0;
+            width: 100%;
         }
 
         /* Checkboxes & Radios */
@@ -274,14 +279,22 @@
 
         /* Grids */
         .main-grid { display: flex; flex-direction: column; gap: 4px; width: 100%; }
-        .form-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px; }
-
-        @media (max-width: 1280px) {
-            .main-grid { grid-template-columns: 1fr !important; }
-            .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
+        .form-grid-4 { 
+            display: grid; 
+            grid-template-columns: repeat(4, minmax(0, 1fr)); 
+            gap: 4px 10px; 
+            width: 100%;
+            box-sizing: border-box;
         }
-        @media (max-width: 1400px) { .form-grid-4 { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 1100px) { .form-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        .form-grid-4 > div {
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 1366px) {
+            .form-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
         @media (max-width: 768px) {
             .form-grid-4 { grid-template-columns: 1fr; }
             .form-row { display: flex !important; flex-direction: column !important; gap: 6px !important; }
@@ -448,7 +461,7 @@
         .expanded-col { border-right: 1px dashed #cbd5e1; padding: 6px 10px; }
         .expanded-col:last-child { border-right: none; }
 
-        textarea.form-control-gf { min-height: 140px !important; resize: vertical; padding: 6px; }
+        textarea.form-control-gf { min-height: 50px; resize: vertical; padding: 6px; }
         .hbl-header { font-weight: 700; color: #3b82f6; font-size: 11px; margin-bottom: 4px; border-bottom: 2px solid #e2e8f0; padding-bottom: 2px; }
 
         .total-row { background: #f8fafc; font-weight: 700; font-size: 11px; color: #0f172a; }

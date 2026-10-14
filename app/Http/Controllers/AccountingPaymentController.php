@@ -311,9 +311,15 @@ class AccountingPaymentController extends Controller
         $viewName = $type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
         $payment = null;
         $selectedInvoiceId = $request->input('invoice_id');
+        $selectedInvoiceIds = [];
+        if ($request->filled('invoice_ids')) {
+            $selectedInvoiceIds = array_filter(array_map('trim', explode(',', $request->input('invoice_ids'))));
+        } elseif ($selectedInvoiceId) {
+            $selectedInvoiceIds = [(string) $selectedInvoiceId];
+        }
         $selectedOfficeId = $request->input('office_id');
         
-        return view($viewName, compact('payment', 'type', 'tradePartners', 'currencies', 'offices', 'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedOfficeId'));
+        return view($viewName, compact('payment', 'type', 'tradePartners', 'currencies', 'offices', 'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds', 'selectedOfficeId'));
     }
 
     public function store(StoreAccountingPaymentRequest $request)

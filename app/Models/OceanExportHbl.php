@@ -27,6 +27,7 @@ class OceanExportHbl extends Model
         'do_sent_date', 'name_account', 'group_comm', 'line_code', 
         'is_ecommerce', 'is_customs_doc', 'hbl_remark', 'po_no',
         'cfs_location_id', 'freight_released_by_id',
+        'po_mapping_type', 'hbl_mark', 'hbl_description',
     ];
 
     protected $attributes = [
@@ -50,6 +51,7 @@ class OceanExportHbl extends Model
         'is_do_sent' => 0,
         'is_ecommerce' => 0,
         'is_customs_doc' => 0,
+        'po_mapping_type' => 'container',
     ];
 
     protected $casts = [
@@ -93,7 +95,9 @@ class OceanExportHbl extends Model
     
     public function containers()
     {
-        return $this->belongsToMany(OceanExportContainer::class, 'ocean_export_container_hbl', 'hbl_id', 'container_id');
+        return $this->belongsToMany(OceanExportContainer::class, 'ocean_export_container_hbl', 'hbl_id', 'container_id')
+            ->withPivot(['pkg_qty', 'pkg_unit', 'weight_kg', 'weight_unit', 'measure_cbm', 'measure_unit', 'po_no'])
+            ->withTimestamps();
     }
 
     public function commodities()

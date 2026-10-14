@@ -110,13 +110,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/air-export/booking/mawb-stock', 'label' => 'MAWB Stock List'],
                             ]],
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
-                                ['label' => 'INV/DN/CN', 'type' => 'group', 'items' => [
-                                    ['url' => '/accounting/invoice', 'label' => 'All'],
-                                    ['url' => '/accounting/invoice?doc_type=INV', 'label' => 'INV'],
-                                    ['url' => '/accounting/invoice?doc_type=DN', 'label' => 'DN'],
-                                    ['url' => '/accounting/invoice?doc_type=CN', 'label' => 'CN'],
-                                    ['url' => '/accounting/invoice/verify-queue', 'label' => 'Verify'],
-                                ]],
+                                ['url' => '/accounting/invoice', 'label' => 'INV/DN/CN'],
                                 ['label' => 'Receivable', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/payment/receive', 'label' => 'Receive Payment'],
                                     ['url' => '/accounting/payment/received-list', 'label' => 'Payment Received List (A/R)'],

@@ -55,6 +55,24 @@
             color: #fff;
             font-weight: 600;
         }
+        /* Override form-styles 140px min-height for compact memo/remark textareas */
+        textarea.form-control-gf {
+            min-height: unset !important;
+            height: auto;
+            line-height: 1.4;
+        }
+        .textarea-compact {
+            height: 150px !important;
+            min-height: 150px !important;
+            max-height: 350px;
+            resize: vertical;
+        }
+        .textarea-compact-sm {
+            height: 100px !important;
+            min-height: 100px !important;
+            max-height: 250px;
+            resize: vertical;
+        }
     </style>
     @endpush
 
@@ -160,7 +178,7 @@
                 saved: {{ isset($airExport) && $airExport->id ? 'true' : 'false' }},
                 showMblSection: true,
                 showMblMemo: false,
-                isDirectMaster: false,
+                isDirectMaster: {{ isset($airExport) && ($airExport->is_direct_master || $airExport->dm_customer_id) ? 'true' : 'false' }},
                 showMore: false,
                 showConnectingFlight: false,
                 hawbs: [],
@@ -248,6 +266,30 @@
                     }
                 },
                 activeChargeFilter: 'All',
+                showInvoiceModal: false,
+                invoiceModalData: {
+                    fin_date: new Date().toISOString().split('T')[0],
+                    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    currency: 'USD',
+                    tax: false,
+                    internal_ref: '',
+                    dec: '2',
+                    type: 'INV',
+                    manif_amt: 0,
+                    loc_amt: 0,
+                    cr_days: 30,
+                    cr_limit: 0,
+                    bal_limit: 0,
+                    group: true,
+                    party_info: '',
+                    remarks: '',
+                    bank_details: '',
+                    charges_count: 0,
+                    selected_ids: [],
+                    progress: 0,
+                    attachment_name: '',
+                    file: null
+                },
                 chargesList: @json($chargesData ?? []),
 
                 calculateTotalCharges() {
@@ -409,26 +451,79 @@
                         return;
                     }
                     
-                    let selectedCharges = this.chargesList.filter(c => (c._selected || c.selected) && c.id);
+                    let selectedCharges = this.chargesList.filter(c => c._selected || c.selected);
                     if (selectedCharges.length === 0) {
                         showToast('error', 'Please select at least one charge using checkbox.');
                         return;
                     }
 
-                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
-                    if (alreadyInvoiced.length > 0) {
-                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').join(', ');
-                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
+                    // 1. Check for unsaved charges (new rows that haven't been saved yet)
+                    let unsavedCharges = selectedCharges.filter(c => !c.id);
+                    if (unsavedCharges.length > 0) {
+                        showToast('warning', 'You have ' + unsavedCharges.length + ' unsaved charge(s). Please click "Save" first before generating an invoice.');
+                        return;
                     }
 
+                    // 2. Check for already invoiced charges
+                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
                     let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
+
                     if (uninvoicedCharges.length === 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('warning', 'Selected charge(s) are already invoiced (' + invNos + ').');
                         return;
+                    }
+
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('info', 'Skipping already invoiced charge(s): ' + invNos);
                     }
 
                     let selectedIds = uninvoicedCharges.map(c => c.id);
 
-                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' charge(s)?')) return;
+                    // Compute manifest amount (foreign) and local amount
+                    let foreignAmt = 0;
+                    let localAmt = 0;
+                    let firstCurrency = 'USD';
+                    let firstParty = '';
+
+                    uninvoicedCharges.forEach(c => {
+                        foreignAmt += parseFloat(c.f_amount || c.amount || 0);
+                        localAmt += this.calculateLocalAmount(c);
+                        if (c.currency) firstCurrency = c.currency;
+                        if (!firstParty && c.party_name) firstParty = c.party_name;
+                    });
+
+                    // Prepare party address / info
+                    let partyDisplay = firstParty || (this.hawbs && this.hawbs.length > 0 ? this.hawbs[0].customer_name : '') || 'General Customer';
+                    if (this.form.file_no) {
+                        partyDisplay += "\nRef: " + this.form.file_no;
+                    }
+
+                    this.invoiceModalData.selected_ids = selectedIds;
+                    this.invoiceModalData.charges_count = selectedIds.length;
+                    this.invoiceModalData.manif_amt = foreignAmt;
+                    this.invoiceModalData.loc_amt = localAmt;
+                    this.invoiceModalData.currency = firstCurrency;
+                    this.invoiceModalData.party_info = partyDisplay;
+                    this.invoiceModalData.fin_date = new Date().toISOString().split('T')[0];
+                    this.invoiceModalData.due_date = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+                    this.invoiceModalData.progress = 0;
+                    this.invoiceModalData.attachment_name = '';
+                    this.invoiceModalData.file = null;
+
+                    this.showInvoiceModal = true;
+                },
+
+                processInvoiceModal() {
+                    if (!this.invoiceModalData.selected_ids || this.invoiceModalData.selected_ids.length === 0) {
+                        showToast('error', 'No charges selected.');
+                        return;
+                    }
+
+                    this.invoiceModalData.progress = 30;
+                    showToast('info', 'Generating invoice...');
+
                     fetch(`/air-export/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: { 
@@ -436,17 +531,62 @@
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ ids: selectedIds })
+                        body: JSON.stringify({ 
+                            ids: this.invoiceModalData.selected_ids,
+                            fin_date: this.invoiceModalData.fin_date,
+                            due_date: this.invoiceModalData.due_date,
+                            internal_ref: this.invoiceModalData.internal_ref,
+                            type: this.invoiceModalData.type,
+                            remarks: this.invoiceModalData.remarks,
+                            bank_details: this.invoiceModalData.bank_details
+                        })
                     })
                     .then(res => res.json())
                     .then(data => {
+                        this.invoiceModalData.progress = 100;
                         if (data.success) {
                             showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            setTimeout(() => { window.location.reload(); }, 800);
+                            this.showInvoiceModal = false;
+                            setTimeout(() => { window.location.reload(); }, 600);
                         } else {
-                            showToast('error', 'Failed to create invoice: ' + data.message);
+                            showToast('error', 'Failed to create invoice: ' + (data.message || 'Unknown error'));
                         }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast('error', 'Failed to create invoice.');
                     });
+                },
+
+                previewInvoiceModal() {
+                    if (!this.form.id) {
+                        showToast('error', 'Please save shipment first.');
+                        return;
+                    }
+                    window.open(`/shipments/air-export/${this.form.id}/freight-invoice`, '_blank');
+                },
+
+                handleInvoiceModalFile(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.invoiceModalData.file = file;
+                        if (!this.invoiceModalData.attachment_name) {
+                            this.invoiceModalData.attachment_name = file.name;
+                        }
+                        this.invoiceModalData.progress = 10;
+                    }
+                },
+
+                uploadInvoiceModalFile() {
+                    if (!this.invoiceModalData.file) {
+                        showToast('info', 'Please select a file to upload first.');
+                        return;
+                    }
+                    this.invoiceModalData.progress = 60;
+                    showToast('success', 'File ' + this.invoiceModalData.attachment_name + ' attached.');
+                    setTimeout(() => {
+                        this.invoiceModalData.progress = 100;
+                    }, 400);
                 },
 
                 prorataCharges() {
@@ -591,6 +731,15 @@
                         }
                     }
                 },
+                addCharge() {
+                    this.form.other_charges.push({
+                        charge_code: '',
+                        description: '',
+                        term: 'P',
+                        rate: '',
+                        amount: ''
+                    });
+                },
                 removeCharge(idx) { this.form.other_charges.splice(idx, 1); },
                 addAcctInfo() { this.form.accounting_info.push({ code: '', info: '' }); },
                 removeAcctInfo(idx) { this.form.accounting_info.splice(idx, 1); },
@@ -665,6 +814,30 @@
                         return;
                     }
                     window.open('/air-export/' + shipmentId + '/hawb-print/' + idx, '_blank');
+                },
+                hawbBlockAction(idx) {
+                    const hawb = this.hawbs[idx];
+                    if (!hawb || !hawb.id) { showToast('warning', 'Save the HAWB first.'); return; }
+                    const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                    const endpoint = hawb.is_blocked ? '/air-export/hbl-bulk-unblock' : '/air-export/hbl-bulk-block';
+                    fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                        body: JSON.stringify({ ids: [hawb.id] })
+                    }).then(r => r.json()).then(d => {
+                        if (d.success) {
+                            hawb.is_blocked = !hawb.is_blocked;
+                            showToast('success', hawb.is_blocked ? 'HAWB blocked.' : 'HAWB unblocked.');
+                        } else {
+                            showToast('error', d.message || 'Action failed.');
+                        }
+                    }).catch(() => showToast('error', 'Request failed.'));
+                },
+                hawbCopyAction(idx) {
+                    const shipmentId = this.form.id;
+                    const hawb = this.hawbs[idx];
+                    if (!shipmentId || !hawb || !hawb.id) { showToast('warning', 'Save the shipment and HAWB first.'); return; }
+                    showToast('info', 'HAWB Copy - feature coming soon.');
                 },
                 saveShipment() {
                     document.getElementById('airExportForm').submit();
@@ -1973,88 +2146,151 @@
 
                         <!-- MAWB Grids -->
                         <div style="margin-bottom: 15px;">
-                            <h4 style="font-size: 11px; font-weight: 600; color: #4b77be; margin: 0 0 5px 0;">Other Charges</h4>
-                            <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid #ddd;">
-                                <thead>
-                                    <tr style="background:#f9f9f9;">
-                                        <th style="width: 30px; text-align: center; border:1px solid #ddd;"><input type="checkbox"></th>
-                                        <th style="border:1px solid #ddd; padding:4px;">Charge Code</th>
-                                        <th style="border:1px solid #ddd; padding:4px;">Description</th>
-                                        <th style="border:1px solid #ddd; padding:4px; width:60px;">Term</th>
-                                        <th style="border:1px solid #ddd; padding:4px; width:80px;">Rate</th>
-                                        <th style="border:1px solid #ddd; padding:4px; width:100px;">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(charge, idx) in form.other_charges" :key="idx">
-                                        <tr>
-
-                                        
-                                            <td style="text-align: center; border:1px solid #ddd;"><i class="fa fa-trash" style="color:red; cursor:pointer;" @click="removeCharge(idx)"></i></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="charge.charge_code" :name="'charges['+idx+'][charge_code]'"></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="charge.description" :name="'charges['+idx+'][description]'"></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><select class="form-control-gf" x-model="charge.term" :name="'charges['+idx+'][term]'"><option value="P">PPD</option><option value="C">COLL</option></select></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="number" step="any" class="form-control-gf" x-model="charge.rate" :name="'charges['+idx+'][rate]'"></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="number" step="any" class="form-control-gf" x-model="charge.amount" :name="'charges['+idx+'][amount]'"></td>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Other Charges</h4>
+                                <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addCharge()"><i class="fa fa-plus"></i> Add Charge</button>
+                            </div>
+                            <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
+                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
+                                    <colgroup>
+                                        <col style="width: 36px;">
+                                        <col style="width: 130px;">
+                                        <col>
+                                        <col style="width: 100px;">
+                                        <col style="width: 110px;">
+                                        <col style="width: 120px;">
+                                    </colgroup>
+                                    <thead>
+                                        <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
+                                            <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Charge Code</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Description</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Term</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Rate</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Amount</th>
                                         </tr>
-                                    </template>
-                                    <tr x-show="form.other_charges.length === 0"><td colspan="6" style="text-align: center; color: #999; padding: 10px;">No charges added.</td></tr>
-                                </tbody>
-                            </table>
-                            <button type="button" class="btn-default-gf" style="margin-top: 5px;" @click="addCharge()"><i class="fa fa-plus"></i> Add Charge</button>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(charge, idx) in form.other_charges" :key="idx">
+                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                <td style="text-align: center; padding: 4px; vertical-align: middle;">
+                                                    <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeCharge(idx)"></i>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="Code" x-model="charge.charge_code" :name="'other_charges['+idx+'][charge_code]'">
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <textarea class="form-control-gf" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Description..." x-model="charge.description" :name="'other_charges['+idx+'][description]'"></textarea>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <select class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" x-model="charge.term" :name="'other_charges['+idx+'][term]'">
+                                                        <option value="P">PPD</option>
+                                                        <option value="C">COLL</option>
+                                                    </select>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <input type="number" step="any" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px; text-align: right;" placeholder="0.00" x-model="charge.rate" :name="'other_charges['+idx+'][rate]'">
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <input type="number" step="any" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px; text-align: right;" placeholder="0.00" x-model="charge.amount" :name="'other_charges['+idx+'][amount]'">
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!form.other_charges || form.other_charges.length === 0">
+                                            <td colspan="6" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No other charges added. Click "+ Add Charge" to add rows.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div style="margin-bottom: 15px;">
-                            <h4 style="font-size: 11px; font-weight: 600; color: #4b77be; margin: 0 0 5px 0;">Accounting Information</h4>
-                            <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid #ddd;">
-                                <thead>
-                                    <tr style="background:#f9f9f9;">
-                                        <th style="width: 30px; text-align: center; border:1px solid #ddd;"><input type="checkbox"></th>
-                                        <th style="border:1px solid #ddd; padding:4px;">Information Code</th>
-                                        <th style="border:1px solid #ddd; padding:4px;">Accounting Information</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(info, idx) in form.accounting_info" :key="idx">
-                                        <tr>
-                                            <td style="text-align: center; border:1px solid #ddd;"><i class="fa fa-trash" style="color:red; cursor:pointer;" @click="removeAcctInfo(idx)"></i></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="info.code" :name="'accounting_info['+idx+'][code]'"></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="info.info" :name="'accounting_info['+idx+'][info]'"></td>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Accounting Information</h4>
+                                <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addAcctInfo()"><i class="fa fa-plus"></i> Add Info</button>
+                            </div>
+                            <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
+                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
+                                    <colgroup>
+                                        <col style="width: 36px;">
+                                        <col style="width: 180px;">
+                                        <col>
+                                    </colgroup>
+                                    <thead>
+                                        <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
+                                            <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Information Code</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Accounting Information</th>
                                         </tr>
-                                    </template>
-                                    <tr x-show="form.accounting_info.length === 0"><td colspan="3" style="text-align: center; color: #999; padding: 10px;">No information added.</td></tr>
-                                </tbody>
-                            </table>
-                            <button type="button" class="btn-default-gf" style="margin-top: 5px;" @click="addAcctInfo()"><i class="fa fa-plus"></i> Add Info</button>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(info, idx) in form.accounting_info" :key="idx">
+                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                <td style="text-align: center; padding: 4px; vertical-align: middle;">
+                                                    <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeAcctInfo(idx)"></i>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="Code" x-model="info.code" :name="'accounting_info['+idx+'][code]'">
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <textarea class="form-control-gf" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Accounting information details..." x-model="info.info" :name="'accounting_info['+idx+'][info]'"></textarea>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!form.accounting_info || form.accounting_info.length === 0">
+                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No accounting information added.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        <div style="margin-bottom: 10px;">
-                            <h4 style="font-size: 11px; font-weight: 600; color: #4b77be; margin: 0 0 5px 0;">Commodity</h4>
-                            <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid #ddd;">
-                                <thead>
-                                    <tr style="background:#f9f9f9;">
-                                        <th style="width: 30px; text-align: center; border:1px solid #ddd;"><input type="checkbox"></th>
-                                        <th style="border:1px solid #ddd; padding:4px;">Description</th>
-                                        <th style="border:1px solid #ddd; padding:4px; width:100px;">HTS No.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(commodity, idx) in form.commodities" :key="idx">
-                                        <tr>
-                                            <td style="text-align: center; border:1px solid #ddd;"><i class="fa fa-trash" style="color:red; cursor:pointer;" @click="removeCommodity(idx)"></i></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="commodity.description" :name="'commodities['+idx+'][description]'"></td>
-                                            <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="commodity.hts_no" :name="'commodities['+idx+'][hts_no]'"></td>
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Commodity</h4>
+                                <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addCommodity()"><i class="fa fa-plus"></i> Add Commodity</button>
+                            </div>
+                            <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
+                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
+                                    <colgroup>
+                                        <col style="width: 36px;">
+                                        <col>
+                                        <col style="width: 160px;">
+                                    </colgroup>
+                                    <thead>
+                                        <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
+                                            <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Description</th>
+                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">HTS No.</th>
                                         </tr>
-                                    </template>
-                                    <tr x-show="form.commodities.length === 0"><td colspan="3" style="text-align: center; color: #999; padding: 10px;">No commodities added.</td></tr>
-                                </tbody>
-                            </table>
-                            <button type="button" class="btn-default-gf" style="margin-top: 5px;" @click="addCommodity()"><i class="fa fa-plus"></i> Add Commodity</button>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(commodity, idx) in form.commodities" :key="idx">
+                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                <td style="text-align: center; padding: 4px; vertical-align: middle;">
+                                                    <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeCommodity(idx)"></i>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <textarea class="form-control-gf" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Commodity description..." x-model="commodity.description" :name="'commodities['+idx+'][description]'"></textarea>
+                                                </td>
+                                                <td style="padding: 4px 6px; vertical-align: top;">
+                                                    <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="HTS No." x-model="commodity.hts_no" :name="'commodities['+idx+'][hts_no]'">
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!form.commodities || form.commodities.length === 0">
+                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No commodities added.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div style="margin-top: 15px;">
-                            <h4 style="font-size: 11px; font-weight: 600; color: #333; margin: 0 0 5px 0;">Internal Memo</h4>
-                            <textarea class="form-control-gf" style="height: 60px; padding: 5px; resize: vertical;" x-model="form.memo"></textarea>
+                            <label class="form-label-gf" style="margin-bottom: 4px;">Internal Memo</label>
+                            <div class="form-input-container">
+                                <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; padding: 6px 8px; resize: vertical; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Internal memo / remarks..." x-model="form.memo" name="memo"></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2064,16 +2300,27 @@
                     <div class="portlet light" x-show="activeTab === 'basic'" :style="activeTab === 'basic' ? '' : 'display: none !important;'" style="margin-top: 5px;">
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hawbs[index].show = !hawbs[index].show">
                             <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-user"></i> HAWB Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;" x-text="'OP: ' + hawb.op"></small></span>
-                            <div class="actions" style="display: flex; gap: 8px; align-items: center;">
-                                <!-- HAWB Tools -->
-                                <div style="display: flex; gap: 8px;">
-                                    <button type="button" @click.stop="printHawb(index)"
-                                        style="background: #ffffff; color: #374151; border: 1px solid #d1d5db; border-radius: 3px; padding: 2px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                                        <i class="fa fa-print" style="color: #4b5563;"></i> HAWB Print
+                            <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
+                                <!-- HAWB Tools Dropdown -->
+                                <div style="position: relative;" x-data="{ openHawbMenu: false }" @click.away="openHawbMenu = false">
+                                    <button type="button" @click="openHawbMenu = !openHawbMenu"
+                                        style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
                                     </button>
+                                    <div x-show="openHawbMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left; display: none;">
+                                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                            <li><button type="button" @click="printHawb(index); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> HAWB Print</button></li>
+                                            <li><button type="button" @click="saved ? hawbBlockAction(index) : null; openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                                            <li><button type="button" @click="saved ? hawbCopyAction(index) : null; openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Copy To - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Pre-Alert - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-bell-o" style="width:14px; text-align:center; margin-right:4px;"></i> Pre-Alert</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Dangerous Goods - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-warning" style="width:14px; text-align:center; margin-right:4px; color:#e55a00;"></i> Dangerous Goods</button></li>
+                                            <li><button type="button" @click="saved && hawbs[index] && hawbs[index].id ? window.open('/air-export/' + form.id + '/hawb-profit-report/' + hawbs[index].id, '_blank') : showToast('info', 'Save HAWB first.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Report</button></li>
+                                        </ul>
+                                    </div>
                                 </div>
-                                <i @click.stop="removeHawb(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer;" title="Delete HAWB"></i>
-                                <i class="fa fa-angle-down transition-transform" :class="hawbs[index].show ? 'rotate-180' : ''" style="font-size: 12px;"></i>
+                                <i @click.stop="removeHawb(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer; color: #fff; margin-left: 4px;" title="Delete HAWB"></i>
+                                <i class="fa fa-angle-down transition-transform" :class="hawbs[index].show ? 'rotate-180' : ''" style="font-size: 12px; color: #fff;" @click="hawbs[index].show = !hawbs[index].show"></i>
                             </div>
                         </div>
                         <div class="portlet-body" x-show="hawbs[index].show" style="background: #f9f9f9; padding: 10px;">
@@ -2199,47 +2446,76 @@
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
 
                             <!-- Grid Lists for HAWB -->
-                            <div style="margin-bottom: 10px;">
-                                <h4 style="font-size: 11px; font-weight: 600; color: #333; margin: 0 0 5px 0;">Commodity / HTS No.</h4>
-                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; border:1px solid #ddd;">
-                                    <thead>
-                                        <tr style="background:#f9f9f9;">
-                                            <th style="width: 30px; text-align: center; border:1px solid #ddd;"><input type="checkbox"></th>
-                                            <th style="border:1px solid #ddd; padding:4px;">Commodity Description</th>
-                                            <th style="border:1px solid #ddd; padding:4px;">HTS No.</th>
-                                            <th style="border:1px solid #ddd; padding:4px; width:100px;">P.O. No.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="(commodity, cidx) in hawb.commodities" :key="cidx">
-                                            <tr>
-                                                <td style="text-align: center; border:1px solid #ddd;"><i class="fa fa-trash" style="color:red; cursor:pointer;" @click="removeHawbCommodity(index, cidx)"></i></td>
-                                                <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="commodity.description" :name="'hbls['+index+'][commodities]['+cidx+'][description]'"></td>
-                                                <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="commodity.hts_no" :name="'hbls['+index+'][commodities]['+cidx+'][hts_no]'"></td>
-                                                <td style="border:1px solid #ddd; padding:4px;"><input type="text" class="form-control-gf" x-model="commodity.po_no" :name="'hbls['+index+'][commodities]['+cidx+'][po_no]'"></td>
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Commodity / HTS No.</h4>
+                                    <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addHawbCommodity(index)"><i class="fa fa-plus"></i> Add Row</button>
+                                </div>
+                                <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
+                                    <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
+                                        <colgroup>
+                                            <col style="width: 36px;">
+                                            <col>
+                                            <col style="width: 140px;">
+                                            <col style="width: 140px;">
+                                        </colgroup>
+                                        <thead>
+                                            <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
+                                                <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
+                                                <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Commodity Description</th>
+                                                <th style="padding: 6px 8px; color: #475569; font-weight: 600;">HTS No.</th>
+                                                <th style="padding: 6px 8px; color: #475569; font-weight: 600;">P.O. No.</th>
                                             </tr>
-                                        </template>
-                                        <tr x-show="hawb.commodities.length === 0"><td colspan="4" style="text-align: center; color: #999; padding: 10px;">No commodities added.</td></tr>
-                                    </tbody>
-                                </table>
-                                <button type="button" class="btn-default-gf" style="margin-top: 5px;" @click="addHawbCommodity(index)"><i class="fa fa-plus"></i> Add Row</button>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(commodity, cidx) in hawb.commodities" :key="cidx">
+                                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                    <td style="text-align: center; padding: 4px; vertical-align: middle;">
+                                                        <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeHawbCommodity(index, cidx)"></i>
+                                                    </td>
+                                                    <td style="padding: 4px 6px; vertical-align: top;">
+                                                        <textarea class="form-control-gf" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Description..." x-model="commodity.description" :name="'hbls['+index+'][commodities]['+cidx+'][description]'"></textarea>
+                                                    </td>
+                                                    <td style="padding: 4px 6px; vertical-align: top;">
+                                                        <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="HTS No." x-model="commodity.hts_no" :name="'hbls['+index+'][commodities]['+cidx+'][hts_no]'">
+                                                    </td>
+                                                    <td style="padding: 4px 6px; vertical-align: top;">
+                                                        <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="P.O. No." x-model="commodity.po_no" :name="'hbls['+index+'][commodities]['+cidx+'][po_no]'">
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="!hawb.commodities || hawb.commodities.length === 0">
+                                                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No commodities added. Click "+ Add Row" to add.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
-                            <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
+                            <hr style="margin: 12px 0; border-top: 1px solid #e5e7eb;">
 
-                            <div class="form-grid-4" style="grid-template-columns: repeat(2, 1fr);">
+                            <!-- Mark & Description Grid -->
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 12px;">
                                 <div>
-                                    <h4 style="font-size: 11px; font-weight: 600; margin: 0 0 5px 0; color: #333;">Mark</h4>
-                                    <textarea class="form-control-gf" style="height: 60px !important; resize: vertical; padding:5px;" x-model="hawb.mark"></textarea>
+                                    <label class="form-label-gf" style="margin-bottom: 4px; font-weight: 600; color: #374151;">Mark</label>
+                                    <div class="form-input-container">
+                                        <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Marks & Numbers..." x-model="hawb.mark" :name="'hbls['+index+'][mark]'"></textarea>
+                                    </div>
                                 </div>
                                 <div>
-                                    <h4 style="font-size: 11px; font-weight: 600; margin: 0 0 5px 0; color: #333;">Description</h4>
-                                    <textarea class="form-control-gf" style="height: 60px !important; resize: vertical; padding:5px;" x-model="hawb.description"></textarea>
+                                    <label class="form-label-gf" style="margin-bottom: 4px; font-weight: 600; color: #374151;">Description</label>
+                                    <div class="form-input-container">
+                                        <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Goods Description..." x-model="hawb.description" :name="'hbls['+index+'][description]'"></textarea>
+                                    </div>
                                 </div>
                             </div>
-                            <div style="margin-top: 10px;">
-                                <h4 style="font-size: 11px; font-weight: 600; margin: 0 0 5px 0; color: #333;">Remark</h4>
-                                <textarea class="form-control-gf" style="height: 50px !important; resize: vertical; padding:5px;" x-model="hawb.remark"></textarea>
+
+                            <!-- Remark Box -->
+                            <div style="margin-top: 8px;">
+                                <label class="form-label-gf" style="margin-bottom: 4px; font-weight: 600; color: #374151;">Remark</label>
+                                <div class="form-input-container">
+                                    <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="HAWB Remark..." x-model="hawb.remark" :name="'hbls['+index+'][remark]'"></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2257,32 +2533,15 @@
                         <span class="caption-subject"><i class="fa fa-money"></i> Charge Manifestation</span>
                     </div>
                     <div class="portlet-body">
+                        @include('partials.charges-invoice-modal')
+
                         <script>
                             if (!window.tradePartnersList) {
                                 window.tradePartnersList = {!! json_encode(collect($agents ?? [])->map(function($tp) { return ['id' => $tp->id, 'name' => $tp->name, 'label' => $tp->name . ' (' . ($tp->type ?? 'Partner') . ')']; })->toArray()) !!};
                             }
                         </script>
 
-                        <!-- Header Info Row -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <span style="font-weight: 700; color: #4b77be;">KG :</span>
-                                <span style="color: #333;" x-text="form.file_no || '-'"></span>
-                            </div>
-                            <template x-for="h in hawbs" :key="h.id || h.hawb_no">
-                                <div style="display: flex; align-items: center; gap: 5px;" x-show="h.hawb_no">
-                                    <span style="font-weight: 700; color: #4b77be;">GP :</span>
-                                    <span style="color: #333;" x-text="h.hawb_no"></span>
-                                </div>
-                            </template>
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <button type="button" class="btn-default-gf" style="border: 1px solid #4b77be; color: #4b77be; padding: 2px 8px;" @click="activeChargeFilter = 'All'">GP : Show All of this BKG</button>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                                <span style="font-weight: 700; color: #4b77be;">CM :</span>
-                                <span style="color: #333; font-weight: 700;" x-text="calculateTotalCharges().toFixed(2)">0.00</span>
-                            </div>
-                        </div>
+
 
                         <!-- Filter Row -->
                         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; padding: 6px 8px; background: #fff; border: 1px solid #e7ecf1; border-radius: 4px; align-items: center;">

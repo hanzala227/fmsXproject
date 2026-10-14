@@ -1163,6 +1163,25 @@ class AirExportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = Charge::where('chargeable_type', 'App\Models\AirExport')
+                    ->where('chargeable_id', $airExportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             $allChargesCount = Charge::where('chargeable_type', 'App\Models\AirExport')->where('chargeable_id', $airExportId)->count();
             if ($allChargesCount > 0) {
                 $existingInv = Charge::where('chargeable_type', 'App\Models\AirExport')->where('chargeable_id', $airExportId)->whereNotNull('invoice_no')->pluck('invoice_no')->first();

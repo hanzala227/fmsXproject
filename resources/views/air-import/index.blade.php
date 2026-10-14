@@ -358,6 +358,30 @@
                     }
                 },
                 // ============ CHARGES SECTION FUNCTIONS ============
+                showInvoiceModal: false,
+                invoiceModalData: {
+                    fin_date: new Date().toISOString().split('T')[0],
+                    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    currency: 'USD',
+                    tax: false,
+                    internal_ref: '',
+                    dec: '2',
+                    type: 'INV',
+                    manif_amt: 0,
+                    loc_amt: 0,
+                    cr_days: 30,
+                    cr_limit: 0,
+                    bal_limit: 0,
+                    group: true,
+                    party_info: '',
+                    remarks: '',
+                    bank_details: '',
+                    charges_count: 0,
+                    selected_ids: [],
+                    progress: 0,
+                    attachment_name: '',
+                    file: null
+                },
                 chargesList: @json($chargesData ?? []),
 
                 calculateTotalCharges() {
@@ -513,26 +537,80 @@
                         return;
                     }
                     
-                    let selectedCharges = this.chargesList.filter(c => (c._selected || c.selected) && c.id);
+                    let selectedCharges = this.chargesList.filter(c => c._selected || c.selected);
                     if (selectedCharges.length === 0) {
                         showToast('error', 'Please select at least one charge using checkbox.');
                         return;
                     }
 
-                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
-                    if (alreadyInvoiced.length > 0) {
-                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').join(', ');
-                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
+                    // 1. Check for unsaved charges (new rows that haven't been saved yet)
+                    let unsavedCharges = selectedCharges.filter(c => !c.id);
+                    if (unsavedCharges.length > 0) {
+                        showToast('warning', 'You have ' + unsavedCharges.length + ' unsaved charge(s). Please click "Save" first before generating an invoice.');
+                        return;
                     }
 
+                    // 2. Check for already invoiced charges
+                    let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
                     let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
+
                     if (uninvoicedCharges.length === 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('warning', 'Selected charge(s) are already invoiced (' + invNos + ').');
                         return;
+                    }
+
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('info', 'Skipping already invoiced charge(s): ' + invNos);
                     }
 
                     let selectedIds = uninvoicedCharges.map(c => c.id);
 
-                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' charge(s)?')) return;
+                    // Calculate totals
+                    let foreignAmt = 0;
+                    let localAmt = 0;
+                    let firstCurrency = 'USD';
+                    let firstParty = '';
+
+                    uninvoicedCharges.forEach(c => {
+                        let f = (parseFloat(c.rate) || 0) * (parseFloat(c.qty) || 0);
+                        let l = this.calculateLocalAmount(c);
+                        foreignAmt += f;
+                        localAmt += l;
+                        if (c.currency) firstCurrency = c.currency;
+                        if (!firstParty && c.party_name) firstParty = c.party_name;
+                    });
+
+                    let partyDisplay = firstParty || 'General Customer';
+                    if (this.form.file_no) {
+                        partyDisplay += "\nRef: " + this.form.file_no;
+                    }
+
+                    this.invoiceModalData.selected_ids = selectedIds;
+                    this.invoiceModalData.charges_count = selectedIds.length;
+                    this.invoiceModalData.manif_amt = foreignAmt;
+                    this.invoiceModalData.loc_amt = localAmt;
+                    this.invoiceModalData.currency = firstCurrency;
+                    this.invoiceModalData.party_info = partyDisplay;
+                    this.invoiceModalData.fin_date = new Date().toISOString().split('T')[0];
+                    this.invoiceModalData.due_date = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+                    this.invoiceModalData.progress = 0;
+                    this.invoiceModalData.attachment_name = '';
+                    this.invoiceModalData.file = null;
+
+                    this.showInvoiceModal = true;
+                },
+
+                processInvoiceModal() {
+                    if (!this.invoiceModalData.selected_ids || this.invoiceModalData.selected_ids.length === 0) {
+                        showToast('error', 'No charges selected.');
+                        return;
+                    }
+
+                    this.invoiceModalData.progress = 30;
+                    showToast('info', 'Generating invoice...');
+
                     fetch(`/air-import/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: { 
@@ -540,20 +618,62 @@
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ ids: selectedIds })
+                        body: JSON.stringify({ 
+                            ids: this.invoiceModalData.selected_ids,
+                            fin_date: this.invoiceModalData.fin_date,
+                            due_date: this.invoiceModalData.due_date,
+                            internal_ref: this.invoiceModalData.internal_ref,
+                            type: this.invoiceModalData.type,
+                            remarks: this.invoiceModalData.remarks,
+                            bank_details: this.invoiceModalData.bank_details
+                        })
                     })
                     .then(res => res.json())
                     .then(data => {
+                        this.invoiceModalData.progress = 100;
                         if (data.success) {
                             showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            setTimeout(() => { window.location.reload(); }, 800);
+                            this.showInvoiceModal = false;
+                            setTimeout(() => { window.location.reload(); }, 600);
                         } else {
                             showToast('error', 'Failed to create invoice: ' + (data.message || 'Unknown error'));
                         }
                     })
                     .catch(err => {
+                        console.error(err);
                         showToast('error', 'Failed to create invoice.');
                     });
+                },
+
+                previewInvoiceModal() {
+                    if (!this.form.id) {
+                        showToast('error', 'Please save shipment first.');
+                        return;
+                    }
+                    window.open(`/shipments/air-import/${this.form.id}/freight-invoice`, '_blank');
+                },
+
+                handleInvoiceModalFile(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.invoiceModalData.file = file;
+                        if (!this.invoiceModalData.attachment_name) {
+                            this.invoiceModalData.attachment_name = file.name;
+                        }
+                        this.invoiceModalData.progress = 10;
+                    }
+                },
+
+                uploadInvoiceModalFile() {
+                    if (!this.invoiceModalData.file) {
+                        showToast('info', 'Please select a file to upload first.');
+                        return;
+                    }
+                    this.invoiceModalData.progress = 60;
+                    showToast('success', 'File ' + this.invoiceModalData.attachment_name + ' attached.');
+                    setTimeout(() => {
+                        this.invoiceModalData.progress = 100;
+                    }, 400);
                 },
 
                 prorataCharges() {
@@ -1372,6 +1492,74 @@
                     ])->values()->toArray()) !!},
                     @endforeach
                 },
+                toolsAction(action) {
+                    const shipmentId = this.form ? this.form.id : null;
+                    const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                    const actions = {
+                        block: () => {
+                            if (!shipmentId) { showToast('warning', 'Save the shipment first.'); return; }
+                            fetch('/air-import/bulk-block', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                body: JSON.stringify({ ids: [shipmentId] })
+                            }).then(r => r.json()).then(d => {
+                                showToast(d.success ? 'success' : 'error', d.message || (d.success ? 'Shipment blocked.' : 'Block failed.'));
+                            }).catch(() => showToast('error', 'Block request failed.'));
+                        },
+                        unblock: () => {
+                            if (!shipmentId) { showToast('warning', 'Save the shipment first.'); return; }
+                            fetch('/air-import/bulk-unblock', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                body: JSON.stringify({ ids: [shipmentId] })
+                            }).then(r => r.json()).then(d => {
+                                showToast(d.success ? 'success' : 'error', d.message || (d.success ? 'Shipment unblocked.' : 'Unblock failed.'));
+                            }).catch(() => showToast('error', 'Unblock request failed.'));
+                        },
+                        copy: () => {
+                            if (!shipmentId) return;
+                            window.location.href = `/air-import/create?copy=${shipmentId}`;
+                        },
+                        delete: () => {
+                            if (!shipmentId) return;
+                            if (!confirm('Are you sure you want to delete this shipment? This action cannot be undone.')) return;
+                            fetch(`/air-import/${shipmentId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                body: JSON.stringify({ _method: 'DELETE' })
+                            }).then(() => {
+                                showToast('success', 'Shipment deleted.');
+                                setTimeout(() => window.location.href = '/air-import/list', 800);
+                            }).catch(() => showToast('error', 'Delete failed.'));
+                        },
+                        profit_summary: () => { if (shipmentId) window.open(`/air-import/${shipmentId}/profit-summary`, '_blank'); },
+                        profit_detail:  () => { if (shipmentId) window.open(`/air-import/${shipmentId}/profit-detail`, '_blank'); },
+                        manifest: () => showToast('info', 'Manifest - feature coming soon.'),
+                    };
+                    if (actions[action]) {
+                        actions[action]();
+                    } else {
+                        showToast('info', 'Feature coming soon.');
+                    }
+                },
+                hawbBlockAction(idx) {
+                    const hawb = this.hawbs[idx];
+                    if (!hawb || !hawb.id) { showToast('warning', 'Save the HAWB first.'); return; }
+                    const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                    const endpoint = hawb.is_blocked ? '/air-import/hbl-bulk-unblock' : '/air-import/hbl-bulk-block';
+                    fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                        body: JSON.stringify({ ids: [hawb.id] })
+                    }).then(r => r.json()).then(d => {
+                        if (d.success) {
+                            hawb.is_blocked = !hawb.is_blocked;
+                            showToast('success', hawb.is_blocked ? 'HAWB blocked.' : 'HAWB unblocked.');
+                        } else {
+                            showToast('error', d.message || 'Action failed.');
+                        }
+                    }).catch(() => showToast('error', 'Request failed.'));
+                },
                 openTrackTrace() {
                     const mawb = document.querySelector('[name="mawb_no"]')?.value || (this.hawbs && this.hawbs.length > 0 ? this.hawbs[0].hbl_no : '');
                     window.openTrackTrace({ type: 'aircargo', number: mawb });
@@ -1427,9 +1615,14 @@
                     <button type="button" @click="showToolsMenu = !showToolsMenu" class="btn-default-gf" :class="!saved ? 'disabled-tab' : ''" style="display:flex; align-items:center; gap:5px; height: 28px; background: #fff;">
                         <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
                     </button>
-                    <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 180px; display: none;">
+                    <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 200px; display: none;">
                         <ul style="list-style: none; padding: 4px 0; margin: 0;">
-                            <li><button type="button" @click="saved ? openTrackTrace() : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('block') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('copy') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('delete') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer; color:#ef4444;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('profit_summary') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
+                            <li><button type="button" @click="saved ? toolsAction('profit_detail') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Report</button></li>
                         </ul>
                     </div>
                 </div>
@@ -1705,9 +1898,30 @@
                     <div class="portlet light" style="margin-top: 5px;">
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hawb.show = !hawb.show">
                             <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-user"></i> HAWB Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small></span>
-                            <div class="actions" style="display: flex; gap: 10px; align-items: center;">
-                                <i @click.stop="removeHbl(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer;"></i>
-                                <i class="fa fa-angle-down transition-transform" :class="hawb.show ? 'rotate-180' : ''" style="font-size: 12px;"></i>
+                            <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
+                                <!-- HAWB Tools Dropdown -->
+                                <div style="position: relative;" x-data="{ openHawbMenu: false }" @click.away="openHawbMenu = false">
+                                    <button type="button" @click="openHawbMenu = !openHawbMenu"
+                                        style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                                    </button>
+                                    <div x-show="openHawbMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
+                                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                            <li><button type="button" @click="saved && hawb && hawb.id ? hawbBlockAction(index) : showToast('info', 'Save HAWB first.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Copy - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                            <li><button type="button" @click="removeHbl(index); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#ef4444; cursor:pointer;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Copy To - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Move To - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move to</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Arrival Notice - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-envelope-o" style="width:14px; text-align:center; margin-right:4px;"></i> Arrivel Notice</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Delivery Order - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delevery Order</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Release Order - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release order</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Carrier Certificate - feature coming soon.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
+                                            <li><button type="button" @click="saved && hawb && hawb.id ? window.open('/air-import/' + form.id + '/profit-detail', '_blank') : showToast('info', 'Save HAWB first.'); openHawbMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Report</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <i @click.stop="removeHbl(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.8; cursor: pointer; color: #fff; margin-left: 4px;"></i>
+                                <i class="fa fa-angle-down transition-transform" :class="hawb.show ? 'rotate-180' : ''" style="font-size: 12px; color: #fff;"></i>
                             </div>
                         </div>
                         <div class="portlet-body" x-show="hawb.show" style="background: #f9f9f9; padding: 10px;">
@@ -1937,46 +2151,49 @@
                                 </tbody>
                             </table>
 
-                            <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
+                            <!-- Warehouse Receipt List (Hidden per request) -->
+                            <div style="display: none !important;">
+                                <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
 
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                <span style="font-size: 11px; font-weight: 600; color: #444;">Warehouse Receipt List</span>
-                                <div style="display: flex; gap: 5px;">
-                                    <select class="form-control-gf" style="width: 150px; height: 20px;"><option>Warehouse Receipt</option></select>
-                                    <button type="button" class="btn-tool-icon" disabled style="padding:0 6px;"><i class="fa fa-trash"></i></button>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <span style="font-size: 11px; font-weight: 600; color: #444;">Warehouse Receipt List</span>
+                                    <div style="display: flex; gap: 5px;">
+                                        <select class="form-control-gf" style="width: 150px; height: 20px;"><option>Warehouse Receipt</option></select>
+                                        <button type="button" class="btn-tool-icon" disabled style="padding:0 6px;"><i class="fa fa-trash"></i></button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="overflow-x:auto;">
-                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; min-width:800px;">
-                                    <thead>
-                                        <tr style="background:#f9f9f9;">
-                                            <th style="width: 30px; text-align: center; border:1px solid #eee;"><input type="checkbox"></th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Receipt No.</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Length</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Width</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Height</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Dimension</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">TOTAL PCS</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Available PCS</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Allocated PCS</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Unit</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Gross Weight</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Volume</th>
-                                            <th style="border:1px solid #eee; padding:5px; text-align:left;">Measurement</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="13" style="padding: 10px; border:1px solid #eee;">
-                                                <button type="button" class="btn-tool" style="background:#32c5d2; color:#fff; border:none; padding:4px 10px; margin-bottom: 5px; font-size:10px;" @click="showWrModal = true; searchWarehouseList()"><i class="fa fa-external-link-square"></i> Load from Warehouse</button>
-                                                <div style="display: flex; gap: 15px; font-size: 10px; align-items: center;">
-                                                    <label style="display:none; align-items:center; gap:5px;"><input type="checkbox" checked> Auto-sync package, weight and measurements</label>
-                                                    <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox"> Auto-sync dimensions</label>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div style="overflow-x:auto;">
+                                    <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:10px; min-width:800px;">
+                                        <thead>
+                                            <tr style="background:#f9f9f9;">
+                                                <th style="width: 30px; text-align: center; border:1px solid #eee;"><input type="checkbox"></th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Receipt No.</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Length</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Width</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Height</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Dimension</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">TOTAL PCS</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Available PCS</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Allocated PCS</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Unit</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Gross Weight</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Volume</th>
+                                                <th style="border:1px solid #eee; padding:5px; text-align:left;">Measurement</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="13" style="padding: 10px; border:1px solid #eee;">
+                                                    <button type="button" class="btn-tool" style="background:#32c5d2; color:#fff; border:none; padding:4px 10px; margin-bottom: 5px; font-size:10px;" @click="showWrModal = true; searchWarehouseList()"><i class="fa fa-external-link-square"></i> Load from Warehouse</button>
+                                                    <div style="display: flex; gap: 15px; font-size: 10px; align-items: center;">
+                                                        <label style="display:none; align-items:center; gap:5px;"><input type="checkbox" checked> Auto-sync package, weight and measurements</label>
+                                                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox"> Auto-sync dimensions</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
@@ -2015,6 +2232,9 @@
                 </div>
             </div>
 
+            <!-- Include Generate Invoice Popup Modal -->
+            @include('partials.charges-invoice-modal')
+
             <!-- CHARGES TAB -->
             <div x-show="activeTab === 'charges'" class="main-grid" x-cloak>
                 <div class="portlet light">
@@ -2028,26 +2248,7 @@
                             }
                         </script>
 
-                        <!-- Header Info Row -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <span style="font-weight: 700; color: #4b77be;">KG :</span>
-                                <span style="color: #333;" x-text="form.file_no || '-'"></span>
-                            </div>
-                            <template x-for="h in hawbs" :key="h.id || h.hawb_no">
-                                <div style="display: flex; align-items: center; gap: 5px;" x-show="h.hawb_no">
-                                    <span style="font-weight: 700; color: #4b77be;">GP :</span>
-                                    <span style="color: #333;" x-text="h.hawb_no"></span>
-                                </div>
-                            </template>
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <button type="button" class="btn-default-gf" style="border: 1px solid #4b77be; color: #4b77be; padding: 2px 8px;" @click="activeChargeFilter = 'All'">GP : Show All of this BKG</button>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                                <span style="font-weight: 700; color: #4b77be;">CM :</span>
-                                <span style="color: #333; font-weight: 700;" x-text="calculateTotalCharges().toFixed(2)">0.00</span>
-                            </div>
-                        </div>
+
 
                         <!-- Filter Row -->
                         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; padding: 6px 8px; background: #fff; border: 1px solid #e7ecf1; border-radius: 4px; align-items: center;">

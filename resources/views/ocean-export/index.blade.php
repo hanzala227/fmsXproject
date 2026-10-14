@@ -301,6 +301,34 @@
                             cfs_location_id: hbl.cfs_location_id || '',
                             freight_released_by_id: hbl.freight_released_by_id || '',
                             po_no: hbl.po_no || '',
+                            po_mapping_type: hbl.po_mapping_type || 'container',
+                            hbl_mark: hbl.hbl_mark || '',
+                            hbl_description: hbl.hbl_description || '',
+                            show_containers: true,
+                            containers: (hbl.containers || []).map(function(c) {
+                                return {
+                                    container_no: c.container_no || '',
+                                    manual_container_no: '',
+                                    pkg_qty: c.pivot ? c.pivot.pkg_qty : (c.pkg_qty || ''),
+                                    pkg_unit: c.pivot ? c.pivot.pkg_unit : (c.pkg_unit || 'CARTON(S)'),
+                                    weight_kg: c.pivot ? c.pivot.weight_kg : (c.weight_kg || ''),
+                                    weight_unit: c.pivot ? c.pivot.weight_unit : (c.weight_unit || 'KG'),
+                                    measure_cbm: c.pivot ? c.pivot.measure_cbm : (c.measure_cbm || ''),
+                                    measure_unit: c.pivot ? c.pivot.measure_unit : (c.measure_unit || 'CBM'),
+                                    po_no: c.pivot ? c.pivot.po_no : (c.po_no || '')
+                                };
+                            }),
+                            commodities: (hbl.commodities || []).map(function(comm) {
+                                return {
+                                    id: comm.id || null,
+                                    selected: false,
+                                    hbl_no: comm.hbl_no || hbl.hbl_no || '',
+                                    commodity_desc: comm.commodity_desc || '',
+                                    hts_code: comm.hts_code || '',
+                                    container_no: comm.container_no || '',
+                                    po_no: comm.po_no || ''
+                                };
+                            })
                         };
                     });
                 })(),
@@ -1108,12 +1136,47 @@
                     let checked = event.target.checked;
                     hbl.commodities.forEach(c => c.selected = checked);
                 },
+                copyContainersFromMbl(hbl) {
+                    hbl.containers = (this.form.containers || []).map(c => ({
+                        container_no: c.container_no || '',
+                        manual_container_no: '',
+                        pkg_qty: c.pkg_qty || '',
+                        pkg_unit: 'CARTON(S)',
+                        weight_kg: c.weight_kg || '',
+                        weight_unit: 'KG',
+                        measure_cbm: c.measure_cbm || '',
+                        measure_unit: 'CBM',
+                        po_no: ''
+                    }));
+                },
+                calculateHblTotal(hbl, field) {
+                    return (hbl.containers || []).reduce((sum, c) => sum + (parseFloat(c[field]) || 0), 0).toFixed(2);
+                },
+                copyToDescription(hbl, mode) {
+                    let texts = [];
+                    if (mode === 'po' || mode === 'both') {
+                        if (hbl.po_no) {
+                            texts.push("P.O. No.: " + hbl.po_no);
+                        }
+                    }
+                    if (mode === 'commodity' || mode === 'both') {
+                        (hbl.commodities || []).forEach(comm => {
+                            if (comm.commodity_desc) {
+                                let text = comm.commodity_desc;
+                                if (comm.hts_code) text += " (HTS: " + comm.hts_code + ")";
+                                texts.push(text);
+                            }
+                        });
+                    }
+                    hbl.hbl_description = texts.join("\n");
+                },
                 addHbl() {
                     this.hbls.push({
                         id: null,
                         show: true,
                         showMore: false,
                         showMemo: false,
+                        show_containers: true,
                         hbl_no: '',
                         quotation_no: '',
                         customer_id: '',
@@ -1161,6 +1224,12 @@
                         hbl_remark: '',
                         cfs_location_id: '',
                         freight_released_by_id: '',
+                        po_no: '',
+                        po_mapping_type: 'container',
+                        hbl_mark: '',
+                        hbl_description: '',
+                        containers: [],
+                        commodities: []
                     });
                     this.showMblSection = false;
                 },
@@ -1291,31 +1360,66 @@
 
                 toolsAction(action, hblIdx = 0) {
                     const shipmentId = this.form ? this.form.id : null;
-                    if (!shipmentId && !['block','unblock','copy','delete','batch_email','batch_print'].includes(action)) {
+                    if (!shipmentId && !['copy','batch_email','batch_print'].includes(action)) {
                         showToast('warning', 'Please save the shipment first.');
                         return;
                     }
+                    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    };
                     const actions = {
                         unblock: () => {
                             if (!shipmentId) { showToast('warning', 'Save the shipment first.'); return; }
                             fetch('/ocean-export/bulk-unblock', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                                headers: headers,
                                 body: JSON.stringify({ ids: [shipmentId], type: 'mbl' })
-                            }).then(r => r.json()).then(d => {
-                                this.form.is_blocked = false;
-                                showToast(d.success ? 'success' : 'error', d.message || (d.success ? 'Shipment unblocked.' : 'Unblock failed.'));
+                            }).then(async r => {
+                                const d = await r.json().catch(() => ({}));
+                                if (r.ok && (d.success !== false)) {
+                                    this.form.is_blocked = false;
+                                    this.form.is_hold = false;
+                                    showToast('success', d.message || 'Shipment unblocked.');
+                                    if (this.form.history) {
+                                        this.form.history.unshift({
+                                            date: new Date().toLocaleString(),
+                                            user: '{{ auth()->user()->name ?? "User" }}',
+                                            action: 'UNBLOCKED',
+                                            details: 'Shipment unblocked via Tools menu.'
+                                        });
+                                    }
+                                } else {
+                                    showToast('error', d.message || 'Unblock failed.');
+                                }
                             }).catch(() => showToast('error', 'Unblock request failed.'));
                         },
                         block: () => {
                             if (!shipmentId) { showToast('warning', 'Save the shipment first.'); return; }
                             fetch('/ocean-export/bulk-block', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                                headers: headers,
                                 body: JSON.stringify({ ids: [shipmentId], type: 'mbl' })
-                            }).then(r => r.json()).then(d => {
-                                this.form.is_blocked = true;
-                                showToast(d.success ? 'success' : 'error', d.message || (d.success ? 'Shipment blocked.' : 'Block failed.'));
+                            }).then(async r => {
+                                const d = await r.json().catch(() => ({}));
+                                if (r.ok && (d.success !== false)) {
+                                    this.form.is_blocked = true;
+                                    this.form.is_hold = true;
+                                    showToast('success', d.message || 'Shipment blocked.');
+                                    if (this.form.history) {
+                                        this.form.history.unshift({
+                                            date: new Date().toLocaleString(),
+                                            user: '{{ auth()->user()->name ?? "User" }}',
+                                            action: 'BLOCKED',
+                                            details: 'Shipment blocked via Tools menu.'
+                                        });
+                                    }
+                                } else {
+                                    showToast('error', d.message || 'Block failed.');
+                                }
                             }).catch(() => showToast('error', 'Block request failed.'));
                         },
                         copy: () => {
@@ -1330,12 +1434,17 @@
                             if (!shipmentId) return;
                             if (!confirm('Are you sure you want to delete this shipment? This action cannot be undone.')) return;
                             fetch(`/ocean-export/${shipmentId}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '' },
-                                body: JSON.stringify({ _method: 'DELETE' })
-                            }).then(r => r.json()).then(d => {
-                                showToast('success', 'Shipment deleted successfully.');
-                                setTimeout(() => window.location.href = '/ocean-export/list', 800);
+                                method: 'DELETE',
+                                headers: headers,
+                                body: JSON.stringify({})
+                            }).then(async r => {
+                                const d = await r.json().catch(() => ({}));
+                                if (r.ok && (d.success !== false)) {
+                                    showToast('success', d.message || 'Shipment deleted successfully.');
+                                    setTimeout(() => window.location.href = '/ocean-export/list', 800);
+                                } else {
+                                    showToast('error', d.message || 'Delete failed.');
+                                }
                             }).catch(() => showToast('error', 'Delete failed.'));
                         },
                         edi: () => showToast('info', 'Opening FreightX EDI export...'),
@@ -1346,6 +1455,7 @@
                         manifest: () => window.open(`/ocean-export/${shipmentId}/dev-seg`, '_blank'),
                         profit_summary: () => window.open(`/ocean-export/${shipmentId}/profit-summary`, '_blank'),
                         profit_detail: () => window.open(`/ocean-export/${shipmentId}/profit-detail`, '_blank'),
+                        telex_release: () => showToast('info', 'Telex Release - feature coming soon.'),
                         track_trace: () => {
                             window.openTrackTrace({ type: 'container', number: this.form.mbl_no || '' });
                         }
@@ -1357,8 +1467,51 @@
                     }
                 },
 
+                hblBlockAction(idx) {
+                    const hbl = this.hbls[idx];
+                    if (!hbl || !hbl.id) { showToast('warning', 'Save the HB/L first.'); return; }
+                    const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                    const endpoint = hbl.is_blocked ? '/ocean-export/hbl-bulk-unblock' : '/ocean-export/hbl-bulk-block';
+                    fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                        body: JSON.stringify({ ids: [hbl.id] })
+                    }).then(r => r.json()).then(d => {
+                        if (d.success) {
+                            hbl.is_blocked = !hbl.is_blocked;
+                            showToast('success', hbl.is_blocked ? 'HB/L blocked.' : 'HB/L unblocked.');
+                        } else {
+                            showToast('error', d.message || 'Action failed.');
+                        }
+                    }).catch(() => showToast('error', 'Request failed.'));
+                },
+
 
                 // ============ CHARGES SECTION FUNCTIONS ============
+                showInvoiceModal: false,
+                invoiceModalData: {
+                    fin_date: new Date().toISOString().split('T')[0],
+                    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    currency: 'USD',
+                    tax: false,
+                    internal_ref: '',
+                    dec: '2',
+                    type: 'INV',
+                    manif_amt: 0,
+                    loc_amt: 0,
+                    cr_days: 30,
+                    cr_limit: 0,
+                    bal_limit: 0,
+                    group: true,
+                    party_info: '',
+                    remarks: '',
+                    bank_details: '',
+                    charges_count: 0,
+                    selected_ids: [],
+                    progress: 0,
+                    attachment_name: '',
+                    file: null
+                },
                 chargesList: @json($chargesList ?? []),
                 saveAsDraftInvoice: false,
                 quotationsMap: {
@@ -1659,24 +1812,78 @@
                     
                     let selectedCharges = this.chargesList.filter(c => c._selected || c.selected);
                     if (selectedCharges.length === 0) {
-                        showToast('error', 'Please select at least one charge.');
+                        showToast('error', 'Please select at least one charge using the checkbox.');
                         return;
                     }
 
+                    // 1. Check for unsaved charges (new rows that haven't been saved yet)
+                    let unsavedCharges = selectedCharges.filter(c => !c.id);
+                    if (unsavedCharges.length > 0) {
+                        showToast('warning', 'You have ' + unsavedCharges.length + ' unsaved charge(s). Please click "Save" first before generating an invoice.');
+                        return;
+                    }
+
+                    // 2. Check for already invoiced charges
                     let alreadyInvoiced = selectedCharges.filter(c => c.is_invoiced || (c.inv_no && c.inv_no.trim() !== '' && c.inv_no !== '-'));
-                    if (alreadyInvoiced.length > 0) {
-                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Already Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
-                        showToast('warning', 'Invoice already created for selected charge(s): ' + invNos);
-                    }
-
                     let uninvoicedCharges = selectedCharges.filter(c => !c.is_invoiced && (!c.inv_no || c.inv_no.trim() === '' || c.inv_no === '-'));
-                    let selectedIds = uninvoicedCharges.filter(c => c.id).map(c => c.id);
 
-                    if (selectedIds.length === 0) {
+                    if (uninvoicedCharges.length === 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('warning', 'Selected charge(s) are already invoiced (' + invNos + ').');
                         return;
                     }
 
-                    if (!confirm('Generate Invoice for ' + selectedIds.length + ' selected uninvoiced charge(s)?')) return;
+                    if (alreadyInvoiced.length > 0) {
+                        let invNos = alreadyInvoiced.map(c => c.inv_no || 'Invoiced').filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                        showToast('info', 'Skipping already invoiced charge(s): ' + invNos);
+                    }
+
+                    let selectedIds = uninvoicedCharges.map(c => c.id);
+
+                    // Calculate totals
+                    let foreignAmt = 0;
+                    let localAmt = 0;
+                    let firstCurrency = 'USD';
+                    let firstParty = '';
+
+                    uninvoicedCharges.forEach(c => {
+                        let f = (parseFloat(c.rate) || 0) * (parseFloat(c.qty) || 0);
+                        let l = this.calculateLocalAmount(c);
+                        foreignAmt += f;
+                        localAmt += l;
+                        if (c.currency) firstCurrency = c.currency;
+                        if (!firstParty && c.party_name) firstParty = c.party_name;
+                    });
+
+                    let partyDisplay = firstParty || 'General Customer';
+                    if (this.form.file_no) {
+                        partyDisplay += "\nRef: " + this.form.file_no;
+                    }
+
+                    this.invoiceModalData.selected_ids = selectedIds;
+                    this.invoiceModalData.charges_count = selectedIds.length;
+                    this.invoiceModalData.manif_amt = foreignAmt;
+                    this.invoiceModalData.loc_amt = localAmt;
+                    this.invoiceModalData.currency = firstCurrency;
+                    this.invoiceModalData.party_info = partyDisplay;
+                    this.invoiceModalData.fin_date = new Date().toISOString().split('T')[0];
+                    this.invoiceModalData.due_date = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+                    this.invoiceModalData.progress = 0;
+                    this.invoiceModalData.attachment_name = '';
+                    this.invoiceModalData.file = null;
+
+                    this.showInvoiceModal = true;
+                },
+
+                processInvoiceModal() {
+                    if (!this.invoiceModalData.selected_ids || this.invoiceModalData.selected_ids.length === 0) {
+                        showToast('error', 'No charges selected.');
+                        return;
+                    }
+
+                    this.invoiceModalData.progress = 30;
+                    showToast('info', 'Generating invoice...');
+
                     fetch(`/ocean-export/${this.form.id}/charges/invoice`, {
                         method: 'POST',
                         headers: { 
@@ -1684,17 +1891,62 @@
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ ids: selectedIds })
+                        body: JSON.stringify({ 
+                            ids: this.invoiceModalData.selected_ids,
+                            fin_date: this.invoiceModalData.fin_date,
+                            due_date: this.invoiceModalData.due_date,
+                            internal_ref: this.invoiceModalData.internal_ref,
+                            type: this.invoiceModalData.type,
+                            remarks: this.invoiceModalData.remarks,
+                            bank_details: this.invoiceModalData.bank_details
+                        })
                     })
                     .then(res => res.json())
                     .then(data => {
+                        this.invoiceModalData.progress = 100;
                         if (data.success) {
                             showToast('success', 'Invoice generated successfully: ' + (data.invoice_no || ''));
-                            setTimeout(() => { window.location.reload(); }, 800);
+                            this.showInvoiceModal = false;
+                            setTimeout(() => { window.location.reload(); }, 600);
                         } else {
                             showToast('error', data.message || 'Failed to generate invoice');
                         }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast('error', 'Error generating invoice.');
                     });
+                },
+
+                previewInvoiceModal() {
+                    if (!this.form.id) {
+                        showToast('error', 'Please save shipment first.');
+                        return;
+                    }
+                    window.open(`/shipments/ocean-export/${this.form.id}/freight-invoice`, '_blank');
+                },
+
+                handleInvoiceModalFile(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.invoiceModalData.file = file;
+                        if (!this.invoiceModalData.attachment_name) {
+                            this.invoiceModalData.attachment_name = file.name;
+                        }
+                        this.invoiceModalData.progress = 10;
+                    }
+                },
+
+                uploadInvoiceModalFile() {
+                    if (!this.invoiceModalData.file) {
+                        showToast('info', 'Please select a file to upload first.');
+                        return;
+                    }
+                    this.invoiceModalData.progress = 60;
+                    showToast('success', 'File ' + this.invoiceModalData.attachment_name + ' attached.');
+                    setTimeout(() => {
+                        this.invoiceModalData.progress = 100;
+                    }, 400);
                 },
 
                 generateFreightInvoice() {
@@ -1924,6 +2176,7 @@
                                     <li><button type="button" @click="saved ? toolsAction('delete') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer; color:#ef4444;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
                                     <li><button type="button" @click="saved ? toolsAction('doc_package') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-folder-open-o" style="width:14px; text-align:center; margin-right:4px;"></i> Doc Package</button></li>
                                     <li><button type="button" @click="saved ? toolsAction('mbl_print') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> MB/L Print</button></li>
+                                    <li><button type="button" @click="saved ? toolsAction('telex_release') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text" style="width:14px; text-align:center; margin-right:4px;"></i> Telex Release</button></li>
                                 </div>
                             </template>
                             <li><button type="button" @click="saved ? toolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
@@ -2238,11 +2491,25 @@
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 28px; padding: 2px 10px; display: flex; align-items: center; justify-content: space-between;" @click="hbl.show = !hbl.show">
                             <span class="caption-subject" style="color: #fff; font-size: 11px; font-weight: 600;"><i class="fa fa-user"></i> HB/L Information <small style="color:rgba(255,255,255,0.85); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small></span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
-                                <!-- HBL Tools Inline -->
-                                <button type="button" @click="toolsAction('hbl_print', index)"
-                                    style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
-                                    <i class="fa fa-print" style="color: #4b5563; font-size: 10px;"></i> HBL Print
-                                </button>
+                                <!-- HBL Tools Dropdown -->
+                                <div style="position: relative;" x-data="{ openHblMenu: false }" @click.away="openHblMenu = false">
+                                    <button type="button" @click="openHblMenu = !openHblMenu"
+                                        style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                                    </button>
+                                    <div x-show="openHblMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
+                                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                            <li><button type="button" @click="saved && hbls[index] && hbls[index].id ? hblBlockAction(index) : showToast('info', 'Save HB/L first.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Copy - feature coming soon.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                            <li><button type="button" @click="removeHbl(index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#ef4444; cursor:pointer;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Copy To - feature coming soon.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                            <li><button type="button" @click="toolsAction('hbl_print', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> HBL Print</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Pre-Alert - feature coming soon.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-bell-o" style="width:14px; text-align:center; margin-right:4px;"></i> Pre Alert</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Booking Confirmation - feature coming soon.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-calendar-check-o" style="width:14px; text-align:center; margin-right:4px;"></i> Booking Confirmation</button></li>
+                                            <li><button type="button" @click="showToast('info', 'Forwarder Cargo Receipt - feature coming soon.'); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo receipt</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
                                 <i @click="removeHbl(index)" class="fa fa-times" style="font-size: 12px; opacity: 0.9; cursor: pointer; color: #fff;" title="Remove HB/L"></i>
                                 <i class="fa fa-angle-down transition-transform" :class="hbl.show ? 'rotate-180' : ''" style="font-size: 12px; cursor: pointer; color: #fff;" @click="hbl.show = !hbl.show"></i>
                             </div>
@@ -2304,7 +2571,7 @@
                                     <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls['+index+'][shipper_id]'" :options="$agents" module="trade-partner" x-model="hbl.shipper_id" class="form-control-gf" /> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][shipper_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                     <div class="form-group-gf"><label class="form-label-gf">Date of Issue</label><div class="form-input-container"><input type="date" :name="'hbls['+index+'][date_of_issue]'" class="form-control-gf" x-model="hbl.date_of_issue"></div></div>
                                     <div class="form-group-gf"><label class="form-label-gf">Place of Discharge</label><div class="form-input-container"><select :name="'hbls['+index+'][pod_id]'" class="form-control-gf" x-model="hbl.pod_id"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}">{{ $port->name }}</option>@endforeach</select></div></div>
-<div class="form-group-gf"><label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE BY</label><div class="form-input-container"><input type="text" :name="'hbls['+index+'][pre_carriage_by]'" class="form-control-gf" x-model="hbl.pre_carriage_by"></div></div>
+<div class="form-group-gf"><label class="form-label-gf">PRE-CARRIAGE BY</label><div class="form-input-container"><input type="text" :name="'hbls['+index+'][pre_carriage_by]'" class="form-control-gf" x-model="hbl.pre_carriage_by"></div></div>
 <div class="form-group-gf"><label class="form-label-gf">VESSEL</label><div class="form-input-container"><input type="text" :name="'hbls['+index+'][vessel_name]'" class="form-control-gf" x-model="hbl.vessel_name"></div></div>
 <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select :name="'hbls['+index+'][service_term]'" class="form-control-gf" x-model="hbl.service_term"><option value="">Select...</option>@foreach($serviceTerms as $st)<option value="{{ $st->code }}">{{ $st->code }}</option>@endforeach</select></div></div>
 <div class="form-group-gf"><label class="form-label-gf">SHIP TYPE</label><div class="form-input-container"><select :name="'hbls['+index+'][ship_type]'" class="form-control-gf" x-model="hbl.ship_type"><option value="">Select...</option><option value="NORMAL">NORMAL</option></select></div></div>
@@ -2401,7 +2668,6 @@
                             <table class="container-table">
                                 <colgroup>
                                     <col style="width: 30px;">
-                                    <col style="width: 30px;">
                                     <col style="width: 60px;">
                                     <col style="width: 160px;">
                                     <col style="width: 80px;">
@@ -2415,7 +2681,6 @@
                                 <thead>
                                     <tr>
                                         <th><input type="checkbox" @change="toggleAllContainers"></th>
-                                        <th>#</th>
                                         <th>PP/CTF</th>
                                         <th>Container No.</th>
                                         <th>TP/SZ</th>
@@ -2447,12 +2712,6 @@
                                         <tr class="row-main">
                                             <input type="hidden" :name="'containers['+idx+'][id]'" :value="cont.id">
                                             <td style="width:30px;"><input type="checkbox" x-model="cont.selected" style="display:block; margin:auto;"></td>
-                                            <td style="width:30px; text-align:center;">
-                                                <div class="flex items-center justify-center gap-1">
-                                                    <i @click.stop="cont.expanded = !cont.expanded" class="fa fa-sun-o cursor-pointer text-gray-400 hover:text-blue-500" style="font-size:12px;"></i>
-                                                    <span x-text="idx + 1" style="font-weight:bold;"></span>
-                                                </div>
-                                            </td>
                                             <td style="width:60px;"><input type="text" :name="'containers['+idx+'][pp_ctf]'" class="form-control-gf" x-model="cont.pp_ctf"></td>
                                             <td style="width:160px;">
                                                 <div class="flex items-center gap-1">
@@ -2471,7 +2730,7 @@
                                             <td style="width:100px;"><input type="number" :name="'containers['+idx+'][measure_cbm]'" class="form-control-gf" x-model="cont.measure_cbm" step="0.01" style="text-align:right;"></td>
                                         </tr>
                                         <tr style="display: none !important;" class="expanded-row">
-                                            <td colspan="2" style="border-right: 1px solid #dcdcdc; background:#fff !important;"></td>
+                                            <td colspan="1" style="border-right: 1px solid #dcdcdc; background:#fff !important;"></td>
                                             <td colspan="9">
                                                 <div class="expanded-container">
                                                     <!-- Group 1: Occupies space of Col 3-4 (60+160 = 220px) -->
@@ -2533,7 +2792,7 @@
                                 </template>
                                 <tfoot>
                                     <tr class="total-row">
-                                        <td colspan="6" style="border:none;"></td>
+                                        <td colspan="5" style="border:none;"></td>
                                         <td colspan="2" class="total-label-cell">Total</td>
                                         <td class="total-val-cell"><span x-text="calculateTotal('pkg_qty')"></span></td>
                                         <td class="total-val-cell"><span x-text="calculateTotal('weight_kg').toFixed(2)"></span></td>
@@ -2572,19 +2831,142 @@
                 </div>
             </div>
 
-            <!-- HBL Commodities Sections -->
+            <!-- HBL Containers & Items Sections -->
             <template x-for="(hbl, hblIdx) in hbls" :key="hblIdx">
                 <div class="portlet light" style="margin-top: 15px; border: 1px solid #f2bc00;">
-                    <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 28px; padding: 4px 10px; display: flex; justify-content: space-between; align-items: center;" @click="hbl.show_commodities = !hbl.show_commodities">
+                    <!-- Theme Header Bar -->
+                    <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 28px; padding: 4px 10px; display: flex; justify-content: space-between; align-items: center;" @click="hbl.show_containers = !hbl.show_containers">
                         <span class="caption-subject" style="color: #fff; font-size: 12px; font-weight: bold;">
-                            <i class="fa fa-cube"></i> HB/L: <span x-text="hbl.hbl_no || 'Draft HBL'"></span> | Commodities
+                            <i class="fa fa-cube"></i> HB/L: <span x-text="hbl.hbl_no || 'Draft HBL'"></span> | Containers & Items
                         </span>
                         <div class="actions" style="display: flex; gap: 10px; align-items: center;">
-                            <i class="fa fa-angle-down" :class="hbl.show_commodities ? 'rotate-180' : ''" style="font-size: 14px; color: #fff; transition: transform 0.2s;"></i>
+                            <i class="fa fa-angle-down" :class="hbl.show_containers ? 'rotate-180' : ''" style="font-size: 14px; color: #fff; transition: transform 0.2s;"></i>
                         </div>
                     </div>
 
-                    <div class="portlet-body" x-show="hbl.show_commodities !== false" x-collapse style="padding: 12px;">
+                    <div class="portlet-body" x-show="hbl.show_containers !== false" x-collapse style="padding: 12px;">
+                        <!-- Customer Reference / P.O. No. -->
+                        <div class="flex justify-between items-center" style="margin-bottom: 12px; gap: 20px;">
+                            <div style="flex: 1;">
+                                <label class="form-label-gf" style="font-weight: bold; margin-bottom: 4px; display: block;">Customer Reference / P.O. No. <span style="font-weight: normal; color: #666;">(Please list down P.O. No. for this HB/L)</span></label>
+                                <input type="text" :name="'hbls['+hblIdx+'][po_no]'" class="form-control-gf" placeholder="Add P.O. here..." x-model="hbl.po_no" style="width: 100%; height: 22px;">
+                            </div>
+                            <div style="width: 200px; text-align: right;">
+                                <span style="font-weight: bold; font-size: 11px; display: block; margin-bottom: 4px;">P.O. Mapping</span>
+                                <div class="flex gap-4 justify-end" style="font-size: 11px;">
+                                    <label class="flex items-center gap-1 cursor-pointer" style="font-weight: normal;">
+                                        <input type="radio" :name="'hbls['+hblIdx+'][po_mapping_type]'" value="container" x-model="hbl.po_mapping_type"> Container based
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer" style="font-weight: normal;">
+                                        <input type="radio" :name="'hbls['+hblIdx+'][po_mapping_type]'" value="item" x-model="hbl.po_mapping_type"> Item based
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Container List -->
+                        <div style="margin-bottom: 15px;">
+                            <div class="flex justify-between items-center" style="margin-bottom: 6px;">
+                                <span style="font-weight: bold; font-size: 12px; color: #333;">Container List</span>
+                                <button type="button" @click="copyContainersFromMbl(hbl)" class="btn-tool-outline" style="color:#f2bc00; border-color:#f2bc00; padding: 2px 10px; font-size: 11px;">
+                                    <i class="fa fa-copy"></i> Copy Value from MB/L
+                                </button>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="container-table" style="width: 100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">#</th>
+                                            <th>Container No.</th>
+                                            <th style="width: 150px;">PKG</th>
+                                            <th style="width: 150px;">Weight</th>
+                                            <th style="width: 150px;">Measurement</th>
+                                            <th x-show="hbl.po_mapping_type === 'container'">P.O. No.</th>
+                                            <th style="width: 40px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(c, cIdx) in hbl.containers" :key="cIdx">
+                                            <tr>
+                                                <td style="text-align: center; font-weight: bold;" x-text="cIdx + 1"></td>
+                                                <td>
+                                                    <select class="form-control-gf" x-model="c.container_no" :name="c.container_no !== 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
+                                                        <option value="">Select MBL Container...</option>
+                                                        <template x-for="mblC in form.containers">
+                                                            <option :value="mblC.container_no" x-text="mblC.container_no"></option>
+                                                        </template>
+                                                        <option value="MANUAL">+ Enter Manual</option>
+                                                    </select>
+                                                    <input type="text" class="form-control-gf mt-1" placeholder="Enter Container No." x-show="c.container_no === 'MANUAL'" x-model="c.manual_container_no" :name="c.container_no === 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-1">
+                                                        <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" x-model="c.pkg_qty" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][pkg_qty]'">
+                                                        <select class="form-control-gf" style="flex: 1;" x-model="c.pkg_unit" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][pkg_unit]'">
+                                                            @foreach($packageUnits as $pu)
+                                                                <option value="{{ $pu->code }}">{{ $pu->code }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-1">
+                                                        <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" step="0.01" x-model="c.weight_kg" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][weight_kg]'">
+                                                        <select class="form-control-gf" style="flex: 1;" x-model="c.weight_unit" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][weight_unit]'">
+                                                            <option value="KG">KG</option>
+                                                            <option value="LBS">LBS</option>
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex gap-1">
+                                                        <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" step="0.01" x-model="c.measure_cbm" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][measure_cbm]'">
+                                                        <select class="form-control-gf" style="flex: 1;" x-model="c.measure_unit" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][measure_unit]'">
+                                                            <option value="CBM">CBM</option>
+                                                            <option value="CFT">CFT</option>
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td x-show="hbl.po_mapping_type === 'container'">
+                                                    <!-- P.O. Selector for Container-based Mapping -->
+                                                    <select class="form-control-gf" x-model="c.po_no" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][po_no]'">
+                                                        <option value="">Select PO...</option>
+                                                        <template x-for="po in getPoList(hbl.po_no)">
+                                                            <option :value="po" x-text="po"></option>
+                                                        </template>
+                                                    </select>
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <button type="button" @click="hbl.containers.splice(cIdx, 1)" class="btn-tool-icon" style="color: red; border:none; background:none;" title="Delete row">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!hbl.containers || hbl.containers.length === 0">
+                                            <tr>
+                                                <td :colspan="hbl.po_mapping_type === 'container' ? 7 : 6" style="text-align: center; color: #999; padding: 10px;">No containers assigned yet. Click "Copy Value from MB/L" or add a row.</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="total-row" style="background: #fdfaf0;">
+                                            <td colspan="2" style="font-weight: bold; text-align: right;">Total</td>
+                                            <td style="font-weight: bold; text-align: right;" x-text="calculateHblTotal(hbl, 'pkg_qty')"></td>
+                                            <td style="font-weight: bold; text-align: right;" x-text="calculateHblTotal(hbl, 'weight_kg')"></td>
+                                            <td style="font-weight: bold; text-align: right;" x-text="calculateHblTotal(hbl, 'measure_cbm')"></td>
+                                            <td :colspan="hbl.po_mapping_type === 'container' ? 2 : 1"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <div class="mt-2">
+                                <button type="button" @click="hbl.containers.push({container_no:'', manual_container_no:'', pkg_qty:'', pkg_unit:'CARTON(S)', weight_kg:'', weight_unit:'KG', measure_cbm:'', measure_unit:'CBM', po_no:''})" class="btn-tool" style="background-color: #3b82f6; color: #fff; border-color: #3b82f6;" title="Add Container"><i class="fa fa-plus"></i> Add Container</button>
+                            </div>
+                        </div>
+
+                        <!-- Commodity / Manifest Commodity -->
                         <div style="margin-bottom: 15px;">
                             <div class="flex justify-between items-center" style="margin-bottom: 6px;">
                                 <span style="font-weight: bold; font-size: 12px; color: #333;">Commodity / Manifest Commodity</span>
@@ -2603,7 +2985,7 @@
                                             <th>* Commodity Description</th>
                                             <th style="width: 200px;">HTS Code</th>
                                             <th style="width: 200px;">Container</th>
-                                            <th>P.O. No.</th>
+                                            <th x-show="hbl.po_mapping_type === 'item'">P.O. No.</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2627,25 +3009,51 @@
                                                 <td>
                                                     <select :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][container_no]'" class="form-control-gf" x-model="comm.container_no">
                                                         <option value="">Select Container...</option>
-                                                        <template x-for="c in form.containers">
+                                                        <template x-for="c in (hbl.containers && hbl.containers.length ? hbl.containers : form.containers)">
                                                             <option :value="c.container_no" x-text="c.container_no"></option>
                                                         </template>
                                                     </select>
                                                 </td>
-                                                <td>
-                                                    <input type="text" :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][po_no]'" class="form-control-gf" placeholder="P.O. No..." x-model="comm.po_no">
+                                                <td x-show="hbl.po_mapping_type === 'item'">
+                                                    <!-- P.O. Selector for Item-based Mapping -->
+                                                    <select :name="'hbls['+hblIdx+'][commodities]['+commIdx+'][po_no]'" class="form-control-gf" x-model="comm.po_no">
+                                                        <option value="">Select PO...</option>
+                                                        <template x-for="po in getPoList(hbl.po_no)">
+                                                            <option :value="po" x-text="po"></option>
+                                                        </template>
+                                                    </select>
                                                 </td>
                                             </tr>
                                         </template>
                                         <template x-if="!hbl.commodities || hbl.commodities.length === 0">
                                             <tr>
-                                                <td colspan="6" style="text-align: center; color: #999; padding: 10px;">
+                                                <td :colspan="hbl.po_mapping_type === 'item' ? 6 : 5" style="text-align: center; color: #999; padding: 10px;">
                                                     No commodities added yet. Click <span class="text-blue-500 cursor-pointer" @click="addHblCommodity(hbl)">here</span> to add a new row.
                                                 </td>
                                             </tr>
                                         </template>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- Mark & Description -->
+                        <div class="form-grid-2" style="margin-bottom: 15px;">
+                            <div>
+                                <label class="form-label-gf" style="font-weight: bold; margin-bottom: 4px; display: block;">Mark</label>
+                                <textarea :name="'hbls['+hblIdx+'][hbl_mark]'" class="form-control-gf" style="height: 140px; width:100%;" x-model="hbl.hbl_mark"></textarea>
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center" style="margin-bottom: 4px;">
+                                    <label class="form-label-gf" style="font-weight: bold; margin-bottom: 0;">Description</label>
+                                    <div class="flex gap-1">
+                                        <span style="font-size:10px; color:#555; align-self: center; margin-right: 4px;">Copy:</span>
+                                        <button type="button" @click="copyToDescription(hbl, 'po')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">P.O.</button>
+                                        <button type="button" @click="copyToDescription(hbl, 'commodity')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">Commodity</button>
+                                        <button type="button" @click="copyToDescription(hbl, 'both')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">Commodity & HTS</button>
+                                    </div>
+                                </div>
+                                <textarea :name="'hbls['+hblIdx+'][hbl_description]'" class="form-control-gf" style="height: 140px; width:100%;" x-model="hbl.hbl_description"></textarea>
                             </div>
                         </div>
                     </div>
@@ -2699,6 +3107,9 @@
                 </div>
             </div>
 
+            <!-- Include Generate Invoice Popup Modal -->
+            @include('partials.charges-invoice-modal')
+
           <!-- CHARGES TAB -->
 <!-- CHARGES TAB -->
 <div x-show="activeTab === 'charges'" class="main-grid">
@@ -2713,28 +3124,7 @@
                 }
             </script>
 
-            <!-- Header Info Row -->
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding: 8px 5px; background: #f9fafb; border-bottom: 1px solid #e7ecf1;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-weight: 700; color: #4b77be;">KG :</span>
-                    <span style="color: #333;" x-text="form.file_no || '25120113139'">25120113139</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-weight: 700; color: #4b77be;">GP :</span>
-                    <span style="color: #333;">ELCKSHA25120233</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-weight: 700; color: #4b77be;">GP :</span>
-                    <span style="color: #333;">JYCHI2512828</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                   <button class="btn-default-gf" style="border: 1px solid #4b77be; color: #4b77be; padding: 2px 8px;">GP : Show All of this BKG</button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                    <span style="font-weight: 700; color: #4b77be;">CM :</span>
-                    <span style="color: #333; font-weight: 700;" x-text="calculateTotalCharges().toFixed(2)">56,612.75</span>
-                </div>
-            </div>
+
 
             <!-- Filter Row -->
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; padding: 6px 8px; background: #fff; border: 1px solid #e7ecf1; border-radius: 4px; align-items: center;">
@@ -2978,10 +3368,14 @@
                                 <tbody>
                                     <template x-for="(log, idx) in form.history" :key="log.id || idx">
                                         <tr>
-                                            <td style="white-space: nowrap;" x-text="log.created_at ? new Date(log.created_at).toLocaleString() : (log.date || '')"></td>
-                                            <td x-text="log.user ? (typeof log.user === 'object' ? log.user.name : log.user) : 'System'"></td>
-                                            <td x-text="log.details"></td>
-                                            <td style="text-align: right;"><span style="background: #ebf5ff; color: #4b77be; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; border-left: 3px solid #4b77be; display: inline-block;" x-text="log.action"></span></td>
+                                            <td style="white-space: nowrap; font-weight: 500; color: #334155;" x-text="log.date || (log.created_at ? new Date(log.created_at).toLocaleString() : '')"></td>
+                                            <td style="font-weight: 600; color: #1e293b;" x-text="log.user ? (typeof log.user === 'object' ? log.user.name : log.user) : 'System'"></td>
+                                            <td style="color: #475569; line-height: 1.4;" x-text="log.details"></td>
+                                            <td style="text-align: right;">
+                                                <span :style="log.action === 'CREATED' ? 'background: #dcfce7; color: #15803d; border-left: 3px solid #16a34a;' : (log.action === 'DELETED' ? 'background: #fee2e2; color: #b91c1c; border-left: 3px solid #dc2626;' : 'background: #ebf5ff; color: #1d4ed8; border-left: 3px solid #2563eb;')"
+                                                      style="padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; display: inline-block; letter-spacing: 0.5px;"
+                                                      x-text="log.action"></span>
+                                            </td>
                                         </tr>
                                     </template>
                                     <tr x-show="!form.history || !form.history.length">

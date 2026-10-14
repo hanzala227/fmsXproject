@@ -185,14 +185,6 @@
 
             <!-- ==================== BASIC TAB ==================== -->
             <div x-show="activeTab === 'basic'">
-                <!-- Payment Level -->
-                <div style="display:flex;align-items:center;margin-bottom:10px;gap:10px;">
-                    <label style="font-size:10px;font-weight:700;color:#475569;">Payment Level:</label>
-                    <select class="form-control-gf" style="width:120px;" x-model="paymentLevel">
-                        <option value="Level 1">Level 1</option>
-                        <option value="Level 2">Level 2</option>
-                    </select>
-                </div>
 
                 <!-- Main Details Grid -->
                 <div class="portlet light">
@@ -392,8 +384,8 @@
                                 </thead>
                                 <tbody>
                                     @foreach($invoices as $inv)
-                                    <tr x-data="{ selected: false }" :class="selected ? 'selected-row' : ''">
-                                        <td data-col="check" style="text-align:center;position:sticky;left:0;z-index:12;background:inherit;border-right:1px solid #e2e8f0;"><input type="checkbox" class="inline-checkbox" :checked="selected" @change="selected = $event.target.checked; if(selected) selectInvoice({{ $inv->id }}, '{{ $inv->invoice_no }}'); else deselectInvoice({{ $inv->id }})"></td>
+                                    <tr x-data="{ get isRowSelected() { return selectedInvoices.some(i => Number(i.id) === {{ $inv->id }}); } }" :class="isRowSelected ? 'selected-row' : ''">
+                                        <td data-col="check" style="text-align:center;position:sticky;left:0;z-index:12;background:inherit;border-right:1px solid #e2e8f0;"><input type="checkbox" class="inline-checkbox" :checked="isRowSelected" @change="$event.target.checked ? selectInvoice({{ $inv->id }}, '{{ $inv->invoice_no }}') : deselectInvoice({{ $inv->id }})"></td>
                                         <td data-col="post_date">{{ $inv->invoice_date ? $inv->invoice_date->format('Y-m-d') : '' }}</td>
                                         <td data-col="invoice_date">{{ $inv->invoice_date ? $inv->invoice_date->format('Y-m-d') : '' }}</td>
                                         <td data-col="due_date">{{ $inv->due_date ? $inv->due_date->format('Y-m-d') : '' }}</td>
@@ -716,36 +708,27 @@
                     @endif
 
                     // If creating new payment from invoice list, auto-select and populate
-                    @if(!$payment && isset($selectedInvoiceId) && $selectedInvoiceId)
-                    const selectedInvoiceId = {{ $selectedInvoiceId }};
-                    const selectedInvoice = @json($invoices->firstWhere('id', $selectedInvoiceId));
-                    
-                    if (selectedInvoice) {
-                        // Pre-select the invoice
-                        this.selectedInvoices.push({ 
-                            id: selectedInvoice.id, 
-                            inv_no: selectedInvoice.invoice_no 
-                        });
-                        
-                        // Auto-fill payment details from invoice
-                        this.form.trade_partner_id = String(selectedInvoice.bill_to_id || '');
-                        this.form.currency_id = String(selectedInvoice.currency_id || '');
-                        
-                        // Set allocation amount to invoice balance
-                        const balanceAmount = parseFloat(selectedInvoice.balance_amount || selectedInvoice.total_amount || 0);
-                        this.allocationAmounts[selectedInvoice.id] = balanceAmount.toFixed(2);
-                        
-                        // Update total
-                        this.recalcTotal();
-                        
-                        // Auto-check the checkbox in the table
-                        this.$nextTick(() => {
-                            const checkbox = document.querySelector(`input[type="checkbox"][value="${selectedInvoice.id}"]`);
-                            if (checkbox) {
-                                checkbox.checked = true;
-                            }
-                        });
+                    @if(!$payment && isset($selectedInvoiceIds) && !empty($selectedInvoiceIds))
+                    const targetIds = @json(array_map('intval', $selectedInvoiceIds));
+                    const allInvoices = @json($invoices);
+                    let firstInvoice = null;
+
+                    targetIds.forEach(id => {
+                        const inv = allInvoices.find(i => Number(i.id) === Number(id));
+                        if (inv) {
+                            if (!firstInvoice) firstInvoice = inv;
+                            this.selectedInvoices.push({ id: inv.id, inv_no: inv.invoice_no });
+                            const balanceAmount = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined ? inv.balance_amount : inv.total_amount) || 0;
+                            this.allocationAmounts[inv.id] = balanceAmount.toFixed(2);
+                        }
+                    });
+
+                    if (firstInvoice) {
+                        this.form.trade_partner_id = String(firstInvoice.bill_to_id || '');
+                        this.form.currency_id = String(firstInvoice.currency_id || '');
                     }
+
+                    this.recalcTotal();
                     @endif
                 },
 

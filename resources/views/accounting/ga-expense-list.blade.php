@@ -148,13 +148,16 @@
                         </button>
                     </div>
                     <div class="btn-group">
-                        <button class="btn-tool green" onclick="makePayment()" title="Make / Receive Payment">
-                            <i class="fa fa-credit-card"></i> Make / Receive Payment
+                        <button class="btn-tool green" onclick="makePayment()" title="Make Payment">
+                            <i class="fa fa-credit-card"></i> Make Payment
+                        </button>
+                        <button class="btn-tool green" onclick="receivePayment()" title="Receive Payment">
+                            <i class="fa fa-money"></i> Receive Payment
                         </button>
                         <button class="btn-tool green" onclick="openPaymentPortal()" title="Payment Portal">
                             Payment Portal <span style="background:#f3c200;padding:0 3px;border-radius:2px;color:white;font-size:8px;margin-left:2px;">New</span>
                         </button>
-                        <button class="btn-tool" onclick="batchUpdateExpenses()" title="Batch update Expenses">
+                        <button class="btn-tool" style="display:none !important;" onclick="batchUpdateExpenses()" title="Batch update Expenses">
                             Batch update
                         </button>
                     </div>
@@ -536,18 +539,32 @@
         }
     });
 
-    /* MAKE / RECEIVE PAYMENT */
+    /* MAKE PAYMENT */
     function makePayment() {
         const selected = getSelectedExpenseData();
         if (selected.length === 0) {
-            showToast('info', 'Please select one or more expenses to record a payment.');
+            showToast('info', 'Please select one or more expenses to make a payment.');
             return;
         }
         if (selected.length === 1) {
-            window.location.href = '{{ url("accounting/payment/make") }}?invoice_id=' + selected[0].id;
+            window.location.href = '{{ route("accounting.payment-make") }}?invoice_id=' + encodeURIComponent(selected[0].id);
             return;
         }
-        window.location.href = '{{ url("accounting/payment/make") }}?invoice_ids=' + selected.map(s => s.id).join(',');
+        window.location.href = '{{ route("accounting.payment-make") }}?invoice_ids=' + encodeURIComponent(selected.map(s => s.id).join(','));
+    }
+
+    /* RECEIVE PAYMENT */
+    function receivePayment() {
+        const selected = getSelectedExpenseData();
+        if (selected.length === 0) {
+            showToast('info', 'Please select one or more invoices to receive a payment.');
+            return;
+        }
+        if (selected.length === 1) {
+            window.location.href = '{{ route("accounting.payment-receive") }}?invoice_id=' + encodeURIComponent(selected[0].id);
+            return;
+        }
+        window.location.href = '{{ route("accounting.payment-receive") }}?invoice_ids=' + encodeURIComponent(selected.map(s => s.id).join(','));
     }
 
     /* PAYMENT PORTAL */

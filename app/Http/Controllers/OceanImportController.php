@@ -1926,6 +1926,24 @@ class OceanImportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = OceanImportCharge::where('ocean_import_id', $oceanImportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             // Check if charges exist that are already invoiced
             $allChargesCount = OceanImportCharge::where('ocean_import_id', $oceanImportId)->count();
             if ($allChargesCount > 0) {

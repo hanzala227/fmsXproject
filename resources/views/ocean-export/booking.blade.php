@@ -974,7 +974,7 @@
                                             style="text-align: right; width: 80px;" name="measure_cbm" x-model="form.measure_cbm"></td>
                                     <td></td>
                                 </tr>
-                                <tr>
+                                <tr style="display: none !important;">
                                     <td style="text-align: center;"><input type="radio" disabled></td>
                                     <td>Receiving</td>
                                     <td colspan="4">

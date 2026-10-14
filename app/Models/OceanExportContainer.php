@@ -52,6 +52,8 @@ class OceanExportContainer extends Model
 
     public function hbls()
     {
-        return $this->belongsToMany(OceanExportHbl::class, 'ocean_export_container_hbl', 'container_id', 'hbl_id');
+        return $this->belongsToMany(OceanExportHbl::class, 'ocean_export_container_hbl', 'container_id', 'hbl_id')
+            ->withPivot(['pkg_qty', 'pkg_unit', 'weight_kg', 'weight_unit', 'measure_cbm', 'measure_unit', 'po_no'])
+            ->withTimestamps();
     }
 }

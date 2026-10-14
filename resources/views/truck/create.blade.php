@@ -1208,17 +1208,19 @@
                     
                     <hr style="border-top:1px solid #e2e8f0;margin:12px 0;">
                     
-                    <!-- Warehouse Receipt List -->
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
-                        <h4 style="font-size: 13px; font-weight: 700; margin: 0; color: #2563eb; margin-right: 4px;">Warehouse Receipt List</h4>
-                        <button type="button" class="btn-default-gf" disabled><i class="fa fa-trash"></i></button>
+                    <!-- Warehouse Receipt List (Hidden per request) -->
+                    <div style="display: none !important;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                            <h4 style="font-size: 13px; font-weight: 700; margin: 0; color: #2563eb; margin-right: 4px;">Warehouse Receipt List</h4>
+                            <button type="button" class="btn-default-gf" disabled><i class="fa fa-trash"></i></button>
+                        </div>
+                        
+                        <table class="memo-table" style="margin-bottom:15px;">
+                            <thead>
+                                <tr><th style="text-align:center;color:#64748b;padding:10px;">No warehouse receipts linked.</th></tr>
+                            </thead>
+                        </table>
                     </div>
-                    
-                    <table class="memo-table" style="margin-bottom:15px;">
-                        <thead>
-                            <tr><th style="text-align:center;color:#64748b;padding:10px;">No warehouse receipts linked.</th></tr>
-                        </thead>
-                    </table>
                     
                     <hr style="border-top:1px solid #e2e8f0;margin:12px 0;">
                     

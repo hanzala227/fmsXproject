@@ -355,7 +355,7 @@ class OceanExportController extends Controller
 
     public function edit(OceanExport $oceanExport)
     {
-        $oceanExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'containers.containerType', 'charges.currency', 'documents', 'statusLogs.user']);
+        $oceanExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'containers.containerType', 'charges.currency', 'documents', 'statusLogs.user']);
         
         // Format container data for frontend input compatibility
         $oceanExport->containers = $oceanExport->containers->map(function($container) {
@@ -439,16 +439,18 @@ class OceanExportController extends Controller
         $serviceTerms = ServiceTerm::all();
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Ocean Export')->latest()->get();
         $page = request()->segment(2);
-        $history = $oceanExport->statusLogs && $oceanExport->statusLogs->count()
-            ? $oceanExport->statusLogs->map(function($log) {
+        $history = $oceanExport->statusLogs()
+            ->with('user')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function($log) {
                 return [
-                    'date' => $log->created_at->format('Y-m-d H:i'),
+                    'date' => $log->created_at->format('Y-m-d H:i:s'),
                     'user' => $log->user?->name ?? 'System',
-                    'action' => $log->status_name ?? $log->action ?? 'N/A',
+                    'action' => $log->status_name ?? $log->action ?? 'UPDATED',
                     'details' => $log->details,
                 ];
-            })
-            : [];
+            });
         $chargesList = $oceanExport->charges && $oceanExport->charges->count() > 0
             ? $oceanExport->charges->map(function($c) use ($oceanExport) {
                 return [
@@ -789,6 +791,9 @@ class OceanExportController extends Controller
     public function destroy(OceanExport $oceanExport)
     {
         $oceanExport->delete();
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Shipment deleted successfully.']);
+        }
         return redirect()->route('ocean-export.index')->with('success', 'Shipment deleted.');
     }
 
@@ -806,8 +811,20 @@ class OceanExportController extends Controller
     public function bulkBlock(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:ocean_exports,id']);
-        OceanExport::whereIn('id', $request->ids)->update(['is_hold' => true]);
-        if ($request->expectsJson()) {
+        $shipments = OceanExport::whereIn('id', $request->ids)->get();
+        foreach ($shipments as $shipment) {
+            $shipment->update([
+                'is_hold' => true,
+                'is_blocked' => true,
+            ]);
+            $shipment->statusLogs()->create([
+                'user_id' => auth()->id(),
+                'status_code' => 'BLOCKED',
+                'status_name' => 'BLOCKED',
+                'details' => 'Shipment blocked/placed on hold via Tools menu.',
+            ]);
+        }
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => count($request->ids) . ' shipment(s) blocked.']);
         }
         return back()->with('success', count($request->ids) . ' shipment(s) blocked.');
@@ -816,8 +833,20 @@ class OceanExportController extends Controller
     public function bulkUnblock(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:ocean_exports,id']);
-        OceanExport::whereIn('id', $request->ids)->update(['is_hold' => false]);
-        if ($request->expectsJson()) {
+        $shipments = OceanExport::whereIn('id', $request->ids)->get();
+        foreach ($shipments as $shipment) {
+            $shipment->update([
+                'is_hold' => false,
+                'is_blocked' => false,
+            ]);
+            $shipment->statusLogs()->create([
+                'user_id' => auth()->id(),
+                'status_code' => 'UNBLOCKED',
+                'status_name' => 'UNBLOCKED',
+                'details' => 'Shipment unblocked/released from hold via Tools menu.',
+            ]);
+        }
+        if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => count($request->ids) . ' shipment(s) unblocked.']);
         }
         return back()->with('success', count($request->ids) . ' shipment(s) unblocked.');
@@ -1281,6 +1310,25 @@ class OceanExportController extends Controller
         $charges = $query->get();
 
         if ($charges->count() == 0) {
+            if ($request->has('ids') && is_array($request->ids) && count($request->ids) > 0) {
+                $alreadyInvoiced = Charge::where('chargeable_type', 'App\Models\OceanExport')
+                    ->where('chargeable_id', $oceanExportId)
+                    ->whereIn('id', $request->ids)
+                    ->where('is_invoiced', true)
+                    ->pluck('invoice_no')
+                    ->first();
+                if ($alreadyInvoiced) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected charge(s) are already invoiced (' . $alreadyInvoiced . ').'
+                    ], 400);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected charge(s) not found in database. Please click "Save" on the shipment first.'
+                ], 400);
+            }
+
             $allChargesCount = Charge::where('chargeable_type', 'App\Models\OceanExport')->where('chargeable_id', $oceanExportId)->count();
             if ($allChargesCount > 0) {
                 $existingInv = Charge::where('chargeable_type', 'App\Models\OceanExport')->where('chargeable_id', $oceanExportId)->whereNotNull('invoice_no')->pluck('invoice_no')->first();

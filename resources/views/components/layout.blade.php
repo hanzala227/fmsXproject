@@ -288,6 +288,8 @@
     <script src="{{ asset('js/frex-voice.js') }}"></script>
     --}}
     
+    <x-searchable-select-global />
+    
     @stack('scripts')
 </body>
 </html>

@@ -292,8 +292,8 @@
                 </div>
             </div>
 
-            <!-- Memo Section -->
-            <div class="portlet light">
+            <!-- Memo Section (Hidden per request) -->
+            <div class="portlet light" style="display: none !important;">
                 <div class="portlet-title" style="cursor:pointer;" @click="memoOpen = !memoOpen">
                     <span class="caption-subject"><i class="fa fa-sticky-note-o"></i> Memo</span>
                     <div style="display:flex;gap:4px;align-items:center;">
@@ -343,8 +343,8 @@
                 </div>
             </div>
 
-            <!-- Footer Actions -->
-            <div class="action-bar">
+            <!-- Footer Actions (Hidden per request) -->
+            <div class="action-bar" style="display: none !important;">
                 <button type="button" class="btn-tool green" @click="handleSubmit('save_close')"><i class="fa fa-save"></i> @if($editMode) UPDATE @else SAVE @endif</button>
                 @if(!$editMode)
                 <button type="button" class="btn-tool" @click="handleSubmit('save_new')"><i class="fa fa-plus-circle"></i> SAVE &amp; NEW</button>
