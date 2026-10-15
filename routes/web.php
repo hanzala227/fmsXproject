@@ -1229,21 +1229,23 @@ Route::prefix('client-portal')
    
         Route::get('/shipments', [ClientController::class, 'shipments'])->name('client.shipments');
 
-        Route::get('/tracking', [ClientController::class, 'tracking']);
+        Route::get('/tracking', [ClientController::class, 'tracking'])->name('client.tracking');
 
-        Route::get('/bookings', [ClientController::class, 'bookings']);
+        Route::get('/bookings', [ClientController::class, 'bookings'])->name('client.bookings');
 
-        Route::get('/documents', [ClientController::class, 'documents']);
+        Route::get('/documents', [ClientController::class, 'documents'])->name('client.documents');
 
-        Route::get('/requests', [ClientController::class, 'requests']);
+        Route::get('/requests', [ClientController::class, 'requests'])->name('client.requests');
 
-        Route::get('/messages', [ClientController::class, 'messages']);
+        Route::get('/messages', [ClientController::class, 'messages'])->name('client.messages') ;
 
-        Route::get('/notifications', [ClientController::class, 'notifications']);
+        Route::get('/client/search', [ClientController::class, 'search'])->name('client.shipments.search');
 
-        Route::get('/company', [ClientComapnyController::class, 'index']);
+        Route::get('/notifications', [ClientController::class, 'notifications'])->name('client.notifications');
 
-        Route::get('/settings', [ClientController::class, 'settings']);
+        Route::get('/company', [ClientComapnyController::class, 'index'])->name('client.company');
+
+        Route::get('/settings', [ClientController::class, 'settings'])->name('client.settings');
 
         Route::get('quotes', [CustomerQuoteController::class, 'index'])->name('cp.quotes.index');
 

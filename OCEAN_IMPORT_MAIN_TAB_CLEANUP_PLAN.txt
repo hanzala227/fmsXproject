@@ -46,7 +46,7 @@ We will create these Blade components:
    Example:
    <x-gf-input 
        name="file_no" 
-       label="File No." 
+       label="Booking no" 
        readonly 
        x-model="form.file_no" 
    />

@@ -1487,7 +1487,7 @@ class OceanImportController extends Controller
         $callback = function () use ($shipments) {
             $file = fopen('php://output', 'w');
             fputcsv($file, [
-                'File No.', 'MBL No.', 'Sub B/L No.', 'Office', 'Operator',
+                'Booking no', 'MBL No.', 'Sub B/L No.', 'Office', 'Operator',
                 'Carrier', 'Vessel', 'Voyage', 'Port of Loading', 'Port of Discharge',
                 'Customer', 'Oversea Agent', 'ETD', 'ETA', 'Final ETA',
                 'Freight Term', 'O.B/L Type', 'M.B/L Type',
@@ -2400,7 +2400,7 @@ class OceanImportController extends Controller
             // UTF-8 BOM
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                'File No.', 'Container No.', 'TP/SZ', 'PP/CTF', 'Seal No.', 'Seal No. 2',
+                'Booking no', 'Container No.', 'TP/SZ', 'PP/CTF', 'Seal No.', 'Seal No. 2',
                 'LFD', 'FDD', 'PKG', 'Weight(KG)', 'Weight(LB)', 'Meas(CBM)', 'Meas(CFT)',
                 'Remark', 'D.G', 'Complete', 'CY/CFS Location', 'Consignee', 'HB/L No.',
                 'MB/L NO.', 'Carrier', 'Vessel', 'POL', 'POD', 'Voyage', 'Customer',

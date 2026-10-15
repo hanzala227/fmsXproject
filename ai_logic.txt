@@ -40,7 +40,7 @@
                             const mblMap = [
                                 { label: 'MB/L No.', key: 'mbl_no', val: m.mbl_no },
                                 { label: 'Booking No.', key: 'booking_no', val: m.booking_no },
-                                { label: 'File No.', key: 'file_no', val: m.file_no },
+                                { label: 'Booking no', key: 'file_no', val: m.file_no },
                                 { label: 'Post Date', key: 'post_date', val: m.post_date },
                                 { label: 'Vessel Name', key: 'vessel_id', val: m.vessel_id, display: m.vessel_name, nameKey: 'vessel_name' },
                                 { label: 'Voyage No.', key: 'voyage', val: m.voyage },

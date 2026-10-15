@@ -61,7 +61,7 @@
         <thead>
             <tr>
                 <th style="width:10%;">ETD</th>
-                <th style="width:14%;">File No.</th>
+                <th style="width:14%;">Booking No.</th>
                 @if($showBookingNumber === '1')
                 <th style="width:12%;">Booking No.</th>
                 @endif

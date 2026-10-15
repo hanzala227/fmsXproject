@@ -56,9 +56,9 @@ This document shows **100% dynamic** connections between:
 
 ## 📦 SHIPMENT INFORMATION SECTION
 
-### Shipment No. (File No.)
+### Shipment No. (Booking no)
 - **Source**: `ocean_imports.file_no`
-- **Form Input**: Main tab → "File No." (auto-generated on create)
+- **Form Input**: Main tab → "Booking no" (auto-generated on create)
 - **Example**: `MOI-260910181037`
 - **Dynamic**: ✅ Yes
 
@@ -83,7 +83,7 @@ This document shows **100% dynamic** connections between:
 
 ### Client / Order Ref
 - **Source**: `ocean_imports.file_no` + " /"
-- **Form Input**: Main tab → File No.
+- **Form Input**: Main tab → Booking no
 - **Dynamic**: ✅ Yes
 
 ### Goods Description
@@ -368,7 +368,7 @@ This document shows **100% dynamic** connections between:
 Test each field to ensure 100% dynamic connection:
 
 ### Main Tab Fields → Invoice:
-- [ ] File No. → Shipment No.
+- [ ] Booking no → Shipment No.
 - [ ] MBL No. → Consol No. & MAWB/MBL
 - [ ] Shipper → Consignor
 - [ ] Consignee → Consignee

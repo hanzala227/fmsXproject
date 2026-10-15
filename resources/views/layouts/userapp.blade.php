@@ -9,17 +9,33 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="{{ asset('css/userdashboard.css') }}" rel="stylesheet">
     @stack('styles')
+    <style>
+        /* Base Layout (Desktop Mode - Sidebar Visible) */
+.main {
+    width: calc(100% - 200px);
+    margin-left: 200px;
+    min-height: 100vh;
+    transition: margin-left 0.25s ease, width 0.25s ease;
+    padding: 10px;
+}
+
+/* Tablet & Mobile Mode (≤900px - Sidebar becomes Overlay/Drawer) */
+@media (max-width: 900px) {
+    .main {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
+}
+    </style>
 </head>
 <body>
-<div class="app">
     @include('layouts.userSidebar')
-    <div class="main" style="width : calc(100% - 200px); margin-left: 200px;">
+    <div class="main">
         @include('layouts.usertopBar')
-        <main class="content">
+        <main class="maincontext">
             @yield('content')
         </main>
     </div>
-</div>
 <script src="{{ asset('js/userdashboard.js') }}"></script>
 @stack('scripts')
 </body>

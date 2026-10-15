@@ -129,7 +129,7 @@
                                     <input type="text" name="vendor_invoice_no" class="form-control-gf" value="{{ old('vendor_invoice_no', $ga_expense->vendor_invoice_no ?? '') }}">
                                 </div>
                             </div>
-                            <div class="form-group-gf"><label class="form-label-gf">File No.</label>
+                            <div class="form-group-gf"><label class="form-label-gf">Booking No.</label>
                                 <div class="form-input-container">
                                     <input type="text" name="file_no" class="form-control-gf" value="{{ old('file_no', $ga_expense->file_no ?? '') }}" placeholder="Optional">
                                 </div>

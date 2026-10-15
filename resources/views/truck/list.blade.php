@@ -160,7 +160,7 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;cursor:pointer;" onclick="toggleSort('file_no')">
-                                            File No. <i class="fa fa-sort" id="sort-file_no"></i>
+                                            Booking No. <i class="fa fa-sort" id="sort-file_no"></i>
                                         </th>
                                         <th data-col="post_date" style="width:90px;cursor:pointer;" onclick="toggleSort('post_date')">
                                             Post Date <i class="fa fa-sort" id="sort-post_date"></i>
@@ -188,7 +188,8 @@
                                     <tr id="filter-row" style="display:none;">
                                         <td data-col="check" class="sticky-col" style="left:0;"></td>
                                         <td data-col="lock" class="sticky-col" style="left:25px;"></td>
-                                        <td data-col="file_no" class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="File No..." oninput="applyFilters()"></td>
+                                        <td data-col="file_no" class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="Booking No..." oninput="applyFilters()"></td>
+                                        <td data-col="color" class="sticky-col" style="left:160px;"></td>
                                         <td data-col="post_date"><input class="filter-input" data-col-idx="4" placeholder="Post Date (Y-m-d)..." oninput="applyFilters()"></td>
                                         <td data-col="customer"><input class="filter-input" data-col-idx="5" placeholder="Customer..." oninput="applyFilters()"></td>
                                         <td data-col="trucker"><input class="filter-input" data-col-idx="6" placeholder="Trucker..." oninput="applyFilters()"></td>

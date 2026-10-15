@@ -349,7 +349,7 @@ class TruckShipmentController extends Controller
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($handle, [
-                'File No.', 'Post Date', 'Customer', 'Trucker', 'MB/L No.', 'HB/L No.',
+                'Booking no', 'Post Date', 'Customer', 'Trucker', 'MB/L No.', 'HB/L No.',
                 'Package Qty', 'Weight (Kg)', 'POL', 'POD', 'Final Destination',
                 'AR Balance', 'Delivered', 'Internal Remark'
             ]);

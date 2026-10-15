@@ -18,7 +18,7 @@ class ClientMiddleware
         if (auth()->check() && auth()->user()->role === 'client') {
             return $next($request);
         }
-
+        
         abort(403, 'Unauthorized access.');
     }
 }

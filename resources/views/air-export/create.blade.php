@@ -889,7 +889,7 @@
                             const m = data.data.mbl;
                             const mblMap = [
                                 { label: 'MAWB No.', key: 'mawb_no', val: m.mawb_no },
-                                { label: 'File No.', key: 'file_no', val: m.file_no },
+                                { label: 'Booking no', key: 'file_no', val: m.file_no },
                                 { label: 'Post Date', key: 'post_date', val: m.post_date },
                                 { label: 'Carrier', key: 'carrier_id', val: m.carrier_id, display: m.carrier_name, nameKey: 'carrier_name' },
                                 { label: 'Flight No.', key: 'flight_no', val: m.flight_no },
@@ -1906,7 +1906,7 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">File No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" x-model="form.mawb_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.notify"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>

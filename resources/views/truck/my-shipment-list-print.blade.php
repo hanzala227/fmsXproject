@@ -127,7 +127,7 @@
                 <strong>Search:</strong> {{ request('search') }}
             @endif
             @if(request('filter_file_no'))
-                <strong>File No:</strong> {{ request('filter_file_no') }}
+                <strong>Booking No:</strong> {{ request('filter_file_no') }}
             @endif
         </div>
     </div>
@@ -137,7 +137,7 @@
             <tr>
                 <th class="text-center">#</th>
                 <th class="text-center">Status</th>
-                <th>File No.</th>
+                <th>Booking No.</th>
                 <th class="text-center">Color</th>
                 <th>Post Date</th>
                 <th>Customer</th>

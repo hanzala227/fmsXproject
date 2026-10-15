@@ -165,7 +165,8 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:81px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="color"    style="width:28px;text-align:center;left:53px;">Color</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:81px;">Booking No.</th>
                                     <th class="sticky-col sticky-col-header" data-col="hawb_no"  style="width:120px;left:201px;">HAWB No.</th>
                                     <th data-col="mawb_no"    style="width:130px;">MAWB No.</th>
                                     <th data-col="customer"   style="width:150px;">Customer</th>

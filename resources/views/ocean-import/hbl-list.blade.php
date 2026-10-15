@@ -392,8 +392,8 @@
                         </select>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
-                        <label style="font-size:9px;color:#475569;font-weight:600;">File No.</label>
-                        <input type="text" name="file_no" class="input-inline" style="width:100px;height:20px;font-size:9px;" placeholder="File No…" value="{{ request('file_no') }}">
+                        <label style="font-size:9px;color:#475569;font-weight:600;">Booking No.</label>
+                        <input type="text" name="file_no" class="input-inline" style="width:100px;height:20px;font-size:9px;" placeholder="Booking No…" value="{{ request('file_no') }}">
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
                         <label style="font-size:9px;color:#475569;font-weight:600;">HB/L No.</label>
@@ -430,7 +430,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="flag" style="width:25px;left:50px;text-align:center;"><i class="fa fa-flag" style="color:#94a3b8;"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:75px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:75px;">Booking no</th>
                                     <th class="sticky-col sticky-col-header" data-col="hbl_no" style="width:150px;left:230px;">HB/L No.</th>
                                     <th data-col="event" style="width:110px;">Latest Event</th>
                                     <th data-col="journey" style="width:180px;">Journey</th>
@@ -452,7 +452,7 @@
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:50px;"></td>
-                                    <td class="sticky-col" style="left:75px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File No…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                    <td class="sticky-col" style="left:75px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="Booking No…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td class="sticky-col" style="left:195px;"></td>
                                     <td class="sticky-col" style="left:230px;"><input class="filter-input" style="width:100%;" data-param="filter_hbl_no" placeholder="HB/L…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td colspan="3"></td>

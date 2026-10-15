@@ -301,7 +301,7 @@
                 <!-- Right Table Grid -->
                 <table class="grid-info-table">
                     <tr>
-                        <td class="label">FILE NO.</td>
+                        <td class="label">Booking No.</td>
                         <td class="val" style="font-weight:bold;">{{ $shipment->file_no ?? 'MOI-25100001' }}</td>
                         <td class="label">MB/L NO.</td>
                         <td class="val" style="font-weight:bold;">{{ $shipment->mbl_no ?? 'MBL55555' }}</td>

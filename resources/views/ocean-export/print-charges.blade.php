@@ -46,7 +46,7 @@
         <div class="header">
             <div>
                 <h1>Ocean Export Charges Statement</h1>
-                <p>File No: {{ $shipment->file_no }}</p>
+                <p>Booking No: {{ $shipment->file_no }}</p>
             </div>
             <div style="text-align: right;">
                 <p><strong>Date:</strong> {{ date('Y-m-d') }}</p>

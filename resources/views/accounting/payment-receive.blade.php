@@ -375,7 +375,7 @@
                                         <th data-col="payment" style="width:110px;text-align:right;background:#4a5568;">Payment</th>
                                         <th data-col="payment_rmb" style="width:110px;text-align:right;background:#4a5568;">Payment (RMB)</th>
                                         <th data-col="description" style="width:150px;background:#4a5568;">Invoice Description</th>
-                                        <th data-col="file_no" style="width:100px;background:#4a5568;">File No.</th>
+                                        <th data-col="file_no" style="width:100px;background:#4a5568;">Booking No.</th>
                                         <th data-col="bl_no" style="width:120px;background:#4a5568;">B/L No.</th>
                                         <th data-col="po_no" style="width:100px;background:#4a5568;">P.O. No.</th>
                                         <th data-col="op" style="width:80px;background:#4a5568;">OP</th>
@@ -692,7 +692,7 @@
                     { key: 'payment', label: 'Payment', visible: true },
                     { key: 'payment_rmb', label: 'Payment (RMB)', visible: true },
                     { key: 'description', label: 'Invoice Description', visible: true },
-                    { key: 'file_no', label: 'File No.', visible: true },
+                    { key: 'file_no', label: 'Booking No.', visible: true },
                     { key: 'bl_no', label: 'B/L No.', visible: true },
                     { key: 'po_no', label: 'P.O. No.', visible: true },
                     { key: 'op', label: 'OP', visible: true },

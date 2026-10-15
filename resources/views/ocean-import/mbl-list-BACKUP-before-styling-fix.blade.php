@@ -400,8 +400,9 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">File No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mbl_no" style="width:150px;left:160px;">MB/L No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">Booking No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">Color</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mbl_no" style="width:150px;left:195px;">MB/L No.</th>
 
                                     <th data-col="tracking" style="width:140px;">Tracking EDI Response</th>
                                     <th data-col="sub_status" style="width:100px;">Submit Status</th>
@@ -430,7 +431,7 @@
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
-                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File No…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="Booking No…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td class="sticky-col" style="left:160px;"></td>
                                     <td class="sticky-col" style="left:160px;"><input class="filter-input" style="width:100%;" data-param="filter_mbl_no" placeholder="MB/L…" oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                     <td colspan="4"></td>
@@ -1075,7 +1076,7 @@
     ================================================================ */
     function showMbl(d) {
         const rows = [
-            ['File No.',         d.file_no],
+            ['Booking No.',         d.file_no],
             ['MBL No.',          d.mbl_no],
             ['Carrier',          d.carrier],
             ['Vessel / Voyage',  d.vessel],

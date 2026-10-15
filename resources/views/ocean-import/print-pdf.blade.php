@@ -328,7 +328,7 @@
                     <tr>
                         <td class="label">MASTER B/L NO.</td>
                         <td class="value"><input class="editable-input" type="text" value="{{ $shipment->mbl_no ?? '' }}"></td>
-                        <td class="label">FILE NO.</td>
+                        <td class="label">Booking No.</td>
                         <td class="value"><strong><input class="editable-input" type="text" style="font-weight:bold;" value="{{ $shipment->file_no ?? '' }}"></strong></td>
                     </tr>
                     <tr>
@@ -563,7 +563,7 @@
                         <label><input type="radio" name="show_type" value="blank" x-model="showType" @change="generateContent"> Blank</label>
                         
                         <span style="font-weight:bold; margin-left:10px;">More Info</span>
-                        <label><input type="checkbox" value="file_no" x-model="showInfo" @change="generateContent"> File No.</label>
+                        <label><input type="checkbox" value="file_no" x-model="showInfo" @change="generateContent"> Booking No.</label>
                         <label><input type="checkbox" value="mbl_no" x-model="showInfo" @change="generateContent"> MB/L No.</label>
                         <label><input type="checkbox" value="eta" x-model="showInfo" @change="generateContent"> ETA</label>
                     </div>
@@ -765,7 +765,7 @@
                 generateContent() {
                     let text = `***PLEASE CONFIRM UPON RECEIPT***<br>THANK YOU<br><br>`;
                     
-                    if (this.showInfo.includes('file_no')) text += `File No: {{ $shipment->file_no }}<br>`;
+                    if (this.showInfo.includes('file_no')) text += `Booking No: {{ $shipment->file_no }}<br>`;
                     if (this.showInfo.includes('mbl_no')) text += `MB/L No: {{ $shipment->mbl_no }}<br>`;
                     if (this.showInfo.includes('eta')) text += `ETA: {{ $shipment->eta ? $shipment->eta->format('m-d-Y') : '' }}<br>`;
                     

@@ -18,7 +18,7 @@
             @endphp
             <i class="fa {{ $lockClass }}" style="color:{{ $lockColor }};cursor:pointer;font-size:10px;" title="{{ $lockTitle }}" onclick="toggleLock(this)"></i>
         </td>
-        {{-- File No. --}}
+        {{-- Booking No. --}}
         <td class="sticky-col" style="width:110px;left:50px;" onclick="event.stopPropagation()">
             <a href="{{ route('truck.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
         </td>

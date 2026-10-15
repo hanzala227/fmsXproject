@@ -615,7 +615,7 @@
                 <div class="portlet-body">
                     <div class="form-grid-4">
                         <div class="form-group-gf">
-                            <span class="form-label-gf required">File No.</span>
+                            <span class="form-label-gf required">Booking No.</span>
                             <div class="form-input-container">
                                 <input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly>
                                 <span class="form-error" x-show="errors.file_no" x-text="errors.file_no"></span>
@@ -3533,7 +3533,7 @@
                     this.errors = {};
                     let hasError = false;
                     const required = [
-                        { name: "file_no", label: "File No." },
+                        { name: "file_no", label: "Booking No." },
                         { name: "post_date", label: "Post Date" },
                         { name: "office_id", label: "Office" }
                     ];

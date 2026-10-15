@@ -395,12 +395,14 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="hbl"     style="width:40px;left:50px;">HB/L</th>
-                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">File No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:90px;">Booking no</th>
                                         <th class="sticky-col sticky-col-header" data-col="mbl_no"  style="width:150px;left:200px;">MB/L No.</th>
                                         <th data-col="tracking"     style="width:140px;">Tracking EDI Response</th>
                                         <th data-col="sub_status"   style="width:100px;">Submit Status</th>
+                                        <th data-col="shipment_status" style="width:120px;">
+    Shipment Status
+</th>
                                         <th data-col="office"       style="width:80px;">Office</th>
-                                        <th data-col="hbl_no"       style="width:120px;">HB/L No.</th>
                                         <th data-col="ct"           style="width:35px;text-align:right;">CT</th>
                                         <th data-col="cont_qty"     style="width:100px;">Container/Qty</th>
                                         <th data-col="consignee"    style="width:150px;">Consignee</th>
@@ -440,18 +442,27 @@
                                         <th data-col="incoterms"    style="width:100px;">Incoterms</th>
                                         <th data-col="post_date"    style="width:75px;">Post Date</th>
                                     </tr>
-
+                                    
                                     {{-- ── FILTER ROW (hidden by default) ── --}}
                                     <tr id="filter-row" style="display:none;">
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
-                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-param="filter_file_no" placeholder="File No..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                        <td class="sticky-col" style="left:90px;"><input class="filter-input" data-param="filter_file_no" placeholder="Booking No..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td class="sticky-col" style="left:200px;"></td>
                                         <td class="sticky-col" style="left:200px;"><input class="filter-input" data-param="filter_mbl_no" placeholder="MB/L..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td><input class="filter-input" data-param="filter_office" placeholder="Office..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
+                                        <td>
+    @php
+        $shipmentStatus = $shipment->status ?? '--';
+    @endphp
+
+    <span class="badge-status">
+        {{ ucfirst(str_replace('_', ' ', $shipmentStatus)) }}
+    </span>
+</td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
@@ -925,7 +936,7 @@
     ================================================================ */
     function showMbl(d) {
         const rows = [
-            ['File No.',         d.file_no],
+            ['Booking No.',         d.file_no],
             ['MBL No.',          d.mbl_no],
             ['Carrier',          d.carrier],
             ['Vessel / Voyage',  d.vessel],

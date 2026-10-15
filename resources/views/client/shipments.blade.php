@@ -15,22 +15,22 @@
         [
             'id' => 'air-import', 'title' => 'AIR IMPORT SHIPMENTS', 'icon' => 'fa-plane', 'rows' => $airImports,
             'columns' => ['MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
-            'details' => ['File No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['Booking No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
         ],
         [
             'id' => 'air-export', 'title' => 'AIR EXPORT SHIPMENTS', 'icon' => 'fa-plane', 'rows' => $airExports,
             'columns' => ['MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
-            'details' => ['File No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['Booking No' => 'file_no', 'MAWB No' => 'mawb_no', 'Flight No' => 'flight_no', 'Departure' => 'dep_port_id', 'Destination' => 'dst_port_id', 'ETD' => 'etd', 'ETA' => 'eta'],
         ],
         [
             'id' => 'ocean-import', 'title' => 'OCEAN IMPORT SHIPMENTS', 'icon' => 'fa-ship', 'rows' => $oceanImports,
             'columns' => ['MBL No' => 'mbl_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'POL' => 'pol_id', 'POD' => 'pod_id', 'ETA' => 'eta'],
-            'details' => ['File No' => 'file_no', 'MBL No' => 'mbl_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'POL' => 'pol_id', 'POD' => 'pod_id', 'ETA' => 'eta'],
+            'details' => ['Booking No' => 'file_no', 'MBL No' => 'mbl_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'POL' => 'pol_id', 'POD' => 'pod_id', 'ETA' => 'eta'],
         ],
         [
             'id' => 'ocean-export', 'title' => 'OCEAN EXPORT SHIPMENTS', 'icon' => 'fa-ship', 'rows' => $oceanExports,
             'columns' => ['MBL No' => 'mbl_no', 'Booking No' => 'booking_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'ETD' => 'etd', 'ETA' => 'eta'],
-            'details' => ['File No' => 'file_no', 'MBL No' => 'mbl_no', 'Booking No' => 'booking_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'ETD' => 'etd', 'ETA' => 'eta'],
+            'details' => ['Booking No' => 'file_no', 'MBL No' => 'mbl_no', 'Booking No' => 'booking_no', 'Vessel' => 'vessel_id', 'Voyage' => 'voyage', 'ETD' => 'etd', 'ETA' => 'eta'],
         ],
     ];
 @endphp
@@ -49,10 +49,10 @@
 <div class="page-content">
     <div class="page-bar">
         <ul class="page-breadcrumb">
-            <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
+            <li><i class="fa fa-home"></i> <a href="{{ route('client.index') }}">Home</a> <i class="fa fa-angle-right"></i></li>
             <li><span style="color:#333;font-weight:700;">My Shipments</span></li>
         </ul>
-        <div class="company-tag">Company ID: <strong>{{ auth()->user()->company_id }}</strong></div>
+        <div class="company-tag">Company ID: <strong>{{ auth()->user()->company->name }}</strong></div>
     </div>
 
     @foreach($sections as $s)
@@ -75,7 +75,7 @@
                         <thead>
                             <tr>
                                 <th style="width:30px;text-align:center;">#</th>
-                                <th style="width:130px;">File No.</th>
+                                <th style="width:130px;">Booking No.</th>
                                 @foreach($s['columns'] as $label => $col)
                                     <th>{{ $label }}</th>
                                 @endforeach

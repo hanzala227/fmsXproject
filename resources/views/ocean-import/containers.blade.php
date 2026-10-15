@@ -361,7 +361,8 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="flag" style="width:25px;left:25px;text-align:center;"><i class="fa fa-flag"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:135px;left:50px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:135px;left:50px;">Booking No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:185px;text-align:center;">Color</th>
                                     <th class="sticky-col sticky-col-header" data-col="container_no" style="width:125px;left:220px;">Container No.</th>
                                     <th class="sticky-col sticky-col-header" data-col="consignee" style="width:150px;left:345px;">Consignee</th>
 
@@ -459,7 +460,7 @@
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
-                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File No…" oninput="applyFiltersTyping()"></td>
+                                    <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="Booking No…" oninput="applyFiltersTyping()"></td>
                                     <td class="sticky-col" style="left:185px;"></td>
                                     <td class="sticky-col" style="left:220px;"><input class="filter-input" style="width:100%;" data-param="filter_container_no" placeholder="Container…" oninput="applyFiltersTyping()"></td>
                                     <td class="sticky-col" style="left:345px;"><input class="filter-input" style="width:100%;" data-param="filter_consignee" placeholder="Consignee…" oninput="applyFiltersTyping()"></td>

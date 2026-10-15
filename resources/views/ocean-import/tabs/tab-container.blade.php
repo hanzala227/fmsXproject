@@ -262,7 +262,7 @@
                                                 <template x-for="mblC in form.containers">
                                                     <option :value="mblC.container_no" x-text="mblC.container_no"></option>
                                                 </template>
-                                                <option value="MANUAL">+ Enter Manual</option>
+                                                <option value="MANUAL">Add Manual</option>
                                             </select>
                                             <input type="text" class="form-control-gf mt-1" placeholder="Enter Container No." x-show="c.container_no === 'MANUAL'" x-model="c.manual_container_no" :name="c.container_no === 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
                                         </td>

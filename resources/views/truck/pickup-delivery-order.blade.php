@@ -46,7 +46,7 @@
             </div>
             <div>
                 <div class="doc-title">Pickup / Delivery Order</div>
-                <div style="text-align: right; font-weight: bold; color: #334155; margin-top: 4px;">FILE NO: {{ $truckShipment->file_no ?? 'N/A' }}</div>
+                <div style="text-align: right; font-weight: bold; color: #334155; margin-top: 4px;">Booking No: {{ $truckShipment->file_no ?? 'N/A' }}</div>
                 <div style="text-align: right; color: #64748b; font-size: 11px;">DATE: {{ date('Y-m-d') }}</div>
             </div>
         </div>

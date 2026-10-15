@@ -467,7 +467,7 @@
                                 <a href="javascript:;" onclick="toggleSort('created_at')" style="color:inherit;text-decoration:none;">Date <i class="fa fa-sort" id="sort-created_at"></i></a>
                             </th>
                             <th data-col="customer" style="width:110px;">Customer</th>
-                            <th data-col="file_no" style="width:80px;">File No.</th>
+                            <th data-col="file_no" style="width:80px;">Booking no</th>
                             <th data-col="office" style="width:55px;">Office</th>
                             <th data-col="trucker" style="width:80px;">Trucker</th>
                             <th data-col="from_to" style="width:80px;">From / To</th>

@@ -1403,7 +1403,7 @@ class OceanExportController extends Controller
         $callback = function () use ($shipments) {
             $file = fopen('php://output', 'w');
             fputcsv($file, [
-                'File No.', 'MBL No.', 'Sub B/L No.', 'Office', 'Operator',
+                'Booking no', 'MBL No.', 'Sub B/L No.', 'Office', 'Operator',
                 'Carrier', 'Vessel', 'Voyage', 'Port of Loading', 'Port of Discharge',
                 'Customer', 'Oversea Agent', 'ETD', 'ETA', 'Final ETA',
                 'Freight Term', 'O.B/L Type', 'M.B/L Type',
