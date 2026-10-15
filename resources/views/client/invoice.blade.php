@@ -134,7 +134,6 @@
 
 </div>
 
-<link rel="stylesheet" href="{{ asset('css/client-portal.css') }}">
 
 <script>
 var panel = document.getElementById('detail-panel');

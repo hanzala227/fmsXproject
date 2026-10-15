@@ -130,7 +130,7 @@
 
                     <div class="search-row">
                         <div class="search-field">
-                            <label>File No.</label>
+                            <label>Booking no</label>
                             <input type="text" id="fileNo" class="fi fi-search">
                         </div>
                         <div class="search-field" id="blNoField">
@@ -154,7 +154,7 @@
                                     <th>Type</th>
                                     <th>Office</th>
                                     <th>Post Date</th>
-                                    <th>File No.</th>
+                                    <th>Booking no</th>
                                     <th>BL No.</th>
                                     <th>Oversea Agent</th>
                                     <th>Carrier</th>

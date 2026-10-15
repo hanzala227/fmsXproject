@@ -442,7 +442,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="flag" style="width:25px;left:50px;text-align:center;"><i class="fa fa-flag" style="color:#94a3b8;"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:75px;">File No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:120px;left:75px;">Booking no</th>
                                     <th class="sticky-col sticky-col-header" data-col="hbl_no" style="width:150px;left:230px;">HB/L No.</th>
                                     <th data-col="event" style="width:110px;">Latest Event</th>
                                     <th data-col="journey" style="width:180px;">Journey</th>

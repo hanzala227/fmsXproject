@@ -278,7 +278,7 @@
     <div class="export-banner">
         <div>
             <h4>Need a detailed report?</h4>
-            <p>Current filters ke hisaab se summary, shipments, invoices aur quotations ka PDF report download karein.</p>
+            <p>According to the current filters, you can download a PDF report of shipments, invoices, and quotations.</p>
         </div>
         <a class="btn-tool green" href="{{ route('client.reports.pdf', request()->query()) }}"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
     </div>

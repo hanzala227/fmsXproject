@@ -47,7 +47,7 @@
             {{ $shipment->file_no }}
         </a>
     </td>
-    {{-- File No. --}}
+    {{-- Booking no --}}
     <td class="sticky-col" style="width:110px;left:90px;" onclick="event.stopPropagation()">
         <a href="{{ route('ocean-import.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no }}</a>
     </td>

@@ -111,7 +111,7 @@ Ocean Import list view ki styling **pehle se hi standardized** hai across all mo
                 <table class="grid-table">
                     <thead>
                         <tr>
-                            <th class="sticky-col sticky-col-header">File No.</th>
+                            <th class="sticky-col sticky-col-header">Booking no</th>
                             <th>Customer</th>
                             <th>Port</th>
                             <!-- More columns -->
@@ -278,7 +278,7 @@ Gray Badge BG:    #f8fafc  (border: #e2e8f0, text: #64748b)
 ### ✅ Sticky Columns
 First column remains fixed while scrolling horizontally:
 ```html
-<th class="sticky-col sticky-col-header">File No.</th>
+<th class="sticky-col sticky-col-header">Booking no</th>
 <td class="sticky-col"><a href="#" class="col-link">MOI-123</a></td>
 ```
 
@@ -314,7 +314,7 @@ function showToast(type, message) {
 ```html
 <div class="config-panel" x-show="showConfig">
     <div class="config-panel-title">Toggle Columns</div>
-    <label><input type="checkbox" checked> File No.</label>
+    <label><input type="checkbox" checked> Booking no</label>
     <label><input type="checkbox" checked> Customer</label>
     <label><input type="checkbox" checked> Port</label>
 </div>

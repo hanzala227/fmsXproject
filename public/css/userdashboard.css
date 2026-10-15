@@ -178,7 +178,213 @@ body {
 }
 
 
+/* =========================================================
+   RESPONSIVE OVERRIDES
+   Load AFTER your existing stylesheet (or paste at the very end).
+   Breakpoints: 1400 / 1200 / 992 / 900 / 768 / 560 / 400
+   ========================================================= */
 
+/* ---------- Base safety net ---------- */
+html { -webkit-text-size-adjust: 100%; }
+img, svg, video, canvas { max-width: 100%; height: auto; }
+.app, .main, .content, .card, .portlet, .client-card { min-width: 0; }
+.table-wrap, .table-wrapper, .grid-wrapper, .client-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Visible keyboard focus everywhere */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+/* Sidebar overlay (add <div class="sidebar-overlay"></div> inside .app) */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 26, 51, .55);
+    z-index: 40;
+}
+.sidebar-overlay.open { display: block; }
+
+/* Fix conflicting duplicate definitions (.num was used for both stats and right-aligned cells) */
+.stat .num { text-align: left; }
+
+/* ---------- ≤1400px ---------- */
+@media (max-width: 1400px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .grid-3 > .col:first-child { grid-column: 1 / -1; }
+}
+
+/* ---------- ≤1200px ---------- */
+@media (max-width: 1200px) {
+    .stats,
+    .quick { grid-template-columns: repeat(3, 1fr); }
+    .grid-2,
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-3 > .col:first-child { grid-column: auto; }
+}
+
+/* ---------- ≤992px ---------- */
+@media (max-width: 992px) {
+    .client-summary-grid,
+    .client-details-grid { grid-template-columns: 1fr; }
+    .client-detail-full { grid-column: auto; }
+
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .summary-grid.four,
+    .report-cards,
+    .status-report-grid { grid-template-columns: repeat(2, 1fr); }
+    .details-grid { grid-template-columns: repeat(2, 1fr); }
+    .filter-grid { grid-template-columns: repeat(2, 1fr); }
+    .filter-actions { grid-column: 1 / -1; }
+}
+
+/* ---------- ≤900px : off-canvas sidebar ---------- */
+@media (max-width: 900px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -260px;
+        width: 250px;
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+        z-index: 50;
+        transition: left .2s ease;
+    }
+    .sidebar.open { left: 0; box-shadow: 0 0 30px rgba(0, 0, 0, .35); }
+
+    .burger { display: block; flex-shrink: 0; }
+    .topbar { padding: 10px 14px; gap: 12px; }
+    .search { max-width: none; }
+    .top-right { gap: 16px; }
+    .user div { display: none; }
+
+    .hero { background-position: center; }
+}
+
+/* ---------- ≤768px ---------- */
+@media (max-width: 768px) {
+    .content { padding: 12px; gap: 12px; }
+
+    /* Hero */
+    .hero { padding: 20px 16px; }
+    .hero h1 { font-size: 22px; }
+    .hero p { font-size: 14px; margin-bottom: 14px; }
+    .hero-btns { flex-wrap: wrap; }
+    .hero-btns .btn { flex: 1 1 140px; justify-content: center; }
+
+    /* Dashboard blocks */
+    .stat { padding: 12px; }
+    .stat .num { font-size: 20px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .quick { grid-template-columns: repeat(3, 1fr); }
+    .q { padding: 14px 4px; font-size: 12px; }
+    .donut-wrap { flex-wrap: wrap; gap: 16px; }
+
+    /* Tables scroll inside their wrapper instead of breaking the page */
+    .tbl { min-width: 560px; }
+    .grid-table { min-width: 640px; }
+    .company-table { min-width: 650px; }
+    .client-table { min-width: 850px; }
+
+    /* Client portal */
+    .client-page { padding: 16px; }
+    .client-filter-form { flex-direction: column; align-items: stretch; }
+    .client-input,
+    .client-select,
+    .client-btn,
+    .client-clear-btn { width: 100%; min-width: 0; }
+    .client-checkbox-label { padding: 4px 0; }
+    .client-detail-header { flex-direction: column; align-items: flex-start; }
+    .client-pagination nav { justify-content: center; overflow-x: auto; }
+
+    /* Portlet pages */
+    .page-bar { flex-wrap: wrap; gap: 6px; }
+    .portlet-title,
+    .portlet-tool { flex-wrap: wrap; gap: 8px; }
+    .portlet-search { width: 100%; }
+    .portlet-search .input-inline { width: 100%; flex: 1; }
+    .tool-form { width: 100%; }
+    .tool-form .input-inline,
+    .tool-form .btn-tool { flex: 1 1 140px; }
+
+    /* Detail grids / totals */
+    .details-grid { grid-template-columns: repeat(2, 1fr); }
+    .total-box { width: auto; max-width: none; margin: 12px; }
+    .client-total-box { max-width: none; }
+
+    /* Modal */
+    .modal-box { width: 94%; min-width: 0; }
+    .kv-grid { grid-template-columns: 110px 1fr; }
+
+    /* Company page */
+    .company-page { padding: 15px; }
+    .company-title { font-size: 19px; }
+    .company-info { grid-template-columns: 1fr; gap: 5px; }
+    .company-card { padding: 15px; }
+
+    /* Bigger tap targets, and 16px inputs so iOS doesn't zoom on focus */
+    .search input,
+    .client-input,
+    .client-select,
+    .input-inline { font-size: 16px; }
+    .input-inline,
+    .btn-tool { height: 36px; }
+    .search { height: 42px; }
+}
+
+/* ---------- ≤560px ---------- */
+@media (max-width: 560px) {
+    .topbar { gap: 10px; }
+    .top-right { gap: 12px; }
+    .bell em { right: -8px; }
+
+    .stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .quick { grid-template-columns: repeat(2, 1fr); }
+
+    .summary-grid,
+    .summary-grid.four,
+    .report-cards,
+    .status-report-grid,
+    .filter-grid,
+    .details-grid { grid-template-columns: 1fr; }
+
+    .kv-grid { grid-template-columns: 1fr; }
+    .kv-grid .k { border-bottom: 0; padding-bottom: 2px; }
+    .kv-grid div:nth-last-child(-n+2) { border-bottom: 1px solid #e2e8f0; }
+    .kv-grid div:last-child { border-bottom: 0; }
+
+    .export-banner { flex-direction: column; align-items: flex-start; }
+    .export-banner .btn-tool { width: 100%; justify-content: center; }
+
+    .card-head { flex-wrap: wrap; gap: 6px; }
+    .upcoming,
+    .row-item { gap: 10px; }
+}
+
+/* ---------- ≤400px ---------- */
+@media (max-width: 400px) {
+    .brand-name { font-size: 26px; }
+    .hero h1 { font-size: 20px; }
+    .stats { grid-template-columns: 1fr; }
+    .client-page { padding: 12px; }
+    .client-page-header h2,
+    .client-detail-header h2 { font-size: 19px; }
+    .client-summary-card { padding: 14px; }
+    .client-summary-value { font-size: 19px; }
+    .pill { padding: 4px 10px; }
+}
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar { transition: none; }
+}
 .client-back-link {
 display: inline-block;
 margin-bottom: 18px;
@@ -845,7 +1051,7 @@ RESPONSIVE
 .count-badge { font-size: 10px; font-weight: 600; color: #3b82f6; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1px 7px; }
 .portlet-search { display: flex; align-items: center; gap: 6px; }
 .portlet-search i { font-size: 10px; color: #94a3b8; }
-.portlet-search .input-inline { width: 160px; height: 24px; }
+.portlet-search .input-inline { width: 160px; height: 24px; position: relative;}
 .portlet-tool { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
 .portlet-tool.bottom { border-bottom: 0; border-top: 1px solid #e2e8f0; }
 .tool-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

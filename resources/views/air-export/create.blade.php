@@ -889,7 +889,7 @@
                             const m = data.data.mbl;
                             const mblMap = [
                                 { label: 'MAWB No.', key: 'mawb_no', val: m.mawb_no },
-                                { label: 'File No.', key: 'file_no', val: m.file_no },
+                                { label: 'Booking no', key: 'file_no', val: m.file_no },
                                 { label: 'Post Date', key: 'post_date', val: m.post_date },
                                 { label: 'Carrier', key: 'carrier_id', val: m.carrier_id, display: m.carrier_name, nameKey: 'carrier_name' },
                                 { label: 'Flight No.', key: 'flight_no', val: m.flight_no },

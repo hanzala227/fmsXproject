@@ -339,7 +339,7 @@ class AccountingBlockMaintenanceController extends Controller
 
         $callback = function () use ($data) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Type', 'Office', 'Post Date', 'File No.', 'BL No.', 'Oversea Agent', 'Carrier', 'Customer', 'POL', 'POD', 'Vessel/FLT No.', 'Blocked']);
+            fputcsv($handle, ['Type', 'Office', 'Post Date', 'Booking no', 'BL No.', 'Oversea Agent', 'Carrier', 'Customer', 'POL', 'POD', 'Vessel/FLT No.', 'Blocked']);
             foreach ($data['data'] ?? [] as $row) {
                 fputcsv($handle, [
                     $row['type'] ?? '',

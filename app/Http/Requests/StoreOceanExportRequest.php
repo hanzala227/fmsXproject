@@ -285,7 +285,7 @@ class StoreOceanExportRequest extends FormRequest
     {
         return [
             'file_no.required' => 'File No is required.',
-            'file_no.unique' => 'This File No is already used. Please enter a unique File No.',
+            'file_no.unique' => 'This File No is already used. Please enter a unique Booking no',
             'mbl_no.unique' => 'This MBL No is already used. Please enter a unique MBL No.',
             
             // HBL validation

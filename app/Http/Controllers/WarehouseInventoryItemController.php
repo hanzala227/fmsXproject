@@ -563,7 +563,7 @@ class WarehouseInventoryItemController extends Controller
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
                 'Date', 'Customer', 'SKU No.', 'Product Description',
-                'File No.', 'Office', 'Trucker', 'From / To',
+                'Booking no', 'Office', 'Trucker', 'From / To',
                 'Qty', 'PCS', 'Weight (KG)', 'Measurement (CBM)', 'Status',
             ]);
 
