@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('air_exports', function (Blueprint $table) {
             if (!Schema::hasColumn('air_exports', 'dm_sales_person_id')) {
-                $table->foreignId('dm_sales_person_id')->nullable()->constrained('users')->nullOnDelete()->after('dm_notify_id');
+                $table->foreignId('dm_sales_person_id')->nullable()->constrained('users')->nullOnDelete();
             }
             if (!Schema::hasColumn('air_exports', 'incoterm_id')) {
                 $table->foreignId('incoterm_id')->nullable()->constrained('incoterms')->nullOnDelete();

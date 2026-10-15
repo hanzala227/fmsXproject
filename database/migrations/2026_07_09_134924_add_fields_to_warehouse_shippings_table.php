@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('warehouse_shippings', function (Blueprint $table) {
             if (!Schema::hasColumn('warehouse_shippings', 'color')) {
-                $table->string('color', 20)->nullable()->after('status');
+                $table->string('color', 20)->nullable();
             }
             if (!Schema::hasColumn('warehouse_shippings', 'memos_data')) {
-                $table->json('memos_data')->nullable()->after('color');
+                $table->json('memos_data')->nullable();
             }
         });
     }
