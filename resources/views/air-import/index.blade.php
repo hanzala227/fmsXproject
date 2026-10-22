@@ -2430,72 +2430,156 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Sales</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][sales_person_id]'" x-model="hawb.sales_person_id"><option value="">Select...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sales Type</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][sales_type]'" x-model="hawb.sales_type"><option value="">Select...</option><option value="CO-LOAD">CO-LOAD</option><option value="FREE CARGO">FREE CARGO</option><option value="NOMI">NOMI</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Ship Type</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][ship_type]'" x-model="hawb.ship_type"><option value="">Select...</option><option value="NORMAL">NORMAL</option><option value="S/W">S/W</option><option value="T/S">T/S</option></select></div></div>
+                            </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
 
                             <div class="form-grid-4">
-                                <!-- Row 1 -->
-                                
+                                <!-- Row 4: Routing & Destination -->
                                 <div class="form-group-gf">
-    <label class="form-label-gf">Freight Location......</label>
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-            :name="'hbls['+index+'][freight_location_id]'"
-            x-model="hawb.freight_location_id"
-        >
-            <option value="">Select...</option>
-
-            @foreach($ports as $port)
-                <option value="{{ $port->id }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-                               
-<div class="form-group-gf">
-    <label class="form-label-gf">Final Destination</label>
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            :name="'hbls['+index+'][final_destination_id]'"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-            x-model="hawb.final_destination_id"
-        >
-            <option value="">Select...</option>
-
-            @foreach($ports as $port)
-                <option value="{{ $port->id }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-
-<div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" :name="'hbls['+index+'][final_eta]'" x-model="hawb.final_eta"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Delivery Location</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][delivery_location_id]'" x-model="hawb.delivery_location_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
+                                    <label class="form-label-gf">Freight Location</label>
+                                    <div class="form-input-container">
+                                        <select
+                                            class="form-control-gf"
+                                            data-ajax-search="true"
+                                            data-search-url="{{ route('ports.search') }}"
+                                            :name="'hbls['+index+'][freight_location_id]'"
+                                            x-model="hawb.freight_location_id"
+                                        >
+                                            <option value="">Select...</option>
+                                            @foreach($ports as $port)
+                                                <option value="{{ $port->id }}">{{ $port->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Final Destination</label>
+                                    <div class="form-input-container">
+                                        <select
+                                            class="form-control-gf"
+                                            :name="'hbls['+index+'][final_destination_id]'"
+                                            data-ajax-search="true"
+                                            data-search-url="{{ route('ports.search') }}"
+                                            x-model="hawb.final_destination_id"
+                                        >
+                                            <option value="">Select...</option>
+                                            @foreach($ports as $port)
+                                                <option value="{{ $port->id }}">{{ $port->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Final ETA</label>
+                                    <div class="form-input-container">
+                                        <input type="date" class="form-control-gf" :name="'hbls['+index+'][final_eta]'" x-model="hawb.final_eta">
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Delivery Location</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][delivery_location_id]'" x-model="hawb.delivery_location_id">
+                                            <option value="">Select...</option>
+                                            @foreach($allAgents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
 
                                 <!-- Row 5: Trucking & Freight Terms -->
-                                <div class="form-group-gf"><label class="form-label-gf">Trucker</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][trucker_id]'" x-model="hawb.trucker_id"><option value="">Select...</option>@foreach($truckers as $trucker)<option value="{{ $trucker->id }}">{{ $trucker->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Last Free Day</label><div class="form-input-container"><input type="date" class="form-control-gf" :name="'hbls['+index+'][last_free_day]'" x-model="hawb.last_free_day"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Freight</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][freight_term]'" x-model="hawb.freight_term"><option value="">Select...</option><option value="COLLECT">COLLECT</option><option value="PREPAID">PREPAID</option></select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Transportation</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][transportation]'" x-model="hawb.transportation"></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Trucker</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][trucker_id]'" x-model="hawb.trucker_id">
+                                            <option value="">Select...</option>
+                                            @foreach($truckers as $trucker)
+                                                <option value="{{ $trucker->id }}">{{ $trucker->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Last Free Day</label>
+                                    <div class="form-input-container">
+                                        <input type="date" class="form-control-gf" :name="'hbls['+index+'][last_free_day]'" x-model="hawb.last_free_day">
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Freight</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][freight_term]'" x-model="hawb.freight_term">
+                                            <option value="">Select...</option>
+                                            <option value="COLLECT">COLLECT</option>
+                                            <option value="PREPAID">PREPAID</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Transportation</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" :name="'hbls['+index+'][transportation]'" x-model="hawb.transportation">
+                                    </div>
+                                </div>
 
                                 <!-- Row 6: Packages & Weights -->
-                                <div class="form-group-gf"><label class="form-label-gf">Package</label><div class="form-input-container" style="gap:2px;"><input type="text" class="form-control-gf" style="width:40%; min-width:0;" :name="'hbls['+index+'][pkg_qty]'" x-model="hawb.pkg_qty"><select class="form-control-gf" style="width:60%; min-width:0;" :name="'hbls['+index+'][pkg_unit_id]'" x-model="hawb.pkg_unit_id"><option value="">Select...</option>@foreach($packageUnits as $unit)<option value="{{ $unit->id }}">{{ $unit->name }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Gross Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][gross_weight_kg]'" x-model="hawb.gross_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][gross_weight_lb]'" x-model="hawb.gross_weight_lb"> <span style="font-size:10px;">LB</span></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Chargeable Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][chargeable_weight_kg]'" x-model="hawb.chargeable_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][chargeable_weight_lb]'" x-model="hawb.chargeable_weight_lb"> <span style="font-size:10px;">LB</span></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Volume Weight</label><div class="form-input-container" style="gap:4px; align-items:center;"><button type="button" class="btn-tool" style="background:#5c9bd1; border:none; padding:2px 6px; font-size:10px; flex-shrink:0;" @click="openDimensionsModal(index)">Set Dims</button><input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][volume_weight_kg]'" x-model="hawb.volume_weight_kg"> <span style="font-size:10px;">KG</span> <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][volume_cbm]'" x-model="hawb.volume_cbm"> <span style="font-size:10px;">CBM</span></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Package</label>
+                                    <div class="form-input-container" style="gap:2px;">
+                                        <input type="text" class="form-control-gf" style="width:40%; min-width:0;" :name="'hbls['+index+'][pkg_qty]'" x-model="hawb.pkg_qty">
+                                        <select class="form-control-gf" style="width:60%; min-width:0;" :name="'hbls['+index+'][pkg_unit_id]'" x-model="hawb.pkg_unit_id">
+                                            <option value="">Select...</option>
+                                            @foreach($packageUnits as $unit)
+                                                <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Gross Weight</label>
+                                    <div class="form-input-container" style="gap:4px; align-items:center;">
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][gross_weight_kg]'" x-model="hawb.gross_weight_kg">
+                                        <span style="font-size:10px;">KG</span>
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][gross_weight_lb]'" x-model="hawb.gross_weight_lb">
+                                        <span style="font-size:10px;">LB</span>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Chargeable Weight</label>
+                                    <div class="form-input-container" style="gap:4px; align-items:center;">
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][chargeable_weight_kg]'" x-model="hawb.chargeable_weight_kg">
+                                        <span style="font-size:10px;">KG</span>
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][chargeable_weight_lb]'" x-model="hawb.chargeable_weight_lb">
+                                        <span style="font-size:10px;">LB</span>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Volume Weight</label>
+                                    <div class="form-input-container" style="gap:3px; align-items:center;">
+                                        <button type="button" class="btn-tool" style="background:#5c9bd1; color:#fff; border:none; padding:2px 5px; font-size:10px; flex-shrink:0; border-radius:3px; height:24px; cursor:pointer;" @click="openDimensionsModal(index)">Set Dims</button>
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][volume_weight_kg]'" x-model="hawb.volume_weight_kg">
+                                        <span style="font-size:10px;">KG</span>
+                                        <input type="text" class="form-control-gf" style="flex:1; min-width:0;" :name="'hbls['+index+'][volume_cbm]'" x-model="hawb.volume_cbm">
+                                        <span style="font-size:10px;">CBM</span>
+                                    </div>
+                                </div>
 
                                 <!-- Row 7: Customs & Release -->
-                                <div class="form-group-gf"><label class="form-label-gf">Entry No.</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][entry_no]'" x-model="hawb.entry_no"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Class of Entry</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][class_of_entry]'" x-model="hawb.class_of_entry"></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Entry No.</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" :name="'hbls['+index+'][entry_no]'" x-model="hawb.entry_no">
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Class of Entry</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" :name="'hbls['+index+'][class_of_entry]'" x-model="hawb.class_of_entry">
+                                    </div>
+                                </div>
                                 <div class="form-group-gf">
                                     <label class="form-label-gf">Frt. Released</label>
                                     <div class="form-input-container" style="gap:5px; align-items:center;">
@@ -2515,13 +2599,60 @@
                                         >
                                     </div>
                                 </div>
-                                <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select class="form-control-gf" style="width:45%;" :name="'hbls['+index+'][service_term_from_id]'" x-model="hawb.service_term_from_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select><span class="mx-1">~</span><select class="form-control-gf" style="width:45%;" :name="'hbls['+index+'][service_term_to_id]'" x-model="hawb.service_term_to_id"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}">{{ $term->code }}</option>@endforeach</select></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Service Term</label>
+                                    <div class="form-input-container" style="gap:2px; align-items:center;">
+                                        <select class="form-control-gf" style="width:48%; min-width:0;" :name="'hbls['+index+'][service_term_from_id]'" x-model="hawb.service_term_from_id">
+                                            <option value="">Select...</option>
+                                            @foreach($serviceTerms as $term)
+                                                <option value="{{ $term->id }}">{{ $term->code }}</option>
+                                            @endforeach
+                                        </select>
+                                        <span style="font-size:10px; color:#666;">~</span>
+                                        <select class="form-control-gf" style="width:48%; min-width:0;" :name="'hbls['+index+'][service_term_to_id]'" x-model="hawb.service_term_to_id">
+                                            <option value="">Select...</option>
+                                            @foreach($serviceTerms as $term)
+                                                <option value="{{ $term->id }}">{{ $term->code }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
 
                                 <!-- Row 8: Delivery & Clearance -->
-                                <div class="form-group-gf"><label class="form-label-gf">Released By</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][released_by_id]'" x-model="hawb.released_by_id"><option value="">Select...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Cargo Released To</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][cargo_released_to]'" x-model="hawb.cargo_released_to"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Door Delivered</label><div class="form-input-container"><input type="date" class="form-control-gf" :name="'hbls['+index+'][door_delivered_date]'" x-model="hawb.door_delivered_date"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Incoterms</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][incoterms_id]'" x-model="hawb.incoterm_id"><option value="">Select...</option>@foreach($incoterms as $inco)<option value="{{ $inco->id }}">{{ $inco->code }}</option>@endforeach</select></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Released By</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][released_by_id]'" x-model="hawb.released_by_id">
+                                            <option value="">Select...</option>
+                                            @foreach($users as $user)
+                                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Cargo Released To</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" :name="'hbls['+index+'][cargo_released_to]'" x-model="hawb.cargo_released_to">
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Door Delivered</label>
+                                    <div class="form-input-container">
+                                        <input type="date" class="form-control-gf" :name="'hbls['+index+'][door_delivered_date]'" x-model="hawb.door_delivered_date">
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Incoterms</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][incoterms_id]'" x-model="hawb.incoterm_id">
+                                            <option value="">Select...</option>
+                                            @foreach($incoterms as $inco)
+                                                <option value="{{ $inco->id }}">{{ $inco->code }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
                             <div style="margin-top: 10px; margin-bottom: 10px;">
@@ -2535,7 +2666,6 @@
                                 <div></div>
                                 <div></div>
                                 <div></div>
-                            </div>
                             </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
