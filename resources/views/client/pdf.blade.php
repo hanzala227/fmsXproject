@@ -22,6 +22,15 @@
 </head>
 <body>
 
+   @php
+    $rt = $filters['report_type'] ?? null;
+    if (in_array($rt, ['', 'all'], true)) $rt = null;
+
+    $showShip  = !$rt || in_array($rt, ['shipments', 'shipment']);
+    $showInv   = !$rt || in_array($rt, ['invoices', 'invoice']);
+    $showQuote = !$rt || in_array($rt, ['quotations', 'quotation']);
+@endphp
+
 <h1>Account Report</h1>
 <div class="muted">
     {{ $userName ?? '' }} &nbsp;|&nbsp; Generated: {{ $generatedAt->format('d M Y, H:i') }}
@@ -52,7 +61,7 @@
         <td><div class="l">Pending</div><div class="v">{{ $pending ?? 0 }}</div></td>
     </tr>
 </table>
-
+@if($showShip)
 <h2>Shipments ({{ count($shipments ?? []) }})</h2>
 <table>
     <thead>
@@ -80,7 +89,9 @@
         @endforelse
     </tbody>
 </table>
+@endif
 
+@if($showInv)
 <h2>Invoices ({{ count($invoices ?? []) }})</h2>
 <table>
     <thead>
@@ -103,6 +114,32 @@
         @endforelse
     </tbody>
 </table>
+@endif
+
+
+@if($showQuote)
+<h2>Quotations ({{ count($quotations ?? []) }})</h2>
+<table>
+    <thead>
+        <tr><th>#</th><th>Quote #</th><th>Date</th><th>Valid Till</th><th>Mode</th><th>Commodity</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+        @forelse($quotations ?? [] as $q)
+            <tr>
+                <td>{{ $loop->iteration }}</td>
+                <td>{{ $q->quote_no }}</td>
+                <td>{{ $q->quote_date ? \Carbon\Carbon::parse($q->quote_date)->format('d M Y') : '-' }}</td>
+                <td>{{ $q->expiry_date ? \Carbon\Carbon::parse($q->expiry_date)->format('d M Y') : '-' }}</td>
+                <td>{{ $q->transport_mode ?? '-' }}</td>
+                <td>{{ $q->commodity ?? '-' }}</td>
+                <td>{{ $q->status }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="7" class="empty">No quotations found.</td></tr>
+        @endforelse
+    </tbody>
+</table>
+@endif
 
 <div class="foot">This report was generated from your account data.</div>
 

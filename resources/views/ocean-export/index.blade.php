@@ -2531,15 +2531,25 @@
                                                 <tr>
                                                     <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
                                                     <td style="padding: 2px;">
-                                                        <div style="display:flex;">
-                                                            <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
-                                                                <option value="">Select...</option>
-                                                                @foreach($ports as $port)
-                                                                    <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                    </td>
+    <div style="display:flex;">
+        <select
+            :name="'routes['+idx+'][airport_id]'"
+            class="form-control-gf"
+            x-model="route.airport_id"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+            style="width:100%; border:none; height:24px; padding:2px 4px;"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option value="{{ $port->id }}">
+                    {{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</td>
                                                     <td style="padding: 2px;">
                                                         <input type="date" :name="'routes['+idx+'][eta]'" class="form-control-gf" x-model="route.eta" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                     </td>
@@ -2691,7 +2701,29 @@
                             </div>
 
                             <div class="form-grid-4" x-show="showMore" x-transition>
-                                <div class="form-group-gf"><label class="form-label-gf">Place of Receipt</label><div class="form-input-container"><x-inline-select name="receipt_id" :options="$ports" module="port" x-model="form.receipt_id" class="form-control-gf" /> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'receipt_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                               <div class="form-group-gf">
+    <label class="form-label-gf">Place of Receipt</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="receipt_id"
+            :options="$ports"
+            module="port"
+            x-model="form.receipt_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'receipt_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                                 <div class="form-group-gf"><label class="form-label-gf">Place of Receipt ETD</label><div class="form-input-container"><input type="date" name="receipt_etd" class="form-control-gf" x-model="form.receipt_etd"> <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Return Location</label><div class="form-input-container"><select name="return_location_id" class="form-control-gf" x-model="form.return_location_id"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">E-Commerce</label><div class="form-input-container" style="justify-content: flex-start;"><input type="checkbox" name="is_ecommerce" value="1" x-model="form.is_ecommerce" style="width: 14px; height: 14px;"></div></div>
@@ -2709,8 +2741,16 @@
                     </div>
 
                 <!-- House B/L (HB/L) Section -->
-                <template x-for="(hbl, index) in hbls" :key="index">
-                    <div class="portlet light" style="margin-top: 5px;">
+             <template x-for="(hbl, index) in hbls" :key="index">
+    <div
+        class="portlet light"
+        style="margin-top: 5px;"
+        x-init="$nextTick(() => {
+            if (typeof window.enhanceAllSelects === 'function') {
+                window.enhanceAllSelects($el);
+            }
+        })"
+    >
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 28px; padding: 2px 10px; display: flex; align-items: center; justify-content: space-between;" @click="hbl.show = !hbl.show">
                             <span class="caption-subject" style="color: #fff; font-size: 11px; font-weight: 600;"><i class="fa fa-user"></i> HB/L Information <small style="color:rgba(255,255,255,0.85); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small></span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
@@ -4219,16 +4259,38 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container">
                                     <x-inline-select name="customer" :options="$agents" module="trade-partner" x-model="filters.customer" class="form-control-gf" />
                                 </div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Port of Loading</label><div class="form-input-container">
-                                    <x-inline-select name="pol" :options="$ports" module="port" x-model="filters.pol" class="form-control-gf" />
-                                </div></div>
+                               <div class="form-group-gf">
+    <label class="form-label-gf">Port of Loading</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="pol"
+            :options="$ports"
+            module="port"
+            x-model="filters.pol"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+    </div>
+</div>
                                 <div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
                             </div>
                             <div class="main-grid">
                                 <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Port of Discharge</label><div class="form-input-container">
-                                    <x-inline-select name="pod" :options="$ports" module="port" x-model="filters.pod" class="form-control-gf" />
-                                </div></div>
+                              <div class="form-group-gf">
+    <label class="form-label-gf">Port of Discharge</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="pod"
+            :options="$ports"
+            module="port"
+            x-model="filters.pod"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+    </div>
+</div>
                                 <div class="form-group-gf"><label class="form-label-gf">Status</label><div class="form-input-container">
                                     <select class="form-control-gf" x-model="filters.status">
                                         <option value="">Select...</option>
