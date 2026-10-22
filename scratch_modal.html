@@ -74,8 +74,7 @@
                             <div style="width: 33.33%; padding: 5px;">
                                 <div class="form-group-gf" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px;">
                                     <label class="form-label-gf" style="text-align: left; width: auto;">Destination</label>
-                                    <select class="form-control-gf" style="height: 24px;" x-model="filters.pod" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}">
+                                    <select class="form-control-gf" style="height: 24px;" x-model="filters.pod">
                                         <option value="">Select...</option>
                                         @foreach($ports as $port)
                                             <option value="{{ $port->id }}">{{ $port->name }}</option>

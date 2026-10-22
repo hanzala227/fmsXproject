@@ -2173,26 +2173,10 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}" :options="$ports" module="port" x-model="form.departure" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}" :options="$ports" module="port" x-model="form.destination" class="form-control-gf" /></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" x-model="form.flight_no"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" :options="$ports" module="port" x-model="form.departure" class="form-control-gf" /></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" :options="$ports" module="port" x-model="form.destination" class="form-control-gf" /></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Cargo Ready Date</label><div class="form-input-container"><input type="date" name="cargo_ready_date" class="form-control-gf" x-model="form.cargo_ready_date"></div></div>
                             <div></div>
-
-                            <!-- Row 2 -->
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*ETD</label><div class="form-input-container"><input type="date" name="etd" class="form-control-gf" x-model="form.etd" required></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf"><label class="form-label-gf">ATD</label><div class="form-input-container"><input type="date" name="atd" class="form-control-gf" x-model="form.atd"></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf"><label class="form-label-gf">ETA</label><div class="form-input-container"><input type="date" name="eta" class="form-control-gf" x-model="form.eta" style="background:#fff8e1;"></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf"><label class="form-label-gf">ATA</label><div class="form-input-container"><input type="date" name="ata" class="form-control-gf" x-model="form.ata"></div></div>
-
-                            <!-- Row 3 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Cargo Ready Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="form.cargo_ready_date"></div></div>
                         </div>
 
                         <!-- DYNAMIC ROUTE / TRANSPORTATION SECTION -->
@@ -2226,8 +2210,7 @@
                                                     <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
                                                     <td style="padding: 2px;">
                                                         <div style="display:flex;">
-                                                            <select :name="'routes['+idx+'][airport_id]'" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}"class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                            <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                                 <option value="">Select...</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
@@ -2587,84 +2570,10 @@
 
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                            
-<div class="form-group-gf">
-    <label class="form-label-gf">Departure</label>
-
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            :name="'hbls[' + index + '][departure]'"
-            x-model="hawb.departure"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-        >
-            <option value="">Select Departure Port</option>
-
-            @foreach ($ports as $port)
-                <option value="{{ $port->id }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-
-<div class="form-group-gf">
-    <label class="form-label-gf">Destination</label>
-
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            :name="'hbls[' + index + '][destination]'"
-            x-model="hawb.destination"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-        >
-            <option value="">Select Destination Port</option>
-
-            @foreach ($ports as $port)
-                <option value="{{ $port->id }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-
-<div class="form-group-gf">
-    <label class="form-label-gf">Destination</label>
-
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            :name="'hbls[' + index + '][destination]'"
-            x-model="hawb.destination"
-            data-ajax-search="true"
-            data-ajax-value="name"
-            data-search-url="{{ route('ports.search') }}"
-        >
-            <option value="">Select Destination Port</option>
-
-            @foreach ($ports as $port)
-                <option value="{{ $port->name }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-<script>
-    const etd = document.querySelector('[name="etd"]');
-
-console.log({
-    value: etd?.value,
-    visible: !!etd?.getClientRects().length,
-    display: etd ? getComputedStyle(etd).display : null
-});
-</script>
-<div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="hawb.feta"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select class="form-control-gf" x-model="hawb.cargo_type"><option value="GENERAL CARGO">GENERAL CARGO</option></select></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][departure]'" class="form-control-gf" x-model="hawb.departure"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][destination]'" class="form-control-gf" x-model="hawb.destination"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" :name="'hbls[' + index + '][feta]'" class="form-control-gf" x-model="hawb.feta"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select :name="'hbls[' + index + '][cargo_type]'" class="form-control-gf" x-model="hawb.cargo_type"><option value="GENERAL CARGO">GENERAL CARGO</option><option value="HAZARDOUS">HAZARDOUS</option><option value="REEFER">REEFER</option><option value="DANGEROUS">DANGEROUS</option><option value="OVERSIZE">OVERSIZE</option></select></div></div>
 
                                 <!-- Row 2 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Cargo Pickup</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][cargo_pickup]'" :options="$agents" module="trade-partner" x-model="hawb.cargo_pickup" class="form-control-gf" /></div></div>
@@ -3381,8 +3290,7 @@ console.log({
                     <div class="main-grid">
                         <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date"></div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container">
-                            <select class="form-control-gf" x-model="filters.pod" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}">
+                            <select class="form-control-gf" x-model="filters.pod">
                                 <option value="">Select...</option>
                                 @foreach($ports as $port)
                                     <option value="{{ $port->id }}">{{ $port->name }}</option>

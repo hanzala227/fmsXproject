@@ -357,8 +357,7 @@
                                         <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
                                         <td style="padding: 2px;">
                                             <div style="display:flex;">
-                                                <select :name="'routes['+idx+'][airport_id]'" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                     <option value="">Select...</option>
                                                     @foreach($ports as $port)
                                                         <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
@@ -502,29 +501,13 @@
 
                 <!-- MORE SECTION (EXPANDABLE) -->
                 <div class="form-grid-4" x-show="showMore" x-transition>
-                   <div class="form-group-gf">
-    <label class="form-label-gf">Place of Receipt</label>
-    <div class="form-input-container">
-        <x-inline-select
-            name="receipt_id"
-            :options="$ports"
-            module="port"
-            x-model="form.receipt_id"
-            class="form-control-gf"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-        />
-
-        <button
-            type="button"
-            class="btn-default-gf"
-            style="height:18px; padding:0 4px;"
-            @click="openAddNewModal('port', 'receipt_id')"
-        >
-            <i class="fa fa-external-link" style="font-size:9px;"></i>
-        </button>
-    </div>
-</div>
+                    <div class="form-group-gf">
+                        <label class="form-label-gf">Place of Receipt</label>
+                        <div class="form-input-container">
+                            <x-inline-select name="receipt_id" :options="$ports" module="port" x-model="form.receipt_id" class="form-control-gf" />
+                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'receipt_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        </div>
+                    </div>
                     <div class="form-group-gf">
                         <label class="form-label-gf">Place of Receipt ETD</label>
                         <div class="form-input-container">
@@ -558,15 +541,7 @@
 
     <!-- House B/L (HB/L) SECTION -->
     <template x-for="(hbl, index) in hbls" :key="index">
-    <div
-        class="portlet light"
-        style="margin-top: 5px;"
-        x-init="$nextTick(() => {
-            if (typeof window.enhanceAllSelects === 'function') {
-                window.enhanceAllSelects($el);
-            }
-        })"
-    >
+        <div class="portlet light" style="margin-top: 5px;">
             <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hbl.show = !hbl.show">
                 <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-file-text-o"></i> HB/L Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small></span>
                 <div class="actions" style="display: flex; gap: 6px; align-items: center;" @click.stop>

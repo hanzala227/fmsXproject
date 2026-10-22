@@ -139,7 +139,7 @@ class AirImportController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-         $ports = Port::latest('id')->orderBy('name')->take(10)->get();
+        $ports = Port::orderBy('name')->get();
         $users = \App\Models\User::orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $containerTypes = ContainerType::all();
@@ -234,7 +234,7 @@ class AirImportController extends Controller
         });
         
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::orderBy('name')->latest()->take(10)->get();
+        $ports = Port::orderBy('name')->get();
         $users = \App\Models\User::orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $containerTypes = ContainerType::all();

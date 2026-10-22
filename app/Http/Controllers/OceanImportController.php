@@ -72,7 +72,7 @@ class OceanImportController extends Controller
         $offices = Office::where('is_active', true)->get();
         $users = User::all();
         $agents = TradePartner::all();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
 
         return view('ocean-import.list', compact('shipments', 'offices', 'users', 'agents', 'ports'));
     }
@@ -136,7 +136,7 @@ class OceanImportController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
@@ -547,7 +547,7 @@ class OceanImportController extends Controller
         });
 
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();

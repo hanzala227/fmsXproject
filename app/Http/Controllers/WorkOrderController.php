@@ -134,7 +134,7 @@ class WorkOrderController extends Controller
         $workOrderNo = 'WO-' . date('Ymd') . '-' . rand(1000, 9999);
 
         $tradePartners = TradePartner::orderBy('name')->get();
-        $ports = Port::orderBy('name')->latest()->take(10)->get();
+        $ports = Port::orderBy('name')->get();
         $vessels = Vessel::orderBy('name')->get();
 
         return view('ocean-export.work-order-form', compact(
@@ -271,7 +271,7 @@ class WorkOrderController extends Controller
         $sourceId = request()->query('source_id');
 
         $tradePartners = TradePartner::orderBy('name')->get();
-        $ports = Port::orderBy('name')->latest()->take(10)->get();
+        $ports = Port::orderBy('name')->get();
         $vessels = Vessel::orderBy('name')->get();
 
         return view('ocean-export.work-order-form', compact(

@@ -109,7 +109,7 @@
      HERO
 ========================================================= --}}
 <section class="hero"
-    style="margin-bottom: 10px;">
+    style="background: linear-gradient(90deg, rgba(10,22,45,.98) 30%, rgba(30,41,59,.95));">
 
     <h1>Welcome back, {{ $loggedInUser->name ?? 'Customer' }}!</h1>
 
@@ -119,8 +119,8 @@
     </p>
 
     <div class="hero-btns">
-        <a href="{{ route('client.shipments') }}" class=""><i class=""></i> Request Booking</a>
-        <a href="{{ route('client.tracking') }}" class=""><i class=""></i> Track Shipment</a>
+        <a href="{{ route('client.shipments') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Request Booking</a>
+        <a href="{{ route('client.tracking') }}" class="btn btn-outline"><i class="bi bi-search"></i> Track Shipment</a>
     </div>
 </section>
 
