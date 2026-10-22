@@ -3311,30 +3311,7 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><x-inline-select name="dm_consignee_id" :options="$agents" module="trade-partner" type="consignee" x-model="form.dm_consignee_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sub B/L No.</label><div class="form-input-container"><input type="text" name="sub_bl_no" class="form-control-gf" x-model="form.sub_bl_no"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">CY/CFS Loc.</label><div class="form-input-container"><select name="cfs_location_id" class="form-control-gf" x-model="form.cfs_location_id"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select></div></div>
-                               <div class="form-group-gf">
-    <label class="form-label-gf">Final Dest.</label>
-
-    <div class="form-input-container">
-        <x-inline-select
-            name="fdest_id"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-            :options="$ports"
-            module="port"
-            x-model="form.fdest_id"
-            class="form-control-gf"
-        />
-
-        <button
-            type="button"
-            class="btn-default-gf"
-            style="height:18px; padding:0 4px;"
-            @click="openAddNewModal('port', 'fdest_id')"
-        >
-            <i class="fa fa-external-link" style="font-size:9px;"></i>
-        </button>
-    </div>
-</div>
+                                <div class="form-group-gf"><label class="form-label-gf">Final Dest.</label><div class="form-input-container"><x-inline-select name="fdest_id" :options="$ports" module="port" x-model="form.fdest_id" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Freight</label><div class="form-input-container"><select name="freight_term" class="form-control-gf" x-model="form.freight_term"><option value="Prepaid">Prepaid</option><option value="Collect">Collect</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Expiry Date</label><div class="form-input-container"><input type="date" name="expiry_date" class="form-control-gf" x-model="form.expiry_date"></div></div>
                             </div>
@@ -3444,34 +3421,16 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container">
                                     <x-inline-select name="customer" :options="$agents" module="trade-partner" type="customer" x-model="filters.customer" class="form-control-gf" />
                                 </div></div>
-  <div class="form-group-gf">
-    <label class="form-label-gf">Port of Loading</label>
-    <div class="form-input-container">
-        <x-port-select
-            model="filters.pol"
-            on-change="applySearch()"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-        />
-    </div>
-</div>
-<div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Port of Loading</label><div class="form-input-container">
+                                    <x-inline-select name="pol" :options="$ports" module="port" x-model="filters.pol" class="form-control-gf" />
+                                </div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
                             </div>
                             <div class="main-grid">
                                 <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date"></div></div>
-<div class="form-group-gf">
-    <label class="form-label-gf">Port of Loading</label>
-    <div class="form-input-container">
-        <x-port-select
-            model="filters.pol"
-            on-change="applySearch()"
-            data-ajax-search="true"
-            data-search-url="{{ route('ports.search') }}"
-        />
-    </div>
-</div>
-<div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Port of Discharge</label><div class="form-input-container">
+                                    <x-inline-select name="pod" :options="$ports" module="port" x-model="filters.pod" class="form-control-gf" />
+                                </div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Status</label><div class="form-input-container">
                                     <select class="form-control-gf" x-model="filters.status">
                                         <option value="">Select...</option>

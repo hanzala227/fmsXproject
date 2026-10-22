@@ -36,16 +36,13 @@
     </td>
     
     <td><span class="badge-status bg-green">Arrived</span></td>
-<td>
-    {{ $hbl->oceanExport?->portOfLoading?->name ?? '--' }}
-    →
-    {{ $hbl->oceanExport?->portOfDischarge?->name ?? '--' }}
-</td>    <td>{{ $hbl->updated_at->format('m-d-Y') }}</td>
+    <td>{{ (optional($hbl->oceanExport->portOfLoading)->name ?? '--') }} → {{ (optional($hbl->oceanExport->portOfDischarge)->name ?? '--') }}</td>
+    <td>{{ $hbl->updated_at->format('m-d-Y') }}</td>
     <td>{{ optional($hbl->oceanExport)->mbl_no ?? '--' }}</td>
     <td>{{ $hbl->consignee->name ?? '--' }}</td>
- <td>{{ $hbl->oceanExport?->containers?->sum('pkg_qty') ?? 0 }} PCS</td>
-    <td>{{ number_format(optional($hbl->oceanExport)?->containers?->sum('weight_kg') ?? 0, 2) }} KG</td>
-    <td>{{ number_format(optional($hbl->oceanExport)?->containers?->sum('measure_cbm') ?? 0, 2) }} CBM</td>
+    <td>{{ optional($hbl->oceanExport)->containers->sum('pkg_qty') ?? 0 }} PCS</td>
+    <td>{{ number_format(optional($hbl->oceanExport)->containers->sum('weight_kg') ?? 0, 2) }} KG</td>
+    <td>{{ number_format(optional($hbl->oceanExport)->containers->sum('measure_cbm') ?? 0, 2) }} CBM</td>
     <td style="text-align:center;">
         @if($hbl->is_customs_hold)
             <i class="fa fa-check" style="color:#22c55e;"></i>

@@ -74,7 +74,7 @@ class OceanExportController extends Controller
         $offices = Office::where('is_active', true)->get();
         $users = \App\Models\User::all();
         $agents = TradePartner::all();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
 
         return view('ocean-export.list', compact('shipments', 'offices', 'users', 'agents', 'ports'));
     }
@@ -138,7 +138,7 @@ class OceanExportController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
@@ -308,7 +308,6 @@ class OceanExportController extends Controller
                 'code' => $e->getCode()
             ]);
             
-
             // Handle database errors
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
                 if (strpos($e->getMessage(), 'cannot be null') !== false) {
@@ -427,7 +426,7 @@ class OceanExportController extends Controller
         });
         
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
@@ -682,7 +681,7 @@ class OceanExportController extends Controller
         $operators = \App\Models\User::whereIn('id', OceanExport::distinct()->pluck('op_id'))->pluck('name', 'id');
         $offices = Office::where('is_active', true)->get();
         $carriers = TradePartner::where('type', 'CARRIER')->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
 
         return view('ocean-export.mbl-list', compact('shipments', 'operators', 'offices', 'carriers', 'ports'));
     }
@@ -784,7 +783,7 @@ class OceanExportController extends Controller
         $salesPersons = \App\Models\User::whereIn('id', \App\Models\OceanExport::distinct()->pluck('dm_sales_person_id'))->pluck('name', 'id');
         $operators = \App\Models\User::whereIn('id', \App\Models\OceanExport::distinct()->pluck('op_id'))->pluck('name', 'id');
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
 
         return view('ocean-export.hbl-list', compact('hbls', 'salesPersons', 'operators', 'offices', 'ports'));
     }
@@ -1446,7 +1445,7 @@ class OceanExportController extends Controller
     public function createQuoteBooking()
     {
         $customers = TradePartner::whereIn('type', ['CS', 'CLIENT'])->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::all();
         $users = User::all();
         $statuses = Quotation::select('status')->distinct()->whereNotNull('status')->pluck('status');
         $quotations = Quotation::with(['customer:id,name', 'salesPerson:id,name', 'pol:id,name', 'pod:id,name', 'carrier:id,name', 'op:id,name', 'items'])->forModule('Ocean Export')->latest()->get();

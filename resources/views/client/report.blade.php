@@ -13,9 +13,7 @@
     $pct       = fn ($n) => $total > 0 ? min(100, round((($n ?? 0) / $total) * 100)) : 0;
     $fmtDate   = fn ($d) => $d ? \Carbon\Carbon::parse($d)->format('d M Y') : '-';
 @endphp
-<style>
-    .report-radio { font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-</style>
+
 {{-- Shipment details popup --}}
 <div class="overlay" id="details-overlay" onclick="if(event.target===this) closeDetails()">
     <div class="modal-box">
@@ -73,9 +71,7 @@
             </div>
             <div style="display:flex;gap:6px;">
                 <button type="button" class="btn-tool" onclick="toggleFilters()"><i class="fa fa-filter"></i> Filters</button>
-               <button type="button" class="btn-tool green" onclick="generateReport()">
-    <i class="fa fa-file-pdf-o"></i> Generate Report
-</button>
+                <a class="btn-tool green" href="{{ route('client.reports.pdf', request()->query()) }}"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
             </div>
         </div>
         <div class="filter-box {{ $hasFilter ? 'open' : '' }}" id="filters-box">
@@ -119,9 +115,6 @@
                 <span class="caption-subject">SHIPMENTS</span>
                 <span class="count-badge">{{ $totalShipments ?? 0 }}</span>
             </div>
-            <label class="report-radio">
-        <input type="radio" name="pdf_report_type" value="shipments"> Select for report
-    </label>
         </div>
         <div class="portlet-body">
             <div class="grid-wrapper">
@@ -203,9 +196,6 @@
                 <i class="fa fa-file-text-o" style="color:#3b82f6;"></i>
                 <span class="caption-subject">INVOICES</span>
                 <span class="count-badge">{{ count($invoices ?? []) }}</span>
-                <label class="report-radio">
-        <input type="radio" name="pdf_report_type" value="invoices"> Select for report
-    </label>
             </div>
         </div>
         <div class="portlet-body">
@@ -248,9 +238,6 @@
                 <span class="caption-subject">QUOTATIONS</span>
                 <span class="count-badge">{{ count($quotations ?? []) }}</span>
             </div>
-            <label class="report-radio">
-        <input type="radio" name="pdf_report_type" value="quotations"> Select for report
-    </label>
         </div>
         <div class="portlet-body">
             <div class="grid-wrapper">
@@ -293,24 +280,13 @@
             <h4>Need a detailed report?</h4>
             <p>According to the current filters, you can download a PDF report of shipments, invoices, and quotations.</p>
         </div>
-        <button type="button" class="btn-tool green" onclick="generateReport()">
-            <i class="fa fa-file-pdf-o"></i> Generate Report
-        </button>
+        <a class="btn-tool green" href="{{ route('client.reports.pdf', request()->query()) }}"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
     </div>
 
 </div>
-<div class="overlay" id="alert-overlay" onclick="if(event.target===this) closeAlert()">
-    <div class="modal-box" style="max-width:380px;">
-        <div class="modal-header">
-            <div class="modal-header-title"><i class="fa fa-exclamation-triangle" style="color:#ef4444;"></i> Selection Required</div>
-            <button class="modal-close" onclick="closeAlert()"><i class="fa fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <p id="alert-message" style="margin:0 0 14px;"></p>
-            <button type="button" class="btn-tool green" onclick="closeAlert()">OK</button>
-        </div>
-    </div>
-</div>
+
+<link rel="stylesheet" href="{{ asset('css/client-portal.css') }}">
+
 <script>
 function toggleFilters() { document.getElementById('filters-box').classList.toggle('open'); }
 
@@ -329,25 +305,6 @@ function openDetails(e, el) {
 }
 function closeDetails() { document.getElementById('details-overlay').classList.remove('open'); }
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetails(); });
-
-var pdfBaseUrl = @json(route('client.reports.pdf'));
-var currentFilters = @json(request()->only(['from_date', 'to_date', 'status']));
-
-function generateReport() {
-    var sel = document.querySelector('input[name="pdf_report_type"]:checked');
-    if (!sel) {
-        document.getElementById('alert-message').textContent =
-            'Please select a table (Shipments, Invoices or Quotations) to generate the report.';
-        document.getElementById('alert-overlay').classList.add('open');
-        return;
-    }
-    var params = new URLSearchParams(currentFilters);
-    params.set('report_type', sel.value);
-    window.location.href = pdfBaseUrl + '?' + params.toString();
-}
-function closeAlert() { document.getElementById('alert-overlay').classList.remove('open'); }
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAlert(); });
-
 </script>
 
 @endsection

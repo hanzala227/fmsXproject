@@ -55,7 +55,7 @@ class DropdownOptionsController extends Controller
     public function ports(Request $request)
     {
         $ports = Port::orderBy('name')
-            ->select('id', 'name', 'code', 'country')->latest()->take(10)
+            ->select('id', 'name', 'code', 'country')
             ->get();
 
         return response()->json(['data' => $ports]);
