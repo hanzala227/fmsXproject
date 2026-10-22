@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 namespace App\Http\Controllers;
 
@@ -46,4 +46,30 @@ class PortController extends Controller
             'code' => $port->code,
         ], 201);
     }
+
+   public function search(Request $request)
+{
+    $q = trim($request->query('q', ''));
+
+    $query = Port::query();
+
+    if ($q !== '') {
+        // Require at least 2 characters for searching
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $query->where('name', 'like', '%' . $q . '%');
+    }
+
+    // Default: latest 30 records
+    // Search: maximum 30 matching records
+    $ports = $query
+        ->orderByDesc('id')
+        ->limit(30)
+        ->get(['id', 'name']);
+
+    return response()->json($ports);
+}
+   
 }

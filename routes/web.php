@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\PortController;
 
 // Auto-restore silk-container-page-1.png if corrupted
 if (file_exists(public_path('assets/images/hbl/silk-1.png'))) {
@@ -67,6 +68,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomerQuoteController;
 use App\Http\Controllers\CustomerInvoiceController;
 use App\Http\Controllers\SuperAdmin\CompanyController as SuperAdminCompanyController;
+use App\Models\Port;
+use Illuminate\Http\Request;
 
 // Views routing - purely rendering blade templates.
 // All data fetching must be done on the client side via the /api routes.
@@ -1090,6 +1093,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/trade-partner/credit-limit-groups/{group}', [TradePartnerCreditController::class, 'destroyGroup'])->name('trade-partner.credit-limit-groups.destroy');
     Route::post('/trade-partner/credit-limit-groups/bulk-delete', [TradePartnerCreditController::class, 'bulkDeleteGroups'])->name('trade-partner.credit-limit-groups.bulk-delete');
 
+// Is route ko /ports/{port} jaise kisi bhi route se PEHLE rakhein
+ Route::get('/ports/search', [PortController::class, 'search'])->name('ports.search');
 
     Route::prefix('crm')->group(function () {
         Route::get('/', function() { return view('crm.index'); });
@@ -1271,7 +1276,7 @@ Route::prefix('client-portal')
 
 Route::middleware(['auth', 'client'])->prefix('client-portal')->group(function () {
     Route::get('reports',     [ClientReportController::class, 'index'])->name('client.reports.index');
-    Route::get('reports/pdf', [ClientReportController::class, 'pdf'])->name('client.reports.pdf');
+    Route::get('/reports/pdf', [ClientReportController::class, 'pdf'])->name('client.reports.pdf');
 });
 
 // ============================================

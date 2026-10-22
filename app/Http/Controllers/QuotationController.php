@@ -33,7 +33,7 @@ class QuotationController extends Controller
     private function getFormData()
     {
         $customers = TradePartner::where('type', 'CLIENT')->orderBy('name')->get(['id', 'name', 'type']);
-        $ports = Port::orderBy('name')->get(['id', 'name']);
+        $ports = Port::orderBy('name')->latest()->take(10)->get(['id', 'name']);
         $currencies = Currency::orderBy('code')->get(['id', 'code', 'name']);
         $carriers = TradePartner::where('type', 'CARRIER')->orderBy('name')->get(['id', 'name']);
         $offices = Office::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']);

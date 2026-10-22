@@ -142,7 +142,7 @@ class AirBookingController extends Controller
     {
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
-        $ports = Port::all();
+        $ports = Port::all()->latest()->take(10)->get();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -205,7 +205,7 @@ class AirBookingController extends Controller
         $booking = AirBooking::findOrFail($id);
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
-        $ports = Port::all();
+        $ports = Port::all()->latest()->take(10)->get();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();

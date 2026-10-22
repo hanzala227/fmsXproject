@@ -130,7 +130,7 @@ class AirExportController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::all();
+        $ports = Port::latest()->take(10)->get();
         $agents = TradePartner::all();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -257,7 +257,8 @@ class AirExportController extends Controller
             ];
 
             $requestData = $request->validated();
-            \Log::info("AirExportController Request Payload:", $request->all());
+        \Log::info("AirExportController Request Payload:", $request->all());
+        
             if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
             if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
             if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
@@ -438,6 +439,7 @@ class AirExportController extends Controller
 
         $requestData = $request->validated();
         \Log::info("AirExportController Request Payload:", $request->all());
+        
         if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
         if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
         if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
