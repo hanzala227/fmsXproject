@@ -555,10 +555,10 @@
                 
                 <!-- Tools Dropdown Header -->
                 <div style="position: relative; display: inline-block;">
-                    <button type="button" class="btn-default-gf" style="padding:6px 14px;" @click.stop="toolsOpen = !toolsOpen">
-                        <i class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i>
+                    <button type="button" class="btn-default-gf" style="padding:6px 14px;" @click.stop="ToolsOpen = !ToolsOpen">
+                        <i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i>
                     </button>
-                    <div x-show="toolsOpen" @click.away="toolsOpen = false" x-cloak
+                    <div x-show="ToolsOpen" @click.away="ToolsOpen = false" x-cloak
                          style="position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 1050; min-width: 160px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); padding: 4px 0;">
                         <button type="button" @click="copyShipmentForm()" 
                                 style="display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; font-weight: 500; color: #334155; background: transparent; border: none; cursor: pointer; transition: background 0.15s ease;"
@@ -593,8 +593,8 @@
                         <i class="fa fa-shield" style="color: #3b82f6; margin-right: 6px;"></i> MB/L INFORMATION
                     </div>
                     <div style="position: relative; display: inline-block;">
-                        <button type="button" class="btn-default-gf" @click.stop="toolsOpen = !toolsOpen"><i class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i></button>
-                        <div x-show="toolsOpen" @click.away="toolsOpen = false" x-cloak
+                        <button type="button" class="btn-default-gf" @click.stop="ToolsOpen = !ToolsOpen"><i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
+                        <div x-show="ToolsOpen" @click.away="ToolsOpen = false" x-cloak
                              style="position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 1050; min-width: 160px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); padding: 4px 0;">
                             <button type="button" @click="copyShipmentForm()" 
                                     style="display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; font-weight: 500; color: #334155; background: transparent; border: none; cursor: pointer; transition: background 0.15s ease;"
@@ -1481,32 +1481,32 @@
                         TRUCKING ACCOUNTING
                     </div>
                     <div style="display: flex; gap: 5px; position: relative;">
-                        <button type="button" class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="toolsOpen = !toolsOpen">
-                            <i class="fa fa-cogs"></i> TOOLS <i class="fa fa-angle-down"></i>
+                        <button type="button" class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="ToolsOpen = !ToolsOpen">
+                            <i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i>
                         </button>
-                        <div x-show="toolsOpen" @click.away="toolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 220px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 2px;">
-                            <a href="#" @click.prevent="toolsOpen = false; toggleBlock()" class="dropdown-item">
+                        <div x-show="ToolsOpen" @click.away="ToolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 220px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 2px;">
+                            <a href="#" @click.prevent="ToolsOpen = false; toggleBlock()" class="dropdown-item">
                                 <i class="fa fa-ban" style="width: 16px; margin-right: 8px;"></i> 
                                 <span x-text="form.is_blocked ? 'UNBLOCK' : 'BLOCK'"></span>
                             </a>
-                            <a href="#" @click.prevent="toolsOpen = false; generatePickupDeliveryOrder()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; generatePickupDeliveryOrder()" class="dropdown-item">
                                 <i class="fa fa-truck" style="width: 16px; margin-right: 8px;"></i> PICKUP / DELIVERY ORDER
                             </a>
-                            <a href="#" @click.prevent="toolsOpen = false; printBOL()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; printBOL()" class="dropdown-item">
                                 <i class="fa fa-file-pdf-o" style="width: 16px; margin-right: 8px;"></i> BOL PRINT
                             </a>
                             <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
-                            <a href="#" @click.prevent="toolsOpen = false; generateProfitReportSummary()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; generateProfitReportSummary()" class="dropdown-item">
                                 <i class="fa fa-chart-bar" style="width: 16px; margin-right: 8px;"></i> PROFIT REPORT - SUMMARY
                             </a>
-                            <a href="#" @click.prevent="toolsOpen = false; generateProfitReportDetail()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; generateProfitReportDetail()" class="dropdown-item">
                                 <i class="fa fa-chart-line" style="width: 16px; margin-right: 8px;"></i> PROFIT REPORT - DETAIL
                             </a>
                             <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
-                            <a href="#" @click.prevent="toolsOpen = false; viewCargoManifestStatus()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; viewCargoManifestStatus()" class="dropdown-item">
                                 <i class="fa fa-list-alt" style="width: 16px; margin-right: 8px;"></i> CARGO MANIFEST STATUS
                             </a>
-                            <a href="#" @click.prevent="toolsOpen = false; openInTrackTrace()" class="dropdown-item">
+                            <a href="#" @click.prevent="ToolsOpen = false; openInTrackTrace()" class="dropdown-item">
                                 <i class="fa fa-map-marker-alt" style="width: 16px; margin-right: 8px;"></i> OPEN IN TRACK-TRACE
                             </a>
                         </div>
@@ -1631,7 +1631,7 @@
                         Status & History
                     </div>
                     <div>
-                        <button type="button" class="btn-default-gf"><i class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i></button>
+                        <button type="button" class="btn-default-gf"><i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
                     </div>
                 </div>
                 
@@ -1889,7 +1889,7 @@
                 saved: typeof truckShipmentSaved !== "undefined" ? truckShipmentSaved : @json(isset($truckShipment) ? true : false),
                 errors: {},
                 chargeStep: 1,
-                toolsOpen: false,
+                ToolsOpen: false,
                 showMore: false,
                 loadFromQuotation: false,
 
@@ -1903,7 +1903,7 @@
                 
                 // ===== Tools Dropdown Actions =====
                 copyShipmentForm() {
-                    this.toolsOpen = false;
+                    this.ToolsOpen = false;
                     @if(isset($truckShipment))
                         if (typeof showToast === 'function') {
                             showToast('info', 'Copying shipment to create new form...');
@@ -1922,7 +1922,7 @@
                     @endif
                 },
                 deleteShipment() {
-                    this.toolsOpen = false;
+                    this.ToolsOpen = false;
                     if (!this.saved) {
                         if (typeof showToast === 'function') {
                             showToast('warning', 'Cannot delete an unsaved shipment.');

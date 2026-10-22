@@ -301,20 +301,19 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:53px;"><input class="filter-input" data-col-idx="2" placeholder="Booking…" oninput="applyFilters()"></td>
-                                        <td class="sticky-col" style="left:183px;"></td>
-                                        <td class="sticky-col" style="left:176px;"><input class="filter-input" data-col-idx="4" placeholder="Customer…" oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="5"  placeholder="Office…"    oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="6"  placeholder="Carrier…"   oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="7"  placeholder="Flight…"    oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="8"  placeholder="Dep Port…"  oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="9" placeholder="Dest Port…" oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="10"  placeholder="ETD…"       oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="11" placeholder="ETA…"       oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="12" placeholder="Shipper…" oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="13" placeholder="O/A…"     oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="14" placeholder="OP…"      oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="15" placeholder="Sales…"   oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="16" placeholder="Status…"  oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:176px;"><input class="filter-input" data-col-idx="3" placeholder="Customer…" oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="4"  placeholder="Office…"    oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="5"  placeholder="Carrier…"   oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="6"  placeholder="Flight…"    oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="7"  placeholder="Dep Port…"  oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="8" placeholder="Dest Port…" oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="9"  placeholder="ETD…"       oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="10" placeholder="ETA…"       oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="11" placeholder="Shipper…" oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="12" placeholder="O/A…"     oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="13" placeholder="OP…"      oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="14" placeholder="Sales…"   oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="15" placeholder="Status…"  oninput="applyFilters()"></td>
                                         <td colspan="5"></td>
                                     </tr>
                                 </thead>
@@ -768,11 +767,11 @@
 
     var filterTimer;
     var FILTER_MAP = {
-        2: 'filter_booking_no', 4: 'filter_customer', 5: 'filter_office',
-        6: 'filter_carrier', 7: 'filter_flight_no', 8: 'filter_dep_port',
-        9: 'filter_dst_port', 10: 'filter_etd', 11: 'filter_eta',
-        12: 'filter_shipper', 13: 'filter_oversea_agent',
-        14: 'filter_op', 15: 'filter_sales', 16: 'filter_status'
+        2: 'filter_booking_no', 3: 'filter_customer', 4: 'filter_office',
+        5: 'filter_carrier', 6: 'filter_flight_no', 7: 'filter_dep_port',
+        8: 'filter_dst_port', 9: 'filter_etd', 10: 'filter_eta',
+        11: 'filter_shipper', 12: 'filter_oversea_agent',
+        13: 'filter_op', 14: 'filter_sales', 15: 'filter_status'
     };
     function applyFilters() {
         clearTimeout(filterTimer);
@@ -795,13 +794,15 @@
     /* ================================================================
        CONFIG PANEL — column visibility
     ================================================================ */
-    var PINNED_COLS = ['check', 'lock', 'booking_no', 'color', 'customer'];
+    var PINNED_COLS = ['check', 'lock', 'booking_no', 'customer'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
-        var open  = panel.style.display === 'none';
+        if (!panel) return;
+        var open  = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        var btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
 
@@ -834,7 +835,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -905,15 +906,18 @@
         var id = _colorBookingId;
         fetch('/air-export/booking/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: color }),
-        }).then(function(r) { return r.json(); }).then(function(data) {
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             if (data.success) {
                 var span = document.querySelector('#booking-row-' + id + ' .color-mark');
                 if (span) span.style.background = color;
                 showToast('success', 'Status color updated');
             }
-        }).catch(function() { showToast('error', 'Failed to update color'); });
+        })
+        .catch(function() { showToast('error', 'Failed to update color'); });
         closeColorPicker();
     }
 
@@ -926,15 +930,18 @@
         var id = _colorBookingId;
         fetch('/air-export/booking/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: '' }),
-        }).then(function(r) { return r.json(); }).then(function(data) {
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             if (data.success) {
                 var span = document.querySelector('#booking-row-' + id + ' .color-mark');
                 if (span) span.style.background = '#94a3b8';
                 showToast('success', 'Status color cleared');
             }
-        }).catch(function() { showToast('error', 'Failed to clear color'); });
+        })
+        .catch(function() { showToast('error', 'Failed to clear color'); });
         closeColorPicker();
     }
 

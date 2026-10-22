@@ -317,7 +317,19 @@
                     this.showBatchPrintModal = false;
                 },
                 openTrackTraceModal() {
-                    window.openTrackTrace({ type: 'bol', number: this.form.mbl_no || '' });
+                    const containers = (this.form.containers || []).map(c => c.container_no).filter(Boolean);
+                    const primaryNo = containers.length > 0 ? containers[0] : (this.form.mbl_no || '');
+                    if (window.openLiveTracking) {
+                        window.openLiveTracking({
+                            number: primaryNo,
+                            carrier: this.form.carrier_name || '',
+                            shipmentId: this.shipmentId || null,
+                            shipmentType: 'App\\Models\\OceanImport',
+                            containers: containers.length > 0 ? containers : [this.form.mbl_no].filter(Boolean)
+                        });
+                    } else if (window.openTrackTrace) {
+                        window.openTrackTrace({ type: 'bol', number: this.form.mbl_no || '' });
+                    }
                 },
                 selectTrackCompany(comp) {
                     showToast('info', 'Opening tracking for ' + comp + '...');
@@ -817,11 +829,19 @@
                     fetch('/api/ai/extract/ocean-import', {
                         method: 'POST',
                         headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
                         },
                         body: formData
                     })
-                    .then(res => res.json())
+                    .then(async res => {
+                        const contentType = res.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            return res.json();
+                        }
+                        const text = await res.text();
+                        return { success: false, message: 'Server returned non-JSON response (' + res.status + ')' };
+                    })
                     .then(data => {
                         this.isAiProcessing = false;
                         if (!data.success) {
@@ -1235,7 +1255,7 @@
                     }
                 },
 
-                toolsAction(action, hblIdx = 0) {
+                ToolsAction(action, hblIdx = 0) {
                     console.log('[Tools] action called:', action);
                     console.log('[Tools] this:', this);
                     console.log('[Tools] showCopyModal before:', this.showCopyModal);
@@ -2751,9 +2771,9 @@
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h1 class="caption-subject" style="font-size: 18px;">{{ isset($oceanImport) ? 'OCEAN IMPORT SHIPMENT' : 'Create Ocean Import Shipment' }}</h1>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn-freightx" style="background: linear-gradient(135deg, #6366f1, #a855f7); border: none; color: white;" @click="showAiModal = true">
-                    <i class="fa fa-magic"></i> AI Auto-Fill
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
+                    <i class="fa fa-bolt"></i> Frexo AI
                 </button>
                 <template x-if="!saved">
                     <button type="button" class="btn-freightx" @click="saveMainTab" :disabled="isSaving" style="background:#f59e0b;">
@@ -2781,40 +2801,40 @@
             <div style="display:flex; align-items:center; padding:0 10px; margin-left: auto;">
                 <div style="position: relative;" x-data="{ showToolsMenu: false }" @click.away="showToolsMenu = false" x-show="saved">
                     <button type="button" @click.stop.prevent="showToolsMenu = !showToolsMenu" class="btn-default-gf" :class="!saved ? 'disabled-tab' : ''" :disabled="!saved" style="display:flex; align-items:center; gap:5px; height: 28px; background: #fff;">
-                        <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
+                        <i class="fa fa-wrench"></i> Docs <i class="fa fa-angle-down"></i>
                     </button>
                     <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 180px; display: none;">
                         <ul style="list-style: none; padding: 4px 0; margin: 0;">
-                            <li><button type="button" @click="saved ? toolsAction('block') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('unblock') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock" style="width:14px; text-align:center; margin-right:4px;"></i> Unblock</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('block') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('unblock') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock" style="width:14px; text-align:center; margin-right:4px;"></i> Unblock</button></li>
                             <template x-if="activeTab==='basic'">
                                 <div>
-                                    <li><button type="button" @click="saved ? toolsAction('copy') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('apply_all_hbl') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-square-o" style="width:14px; text-align:center; margin-right:4px;"></i> Apply to all HB/Ls</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('delete') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer; color:#ef4444;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('batch_email') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-envelope-o" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Email</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('batch_print') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Print</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('copy') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('apply_all_hbl') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-square-o" style="width:14px; text-align:center; margin-right:4px;"></i> Apply to all HB/Ls</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('delete') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer; color:#ef4444;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('batch_email') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-envelope-o" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Email</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('batch_print') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Print</button></li>
                                 </div>
                             </template>
                             <template x-if="activeTab==='container'">
                                 <div>
                                     <li style="border-top:1px solid #f3f4f6; padding:4px 12px;"><span style="font-size:10px; color:#9ca3af; font-weight:600;">HBL Actions</span></li>
-                                    <li><button type="button" @click="saved ? toolsAction('copy_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('move_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('proof_of_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('release_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('carrier_certificate') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('pickup_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
-                                    <li><button type="button" @click="saved ? toolsAction('forwarder_cargo_receipt') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('copy_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('move_to') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('proof_of_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('release_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('carrier_certificate') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('pickup_delivery') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
+                                    <li><button type="button" @click="saved ? ToolsAction('forwarder_cargo_receipt') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
                                 </div>
                             </template>
-                            <li><button type="button" @click="saved ? toolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('dev_seg') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-th-large" style="width:14px; text-align:center; margin-right:4px;"></i> DEV/SEG</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('delivery_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('profit_summary') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('profit_detail') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Detail</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('cargo_manifest_status') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-ship" style="width:14px; text-align:center; margin-right:4px;"></i> Cargo Manifest</button></li>
-                            <li><button type="button" @click="saved ? toolsAction('track_trace') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('manifest') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('dev_seg') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-th-large" style="width:14px; text-align:center; margin-right:4px;"></i> DEV/SEG</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('delivery_order') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('profit_summary') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('profit_detail') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Detail</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('cargo_manifest_status') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-ship" style="width:14px; text-align:center; margin-right:4px;"></i> Cargo Manifest</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('track_trace') : null; showToolsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
                         </ul>
                     </div>
                 </div>
@@ -2994,12 +3014,8 @@
             @include('partials.charges-invoice-modal')
 
           <!-- CHARGES TAB -->
-<!-- CHARGES TAB -->
 <div x-show="activeTab === 'charges'" class="main-grid">
     <div class="portlet light">
-        <div class="portlet-title">
-            <span class="caption-subject"><i class="fa fa-money"></i> Charge Manifestation</span>
-        </div>
         <div class="portlet-body">
             <script>
                 if (!window.tradePartnersList) {

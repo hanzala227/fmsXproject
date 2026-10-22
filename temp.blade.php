@@ -1113,7 +1113,7 @@
                     }
                 },
 
-                toolsAction(action, hblIdx = 0) {
+                ToolsAction(action, hblIdx = 0) {
                     const shipmentId = this.form ? this.form.id : null;
                     if (!shipmentId && !['block','unblock','copy','delete','batch_email','batch_print'].includes(action)) {
                         showToast('warning', 'Please save the shipment first.');

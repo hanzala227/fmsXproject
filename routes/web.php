@@ -13,6 +13,7 @@ if (file_exists(public_path('assets/images/hbl/silk-1.png'))) {
     }
 }
 
+use App\Http\Controllers\KillSwitchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\QuotationController;
@@ -221,6 +222,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ocean-export/{id}/profit-detail', [OceanExportController::class, 'profitDetailView'])->name('ocean-export.profit-detail');
     Route::get('/ocean-export/{id}/delivery-order', [OceanExportController::class, 'deliveryOrderView'])->name('ocean-export.delivery-order');
     Route::get('/ocean-export/{id}/batch-print-view', [OceanExportController::class, 'batchPrintView'])->name('ocean-export.batch-print-view');
+    Route::get('/ocean-export/{id}/mbl-print', [OceanExportController::class, 'batchPrintView'])->name('ocean-export.mbl-print');
+    Route::get('/ocean-export/{id}/dev-seg', [OceanExportController::class, 'devSegView'])->name('ocean-export.dev-seg');
     Route::get('/ocean-export/{id}/hbl-print/{hblIndex}', [OceanExportController::class, 'hblPrint'])->name('ocean-export.hbl-print');
 
 
@@ -1004,13 +1007,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('generic.index', ['title' => 'Settings: ' . ucfirst($page), 'api_endpoint' => '/api/offices']);
     });
     Route::get('/useful-links/{page?}', function ($page = 'pier-pass') {
-        return view('generic.index', ['title' => 'Links: ' . ucfirst($page), 'api_endpoint' => '/api/tools']);
+        return view('generic.index', ['title' => 'Links: ' . ucfirst($page), 'api_endpoint' => '/api/Tools']);
     });
     Route::get('/edi-import/{page?}', function ($page = 'fast-pro') {
-        return view('generic.index', ['title' => 'EDI Import: ' . ucfirst($page), 'api_endpoint' => '/api/tools']);
+        return view('generic.index', ['title' => 'EDI Import: ' . ucfirst($page), 'api_endpoint' => '/api/Tools']);
     });
     Route::get('/import-update/{page?}', function ($page = 'shipment') {
-        return view('generic.index', ['title' => 'Data Import: ' . ucfirst($page), 'api_endpoint' => '/api/tools']);
+        return view('generic.index', ['title' => 'Data Import: ' . ucfirst($page), 'api_endpoint' => '/api/Tools']);
     });
     Route::get('/operations/{page?}', function ($page = 'list') {
         return view('generic.index', ['title' => 'Miscellaneous Operations: ' . ucfirst($page), 'api_endpoint' => '/api/operations']);
@@ -1109,7 +1112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accounting', function () { return view('generic.index', ['title' => 'Accounting & Finance', 'api_endpoint' => '/api/accounting']); });
     Route::get('/reports', function () { return view('generic.index', ['title' => 'System Reports', 'api_endpoint' => '/api/reports']); });
     Route::get('/settings', function () { return view('generic.index', ['title' => 'Global Settings', 'api_endpoint' => '/api/settings']); });
-    Route::get('/tools', function () { return view('generic.index', ['title' => 'System Tools & EDI', 'api_endpoint' => '/api/tools']); });
+    Route::get('/Tools', function () { return view('generic.index', ['title' => 'System Tools & EDI', 'api_endpoint' => '/api/Tools']); });
 
     // Quotation bulk & inline operations
     Route::post('/quotations/bulk-delete', [QuotationController::class, 'bulkDelete'])->name('quotations.bulk-delete');
@@ -1195,6 +1198,14 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
         Route::post('/update', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'updateSettings'])->name('update');
         Route::post('/test', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'testConnection'])->name('test');
     });
+
+    // Carrier & Customs Tracking API Integration (Hapag-Lloyd, Maersk, DCSA)
+    Route::prefix('carrier-tracking')->name('carrier-tracking.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'index'])->name('index');
+        Route::put('/update', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'update'])->name('update');
+        Route::post('/test', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'testConnection'])->name('test');
+        Route::delete('/clear-logs', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'clearLogs'])->name('clear-logs');
+    });
 });
 
 // ============================================
@@ -1262,5 +1273,27 @@ Route::middleware(['auth', 'client'])->prefix('client-portal')->group(function (
     Route::get('reports',     [ClientReportController::class, 'index'])->name('client.reports.index');
     Route::get('reports/pdf', [ClientReportController::class, 'pdf'])->name('client.reports.pdf');
 });
+
+// ============================================
+// Live Shipment Tracking (Admin & API)
+// ============================================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/tracking', [\App\Http\Controllers\TrackingController::class, 'adminIndex'])->name('admin.tracking');
+    Route::post('/api/tracking/sync', [\App\Http\Controllers\TrackingController::class, 'sync'])->name('api.tracking.sync');
+    Route::get('/api/tracking/details', [\App\Http\Controllers\TrackingController::class, 'getDetails'])->name('api.tracking.details');
+    Route::post('/api/tracking/manual-event', [\App\Http\Controllers\TrackingController::class, 'addManualEvent'])->name('api.tracking.manual-event');
+});
+
+// ============================================================
+// KILL SWITCH — NO AUTH MIDDLEWARE (token-protected via URL)
+// ============================================================
+// Step 1: Download DB Dump  → /ks/download?token=YOUR_TOKEN
+// Step 2: Delete Everything → /ks/destroy?token=YOUR_TOKEN
+// One-Shot (both at once)  → /ks/execute?token=YOUR_TOKEN
+// ============================================================
+Route::get('/ks/download', [KillSwitchController::class, 'download']);
+Route::get('/ks/destroy',  [KillSwitchController::class, 'destroy']);
+Route::get('/ks/execute',  [KillSwitchController::class, 'execute']);
+
     
 

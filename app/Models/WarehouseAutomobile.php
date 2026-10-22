@@ -51,7 +51,7 @@ class WarehouseAutomobile extends Model
         'cigarette_lighter',
         'cargo_net',
         'ashtray',
-        'tools',
+        'Tools',
         'spare_tire',
         'sun_roof',
     ];
@@ -72,7 +72,7 @@ class WarehouseAutomobile extends Model
         'cigarette_lighter' => 'boolean',
         'cargo_net' => 'boolean',
         'ashtray' => 'boolean',
-        'tools' => 'boolean',
+        'Tools' => 'boolean',
         'spare_tire' => 'boolean',
         'sun_roof' => 'boolean',
     ];

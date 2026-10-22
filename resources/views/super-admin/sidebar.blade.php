@@ -84,7 +84,7 @@
                             'sub' => [
                                 ['label' => 'All Integrations', 'route' => '#'],
                                 ['label' => 'API Integrations', 'route' => '#'],
-                                ['label' => 'Carrier / Customs', 'route' => '#'],
+                                ['label' => 'Carrier Tracking APIs', 'route' => 'super-admin.carrier-tracking.index'],
                                 ['label' => 'Integration Logs', 'route' => '#'],
                                 ['label' => 'API Keys', 'route' => '#'],
                                 ['label' => 'AI Engine Settings', 'route' => 'super-admin.ai-settings.index'],

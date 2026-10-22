@@ -25,15 +25,31 @@ class AirImportHbl extends Model
         'sub_hawbs', 'commodities', 'po_numbers', 'warehouse_receipts',
         'hbl_is_ecommerce', 'hawb_memos',
         'is_blocked', 'op_id',
+        'freight', 'transportation',
+        // Additional audited fields
+        'freight_location_id', 'final_destination_id', 'final_eta', 'delivery_location_id',
+        'trucker_id', 'last_free_day', 'storage_start_date', 'sales_type',
+        'gross_weight_kg', 'gross_weight_lb', 'chargeable_weight_kg', 'chargeable_weight_lb',
+        'volume_weight_kg', 'volume_cbm', 'entry_no', 'class_of_entry',
+        'service_term_from_id', 'service_term_to_id', 'released_by_id',
+        'cargo_released_to', 'c_released_date', 'door_delivered_date', 'ship_type', 'display_unit',
+        'available_date',
     ];
 
     protected $casts = [
         'is_an_sent' => 'boolean',
         'is_do_sent' => 'boolean',
         'is_frt_released' => 'boolean',
+        'is_blocked' => 'boolean',
         'frt_released_date' => 'date',
         'an_sent_date' => 'date',
         'do_sent_date' => 'date',
+        'final_eta' => 'date',
+        'last_free_day' => 'date',
+        'available_date' => 'date',
+        'storage_start_date' => 'date',
+        'c_released_date' => 'date',
+        'door_delivered_date' => 'date',
         'sub_hawbs' => 'array',
         'commodities' => 'array',
         'po_numbers' => 'array',
@@ -41,6 +57,10 @@ class AirImportHbl extends Model
         'hbl_is_ecommerce' => 'boolean',
         'hawb_memos' => 'array',
     ];
+
+    public function getDescriptionAttribute() { return $this->description_text; }
+    public function getMarkAttribute() { return $this->mark_text; }
+    public function getRemarkAttribute() { return $this->hbl_remark; }
 
     public function airImport() { return $this->belongsTo(AirImport::class); }
     public function customer() { return $this->belongsTo(TradePartner::class, 'customer_id'); }

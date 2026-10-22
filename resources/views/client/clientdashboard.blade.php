@@ -109,9 +109,7 @@
      HERO
 ========================================================= --}}
 <section class="hero"
-    style="background-image:
-        linear-gradient(90deg, rgba(10,22,45,.95) 30%, rgba(10,22,45,.2)),
-        url('{{ asset('images/banner.jpg') }}')">
+    style="background: linear-gradient(90deg, rgba(10,22,45,.98) 30%, rgba(30,41,59,.95));">
 
     <h1>Welcome back, {{ $loggedInUser->name ?? 'Customer' }}!</h1>
 

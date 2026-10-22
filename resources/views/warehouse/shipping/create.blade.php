@@ -493,14 +493,14 @@
                     </div>
                     <div class="portlet-body">
                         <div class="table-toolbar" style="margin-bottom:8px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:#f8fafc;padding:4px 8px;border:1px solid #e2e8f0;border-radius:3px;">
-                            <button type="button" class="btn-tool-icon" @click="deleteSelectedDocs()" :disabled="selectedDocIds.length === 0" title="Delete selected"><i class="fa fa-trash" style="color:#ef4444;"></i></button>
+                            <button type="button" class="btn-tool-icon" @click="deleteSelectedTools()" :disabled="selectedDocIds.length === 0" title="Delete selected"><i class="fa fa-trash" style="color:#ef4444;"></i></button>
                             <span style="font-size:10px;color:#64748b;">Documents: <strong x-text="documents.length"></strong></span>
                         </div>
                         <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:3px;">
                             <table class="table-custom">
                                 <thead>
                                     <tr>
-                                        <th style="width:28px;text-align:center;"><input type="checkbox" @change="toggleAllDocs($event.target.checked)"></th>
+                                        <th style="width:28px;text-align:center;"><input type="checkbox" @change="toggleAllTools($event.target.checked)"></th>
                                         <th>File Name</th>
                                         <th style="width:70px;">Size</th>
                                         <th style="width:80px;">Type</th>
@@ -678,7 +678,7 @@
                     this.selectedItems = [];
                 },
 
-                toggleAllDocs(checked) {
+                toggleAllTools(checked) {
                     this.selectedDocIds = checked ? this.documents.map((_, i) => i) : [];
                 },
 
@@ -717,7 +717,7 @@
                         .catch(() => showToast('error', 'Delete failed.'));
                 },
 
-                deleteSelectedDocs() {
+                deleteSelectedTools() {
                     if (!this.selectedDocIds.length) return;
                     if (!confirm('Delete ' + this.selectedDocIds.length + ' document(s)?')) return;
                     [...this.selectedDocIds].sort((a, b) => b - a).forEach(i => {

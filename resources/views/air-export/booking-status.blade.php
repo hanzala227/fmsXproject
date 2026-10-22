@@ -7,7 +7,7 @@
                 op_id: '{{ isset($booking) ? $booking->op_id : '' }}',
                 sales_person_id: '{{ isset($booking) ? $booking->sales_person_id : '' }}',
                 internalMessage: '',
-                toolsOpen: false,
+                ToolsOpen: false,
                 statusLogs: [],
                 userInitials: {},
                 getUserInitials(userId) {
@@ -123,8 +123,8 @@
                     <span style="font-size: 10px; color: #64748b; font-weight: 600; margin-left: 12px;"><i class="fa fa-user-circle"></i> OPERATOR: {{ strtoupper($currentUser->name ?? auth()->user()->name ?? 'N/A') }}</span>
                 </div>
                 <div class="actions" style="display: flex; gap: 5px; position: relative;">
-                    <button class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="toolsOpen = !toolsOpen"><i class="fa fa-cogs"></i> TOOLS <i class="fa fa-angle-down"></i></button>
-                    <div x-show="toolsOpen" @click.away="toolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 180px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    <button class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="ToolsOpen = !ToolsOpen"><i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
+                    <div x-show="ToolsOpen" @click.away="ToolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 180px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
                         <a href="#" @click.prevent="blockShipment()" class="dropdown-item"><i class="fa fa-lock mr-2"></i> BLOCK</a>
                         <a href="#" @click.prevent="alert('Copied.')" class="dropdown-item"><i class="fa fa-copy mr-2"></i> COPY</a>
                         <a href="#" @click.prevent="deleteBooking()" class="dropdown-item"><i class="fa fa-trash mr-2"></i> DELETE</a>

@@ -345,9 +345,47 @@ return view('client.shipments', compact(
 ));
     }
 
-    public function tracking()
+    public function tracking(Request $request)
     {
-        return view('client.tracking');
+        $loggedInUser = auth()->user();
+        $companyId = $loggedInUser->company_id;
+        $customerId = $loggedInUser->trade_partner_id;
+
+        $searchNumber = strtoupper(trim((string) $request->get('q', $request->get('number', ''))));
+        $activeTracking = null;
+        $errorMessage = null;
+
+        // Fetch real ocean import shipments for this customer
+        $oceanImports = OceanImport::with(['portOfLoading', 'portOfDischarge', 'vessel', 'containers'])
+            ->where('company_id', $companyId)
+            ->when($customerId, function ($q) use ($customerId) {
+                $q->where(function ($sub) use ($customerId) {
+                    $sub->where('dm_customer_id', $customerId)
+                        ->orWhere('dm_shipper_id', $customerId)
+                        ->orWhere('dm_consignee_id', $customerId);
+                });
+            })
+            ->latest()
+            ->take(20)
+            ->get();
+
+        if ($searchNumber) {
+            // First check if already synced in database
+            $activeTracking = \App\Models\ShipmentTracking::with(['events'])
+                ->where('tracking_number', $searchNumber)
+                ->first();
+
+            // If not found in DB, query the real carrier API
+            if (!$activeTracking) {
+                try {
+                    $activeTracking = \App\Services\Tracking\TrackingManager::syncTracking($searchNumber);
+                } catch (\Throwable $e) {
+                    $errorMessage = $e->getMessage();
+                }
+            }
+        }
+
+        return view('client.tracking', compact('oceanImports', 'activeTracking', 'searchNumber', 'errorMessage'));
     }
 
     public function bookings()

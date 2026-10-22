@@ -151,7 +151,7 @@
             addDestRows(n) { for (let i = 0; i < n; i++) this.addDestRow(); },
             removeSelectedDest() { for (let i = this.destRows.length - 1; i >= 0; i--) { if (this.destRows[i].show) this.destRows.splice(i, 1); } },
 
-            toolsOpen: false,
+            ToolsOpen: false,
             previewOpen: false,
             publishModalOpen: false,
             isFavorite: false,
@@ -168,7 +168,7 @@
             get quoteDisplayNo() { return this.quote_no || 'Auto-generated'; },
 
             copyQuotation() {
-                this.toolsOpen = false;
+                this.ToolsOpen = false;
                 if (this.editId || this.isEdit) {
                     showToast('info', 'Copying Quotation details...');
                     this.isEdit = false;
@@ -188,7 +188,7 @@
             },
 
             async deleteQuotation() {
-                this.toolsOpen = false;
+                this.ToolsOpen = false;
                 if (!this.editId || !this.saved) {
                     showToast('warning', 'Cannot delete an unsaved Quotation.');
                     return;
@@ -221,18 +221,18 @@
             },
 
             printQuotation() {
-                this.toolsOpen = false;
+                this.ToolsOpen = false;
                 this.previewOpen = true;
             },
 
             toggleFavorite() {
-                this.toolsOpen = false;
+                this.ToolsOpen = false;
                 this.isFavorite = !this.isFavorite;
                 showToast('success', this.isFavorite ? 'Quotation added to favorites!' : 'Removed from favorites.');
             },
 
             publishCustomerPortal() {
-                this.toolsOpen = false;
+                this.ToolsOpen = false;
                 this.publishModalOpen = true;
             },
 
@@ -415,7 +415,7 @@
                 const savedTab = sessionStorage.getItem('quotationActiveTab');
 
                 if (urlTab) {
-                    this.activeTab = (urlTab === 'docs' && !this.saved) ? 'basic' : urlTab;
+                    this.activeTab = (urlTab === 'Tools' && !this.saved) ? 'basic' : urlTab;
                 } else if (savedTab && this.saved) {
                     this.activeTab = savedTab;
                 } else {
@@ -546,45 +546,45 @@
         <div style="display:flex;align-items:stretch;border-bottom:2px solid #e5e7eb;margin-bottom:15px;">
             <ul class="gf-tabs" style="border-bottom:none;margin-bottom:0;flex:1;display:flex;">
                 <li :class="(activeTab === 'basic' || activeTab === 'main') ? 'active' : ''" @click="activeTab = 'basic'"><a>Basic</a></li>
-                <li style="display: none !important;" :class="[activeTab === 'docs' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
+                <li style="display: none !important;" :class="[activeTab === 'Tools' ? 'active' : '', !saved ? 'disabled-tab' : '']" @click="saved ? activeTab = 'Tools' : null"><a>Doc Center</a></li>
             </ul>
 
             <!-- Tools Dropdown on Right Side of Tabs -->
-            <div style="position:relative;display:flex;align-items:center;padding:0 8px;" @click.away="toolsOpen = false">
-                <button type="button" @click="toolsOpen = !toolsOpen"
+            <div style="position:relative;display:flex;align-items:center;padding:0 8px;" @click.away="ToolsOpen = false">
+                <button type="button" @click="ToolsOpen = !ToolsOpen"
                     style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #d1d5db;border-radius:4px;padding:4px 12px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap;height:26px;">
-                    <i class="fa fa-cogs" style="color:#6b7280;"></i> Tools
-                    <i class="fa fa-angle-down" style="font-size:10px;color:#9ca3af;" :style="toolsOpen ? 'transform:rotate(180deg)' : ''"></i>
+                    <i class="fa fa-cogs" style="color:#6b7280;"></i> Docs
+                    <i class="fa fa-angle-down" style="font-size:10px;color:#9ca3af;" :style="ToolsOpen ? 'transform:rotate(180deg)' : ''"></i>
                 </button>
-                <div x-show="toolsOpen" x-transition style="position:absolute;right:8px;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:9999;min-width:200px;padding:6px 0;" x-cloak>
+                <div x-show="ToolsOpen" x-transition style="position:absolute;right:8px;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:9999;min-width:200px;padding:6px 0;" x-cloak>
                     {{-- Tools for Basic Tab --}}
                     <template x-if="activeTab === 'basic' || activeTab === 'main'">
                         <div>
-                            <button type="button" class="oi-tools-item" @click="copyQuotation(); toolsOpen=false">
+                            <button type="button" class="oi-Tools-item" @click="copyQuotation(); ToolsOpen=false">
                                 <i class="fa fa-copy" style="color: #3b82f6; width: 16px;"></i> Copy
                             </button>
-                            <button type="button" class="oi-tools-item" @click="deleteQuotation(); toolsOpen=false" :disabled="!saved"
+                            <button type="button" class="oi-Tools-item" @click="deleteQuotation(); ToolsOpen=false" :disabled="!saved"
                                     :style="saved ? '' : 'color: #cbd5e1; cursor: not-allowed; opacity: 0.6;'">
                                 <i class="fa fa-trash-o" :style="saved ? 'color: #ef4444; width: 16px;' : 'color: #cbd5e1; width: 16px;'"></i> Delete
                             </button>
                             <div style="height: 1px; background: #f1f5f9; margin: 4px 0;"></div>
-                            <button type="button" class="oi-tools-item" @click="printQuotation(); toolsOpen=false">
+                            <button type="button" class="oi-Tools-item" @click="printQuotation(); ToolsOpen=false">
                                 <i class="fa fa-print" style="color: #64748b; width: 16px;"></i> Print
                             </button>
-                            <button type="button" class="oi-tools-item" @click="toggleFavorite(); toolsOpen=false">
+                            <button type="button" class="oi-Tools-item" @click="toggleFavorite(); ToolsOpen=false">
                                 <i class="fa" :class="isFavorite ? 'fa-star text-amber-500' : 'fa-star-o'" style="color: #f59e0b; width: 16px;"></i>
                                 <span x-text="isFavorite ? 'Remove from Favorite' : 'Add to Favorite'"></span>
                             </button>
-                            <button type="button" class="oi-tools-item" @click="publishCustomerPortal(); toolsOpen=false">
+                            <button type="button" class="oi-Tools-item" @click="publishCustomerPortal(); ToolsOpen=false">
                                 <i class="fa fa-globe" style="color: #0284c7; width: 16px;"></i> Publish to Customer Portal
                             </button>
                         </div>
                     </template>
 
                     {{-- Tools for Doc Center Tab --}}
-                    <template x-if="activeTab === 'docs'">
+                    <template x-if="activeTab === 'Tools'">
                         <div>
-                            <button type="button" class="oi-tools-item" @click="printQuotation(); toolsOpen=false">
+                            <button type="button" class="oi-Tools-item" @click="printQuotation(); ToolsOpen=false">
                                 <i class="fa fa-print" style="color: #64748b; width: 16px;"></i> Print
                             </button>
                         </div>
@@ -593,12 +593,12 @@
             </div>
         </div>
         <style>
-        .oi-tools-item {
+        .oi-Tools-item {
             display:flex;align-items:center;gap:8px;width:100%;padding:7px 16px;
             font-size:12px;color:#374151;background:transparent;border:none;cursor:pointer;text-align:left;
             transition:background 0.15s;
         }
-        .oi-tools-item:hover:not(:disabled) { background:#f3f4f6; }
+        .oi-Tools-item:hover:not(:disabled) { background:#f3f4f6; }
         </style>
 
         <div class="portlet light" style="padding-top: 5px;">
@@ -1101,7 +1101,7 @@
                 </div>
 
                 {{-- ======================== DOC CENTER TAB ======================== --}}
-                <div x-show="activeTab === 'docs'" class="main-grid" style="display: none;">
+                <div x-show="activeTab === 'Tools'" class="main-grid" style="display: none;">
                     <div class="section-card">
                         <div class="section-heading">Document Center</div>
                         <div style="display:flex;gap:15px;">

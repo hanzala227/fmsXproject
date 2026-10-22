@@ -991,9 +991,11 @@
     }
     function toggleConfig() {
         const panel = document.getElementById('config-panel');
-        const open = panel.style.display === 'none';
+        if (!panel) return;
+        const open = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        const btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
     function buildConfigPanel() {
@@ -1037,7 +1039,7 @@
     document.addEventListener('click', e => {
         const panel = document.getElementById('config-panel');
         const btn = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }

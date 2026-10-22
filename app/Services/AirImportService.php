@@ -10,15 +10,168 @@ use Illuminate\Support\Facades\DB;
 
 class AirImportService
 {
+    private function prepareAirImportData(array $data): array
+    {
+        $zeroFields = [
+            'pkg_qty', 'gross_weight', 'gross_weight_kg', 'gross_weight_lb',
+            'chargeable_weight', 'chargeable_weight_kg', 'chargeable_weight_lb',
+            'volume', 'volume_weight_kg', 'volume_cbm'
+        ];
+        foreach ($zeroFields as $field) {
+            if (array_key_exists($field, $data) && ($data[$field] === null || $data[$field] === '')) {
+                $data[$field] = null;
+            }
+        }
+
+        // Sync weight totals
+        if (isset($data['gross_weight_kg']) && $data['gross_weight_kg'] !== null) {
+            $data['gross_weight'] = $data['gross_weight_kg'];
+        } elseif (isset($data['gross_weight']) && $data['gross_weight'] !== null) {
+            $data['gross_weight_kg'] = $data['gross_weight'];
+        }
+
+        if (isset($data['chargeable_weight_kg']) && $data['chargeable_weight_kg'] !== null) {
+            $data['chargeable_weight'] = $data['chargeable_weight_kg'];
+        } elseif (isset($data['chargeable_weight']) && $data['chargeable_weight'] !== null) {
+            $data['chargeable_weight_kg'] = $data['chargeable_weight'];
+        }
+
+        if (isset($data['volume_cbm']) && $data['volume_cbm'] !== null) {
+            $data['volume'] = $data['volume_cbm'];
+        } elseif (isset($data['volume']) && $data['volume'] !== null) {
+            $data['volume_cbm'] = $data['volume'];
+        }
+
+        // Map referred_by_id to business_referred_by_id
+        if (isset($data['referred_by_id']) && !isset($data['business_referred_by_id'])) {
+            $data['business_referred_by_id'] = $data['referred_by_id'];
+        }
+
+        // Route defaults sync
+        if (!empty($data['routes']) && is_array($data['routes'])) {
+            $firstRoute = $data['routes'][0] ?? null;
+            $lastRoute = end($data['routes']) ?: null;
+            if ($firstRoute && is_array($firstRoute)) {
+                if (empty($data['dep_port_id']) && !empty($firstRoute['airport_id'])) {
+                    $data['dep_port_id'] = $firstRoute['airport_id'];
+                }
+                if (empty($data['etd']) && !empty($firstRoute['etd'])) {
+                    $data['etd'] = substr($firstRoute['etd'], 0, 10);
+                }
+                if (empty($data['atd']) && !empty($firstRoute['atd'])) {
+                    $data['atd'] = substr($firstRoute['atd'], 0, 10);
+                }
+                if (empty($data['flight_no']) && !empty($firstRoute['flight_no'])) {
+                    $data['flight_no'] = $firstRoute['flight_no'];
+                }
+                if (empty($data['carrier_id']) && !empty($firstRoute['carrier_id'])) {
+                    $data['carrier_id'] = $firstRoute['carrier_id'];
+                }
+            }
+            if ($lastRoute && is_array($lastRoute)) {
+                if (empty($data['dst_port_id']) && !empty($lastRoute['airport_id'])) {
+                    $data['dst_port_id'] = $lastRoute['airport_id'];
+                }
+                if (empty($data['eta']) && !empty($lastRoute['eta'])) {
+                    $data['eta'] = substr($lastRoute['eta'], 0, 10);
+                }
+                if (empty($data['ata']) && !empty($lastRoute['ata'])) {
+                    $data['ata'] = substr($lastRoute['ata'], 0, 10);
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    private function prepareHblData(array $hblData): array
+    {
+        // Support both hawb_no and hbl_no
+        if (empty($hblData['hawb_no']) && !empty($hblData['hbl_no'])) {
+            $hblData['hawb_no'] = $hblData['hbl_no'];
+        }
+        if (empty($hblData['hawb_no'])) {
+            return [];
+        }
+
+        // Alias mappings
+        if (isset($hblData['hsn']) && !isset($hblData['hsn_code'])) {
+            $hblData['hsn_code'] = $hblData['hsn'];
+        }
+        if (isset($hblData['frt_released']) && !isset($hblData['is_frt_released'])) {
+            $hblData['is_frt_released'] = !empty($hblData['frt_released']);
+        }
+        if (isset($hblData['is_ecommerce']) && !isset($hblData['hbl_is_ecommerce'])) {
+            $hblData['hbl_is_ecommerce'] = !empty($hblData['is_ecommerce']);
+        }
+        if (isset($hblData['incoterm_id']) && !isset($hblData['incoterms_id'])) {
+            $hblData['incoterms_id'] = $hblData['incoterm_id'];
+        }
+        if (isset($hblData['description']) && !isset($hblData['description_text'])) {
+            $hblData['description_text'] = $hblData['description'];
+        }
+        if (isset($hblData['mark']) && !isset($hblData['mark_text'])) {
+            $hblData['mark_text'] = $hblData['mark'];
+        }
+        if (isset($hblData['remark']) && !isset($hblData['hbl_remark'])) {
+            $hblData['hbl_remark'] = $hblData['remark'];
+        }
+
+        // Weights
+        if (isset($hblData['gross_weight_kg']) && $hblData['gross_weight_kg'] !== null) {
+            $hblData['gross_weight'] = $hblData['gross_weight_kg'];
+        } elseif (isset($hblData['gross_weight']) && $hblData['gross_weight'] !== null) {
+            $hblData['gross_weight_kg'] = $hblData['gross_weight'];
+        }
+
+        if (isset($hblData['chargeable_weight_kg']) && $hblData['chargeable_weight_kg'] !== null) {
+            $hblData['chargeable_weight'] = $hblData['chargeable_weight_kg'];
+        } elseif (isset($hblData['chargeable_weight']) && $hblData['chargeable_weight'] !== null) {
+            $hblData['chargeable_weight_kg'] = $hblData['chargeable_weight'];
+        }
+
+        if (isset($hblData['volume_cbm']) && $hblData['volume_cbm'] !== null) {
+            $hblData['volume'] = $hblData['volume_cbm'];
+        } elseif (isset($hblData['volume']) && $hblData['volume'] !== null) {
+            $hblData['volume_cbm'] = $hblData['volume'];
+        }
+
+        // Sub HAWBs & commodities JSON string parsing
+        if (isset($hblData['sub_hawbs']) && is_string($hblData['sub_hawbs'])) {
+            $decoded = json_decode($hblData['sub_hawbs'], true);
+            $hblData['sub_hawbs'] = is_array($decoded) ? $decoded : [];
+        }
+        if (isset($hblData['commodities']) && is_string($hblData['commodities'])) {
+            $decoded = json_decode($hblData['commodities'], true);
+            $hblData['commodities'] = is_array($decoded) ? $decoded : [];
+        }
+
+        // Convert empty numeric strings to null
+        $numFields = [
+            'pkg_qty', 'gross_weight', 'gross_weight_kg', 'gross_weight_lb',
+            'chargeable_weight', 'chargeable_weight_kg', 'chargeable_weight_lb',
+            'volume', 'volume_weight_kg', 'volume_cbm'
+        ];
+        foreach ($numFields as $nf) {
+            if (array_key_exists($nf, $hblData) && ($hblData[$nf] === null || $hblData[$nf] === '')) {
+                $hblData[$nf] = null;
+            }
+        }
+
+        return $hblData;
+    }
+
     public function store(array $data)
     {
         return DB::transaction(function () use ($data) {
+            $data = $this->prepareAirImportData($data);
             $airImport = AirImport::create($data);
 
             // Handle HBLs
-            if (isset($data['hbls'])) {
-                foreach ($data['hbls'] as $hblData) {
-                    if (empty($hblData['hawb_no'])) {
+            if (isset($data['hbls']) && is_array($data['hbls'])) {
+                foreach ($data['hbls'] as $rawHbl) {
+                    $hblData = $this->prepareHblData($rawHbl);
+                    if (empty($hblData)) {
                         continue;
                     }
                     $airImport->hbls()->create($hblData);
@@ -59,24 +212,29 @@ class AirImportService
     public function update(AirImport $airImport, array $data)
     {
         return DB::transaction(function () use ($airImport, $data) {
+            $data = $this->prepareAirImportData($data);
             $airImport->update($data);
 
             // Handle HBLs - delete removed ones, update existing, add new
-            if (isset($data['hbls'])) {
-                $submittedHblIds = collect($data['hbls'])->pluck('id')->filter()->toArray();
-                $airImport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
-
-                foreach ($data['hbls'] as $hblData) {
-                    if (empty($hblData['hawb_no']) && empty($hblData['id'])) {
+            if (isset($data['hbls']) && is_array($data['hbls'])) {
+                $submittedHblIds = [];
+                foreach ($data['hbls'] as $rawHbl) {
+                    $hblData = $this->prepareHblData($rawHbl);
+                    if (empty($hblData)) {
                         continue;
                     }
-                    if (isset($hblData['id'])) {
-                        $hbl = AirImportHbl::find($hblData['id']);
-                        if ($hbl) $hbl->update($hblData);
-                    } else {
-                        $airImport->hbls()->create($hblData);
+                    if (!empty($hblData['id'])) {
+                        $hbl = AirImportHbl::where('air_import_id', $airImport->id)->find($hblData['id']);
+                        if ($hbl) {
+                            $hbl->update($hblData);
+                            $submittedHblIds[] = $hbl->id;
+                            continue;
+                        }
                     }
+                    $newHbl = $airImport->hbls()->create($hblData);
+                    $submittedHblIds[] = $newHbl->id;
                 }
+                $airImport->hbls()->whereNotIn('id', $submittedHblIds)->delete();
             }
 
             // Handle containers - delete removed ones, update existing, add new

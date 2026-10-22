@@ -538,7 +538,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -613,7 +613,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }

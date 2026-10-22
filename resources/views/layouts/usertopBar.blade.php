@@ -963,9 +963,9 @@
 
     /* ---------- Outside click / Escape ---------- */
     document.addEventListener('click', function (e) {
-        if (!box.contains(e.target)) hideList();
-        if (!user.contains(e.target)) closeUser();
-        if (!modules.contains(e.target)) closeModules();
+        if (box && !box.contains(e.target)) hideList();
+        if (user && !user.contains(e.target)) closeUser();
+        if (modules && !modules.contains(e.target)) closeModules();
     });
 
     document.addEventListener('keydown', function (e) {

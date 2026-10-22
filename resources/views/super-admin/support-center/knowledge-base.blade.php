@@ -17,7 +17,7 @@
 
     <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 40px; text-align: center;">
         <div style="margin-bottom: 20px;">
-            <i class="fa fa-tools" style="font-size: 48px; color: #cbd5e1;"></i>
+            <i class="fa fa-Tools" style="font-size: 48px; color: #cbd5e1;"></i>
         </div>
         <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 12px;">Knowledge Base Module is Under Construction</h2>
         <p style="font-size: 14px; color: #64748b; max-width: 500px; margin: 0 auto; line-height: 1.6;">

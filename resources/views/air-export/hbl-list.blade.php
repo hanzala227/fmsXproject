@@ -38,6 +38,83 @@
             background: #f8fafc;
             border-bottom: 1px solid #e2e8f0;
         }
+
+        /* ── COMPLETE NON-STICKY & RESPONSIVE TABLE STYLING ── */
+        .grid-table th,
+        .grid-table td,
+        .grid-table tr,
+        .grid-table th.sticky-col,
+        .grid-table td.sticky-col,
+        .grid-table th.sticky-col-header,
+        .sticky-col,
+        .sticky-col-header {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: 1 !important;
+        }
+
+        .grid-container {
+            width: 100% !important;
+            overflow: hidden !important;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .grid-wrapper {
+            width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            max-height: calc(100vh - 230px) !important;
+            min-height: 320px !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        .grid-table {
+            width: max-content !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            table-layout: auto !important;
+        }
+
+        .grid-table th {
+            background: #f8fafc !important;
+            color: #475569 !important;
+            font-weight: 600 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            border-right: 1px solid #e2e8f0 !important;
+            border-top: 1px solid #cbd5e1 !important;
+            padding: 6px 10px !important;
+            white-space: nowrap !important;
+            height: 28px !important;
+            text-align: left;
+            user-select: none;
+            font-size: 11px !important;
+        }
+
+        .grid-table td {
+            padding: 4px 10px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            border-right: 1px solid #e2e8f0 !important;
+            white-space: nowrap !important;
+            height: 28px !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            color: #334155;
+            background: #fff;
+            font-size: 11px !important;
+        }
+
+        .grid-table tbody tr:hover td {
+            background-color: #f1f5f9 !important;
+        }
+
+        .grid-table tbody tr.row-selected td {
+            background-color: #eff6ff !important;
+        }
         
         /* Mobile Responsive Enhancements */
         @media (max-width: 768px) {
@@ -78,28 +155,9 @@
                 flex-wrap: wrap;
             }
             
-            .grid-container { 
-                width: 100% !important;
-                overflow: hidden !important;
-            }
-            
             .grid-wrapper { 
-                width: 100% !important;
-                height: calc(100vh - 350px) !important;
+                max-height: calc(100vh - 350px) !important;
                 min-height: 200px !important;
-                overflow-x: auto !important;
-                overflow-y: auto !important;
-                -webkit-overflow-scrolling: touch !important;
-            }
-            
-            .grid-table { 
-                font-size: 8px !important;
-                min-width: 1600px !important;
-            }
-            
-            .grid-table th, .grid-table td { 
-                padding: 2px 4px !important;
-                height: 22px !important;
             }
         }
     </style>
@@ -246,38 +304,40 @@
                         <table class="grid-table" id="main-grid">
                             <thead>
                                 <tr id="header-row">
-                                    <th class="sticky-col sticky-col-header" data-col="check"  style="width:25px;text-align:center;">
+                                    <th data-col="check"  style="width:35px;text-align:center;">
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
-                                    <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="hawb_no" style="width:120px;left:50px;">HAWB No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color"    style="width:28px;left:170px;text-align:center;">CR</th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:198px;">Booking No.</th>
-                                    <th data-col="customer"   style="width:150px;">Customer</th>
-                                    <th data-col="shipper"    style="width:150px;">Shipper</th>
-                                    <th data-col="consignee"  style="width:150px;">Consignee</th>
-                                    <th data-col="departure"  style="width:120px;">Departure</th>
-                                    <th data-col="destination" style="width:120px;">Destination</th>
-                                    <th data-col="gw"         style="width:70px;text-align:right;">G.W (KG)</th>
-                                    <th data-col="cw"         style="width:70px;text-align:right;">C.W (KG)</th>
-                                    <th data-col="sales"      style="width:90px;">Sales</th>
-                                    <th data-col="op"         style="width:90px;">OP</th>
-                                    <th data-col="created_at" style="width:100px;">Created</th>
+                                    <th data-col="lock" style="width:35px;text-align:center;"><i class="fa fa-lock"></i></th>
+                                    <th data-col="hawb_no" style="min-width:130px;font-weight:600;">HAWB No.</th>
+                                    <th data-col="file_no" style="min-width:130px;">Booking No.</th>
+                                    <th data-col="customer" style="min-width:160px;">Customer</th>
+                                    <th data-col="shipper" style="min-width:160px;">Shipper</th>
+                                    <th data-col="consignee" style="min-width:160px;">Consignee</th>
+                                    <th data-col="departure" style="min-width:130px;">Departure</th>
+                                    <th data-col="destination" style="min-width:130px;">Destination</th>
+                                    <th data-col="gw" style="min-width:85px;text-align:right;">G.W (KG)</th>
+                                    <th data-col="cw" style="min-width:85px;text-align:right;">C.W (KG)</th>
+                                    <th data-col="sales" style="min-width:100px;">Sales</th>
+                                    <th data-col="op" style="min-width:100px;">OP</th>
+                                    <th data-col="created_at" style="min-width:100px;">Created</th>
                                 </tr>
 
                                 {{-- ── FILTER ROW ── --}}
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
-                                    <td class="sticky-col" style="left:0;background:#eff6ff;"></td>
-                                    <td class="sticky-col" style="left:25px;background:#eff6ff;"></td>
-                                    <td class="sticky-col" style="left:50px;background:#eff6ff;"><input class="filter-input" data-col-idx="2" placeholder="HAWB…" oninput="applyFilters()" style="width:100%;"></td>
-                                    <td class="sticky-col" style="left:170px;background:#eff6ff;"></td>
-                                    <td class="sticky-col" style="left:163px;background:#eff6ff;"><input class="filter-input" data-col-idx="4" placeholder="File…" oninput="applyFilters()" style="width:100%;"></td>
-                                    <td><input class="filter-input" data-col-idx="5"  placeholder="Customer…" oninput="applyFilters()" style="width:100%;"></td>
-                                    <td><input class="filter-input" data-col-idx="6"  placeholder="Shipper…"   oninput="applyFilters()" style="width:100%;"></td>
-                                    <td><input class="filter-input" data-col-idx="7"  placeholder="Consignee…" oninput="applyFilters()" style="width:100%;"></td>
-                                    <td><input class="filter-input" data-col-idx="8"  placeholder="Dep…"       oninput="applyFilters()" style="width:100%;"></td>
-                                    <td><input class="filter-input" data-col-idx="9"  placeholder="Dest…"      oninput="applyFilters()" style="width:100%;"></td>
-                                    <td colspan="5"></td>
+                                    <td style="text-align:center;"></td>
+                                    <td style="text-align:center;"></td>
+                                    <td><input class="filter-input" data-col-idx="2" placeholder="HAWB…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="3" placeholder="Booking No…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="4" placeholder="Customer…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="5" placeholder="Shipper…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="6" placeholder="Consignee…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="7" placeholder="Dep…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="8" placeholder="Dest…" oninput="applyFilters()" style="width:100%;"></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                             </thead>
 
@@ -292,18 +352,18 @@
                                     data-id="{{ $hbl->id }}"
                                     data-hawb="{{ $hbl->hawb_no }}"
                                     onclick="rowClick(event, this)">
-                                    <td class="sticky-col" style="width:25px;text-align:center;" onclick="event.stopPropagation()">
+                                    <td style="width:35px;text-align:center;" onclick="event.stopPropagation()">
                                         <input type="checkbox" class="row-check" value="{{ $hbl->id }}" onchange="updateToolbar()">
                                     </td>
-                                    <td class="sticky-col" style="left:25px;text-align:center;" onclick="event.stopPropagation()">
+                                    <td style="width:35px;text-align:center;" onclick="event.stopPropagation()">
                                         <i class="fa {{ $isBlocked ? 'fa-lock' : 'fa-unlock' }}" 
-                                           style="color:{{ $isBlocked ? '#94a3b8' : '#22c55e' }};cursor:pointer;font-size:10px;" 
+                                           style="color:{{ $isBlocked ? '#ef4444' : '#22c55e' }};cursor:pointer;font-size:11px;" 
                                            title="{{ $isBlocked ? 'Blocked' : 'Unlocked' }}"></i>
                                     </td>
-                                    <td class="sticky-col" style="left:50px;font-weight:600;" onclick="event.stopPropagation()">
+                                    <td style="font-weight:600;" onclick="event.stopPropagation()">
                                         <a href="/air-export/{{ $hbl->air_export_id }}/edit" class="col-link">{{ $hbl->hawb_no ?: '--' }}</a>
                                     </td>
-                                    <td class="sticky-col" style="left:163px;">
+                                    <td onclick="event.stopPropagation()">
                                         <a href="/air-export/{{ $hbl->air_export_id }}/edit" class="col-link">{{ $hbl->airExport->file_no ?? '--' }}</a>
                                     </td>
                                     <td>{{ $hbl->customer->name ?? '--' }}</td>
@@ -319,7 +379,7 @@
                                 </tr>
                             @empty
                                 <tr id="empty-row">
-                                    <td colspan="50" style="text-align:center;padding:30px 10px;color:#94a3b8;">
+                                    <td colspan="14" style="text-align:center;padding:30px 10px;color:#94a3b8;">
                                         <i class="fa fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>
                                         No HAWBs found.
                                     </td>
@@ -414,6 +474,13 @@
                 if (el) document.getElementById(id).textContent = el.textContent;
             });
 
+            // Re-apply column visibility toggles after AJAX update
+            document.querySelectorAll('#header-row th[data-col]').forEach(function(th) {
+                if (th.style.display === 'none') {
+                    toggleColumn(th.dataset.col, false);
+                }
+            });
+
             updateToolbar();
         } catch (e) {
             showToast('error', 'Failed to update grid');
@@ -433,8 +500,8 @@
     }
 
     var FILTER_MAP = {
-        2: 'filter_hawb', 4: 'filter_file_no', 5: 'filter_customer',
-        6: 'filter_shipper', 7: 'filter_consignee', 8: 'filter_dep', 9: 'filter_dst'
+        2: 'filter_hawb', 3: 'filter_file_no', 4: 'filter_customer',
+        5: 'filter_shipper', 6: 'filter_consignee', 7: 'filter_dep', 8: 'filter_dst'
     };
 
     function applyFilters() {
@@ -472,13 +539,15 @@
     /* ================================================================
        CONFIG PANEL — column visibility
     ================================================================ */
-    var PINNED_COLS = ['check', 'lock', 'hawb_no', 'color', 'file_no'];
+    var PINNED_COLS = ['check', 'lock'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
-        var open  = panel.style.display === 'none';
+        if (!panel) return;
+        var open  = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        var btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
 
@@ -500,10 +569,11 @@
 
     function toggleColumn(colName, show) {
         var th  = document.querySelector('#header-row th[data-col="' + colName + '"]');
+        if (!th) return;
         var idx = [...th.parentElement.children].indexOf(th);
         th.style.display = show ? '' : 'none';
         document.querySelectorAll('#grid-body tr, #filter-row').forEach(function(row) {
-            var cell = row.querySelectorAll('td, th')[idx];
+            var cell = row.children[idx];
             if (cell) cell.style.display = show ? '' : 'none';
         });
     }
@@ -511,7 +581,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -565,7 +635,7 @@
                     if (row) {
                         var lockCell = row.querySelector('td:nth-child(2)');
                         if (lockCell) {
-                            lockCell.innerHTML = '<i class="fa fa-lock" style="color:#94a3b8;cursor:pointer;font-size:10px;" title="Blocked"></i>';
+                            lockCell.innerHTML = '<i class="fa fa-lock" style="color:#ef4444;cursor:pointer;font-size:11px;" title="Blocked"></i>';
                         }
                         // Uncheck the checkbox
                         var checkbox = row.querySelector('.row-check');
@@ -599,7 +669,7 @@
                     if (row) {
                         var lockCell = row.querySelector('td:nth-child(2)');
                         if (lockCell) {
-                            lockCell.innerHTML = '<i class="fa fa-unlock" style="color:#22c55e;cursor:pointer;font-size:10px;" title="Unlocked"></i>';
+                            lockCell.innerHTML = '<i class="fa fa-unlock" style="color:#22c55e;cursor:pointer;font-size:11px;" title="Unlocked"></i>';
                         }
                         // Uncheck the checkbox
                         var checkbox = row.querySelector('.row-check');
@@ -711,7 +781,7 @@
         var id = _colorHblId;
         fetch('/air-export/hbl/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: color })
         })
         .then(function(r) { return r.json(); })
@@ -733,7 +803,7 @@
         if (!id) return;
         fetch('/air-export/hbl/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: '' })
         })
         .then(function(r) { return r.json(); })

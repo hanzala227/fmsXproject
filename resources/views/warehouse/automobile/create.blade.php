@@ -62,7 +62,7 @@
                     <div class="portlet-title">
                         <div class="caption-subject">Automobile</div>
                         <div>
-                            <button type="button" class="btn-default-gf"><i class="fa fa-cog"></i> Tools <i class="fa fa-angle-down"></i></button>
+                            <button type="button" class="btn-default-gf"><i class="fa fa-cog"></i> Docs <i class="fa fa-angle-down"></i></button>
                         </div>
                     </div>
                     <div class="portlet-body">
@@ -233,7 +233,7 @@
                                         'cigarette_lighter' => 'Cigarette Lighter',
                                         'cargo_net' => 'Cargo Net',
                                         'ashtray' => 'Ashtray',
-                                        'tools' => 'Tools',
+                                        'Tools' => 'Tools',
                                         'spare_tire' => 'Spare Tire',
                                         'sun_roof' => 'Sun Roof',
                                     ];
@@ -330,7 +330,7 @@
                     cigarette_lighter: '{{ old("cigarette_lighter", $copyFrom?->cigarette_lighter  ?? "0") }}',
                     cargo_net: '{{ old("cargo_net", $copyFrom?->cargo_net  ?? "0") }}',
                     ashtray: '{{ old("ashtray", $copyFrom?->ashtray  ?? "0") }}',
-                    tools: '{{ old("tools", $copyFrom?->tools  ?? "0") }}',
+                    Tools: '{{ old("Tools", $copyFrom?->Tools  ?? "0") }}',
                     spare_tire: '{{ old("spare_tire", $copyFrom?->spare_tire  ?? "0") }}',
                     sun_roof: '{{ old("sun_roof", $copyFrom?->sun_roof  ?? "0") }}',
                 },

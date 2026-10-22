@@ -17,6 +17,12 @@
                     My Shipments
                 </a>
             </li>
+            <li>
+                <a href="{{ route('client.tracking') }}" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; transition: all 0.2s; {{ request()->routeIs('client.tracking') ? 'background: rgba(255,255,255,0.1); color: #fff; border-left: 3px solid #fff;' : 'border-left: 3px solid transparent;' }}">
+                    <i class="fa fa-map-marker" style="width: 16px; text-align: center;"></i>
+                    Track & Trace
+                </a>
+            </li>
         </ul>
     </nav>
 </aside>

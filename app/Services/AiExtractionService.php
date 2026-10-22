@@ -26,17 +26,46 @@ class AiExtractionService
             throw new Exception("AI is not configured. Please contact the Super Admin to configure AI settings.");
         }
 
-        // 1. Extract text from document
-        $text = $this->extractTextFromFile($file);
-        if (empty(trim($text))) {
-            throw new Exception("Could not extract any text from the provided document.");
+        $extension = strtolower($file->getClientOriginalExtension());
+        $text = '';
+        $imageBase64 = null;
+        $mimeType = null;
+
+        // Support direct image formats
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $imageBase64 = base64_encode(file_get_contents($file->getPathname()));
+            $mimeType = $file->getClientMimeType() ?: ('image/' . $extension);
+        } else {
+            // 1. Extract text from document
+            $text = $this->extractTextFromFile($file);
+
+            // If PDF had no digital text (scanned PDF), attempt to render first page with pdftoppm
+            if (empty(trim($text)) && $extension === 'pdf' && is_executable('/usr/bin/pdftoppm')) {
+                try {
+                    $tempPrefix = sys_get_temp_dir() . '/pdf_scan_' . uniqid();
+                    $cmd = '/usr/bin/pdftoppm -png -r 150 -f 1 -l 1 ' . escapeshellarg($file->getPathname()) . ' ' . escapeshellarg($tempPrefix);
+                    @exec($cmd);
+                    $renderedImg = $tempPrefix . '-1.png';
+                    if (file_exists($renderedImg)) {
+                        $imageBase64 = base64_encode(file_get_contents($renderedImg));
+                        $mimeType = 'image/png';
+                        @unlink($renderedImg);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("pdftoppm conversion failed: " . $e->getMessage());
+                }
+            }
+
+            if (empty(trim($text)) && empty($imageBase64)) {
+                throw new Exception("Could not extract any text or image from the provided document.");
+            }
         }
 
         // 2. Get prompt/schema for module
         $schemaPrompt = $this->getSchemaPrompt($module);
 
         // 3. Call AI
-        $jsonResponse = $this->callAi($settings, $text, $schemaPrompt);
+        $jsonResponse = $this->callAi($settings, $text, $schemaPrompt, $imageBase64, $mimeType);
 
         // 4. Parse JSON
         $data = $this->parseJsonFromResponse($jsonResponse);
@@ -53,25 +82,38 @@ class AiExtractionService
         $text = '';
 
         if ($extension === 'pdf') {
-            try {
-                $parser = new Parser();
-                $pdf = $parser->parseFile($file->getPathname());
-                $text = $pdf->getText();
-            } catch (Exception $e) {
-                Log::error("PDF Parsing Error: " . $e->getMessage());
-                throw new Exception("Failed to read PDF file.");
+            // Try pdftotext with column layout preservation first if available
+            if (is_executable('/usr/bin/pdftotext')) {
+                try {
+                    $cmd = '/usr/bin/pdftotext -layout ' . escapeshellarg($file->getPathname()) . ' -';
+                    $output = @shell_exec($cmd);
+                    if (!empty($output) && trim($output) !== '') {
+                        $text = $output;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("pdftotext execution failed: " . $e->getMessage());
+                }
+            }
+
+            // Fallback to Smalot Parser if pdftotext was unavailable or empty
+            if (empty(trim($text))) {
+                try {
+                    $parser = new Parser();
+                    $pdf = $parser->parseFile($file->getPathname());
+                    $text = $pdf->getText();
+                } catch (Exception $e) {
+                    Log::error("PDF Parsing Error: " . $e->getMessage());
+                }
             }
         } elseif (in_array($extension, ['csv', 'txt'])) {
             $text = file_get_contents($file->getPathname());
-        } else {
-            throw new Exception("Unsupported file type. Please upload a PDF or text document.");
         }
 
         // Truncate text if it's too long to prevent massive token usage (e.g., max 30000 chars)
-        return substr($text, 0, 30000);
+        return substr($text ?? '', 0, 30000);
     }
 
-    private function callAi(AiSetting $settings, string $text, string $schemaPrompt): string
+    private function callAi(AiSetting $settings, ?string $text, string $schemaPrompt, ?string $imageBase64 = null, ?string $mimeType = 'image/jpeg'): string
     {
         $baseUrl = rtrim($settings->base_url, '/');
         $apiType = strtolower($settings->api_type ?? 'openai');
@@ -106,6 +148,23 @@ CRITICAL INSTRUCTIONS:
 8. Use null for missing values. DO NOT invent or fabricate missing fields.
 9. STRICT JSON: DO NOT include any markdown formatting (like ```json), explanations, or additional text. Output ONLY the raw JSON object.";
 
+        if (!empty($imageBase64)) {
+            $userContent = [
+                [
+                    'type' => 'text',
+                    'text' => "Analyze the attached shipping document carefully. Extract shipping data strictly matching the requested schema:\n\nREQUIRED SCHEMA:\n" . $schemaPrompt
+                ],
+                [
+                    'type' => 'image_url',
+                    'image_url' => [
+                        'url' => 'data:' . ($mimeType ?: 'image/jpeg') . ';base64,' . $imageBase64
+                    ]
+                ]
+            ];
+        } else {
+            $userContent = "DOCUMENT TEXT:\n---\n" . $text . "\n---\n\nREQUIRED SCHEMA:\n" . $schemaPrompt;
+        }
+
         $messages = [
             [
                 'role' => 'system',
@@ -113,7 +172,7 @@ CRITICAL INSTRUCTIONS:
             ],
             [
                 'role' => 'user',
-                'content' => "DOCUMENT TEXT:\n---\n" . $text . "\n---\n\nREQUIRED SCHEMA:\n" . $schemaPrompt
+                'content' => $userContent
             ]
         ];
 
@@ -386,17 +445,23 @@ CRITICAL INSTRUCTIONS:
         return json_encode([
             "mbl" => [
                 "file_no" => "string (File number if present)",
-                "mbl_no" => "string (Master Air Waybill Number)",
+                "mawb_no" => "string (Master Air Waybill Number)",
+                "mbl_no" => "string (Master Air Waybill Number, alias to mawb_no)",
                 "booking_no" => "string",
                 "post_date" => "YYYY-MM-DD",
-                "carrier_name" => "string (Name of Carrier)",
+                "carrier_name" => "string (Name of Carrier / Airline)",
                 "flight_no" => "string (Flight Number)",
-                "pol_name" => "string (Port of Loading Name or Departure Airport)",
-                "pod_name" => "string (Port of Discharge Name or Destination Airport)",
+                "pol_name" => "string (Departure Airport)",
+                "departure_name" => "string (Departure Airport, alias to pol_name)",
+                "pod_name" => "string (Destination Airport)",
+                "destination_name" => "string (Destination Airport, alias to pod_name)",
                 "etd" => "YYYY-MM-DD",
                 "eta" => "YYYY-MM-DD",
                 "atd" => "YYYY-MM-DD",
                 "ata" => "YYYY-MM-DD",
+                "shipper_name" => "string (Shipper company name on Master AWB)",
+                "consignee_name" => "string (Consignee company name on Master AWB)",
+                "notify_party_name" => "string (Notify party name on Master AWB)",
                 "forwarding_agent_name" => "string",
                 "op_name" => "string",
                 "dm_sales_person_name" => "string",
@@ -405,27 +470,55 @@ CRITICAL INSTRUCTIONS:
                 "agent_ref_no" => "string",
                 "contract_no" => "string",
                 "sales_type" => "string",
+                "freight_term" => "string (e.g. PREPAID or COLLECT)",
+                "incoterms" => "string (e.g. FOB, CIF, EXW, DDP)",
                 "bl_type" => "string",
                 "cargo_type" => "string",
+                "gross_weight" => "number (Total Gross Weight in KG)",
+                "weight" => "number (Total Gross Weight, alias)",
+                "chargeable_weight" => "number (Total Chargeable Weight in KG)",
+                "volume" => "number (Total Volume in CBM)",
+                "volume_weight" => "number (Total Volume or Volume Weight, alias)",
+                "pieces" => "integer (Total number of packages)",
+                "pkg_qty" => "integer (Total number of packages, alias)",
                 "description" => "string"
             ],
             "flights" => [
                 [
                     "flight_no" => "string (Flight Number)",
-                    "pol_name" => "string (Port of Loading Name or Departure Airport)",
-                    "pod_name" => "string (Port of Discharge Name or Destination Airport)",
+                    "carrier_name" => "string (Carrier Name)",
+                    "pol_name" => "string (Departure Airport)",
+                    "departure_name" => "string (Departure Airport, alias to pol_name)",
+                    "pod_name" => "string (Destination Airport)",
+                    "destination_name" => "string (Destination Airport, alias to pod_name)",
+                    "etd" => "YYYY-MM-DD",
+                    "eta" => "YYYY-MM-DD"
+                ]
+            ],
+            "routes" => [
+                [
+                    "flight_no" => "string (Flight Number)",
+                    "carrier_name" => "string (Carrier Name)",
+                    "pol_name" => "string (Departure Airport)",
+                    "departure_name" => "string (Departure Airport, alias to pol_name)",
+                    "pod_name" => "string (Destination Airport)",
+                    "destination_name" => "string (Destination Airport, alias to pod_name)",
                     "etd" => "YYYY-MM-DD",
                     "eta" => "YYYY-MM-DD"
                 ]
             ],
             "hbls" => [
                 [
-                    "hbl_no" => "string (House Air Waybill Number)",
+                    "hawb_no" => "string (House Air Waybill Number)",
+                    "hbl_no" => "string (House Air Waybill Number, alias to hawb_no)",
                     "shipper_name" => "string",
                     "consignee_name" => "string",
                     "notify_party_name" => "string",
-                    "weight" => "number (Gross Weight)",
-                    "volume" => "number (Volume Weight/Chargeable)",
+                    "gross_weight" => "number (Gross Weight)",
+                    "weight" => "number (Gross Weight, alias)",
+                    "chargeable_weight" => "number (Chargeable Weight)",
+                    "volume_weight" => "number (Volume Weight)",
+                    "volume" => "number (Volume in CBM, alias)",
                     "pieces" => "number (Quantity of packages/cartons)",
                     "description" => "string (Nature of goods)"
                 ]
@@ -438,47 +531,85 @@ CRITICAL INSTRUCTIONS:
         return json_encode([
             "mbl" => [
                 "file_no" => "string (File number if present)",
-                "mbl_no" => "string (Master Air Waybill Number)",
-                "booking_no" => "string",
+                "mawb_no" => "string (Master Air Waybill Number, e.g. 176-12345678)",
+                "mbl_no" => "string (Master Air Waybill Number, alias to mawb_no)",
+                "booking_no" => "string (Booking reference)",
                 "post_date" => "YYYY-MM-DD",
-                "carrier_name" => "string (Name of Carrier)",
-                "flight_no" => "string (Flight Number)",
-                "pol_name" => "string (Port of Loading Name or Departure Airport)",
-                "pod_name" => "string (Port of Discharge Name or Destination Airport)",
-                "etd" => "YYYY-MM-DD",
-                "eta" => "YYYY-MM-DD",
-                "atd" => "YYYY-MM-DD",
-                "ata" => "YYYY-MM-DD",
-                "forwarding_agent_name" => "string",
-                "op_name" => "string",
-                "dm_sales_person_name" => "string",
-                "oversea_agent_name" => "string",
-                "co_loader_name" => "string",
+                "awb_date" => "YYYY-MM-DD (Date of AWB issue)",
+                "carrier_name" => "string (Name of Airline / Carrier)",
+                "issuing_carrier" => "string (Name of Issuing Carrier / Agent)",
+                "flight_no" => "string (Flight Number, e.g. EK601)",
+                "pol_name" => "string (Departure Airport name or code, e.g. KHI)",
+                "departure_name" => "string (Departure Airport, alias to pol_name)",
+                "pod_name" => "string (Destination Airport name or code, e.g. DXB)",
+                "destination_name" => "string (Destination Airport, alias to pod_name)",
+                "etd" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                "eta" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                "atd" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                "ata" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                "shipper_name" => "string (Shipper company name on Master AWB)",
+                "consignee_name" => "string (Consignee company name on Master AWB)",
+                "notify_party_name" => "string (Notify party name on Master AWB)",
+                "forwarding_agent_name" => "string (Forwarding agent / Co-loader name)",
+                "co_loader_name" => "string (Co-loader company name)",
+                "actual_shipper_name" => "string (Actual shipper company name)",
+                "op_name" => "string (Operator or OP name)",
+                "dm_sales_person_name" => "string (Sales person name)",
+                "oversea_agent_name" => "string (Oversea agent name)",
                 "agent_ref_no" => "string",
                 "contract_no" => "string",
                 "sales_type" => "string",
                 "bl_type" => "string",
-                "cargo_type" => "string",
-                "description" => "string"
+                "awb_type" => "string (NORMAL or DIRECT)",
+                "cargo_type" => "string (GENERAL CARGO, HAZARDOUS, etc.)",
+                "gross_weight" => "number (Total Gross Weight in KG)",
+                "chargeable_weight" => "number (Total Chargeable Weight in KG)",
+                "volume" => "number (Total Volume in CBM)",
+                "pieces" => "integer (Total Pieces/Packages count)",
+                "pkg_unit" => "string (Package unit, e.g. PCS, CTNS, PLTS)",
+                "dv_carriage" => "string (Declared value carriage, e.g. N.V.D.)",
+                "dv_customs" => "string (Declared value customs, e.g. N.C.V.)",
+                "wt_val" => "string (P for Prepaid or C for Collect)",
+                "other_term" => "string (P for Prepaid or C for Collect)",
+                "insurance" => "string (e.g. N.I.L.)",
+                "description" => "string (Cargo description / Nature of goods)"
             ],
             "flights" => [
                 [
                     "flight_no" => "string (Flight Number)",
-                    "pol_name" => "string (Port of Loading Name or Departure Airport)",
-                    "pod_name" => "string (Port of Discharge Name or Destination Airport)",
-                    "etd" => "YYYY-MM-DD",
-                    "eta" => "YYYY-MM-DD"
+                    "carrier_name" => "string (Airline / Carrier Name)",
+                    "pol_name" => "string (Departure Airport name or code)",
+                    "pod_name" => "string (Destination Airport name or code)",
+                    "etd" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                    "eta" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM"
+                ]
+            ],
+            "routes" => [
+                [
+                    "flight_no" => "string (Flight Number)",
+                    "carrier_name" => "string (Airline / Carrier Name)",
+                    "pol_name" => "string (Departure Airport name or code)",
+                    "pod_name" => "string (Destination Airport name or code)",
+                    "etd" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM",
+                    "eta" => "YYYY-MM-DD or YYYY-MM-DDTHH:MM"
                 ]
             ],
             "hbls" => [
                 [
-                    "hbl_no" => "string (House Air Waybill Number)",
-                    "shipper_name" => "string",
-                    "consignee_name" => "string",
-                    "notify_party_name" => "string",
-                    "weight" => "number (Gross Weight)",
-                    "volume" => "number (Volume Weight/Chargeable)",
+                    "hawb_no" => "string (House Air Waybill Number)",
+                    "hbl_no" => "string (House Air Waybill Number, alias to hawb_no)",
+                    "shipper_name" => "string (Shipper company name)",
+                    "consignee_name" => "string (Consignee company name)",
+                    "notify_party_name" => "string (Notify party company name)",
+                    "gross_weight" => "number (Gross Weight in KG)",
+                    "weight" => "number (Gross Weight in KG, alias)",
+                    "chargeable_weight" => "number (Chargeable Weight in KG)",
+                    "volume_weight" => "number (Volume Weight)",
+                    "volume" => "number (Volume in CBM, alias)",
                     "pieces" => "number (Quantity of packages/cartons)",
+                    "pkg_unit" => "string (Unit e.g. PCS, CTNS)",
+                    "departure_name" => "string (Departure airport)",
+                    "destination_name" => "string (Destination airport)",
                     "description" => "string (Nature of goods)"
                 ]
             ]

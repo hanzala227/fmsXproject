@@ -31,7 +31,8 @@ class OceanExport extends Model
         'entry_no', 'entry_doc_sent_date', 'go_date', 'available_date',
         'c_released_date', 'released_by_id', 'is_ror', 'is_hold',
         'door_delivery_date', 'trucker_id', 'expiry_date', 'sales_type', 'incoterm_id',
-        'color', 'routes',
+        'color', 'routes', 'freight', 'transportation',
+        'mark', 'description', 'is_obl_received', 'lfd', 'is_do_sent', 'do_sent_date',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class OceanExport extends Model
         'is_ecommerce' => 'boolean',
         'is_blocked' => 'boolean',
         'is_released' => 'boolean',
+        'is_obl_received' => 'boolean',
         'isf_matched_date' => 'date',
         'is_isf_3rd_party' => 'boolean',
         'entry_doc_sent_date' => 'date',
@@ -61,6 +63,9 @@ class OceanExport extends Model
         'is_hold' => 'boolean',
         'door_delivery_date' => 'date',
         'expiry_date' => 'date',
+        'lfd' => 'date',
+        'is_do_sent' => 'boolean',
+        'do_sent_date' => 'date',
     ];
 
     // Core Relations

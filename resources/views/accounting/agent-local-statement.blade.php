@@ -571,7 +571,7 @@
         document.addEventListener('click', function(e) {
             var panel = document.getElementById('config-panel');
             var btn = document.getElementById('btnConfig');
-            if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) panel.style.display = 'none';
+            if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) panel.style.display = 'none';
         });
 
         function buildConfigPanel() {

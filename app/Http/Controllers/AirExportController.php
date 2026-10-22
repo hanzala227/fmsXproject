@@ -248,15 +248,22 @@ class AirExportController extends Controller
                 // MAWB Party Fields
                 'shipper_id', 'consignee_id', 'notify_id', 'actual_shipper_id',
                 
-                // Additional Fields
+                // Additional & Extended Fields
+                'cargo_type', 'display_unit', 'itn_no', 'cers_no', 'reference_no',
+                'awb_date', 'cargo_ready_date', 'issuing_carrier', 'awb_type',
+                'dv_carriage', 'dv_customs', 'insurance', 'wt_val', 'other_term',
+                'other_charges', 'accounting_info', 'commodities',
                 'internal_remark', 'color', 'label_description',
             ];
 
             $requestData = $request->validated();
-        \Log::info("AirExportController Request Payload:", $request->all());
+            \Log::info("AirExportController Request Payload:", $request->all());
             if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
             if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
             if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
+            if ($request->has('other_charges')) $requestData['other_charges'] = $request->input('other_charges');
+            if ($request->has('accounting_info')) $requestData['accounting_info'] = $request->input('accounting_info');
+            if ($request->has('commodities')) $requestData['commodities'] = $request->input('commodities');
             $filled = [];
             $empty = [];
 
@@ -420,6 +427,10 @@ class AirExportController extends Controller
             'incoterm_id', 'mark_number', 'service_term_from', 'service_term_to',
             'agent_id', 'co_loader_id', 'trans_port_id', 'trans_port1_id',
             'trans_port2_id', 'trans_port3_id', 'delivery_port_id', 'route_data',
+            'cargo_type', 'display_unit', 'itn_no', 'cers_no', 'reference_no',
+            'awb_date', 'cargo_ready_date', 'issuing_carrier', 'awb_type',
+            'dv_carriage', 'dv_customs', 'insurance', 'wt_val', 'other_term',
+            'other_charges', 'accounting_info', 'commodities',
             
             // Other Fields
             'internal_remark', 'color', 'label_description',
@@ -430,6 +441,9 @@ class AirExportController extends Controller
         if ($request->has('charges')) $requestData['charges'] = $request->input('charges');
         if ($request->has('hbls')) $requestData['hbls'] = $request->input('hbls');
         if ($request->has('routes')) $requestData['routes'] = $request->input('routes');
+        if ($request->has('other_charges')) $requestData['other_charges'] = $request->input('other_charges');
+        if ($request->has('accounting_info')) $requestData['accounting_info'] = $request->input('accounting_info');
+        if ($request->has('commodities')) $requestData['commodities'] = $request->input('commodities');
         $filled = [];
         $empty = [];
 

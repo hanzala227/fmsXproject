@@ -184,7 +184,7 @@
             <!-- Tabs -->
             <ul class="gf-tabs">
                 <li :class="activeTab === 'basic' ? 'active' : ''"><a @click="activeTab = 'basic'">Basic</a></li>
-                <li style="display: none !important;" :class="(activeTab === 'docs' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'docs' : null"><a>Doc Center</a></li>
+                <li style="display: none !important;" :class="(activeTab === 'Tools' ? 'active' : '') + (isSaved ? '' : ' disabled-tab')" @click="isSaved ? activeTab = 'Tools' : null"><a>Doc Center</a></li>
             </ul>
 
             <!-- ==================== BASIC TAB ==================== -->
@@ -471,7 +471,7 @@
             </div>
 
             <!-- ==================== DOC CENTER TAB ==================== -->
-            <div x-show="activeTab === 'docs'" x-cloak>
+            <div x-show="activeTab === 'Tools'" x-cloak>
                 @if(!$payment)
                 <div class="portlet light">
                     <div class="portlet-title">
@@ -913,9 +913,9 @@
             }
         }
 
-        function paymentDocCenter(initialDocs) {
+        function paymentDocCenter(initialTools) {
             return {
-                documents: initialDocs || [],
+                documents: initialTools || [],
                 uploadDocument(e, paymentId) {
                     const file = e.target.files[0];
                     if (!file) return;

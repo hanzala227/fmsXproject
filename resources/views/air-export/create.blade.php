@@ -2,7 +2,7 @@
     @push('styles')
     <x-form-styles />
     <style>
-        .tools-menu-item {
+        .Tools-menu-item {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -17,15 +17,15 @@
             text-align: left;
             transition: background 0.15s ease;
         }
-        .tools-menu-item:hover:not(:disabled) {
+        .Tools-menu-item:hover:not(:disabled) {
             background: #f3f4f6;
             color: #111827;
         }
-        .tools-menu-item.disabled, .tools-menu-item:disabled {
+        .Tools-menu-item.disabled, .Tools-menu-item:disabled {
             opacity: 0.45;
             cursor: not-allowed;
         }
-        .tools-menu-divider {
+        .Tools-menu-divider {
             height: 1px;
             background-color: #e5e7eb;
             margin: 4px 0;
@@ -195,34 +195,34 @@
                     mawb_no: '{{ isset($airExport) ? $airExport->mawb_no : "" }}',
                     office: '{{ isset($airExport) ? $airExport->office_id : "" }}',
                     carrier: '{{ isset($airExport) ? $airExport->carrier_id : "" }}',
-                    issuing_carrier: 'FREIGHTX',
-                    awb_type: 'NORMAL',
-                    awb_date: '',
-                    shipper: '',
-                    consignee: '',
-                    notify: '',
+                    issuing_carrier: '{{ isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX" }}',
+                    awb_type: '{{ isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL" }}',
+                    awb_date: '{{ isset($airExport) && $airExport->awb_date ? \Carbon\Carbon::parse($airExport->awb_date)->format("Y-m-d") : "" }}',
+                    shipper: '{{ isset($airExport) ? $airExport->shipper_id : "" }}',
+                    consignee: '{{ isset($airExport) ? $airExport->consignee_id : "" }}',
+                    notify: '{{ isset($airExport) ? $airExport->notify_id : "" }}',
                     post_date: '{{ isset($airExport) && $airExport->post_date ? \Carbon\Carbon::parse($airExport->post_date)->format("Y-m-d") : date("Y-m-d") }}',
                     awb_acct_carrier: '{{ isset($airExport) ? $airExport->acct_carrier_id : "" }}',
                     co_loader: '{{ isset($airExport) ? $airExport->forwarding_agent_id : "" }}',
-                    actual_shipper: '',
+                    actual_shipper: '{{ isset($airExport) ? $airExport->actual_shipper_id : "" }}',
                     op: '{{ isset($airExport) ? $airExport->op_id : auth()->id() }}',
-                    itn_no: '',
-                    cers_no: '',
-                    reference_no: '',
-                    display_unit: 'BOTH',
+                    itn_no: '{{ isset($airExport) ? $airExport->itn_no : "" }}',
+                    cers_no: '{{ isset($airExport) ? $airExport->cers_no : "" }}',
+                    reference_no: '{{ isset($airExport) ? $airExport->reference_no : "" }}',
+                    display_unit: '{{ isset($airExport) && $airExport->display_unit ? $airExport->display_unit : "BOTH" }}',
                     departure: '{{ isset($airExport) ? $airExport->dep_port_id : "" }}',
                     destination: '{{ isset($airExport) ? $airExport->dst_port_id : "" }}',
                     flight_no: '{{ isset($airExport) ? $airExport->flight_no : "" }}',
-                    cargo_ready_date: '',
+                    cargo_ready_date: '{{ isset($airExport) && $airExport->cargo_ready_date ? \Carbon\Carbon::parse($airExport->cargo_ready_date)->format("Y-m-d") : "" }}',
                     etd: '{{ isset($airExport) && $airExport->etd ? \Carbon\Carbon::parse($airExport->etd)->format("Y-m-d") : "" }}',
                     atd: '{{ isset($airExport) && $airExport->atd ? \Carbon\Carbon::parse($airExport->atd)->format("Y-m-d") : "" }}',
                     eta: '{{ isset($airExport) && $airExport->eta ? \Carbon\Carbon::parse($airExport->eta)->format("Y-m-d") : "" }}',
                     ata: '{{ isset($airExport) && $airExport->ata ? \Carbon\Carbon::parse($airExport->ata)->format("Y-m-d") : "" }}',
-                    dv_carriage: 'N.V.D.',
-                    dv_customs: 'N.C.V.',
-                    insurance: 'N.I.L.',
-                    wt_val: 'P',
-                    other_term: 'P',
+                    dv_carriage: '{{ isset($airExport) && $airExport->dv_carriage ? $airExport->dv_carriage : "N.V.D." }}',
+                    dv_customs: '{{ isset($airExport) && $airExport->dv_customs ? $airExport->dv_customs : "N.C.V." }}',
+                    insurance: '{{ isset($airExport) && $airExport->insurance ? $airExport->insurance : "N.I.L." }}',
+                    wt_val: '{{ isset($airExport) && $airExport->wt_val ? $airExport->wt_val : "P" }}',
+                    other_term: '{{ isset($airExport) && $airExport->other_term ? $airExport->other_term : "P" }}',
                     pkg_qty: '{{ isset($airExport) ? $airExport->pkg_qty : "" }}',
                     pkg_unit_id: '{{ isset($airExport) ? $airExport->pkg_unit_id : "" }}',
                     gross_weight: '{{ isset($airExport) ? $airExport->gross_weight : "" }}',
@@ -238,13 +238,13 @@
                     dm_bill_to_id: '{{ isset($airExport) ? $airExport->dm_bill_to_id : "" }}',
                     dm_consignee_id: '{{ isset($airExport) ? $airExport->dm_consignee_id : "" }}',
                     dm_notify_id: '{{ isset($airExport) ? $airExport->dm_notify_id : "" }}',
-                    cargo_type: '{{ isset($airExport) ? $airExport->cargo_type : "GENERAL CARGO" }}',
+                    cargo_type: '{{ isset($airExport) && $airExport->cargo_type ? $airExport->cargo_type : "GENERAL CARGO" }}',
                     routes: @json(isset($airExport) && !empty($airExport->routes) ? (is_array($airExport->routes) ? $airExport->routes : json_decode($airExport->routes, true)) : []),
-                    other_charges: [],
+                    other_charges: @json(isset($airExport) && !empty($airExport->other_charges) ? (is_array($airExport->other_charges) ? $airExport->other_charges : json_decode($airExport->other_charges, true)) : []),
                     charges: @json($chargesData ?? []),
-                    accounting_info: [],
-                    commodities: [],
-                    memo: ''
+                    accounting_info: @json(isset($airExport) && !empty($airExport->accounting_info) ? (is_array($airExport->accounting_info) ? $airExport->accounting_info : json_decode($airExport->accounting_info, true)) : []),
+                    commodities: @json(isset($airExport) && !empty($airExport->commodities) ? (is_array($airExport->commodities) ? $airExport->commodities : json_decode($airExport->commodities, true)) : []),
+                    memo: '{{ isset($airExport) ? $airExport->internal_remark : "" }}'
                 },
                 addRoute() {
                     if (!this.form.routes || !Array.isArray(this.form.routes)) {
@@ -870,11 +870,19 @@
                     fetch('/api/ai/extract/air-export', {
                         method: 'POST',
                         headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
                         },
                         body: formData
                     })
-                    .then(res => res.json())
+                    .then(async res => {
+                        const contentType = res.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            return res.json();
+                        }
+                        const text = await res.text();
+                        return { success: false, message: 'Server returned non-JSON response (' + res.status + ')' };
+                    })
                     .then(data => {
                         this.isAiProcessing = false;
                         if (!data.success) {
@@ -888,18 +896,33 @@
                         if (data.data.mbl) {
                             const m = data.data.mbl;
                             const mblMap = [
-                                { label: 'MAWB No.', key: 'mawb_no', val: m.mawb_no },
-                                { label: 'Booking no', key: 'file_no', val: m.file_no },
+                                { label: 'MAWB No.', key: 'mawb_no', val: m.mawb_no || m.mbl_no },
+                                { label: 'Booking no', key: 'file_no', val: m.file_no || m.booking_no },
+                                { label: 'AWB Date', key: 'awb_date', val: m.awb_date },
                                 { label: 'Post Date', key: 'post_date', val: m.post_date },
                                 { label: 'Carrier', key: 'carrier_id', val: m.carrier_id, display: m.carrier_name, nameKey: 'carrier_name' },
+                                { label: 'Issuing Carrier', key: 'issuing_carrier', val: m.issuing_carrier || m.carrier_name },
                                 { label: 'Flight No.', key: 'flight_no', val: m.flight_no },
-                                { label: 'Port of Departure', key: 'departure_id', val: m.departure_id, display: m.departure_name, nameKey: 'departure_name' },
-                                { label: 'Port of Destination', key: 'destination_id', val: m.destination_id, display: m.destination_name, nameKey: 'destination_name' },
-                                { label: 'Forwarding Agent', key: 'forwarding_agent_id', val: m.forwarding_agent_id, display: m.forwarding_agent_name, nameKey: 'forwarding_agent_name' },
+                                { label: 'Port of Departure', key: 'departure_id', val: m.departure_id || m.pol_id, display: m.departure_name || m.pol_name, nameKey: 'departure_name' },
+                                { label: 'Port of Destination', key: 'destination_id', val: m.destination_id || m.pod_id, display: m.destination_name || m.pod_name, nameKey: 'destination_name' },
+                                { label: 'Forwarding Agent / Co-loader', key: 'forwarding_agent_id', val: m.forwarding_agent_id || m.co_loader_id, display: m.forwarding_agent_name || m.co_loader_name, nameKey: 'forwarding_agent_name' },
                                 { label: 'Oversea Agent', key: 'oversea_agent_id', val: m.oversea_agent_id, display: m.oversea_agent_name, nameKey: 'oversea_agent_name' },
+                                { label: 'Actual Shipper', key: 'actual_shipper_id', val: m.actual_shipper_id, display: m.actual_shipper_name, nameKey: 'actual_shipper_name' },
                                 { label: 'Operator', key: 'op_id', val: m.op_id, display: m.op_name, nameKey: 'op_name' },
                                 { label: 'Sales Person', key: 'sales_person_id', val: m.sales_person_id, display: m.sales_person_name, nameKey: 'sales_person_name' },
-                                { label: 'Description', key: 'description', val: m.description },
+                                { label: 'Shipper', key: 'shipper_id', val: m.shipper_id, display: m.shipper_name, nameKey: 'shipper_name' },
+                                { label: 'Consignee', key: 'consignee_id', val: m.consignee_id, display: m.consignee_name, nameKey: 'consignee_name' },
+                                { label: 'Notify Party', key: 'notify_id', val: m.notify_id, display: m.notify_party_name, nameKey: 'notify_party_name' },
+                                { label: 'Total Packages', key: 'pkg_qty', val: m.pkg_qty || m.pieces },
+                                { label: 'Gross Weight (KG)', key: 'gross_weight', val: m.gross_weight },
+                                { label: 'Chargeable Weight (KG)', key: 'chargeable_weight', val: m.chargeable_weight },
+                                { label: 'Volume (CBM)', key: 'volume', val: m.volume },
+                                { label: 'D.V. Carriage', key: 'dv_carriage', val: m.dv_carriage },
+                                { label: 'D.V. Customs', key: 'dv_customs', val: m.dv_customs },
+                                { label: 'WT/VAL', key: 'wt_val', val: m.wt_val },
+                                { label: 'Other Term', key: 'other_term', val: m.other_term },
+                                { label: 'Insurance', key: 'insurance', val: m.insurance },
+                                { label: 'Cargo Description', key: 'description', val: m.description },
                                 { label: 'ETA', key: 'eta', val: m.eta },
                                 { label: 'ETD', key: 'etd', val: m.etd },
                             ];
@@ -920,41 +943,58 @@
                         }
                         
                         // Parse HBL fields
-                        if (data.data.hbls && data.data.hbls.length > 0) {
-                            const h = data.data.hbls[0];
-                            const hblMap = [
-                                { label: 'HAWB No.', key: 'hawb_no', val: h.hawb_no },
-                                { label: 'Shipper', key: 'shipper_id', val: h.shipper_id, display: h.shipper_name, nameKey: 'shipper_name' },
-                                { label: 'Consignee', key: 'consignee_id', val: h.consignee_id, display: h.consignee_name, nameKey: 'consignee_name' },
-                                { label: 'Notify Party', key: 'notify_id', val: h.notify_id, display: h.notify_party_name, nameKey: 'notify_party_name' },
-                                { label: 'Gross Weight', key: 'weight', val: h.weight },
-                                { label: 'Volume Weight', key: 'volume_weight', val: h.volume_weight },
-                                { label: 'Pieces', key: 'pieces', val: h.pieces },
-                            ];
-                            
-                            hblMap.forEach(field => {
-                                if (field.val || field.display) {
-                                    this.extractedData.push({
-                                        label: field.label,
-                                        parent: 'hbl',
-                                        key: field.key,
-                                        value: field.val,
-                                        displayValue: field.display || field.val,
-                                        nameKey: field.nameKey || null,
-                                        selected: true
-                                    });
-                                }
+                        const hblList = data.data.hbls || [];
+                        if (hblList.length > 0) {
+                            hblList.forEach((h, hIdx) => {
+                                const hPrefix = hblList.length > 1 ? `HAWB ${hIdx+1} - ` : '';
+                                const hblMap = [
+                                    { label: `${hPrefix}HAWB No.`, key: 'hawb_no', val: h.hawb_no || h.hbl_no },
+                                    { label: `${hPrefix}Shipper`, key: 'shipper_id', val: h.shipper_id, display: h.shipper_name, nameKey: 'shipper_name' },
+                                    { label: `${hPrefix}Consignee`, key: 'consignee_id', val: h.consignee_id, display: h.consignee_name, nameKey: 'consignee_name' },
+                                    { label: `${hPrefix}Notify Party`, key: 'notify_id', val: h.notify_id, display: h.notify_party_name, nameKey: 'notify_party_name' },
+                                    { label: `${hPrefix}Gross Weight`, key: 'gross_weight', val: h.gross_weight || h.weight },
+                                    { label: `${hPrefix}Chargeable Weight`, key: 'chargeable_weight', val: h.chargeable_weight },
+                                    { label: `${hPrefix}Volume Weight`, key: 'volume', val: h.volume_weight || h.volume },
+                                    { label: `${hPrefix}Pieces`, key: 'pkg_qty', val: h.pieces || h.pkg_qty },
+                                    { label: `${hPrefix}Departure`, key: 'departure', val: h.departure_id || h.departure_name, display: h.departure_name },
+                                    { label: `${hPrefix}Destination`, key: 'destination', val: h.destination_id || h.destination_name, display: h.destination_name },
+                                    { label: `${hPrefix}Nature of Goods`, key: 'description', val: h.description },
+                                ];
+                                
+                                hblMap.forEach(field => {
+                                    if (field.val || field.display) {
+                                        this.extractedData.push({
+                                            label: field.label,
+                                            parent: 'hbl',
+                                            hIndex: hIdx,
+                                            key: field.key,
+                                            value: field.val,
+                                            displayValue: field.display || field.val,
+                                            nameKey: field.nameKey || null,
+                                            selected: true
+                                        });
+                                    }
+                                });
                             });
                         }
                         
-                        // Parse Routes
-                        if (data.data.routes && data.data.routes.length > 0) {
-                            data.data.routes.forEach((r, idx) => {
-                                const legLabel = `Route Leg ${idx+1}`;
+                        // Parse Routes / Flights
+                        const routeList = data.data.routes || data.data.flights || [];
+                        if (routeList.length > 0) {
+                            routeList.forEach((r, idx) => {
+                                const legLabel = `Flight Leg ${idx+1}`;
+                                const polVal = r.departure_name || r.pol_name;
+                                const polId = r.departure_id || r.pol_id;
+                                const podVal = r.destination_name || r.pod_name;
+                                const podId = r.destination_id || r.pod_id;
+                                const carrierVal = r.carrier_name;
+                                const carrierId = r.carrier_id;
+
                                 const fields = [
                                     { label: `${legLabel} - Flight No`, key: 'flight_no', val: r.flight_no },
-                                    { label: `${legLabel} - POL`, key: 'pol_name', val: r.pol_name, nameKey: 'pol_id', idVal: r.pol_id },
-                                    { label: `${legLabel} - POD`, key: 'pod_name', val: r.pod_name, nameKey: 'pod_id', idVal: r.pod_id },
+                                    { label: `${legLabel} - Carrier`, key: 'carrier_name', val: carrierVal, nameKey: 'carrier_id', idVal: carrierId },
+                                    { label: `${legLabel} - Departure (POL)`, key: 'pol_name', val: polVal, nameKey: 'pol_id', idVal: polId },
+                                    { label: `${legLabel} - Destination (POD)`, key: 'pod_name', val: podVal, nameKey: 'pod_id', idVal: podId },
                                     { label: `${legLabel} - ETD`, key: 'etd', val: r.etd },
                                     { label: `${legLabel} - ETA`, key: 'eta', val: r.eta }
                                 ];
@@ -985,19 +1025,20 @@
                     });
                 },
                 applyAiData() {
-                    let dataToApply = { mbl: {}, hbl: {}, hbls: [], containers: [], routes: [] };
+                    let dataToApply = { mbl: {}, hbls: [], routes: [] };
+                    let hblMap = {};
                     
                     this.extractedData.forEach(item => {
                         if (item.selected) {
-                            if (item.parent === 'containers') {
-                                dataToApply.containers.push(item.originalData);
-                            } else if (item.parent === 'routes') {
-                                if (!dataToApply.routes[item.index]) {
-                                    dataToApply.routes[item.index] = {};
+                            if (item.parent === 'routes') {
+                                const rIdx = item.index !== undefined ? item.index : 0;
+                                if (!dataToApply.routes[rIdx]) {
+                                    dataToApply.routes[rIdx] = {};
                                 }
-                                dataToApply.routes[item.index][item.key] = item.value;
+                                dataToApply.routes[rIdx][item.key] = item.value;
                                 if(item.nameKey && item.displayValue) {
-                                    dataToApply.routes[item.index][item.nameKey] = item.displayValue;
+                                    dataToApply.routes[rIdx][item.nameKey] = item.value;
+                                    dataToApply.routes[rIdx][item.key] = item.displayValue;
                                 }
                             } else if (item.parent === 'mbl') {
                                 dataToApply.mbl[item.key] = item.value;
@@ -1005,17 +1046,21 @@
                                     dataToApply.mbl[item.nameKey] = item.displayValue;
                                 }
                             } else if (item.parent === 'hbl') {
-                                dataToApply.hbl[item.key] = item.value;
+                                const hIdx = item.hIndex !== undefined ? item.hIndex : 0;
+                                if (!hblMap[hIdx]) {
+                                    hblMap[hIdx] = {};
+                                }
+                                hblMap[hIdx][item.key] = item.value;
                                 if(item.nameKey && item.displayValue) {
-                                    dataToApply.hbl[item.nameKey] = item.displayValue;
+                                    hblMap[hIdx][item.nameKey] = item.displayValue;
                                 }
                             }
                         }
                     });
-                    
-                    if (Object.keys(dataToApply.hbl).length > 0) {
-                        dataToApply.hbls.push(dataToApply.hbl);
-                    }
+
+                    Object.keys(hblMap).forEach(k => {
+                        dataToApply.hbls.push(hblMap[k]);
+                    });
                     
                     this.populateAiData(dataToApply);
                     this.showAiModal = false;
@@ -1025,10 +1070,13 @@
                 },
 
                 populateAiData(data) {
-                    const ensureOptionExists = (selectName, id, text) => {
+                    const ensureOptionExists = (nameOrSelector, id, text) => {
                         if (!id) return;
-                        const el = document.querySelector(`[name="${selectName}"]`);
-                        if (el) {
+                        const selector = nameOrSelector.includes('[') || nameOrSelector.includes('.') 
+                            ? nameOrSelector 
+                            : `[name="${nameOrSelector}"]`;
+                        const elements = document.querySelectorAll(selector);
+                        elements.forEach(el => {
                             let exists = false;
                             for (let i = 0; i < el.options.length; i++) {
                                 if (el.options[i].value == id) { exists = true; break; }
@@ -1036,118 +1084,272 @@
                             if (!exists) {
                                 const opt = document.createElement('option');
                                 opt.value = id;
-                                opt.text = text;
+                                opt.text = text || ('ID: ' + id);
                                 el.appendChild(opt);
                             }
-                        }
+                        });
                     };
 
-                    // MBL Mapping
+                    const formatDateTimeLocal = (dateStr) => {
+                        if (!dateStr) return '';
+                        dateStr = String(dateStr).trim();
+                        if (dateStr.length === 10) {
+                            return dateStr + 'T00:00';
+                        }
+                        if (dateStr.includes(' ')) {
+                            const parts = dateStr.split(' ');
+                            return parts[0] + 'T' + (parts[1] ? parts[1].substring(0, 5) : '00:00');
+                        }
+                        return dateStr.substring(0, 16);
+                    };
+
+                    const formatDateOnly = (dateStr) => {
+                        if (!dateStr) return '';
+                        return String(dateStr).trim().substring(0, 10);
+                    };
+
+                    // 1. MBL Mapping
                     if (data.mbl) {
-                        if (data.mbl.mawb_no) this.form.mawb_no = data.mbl.mawb_no;
-                        if (data.mbl.post_date) this.form.post_date = data.mbl.post_date;
-                        if (data.mbl.flight_no) this.form.flight_no = data.mbl.flight_no;
-                        if (data.mbl.etd) this.form.etd = data.mbl.etd;
-                        if (data.mbl.eta) this.form.eta = data.mbl.eta;
-                        
-                        if (data.mbl.carrier_id) {
-                            ensureOptionExists('carrier_id', data.mbl.carrier_id, data.mbl.carrier_name);
-                            this.form.carrier_id = data.mbl.carrier_id;
+                        const m = data.mbl;
+                        if (m.mawb_no) this.form.mawb_no = m.mawb_no;
+                        if (m.file_no) this.form.file_no = m.file_no;
+                        if (m.awb_date) this.form.awb_date = formatDateOnly(m.awb_date);
+                        if (m.post_date) this.form.post_date = formatDateOnly(m.post_date);
+                        if (m.flight_no) this.form.flight_no = m.flight_no;
+                        if (m.etd) this.form.etd = formatDateOnly(m.etd);
+                        if (m.eta) this.form.eta = formatDateOnly(m.eta);
+                        if (m.atd) this.form.atd = formatDateOnly(m.atd);
+                        if (m.ata) this.form.ata = formatDateOnly(m.ata);
+                        if (m.issuing_carrier) this.form.issuing_carrier = m.issuing_carrier;
+
+                        // Carrier
+                        const carrierId = m.carrier_id;
+                        if (carrierId) {
+                            ensureOptionExists('carrier_id', carrierId, m.carrier_name);
+                            this.form.carrier = carrierId;
+                            this.form.carrier_id = carrierId;
                         }
-                        if (data.mbl.departure_id) {
-                            ensureOptionExists('departure_id', data.mbl.departure_id, data.mbl.departure_name);
-                            this.form.departure_id = data.mbl.departure_id;
+
+                        // Departure (dep_port_id in HTML, form.departure in Alpine)
+                        const depId = m.departure_id || m.pol_id;
+                        const depName = m.departure_name || m.pol_name;
+                        if (depId) {
+                            ensureOptionExists('dep_port_id', depId, depName);
+                            this.form.departure = depId;
+                            this.form.departure_id = depId;
                         }
-                        if (data.mbl.destination_id) {
-                            ensureOptionExists('destination_id', data.mbl.destination_id, data.mbl.destination_name);
-                            this.form.destination_id = data.mbl.destination_id;
+
+                        // Destination (dst_port_id in HTML, form.destination in Alpine)
+                        const dstId = m.destination_id || m.pod_id;
+                        const dstName = m.destination_name || m.pod_name;
+                        if (dstId) {
+                            ensureOptionExists('dst_port_id', dstId, dstName);
+                            this.form.destination = dstId;
+                            this.form.destination_id = dstId;
                         }
-                        if (data.mbl.forwarding_agent_id) {
-                            ensureOptionExists('forwarding_agent_id', data.mbl.forwarding_agent_id, data.mbl.forwarding_agent_name);
-                            this.form.forwarding_agent_id = data.mbl.forwarding_agent_id;
+
+                        // Shipper
+                        if (m.shipper_id) {
+                            ensureOptionExists('shipper_id', m.shipper_id, m.shipper_name);
+                            this.form.shipper = m.shipper_id;
                         }
-                        if (data.mbl.oversea_agent_id) {
-                            ensureOptionExists('agent_id', data.mbl.oversea_agent_id, data.mbl.oversea_agent_name);
-                            this.form.agent_id = data.mbl.oversea_agent_id;
+
+                        // Consignee
+                        if (m.consignee_id) {
+                            ensureOptionExists('consignee_id', m.consignee_id, m.consignee_name);
+                            this.form.consignee = m.consignee_id;
                         }
-                        if (data.mbl.op_id) {
-                            ensureOptionExists('op_id', data.mbl.op_id, data.mbl.op_name);
-                            this.form.op_id = data.mbl.op_id;
+
+                        // Notify
+                        if (m.notify_id) {
+                            ensureOptionExists('notify_id', m.notify_id, m.notify_party_name);
+                            this.form.notify = m.notify_id;
                         }
-                        if (data.mbl.sales_person_id) {
-                            ensureOptionExists('sales_id', data.mbl.sales_person_id, data.mbl.sales_person_name);
-                            this.form.sales_id = data.mbl.sales_person_id;
+
+                        // Forwarding Agent / Co-loader
+                        const fwdId = m.forwarding_agent_id || m.co_loader_id;
+                        const fwdName = m.forwarding_agent_name || m.co_loader_name;
+                        if (fwdId) {
+                            ensureOptionExists('forwarding_agent_id', fwdId, fwdName);
+                            this.form.co_loader = fwdId;
+                            this.form.forwarding_agent_id = fwdId;
+                        }
+
+                        // Actual Shipper
+                        if (m.actual_shipper_id) {
+                            ensureOptionExists('actual_shipper_id', m.actual_shipper_id, m.actual_shipper_name);
+                            this.form.actual_shipper = m.actual_shipper_id;
+                        }
+
+                        // OP
+                        if (m.op_id) {
+                            ensureOptionExists('op_id', m.op_id, m.op_name);
+                            this.form.op = m.op_id;
+                        }
+
+                        // Weights & Packages
+                        if (m.pkg_qty !== undefined && m.pkg_qty !== '') this.form.pkg_qty = m.pkg_qty;
+                        else if (m.pieces !== undefined && m.pieces !== '') this.form.pkg_qty = m.pieces;
+
+                        if (m.gross_weight !== undefined && m.gross_weight !== '') this.form.gross_weight = m.gross_weight;
+                        if (m.chargeable_weight !== undefined && m.chargeable_weight !== '') this.form.chargeable_weight = m.chargeable_weight;
+                        if (m.volume !== undefined && m.volume !== '') this.form.volume = m.volume;
+
+                        // Terms
+                        if (m.dv_carriage) this.form.dv_carriage = m.dv_carriage;
+                        if (m.dv_customs) this.form.dv_customs = m.dv_customs;
+                        if (m.wt_val) this.form.wt_val = m.wt_val;
+                        if (m.other_term) this.form.other_term = m.other_term;
+                        if (m.insurance) this.form.insurance = m.insurance;
+                        if (m.description) {
+                            this.form.internal_remark = m.description;
+                            this.form.memo = m.description;
                         }
                     }
 
-                    // HBL Mapping (Just populate the HBL list if empty, or add new)
-                    if (data.hbls && data.hbls.length > 0) {
-                        if (!this.hawbs) this.hawbs = [];
-                        data.hbls.forEach(h => {
-                            if (h.shipper_id) ensureOptionExists('shipper_id', h.shipper_id, h.shipper_name);
-                            if (h.consignee_id) ensureOptionExists('consignee_id', h.consignee_id, h.consignee_name);
-                            if (h.notify_id) ensureOptionExists('notify_id', h.notify_id, h.notify_party_name);
-                            
-                            this.hawbs.push({
-                                id: null,
-                                show: true,
-                                showMemo: false,
-                                showMore: false,
-                                hawb_no: h.hawb_no || '',
-                                booking_no: '',
-                                booking_date: '',
-                                quotation_no: '',
-                                shipper: h.shipper_id || '',
-                                customer: h.shipper_id || h.consignee_id || '',
-                                bill_to: '',
-                                consignee: h.consignee_id || '',
-                                notify: h.notify_id || '',
-                                oversea_agent: '',
-                                issuing_carrier: 'FREIGHTX',
-                                trucker: '',
-                                sales: '',
-                                op: this.form.op_id || '',
-                                itn_no: '',
-                                display_unit: 'BOTH',
-                                departure: this.form.departure_id || '',
-                                destination: this.form.destination_id || '',
-                                cargo_pickup: '',
-                                delivery_to: '',
-                                cargo_type: 'GENERAL CARGO',
-                                sales_type: this.form.sales_type || '',
-                                ship_type: this.form.ship_type || '',
-                                incoterms_id: this.form.incoterms_id || '',
-                                service_term_from: this.form.service_term_from || '',
-                                service_term_to: this.form.service_term_to || '',
-                                pkg: h.pieces || '',
-                                unit: 'PCS',
-                                weight: h.weight || '',
-                                volume_weight: h.volume_weight || '',
-                                measurement: '',
-                                commodities: [],
-                                accounting_info: [],
-                                expanded: false,
-                                charges: []
-                            });
-                        });
-                    }
-
-                    // Routes
+                    // 2. Routes Mapping
                     if (data.routes && data.routes.length > 0) {
                         if (!this.form.routes || !Array.isArray(this.form.routes)) {
                             this.form.routes = [];
                         }
+                        this.form.routes = [];
+
                         data.routes.forEach(r => {
-                            if (r.pol_id) ensureOptionExists('pol_id', r.pol_id, r.pol_name);
-                            if (r.pod_id) ensureOptionExists('pod_id', r.pod_id, r.pod_name);
-                            
-                            this.form.routes.push({
-                                flight_no: r.flight_no || '',
-                                departure_id: r.pol_id || '',
-                                destination_id: r.pod_id || '',
-                                etd: r.etd || '',
-                                eta: r.eta || ''
-                            });
+                            const flightNo = r.flight_no || this.form.flight_no || '';
+                            const polId = r.pol_id || r.departure_id || this.form.departure || '';
+                            const podId = r.pod_id || r.destination_id || this.form.destination || '';
+                            const carrierId = r.carrier_id || this.form.carrier || '';
+                            const etd = formatDateTimeLocal(r.etd || this.form.etd);
+                            const eta = formatDateTimeLocal(r.eta || this.form.eta);
+
+                            if (polId || etd || flightNo) {
+                                this.form.routes.push({
+                                    airport_id: polId,
+                                    eta: '',
+                                    ata: '',
+                                    etd: etd,
+                                    atd: '',
+                                    flight_no: flightNo,
+                                    carrier_id: carrierId
+                                });
+                            }
+
+                            if (podId || eta) {
+                                this.form.routes.push({
+                                    airport_id: podId,
+                                    eta: eta,
+                                    ata: '',
+                                    etd: '',
+                                    atd: '',
+                                    flight_no: flightNo,
+                                    carrier_id: carrierId
+                                });
+                            }
+                        });
+
+                        if (this.form.routes.length > 0) {
+                            if (!this.form.departure && this.form.routes[0].airport_id) {
+                                this.form.departure = this.form.routes[0].airport_id;
+                            }
+                            const last = this.form.routes[this.form.routes.length - 1];
+                            if (!this.form.destination && last.airport_id) {
+                                this.form.destination = last.airport_id;
+                            }
+                        }
+                    }
+
+                    // 3. HBL Mapping
+                    if (data.hbls && data.hbls.length > 0) {
+                        if (!this.hawbs) this.hawbs = [];
+
+                        data.hbls.forEach((h, hIdx) => {
+                            const hawbNo = h.hawb_no || h.hbl_no || '';
+                            const shipperId = h.shipper_id || data.mbl?.shipper_id || this.form.shipper || '';
+                            const consigneeId = h.consignee_id || data.mbl?.consignee_id || this.form.consignee || '';
+                            const notifyId = h.notify_id || data.mbl?.notify_id || this.form.notify || '';
+                            const pieces = h.pkg_qty || h.pieces || data.mbl?.pkg_qty || data.mbl?.pieces || '';
+                            const grossWeight = h.gross_weight || h.weight || data.mbl?.gross_weight || this.form.gross_weight || '';
+                            const chgWeight = h.chargeable_weight || data.mbl?.chargeable_weight || this.form.chargeable_weight || '';
+                            const volume = h.volume || h.volume_weight || data.mbl?.volume || this.form.volume || '';
+                            const depPort = h.departure_id || h.departure || this.form.departure || '';
+                            const dstPort = h.destination_id || h.destination || this.form.destination || '';
+
+                            let targetHawb = null;
+                            if (this.hawbs.length === 1 && !this.hawbs[0].hawb_no && !this.hawbs[0].shipper) {
+                                targetHawb = this.hawbs[0];
+                            } else if (this.hawbs[hIdx]) {
+                                targetHawb = this.hawbs[hIdx];
+                            } else {
+                                targetHawb = {
+                                    id: null,
+                                    show: true,
+                                    showMemo: false,
+                                    showMore: false,
+                                    hawb_no: '',
+                                    booking_no: '',
+                                    booking_date: '',
+                                    quotation_no: '',
+                                    shipper: '',
+                                    customer: '',
+                                    bill_to: '',
+                                    consignee: '',
+                                    notify: '',
+                                    oversea_agent: '',
+                                    issuing_carrier: 'FREIGHTX',
+                                    trucker: '',
+                                    sales: '',
+                                    op: this.form.op || '',
+                                    itn_no: '',
+                                    display_unit: 'BOTH',
+                                    departure: '',
+                                    destination: '',
+                                    cargo_pickup: '',
+                                    delivery_to: '',
+                                    cargo_type: 'GENERAL CARGO',
+                                    sales_type: '',
+                                    ship_type: 'NORMAL',
+                                    feta: '',
+                                    dv_carriage: 'N.V.D.',
+                                    dv_customs: 'N.C.V.',
+                                    freight_term: 'P',
+                                    other_charge_term: 'P',
+                                    insurance: 'N.I.L.',
+                                    cargo_ready_date: '',
+                                    pkg_qty: '',
+                                    pkg_unit_id: '',
+                                    gross_weight: '',
+                                    chargeable_weight: '',
+                                    volume: '',
+                                    buying_rate: '',
+                                    selling_rate: '',
+                                    accounting_info: [],
+                                    commodities: []
+                                };
+                                this.hawbs.push(targetHawb);
+                            }
+
+                            targetHawb.hawb_no = hawbNo;
+                            targetHawb.shipper = shipperId;
+                            targetHawb.customer = shipperId || consigneeId;
+                            targetHawb.consignee = consigneeId;
+                            targetHawb.notify = notifyId;
+                            targetHawb.departure = depPort;
+                            targetHawb.destination = dstPort;
+                            targetHawb.pkg_qty = pieces;
+                            targetHawb.gross_weight = grossWeight;
+                            targetHawb.chargeable_weight = chgWeight;
+                            targetHawb.volume = volume;
+                            targetHawb.op = this.form.op || '';
+                            targetHawb.sales_type = this.form.sales_type || '';
+                            targetHawb.ship_type = this.form.ship_type || 'NORMAL';
+                            if (h.description) {
+                                targetHawb.commodities = [{
+                                    description: h.description,
+                                    pieces: pieces,
+                                    weight: grossWeight,
+                                    volume: volume
+                                }];
+                            }
                         });
                     }
                 },
@@ -1165,7 +1367,7 @@
                                 'showMemo' => false,
                                 'hawb_no' => $airExport->id ? $hbl->hawb_no : ($hbl->hawb_no ? $hbl->hawb_no . '-COPY' : ''),
                                 'booking_no' => $hbl->booking_no ?? '',
-                                'booking_date' => $hbl->booking_date ?? '',
+                                'booking_date' => $hbl->booking_date ? \Carbon\Carbon::parse($hbl->booking_date)->format('Y-m-d') : '',
                                 'shipper' => $hbl->shipper_id,
                                 'customer' => $hbl->customer_id,
                                 'bill_to' => $hbl->bill_to ?? '',
@@ -1180,8 +1382,9 @@
                                 'delivery_to' => $hbl->delivery_to ?? '',
                                 'cargo_type' => $hbl->cargo_type ?? 'GENERAL CARGO',
                                 'ship_type' => $hbl->ship_type ?? 'NORMAL',
-                                'feta' => $hbl->feta ?? '',
+                                'feta' => $hbl->feta ? \Carbon\Carbon::parse($hbl->feta)->format('Y-m-d') : '',
                                 'itn_no' => $hbl->itn_no ?? '',
+                                'display_unit' => $hbl->display_unit ?? 'BOTH',
                                 'pkg_qty' => $hbl->pkg_qty,
                                 'pkg_unit_id' => $hbl->pkg_unit_id,
                                 'gross_weight' => $hbl->gross_weight,
@@ -1196,7 +1399,7 @@
                                 'mark' => $hbl->mark ?? '',
                                 'description' => $hbl->description ?? '',
                                 'remark' => $hbl->remark ?? '',
-                                'commodities' => [],
+                                'commodities' => is_array($hbl->commodities) ? $hbl->commodities : (json_decode($hbl->commodities, true) ?? []),
                             ];
                         })) !!};
                     @else
@@ -1820,9 +2023,9 @@
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h1 class="caption-subject" style="font-size: 18px;">{{ isset($airExport) ? 'AIR EXPORT SHIPMENT' : 'Create Air Export Shipment' }}</h1>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" @click="showAiModal = true" class="btn-freightx" style="background:#337ab7; border-color:#286090; color:white; font-weight:bold;">
-                    <i class="fa fa-magic"></i> AI Auto-Fill
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
+                    <i class="fa fa-bolt"></i> Frexo AI
                 </button>
                 <button type="submit" class="btn-freightx"><i class="fa fa-save"></i> SAVE SHIPMENT</button>
                 <a href="/air-export/list" class="btn-default-gf">BACK TO LIST</a>
@@ -1850,7 +2053,7 @@
             <div style="display:flex; align-items:center; padding:0 10px; margin-left: auto;">
                 <div style="position: relative;" x-data="{ showToolsMenu: false }" @click.away="showToolsMenu = false" x-show="saved">
                     <button type="button" @click.stop.prevent="showToolsMenu = !showToolsMenu" class="btn-default-gf" :class="!saved ? 'disabled-tab' : ''" :disabled="!saved" style="display:flex; align-items:center; gap:5px; height: 28px; background: #fff;">
-                        <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
+                        <i class="fa fa-wrench"></i> Docs <i class="fa fa-angle-down"></i>
                     </button>
                     <div x-show="showToolsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 220px; display: none; max-height: 400px; overflow-y: auto;">
                         <ul style="list-style: none; padding: 4px 0; margin: 0;">
@@ -1908,19 +2111,17 @@
                             <!-- Row 1 -->
                             <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : 'MAE-' . date('YmdHis') }}" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" x-model="form.mawb_no" required></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.notify"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><x-inline-select name="notify_id" :options="$agents" module="trade-partner" x-model="form.notify" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>
 
                             <!-- Row 2 -->
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Carrier</label><div class="form-input-container"><x-inline-select name="carrier_id" :options="$agents" module="trade-partner" x-model="form.carrier" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">AWB Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="form.awb_date"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">AWB Date</label><div class="form-input-container"><input type="date" name="awb_date" class="form-control-gf" x-model="form.awb_date"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Post Date</label><div class="form-input-container"><input type="date" name="post_date" class="form-control-gf" x-model="form.post_date"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Actual Shipper</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.actual_shipper"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Actual Shipper</label><div class="form-input-container"><x-inline-select name="actual_shipper_id" :options="$agents" module="trade-partner" x-model="form.actual_shipper" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'actual_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Issuing Carrier</label><div class="form-input-container"><input type="text" name="issuing_carrier" class="form-control-gf" x-model="form.issuing_carrier"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
 
                             <!-- Row 3 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Issuing Carrier</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.issuing_carrier"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.shipper"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><x-inline-select name="shipper_id" :options="$agents" module="trade-partner" x-model="form.shipper" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container">
                                 <select name="office_id" class="form-control-gf" required x-model="form.office">
                                     <option value="">Select Office...</option>
@@ -1937,18 +2138,20 @@
                                     @endforeach
                                 </select>
                             </div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">AWB Type</label><div class="form-input-container"><select name="awb_type" class="form-control-gf" x-model="form.awb_type"><option value="NORMAL">NORMAL</option><option value="DIRECT">DIRECT</option></select></div></div>
 
                             <!-- Row 4 -->
-                            <div class="form-group-gf"><label class="form-label-gf">AWB Type</label><div class="form-input-container"><x-inline-select name="awb_type" :options="$agents" module="trade-partner" x-model="form.awb_type" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.consignee"><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><x-inline-select name="consignee_id" :options="$agents" module="trade-partner" x-model="form.consignee" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">AWB Acct. Carrier</label><div class="form-input-container"><x-inline-select name="acct_carrier_id" :options="$agents" module="trade-partner" x-model="form.awb_acct_carrier" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">ITN No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.itn_no"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">ITN No.</label><div class="form-input-container"><input type="text" name="itn_no" class="form-control-gf" x-model="form.itn_no"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">CERS No.</label><div class="form-input-container"><input type="text" name="cers_no" class="form-control-gf" x-model="form.cers_no"></div></div>
                         </div>
 
                         <div class="form-grid-4">
-                            <div class="form-group-gf"><label class="form-label-gf">CERS No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.cers_no"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Reference No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.reference_no"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Reference No.</label><div class="form-input-container"><input type="text" name="reference_no" class="form-control-gf" x-model="form.reference_no"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Direct Master</label><div class="form-input-container" style="justify-content: flex-start;"><input type="checkbox" name="is_direct_master" value="1" x-model="isDirectMaster"><input type="hidden" name="is_direct_master" :value="isDirectMaster ? 1 : 0"></div></div>
+                            <div></div>
+                            <div></div>
                         </div>
 
                         <!-- Direct Master Extra Fields -->
@@ -1972,22 +2175,8 @@
                             <!-- Row 1 -->
                             <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" :options="$ports" module="port" x-model="form.departure" class="form-control-gf" /></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" :options="$ports" module="port" x-model="form.destination" class="form-control-gf" /></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" x-model="form.flight_no"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Cargo Ready Date</label><div class="form-input-container"><input type="date" name="cargo_ready_date" class="form-control-gf" x-model="form.cargo_ready_date"></div></div>
                             <div></div>
-
-                            <!-- Row 2 -->
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf" style="color:red;">*ETD</label><div class="form-input-container"><input type="date" name="etd" class="form-control-gf" x-model="form.etd" required></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ATD</label><div class="form-input-container"><input type="date" name="atd" class="form-control-gf" x-model="form.atd"></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ETA</label><div class="form-input-container"><input type="date" name="eta" class="form-control-gf" x-model="form.eta" style="background:#fff8e1;"></div></div>
-                            <!-- Hidden per client instruction -->
-                            <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ATA</label><div class="form-input-container"><input type="date" name="ata" class="form-control-gf" x-model="form.ata"></div></div>
-
-                            <!-- Row 3 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Cargo Ready Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="form.cargo_ready_date"></div></div>
                         </div>
 
                         <!-- DYNAMIC ROUTE / TRANSPORTATION SECTION -->
@@ -2123,13 +2312,13 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">D.V. Carriage</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.dv_carriage"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">D.V. Customs</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.dv_customs"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">WT/VAL</label><div class="form-input-container" style="font-size:10px; gap:4px; justify-content: flex-start; align-items:center;"><input type="radio" value="P" x-model="form.wt_val"> PPD <input type="radio" value="C" x-model="form.wt_val"> COLL</div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Other</label><div class="form-input-container" style="font-size:10px; gap:4px; justify-content: flex-start; align-items:center;"><input type="radio" value="P" x-model="form.other_term"> PPD <input type="radio" value="C" x-model="form.other_term"> COLL</div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">D.V. Carriage</label><div class="form-input-container"><input type="text" name="dv_carriage" class="form-control-gf" x-model="form.dv_carriage"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">D.V. Customs</label><div class="form-input-container"><input type="text" name="dv_customs" class="form-control-gf" x-model="form.dv_customs"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">WT/VAL</label><div class="form-input-container" style="font-size:10px; gap:4px; justify-content: flex-start; align-items:center;"><input type="radio" name="wt_val" value="P" x-model="form.wt_val"> PPD <input type="radio" name="wt_val" value="C" x-model="form.wt_val"> COLL</div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Other</label><div class="form-input-container" style="font-size:10px; gap:4px; justify-content: flex-start; align-items:center;"><input type="radio" name="other_term" value="P" x-model="form.other_term"> PPD <input type="radio" name="other_term" value="C" x-model="form.other_term"> COLL</div></div>
 
                             <!-- Row 2 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Insurance</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="form.insurance"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Insurance</label><div class="form-input-container"><input type="text" name="insurance" class="form-control-gf" x-model="form.insurance"></div></div>
                             <div></div>
                             <div></div>
                             <div></div>
@@ -2139,7 +2328,7 @@
 
                         <div style="display: flex; justify-content: flex-end; margin-top: 15px; margin-bottom: 5px; align-items: center; gap: 10px;">
                             <label class="form-label-gf" style="width:auto; margin:0;">Display Unit</label>
-                            <select class="form-control-gf" style="width: 150px;" x-model="form.display_unit"><option value="BOTH">Show Both</option><option value="KG">KG Only</option><option value="LB">LB Only</option></select>
+                            <select name="display_unit" class="form-control-gf" style="width: 150px;" x-model="form.display_unit"><option value="BOTH">Show Both</option><option value="KG">KG Only</option><option value="LB">LB Only</option></select>
                         </div>
 
                         <hr style="margin: 15px 0; border-top: 1px solid #eee;">
@@ -2289,7 +2478,7 @@
                         <div style="margin-top: 15px;">
                             <label class="form-label-gf" style="margin-bottom: 4px;">Internal Memo</label>
                             <div class="form-input-container">
-                                <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; padding: 6px 8px; resize: vertical; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Internal memo / remarks..." x-model="form.memo" name="memo"></textarea>
+                                <textarea class="form-control-gf textarea-compact" style="width: 100%; height: 150px !important; min-height: 150px !important; padding: 6px 8px; resize: vertical; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Internal memo / remarks..." x-model="form.internal_remark" name="internal_remark"></textarea>
                             </div>
                         </div>
                     </div>
@@ -2305,7 +2494,7 @@
                                 <div style="position: relative;" x-data="{ openHawbMenu: false }" @click.away="openHawbMenu = false">
                                     <button type="button" @click="openHawbMenu = !openHawbMenu"
                                         style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
-                                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Docs <i class="fa fa-angle-down" style="font-size: 10px;"></i>
                                     </button>
                                     <div x-show="openHawbMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left; display: none;">
                                         <ul style="list-style: none; padding: 4px 0; margin: 0;">
@@ -2345,9 +2534,9 @@
                                 <input type="hidden" :name="'hbls[' + index + '][id]'" :value="hawb.id">
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                                <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*HAWB No.</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][hawb_no]'" class="form-control-gf" x-model="hawb.hawb_no" required></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*HAWB No.</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][hawb_no]'" class="form-control-gf" x-model="hawb.hawb_no" :required="!isDirectMaster"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Actual Shipper</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][shipper_id]'" :options="$agents" module="trade-partner" x-model="hawb.shipper" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Bill To</label><div class="form-input-container"><x-inline-select name="bill_to" :options="$agents" module="trade-partner" x-model="hawb.bill_to" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Bill To</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][bill_to]'" :options="$agents" module="trade-partner" x-model="hawb.bill_to" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][notify_party_id]'" :options="$agents" module="trade-partner" x-model="hawb.notify" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 
                                 <!-- Row 2 -->
@@ -2357,7 +2546,7 @@
                                 <div class="form-group-gf"><label class="form-label-gf">Oversea Agent</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][oversea_agent_id]'" :options="$agents" module="trade-partner" x-model="hawb.oversea_agent" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 
                                 <!-- Row 3 -->
-                                <div class="form-group-gf"><label class="form-label-gf">Quotation No.</label><div class="form-input-container"><x-inline-select name="quotation_no" :options="$agents" module="trade-partner" x-model="hawb.quotation_no" class="form-control-gf" /></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Quotation No.</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][quotation_no]'" :options="$agents" module="trade-partner" x-model="hawb.quotation_no" class="form-control-gf" /></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sales</label><div class="form-input-container">
                                     <select :name="'hbls[' + index + '][sales_person_id]'" x-model="hawb.sales" class="form-control-gf">
                                         <option value="">Select...</option>
@@ -2366,11 +2555,11 @@
                                         @endforeach
                                     </select>
                                 </div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Booking Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="hawb.booking_date"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Booking Date</label><div class="form-input-container"><input type="date" :name="'hbls[' + index + '][booking_date]'" class="form-control-gf" x-model="hawb.booking_date"></div></div>
                                 <div></div> <!-- Empty cell for grid alignment -->
 
                                 <!-- Row 4 -->
-                                <div class="form-group-gf"><label class="form-label-gf">ITN No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="hawb.itn_no"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">ITN No.</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][itn_no]'" class="form-control-gf" x-model="hawb.itn_no"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">OP</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="hawb.op" disabled style="background:#eee;"></div></div>
                                 <div></div>
                                 <div></div>
@@ -2381,16 +2570,16 @@
 
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                                <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="hawb.departure"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="hawb.destination"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="hawb.feta"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select class="form-control-gf" x-model="hawb.cargo_type"><option value="GENERAL CARGO">GENERAL CARGO</option></select></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][departure]'" class="form-control-gf" x-model="hawb.departure"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][destination]'" class="form-control-gf" x-model="hawb.destination"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" :name="'hbls[' + index + '][feta]'" class="form-control-gf" x-model="hawb.feta"></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select :name="'hbls[' + index + '][cargo_type]'" class="form-control-gf" x-model="hawb.cargo_type"><option value="GENERAL CARGO">GENERAL CARGO</option><option value="HAZARDOUS">HAZARDOUS</option><option value="REEFER">REEFER</option><option value="DANGEROUS">DANGEROUS</option><option value="OVERSIZE">OVERSIZE</option></select></div></div>
 
                                 <!-- Row 2 -->
-                                <div class="form-group-gf"><label class="form-label-gf">Cargo Pickup</label><div class="form-input-container"><x-inline-select name="cargo_pickup" :options="$agents" module="trade-partner" x-model="hawb.cargo_pickup" class="form-control-gf" /></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Delivery To/Pier</label><div class="form-input-container"><x-inline-select name="delivery_to" :options="$agents" module="trade-partner" x-model="hawb.delivery_to" class="form-control-gf" /></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Sales Type</label><div class="form-input-container"><x-inline-select name="sales_type" :options="$agents" module="trade-partner" x-model="hawb.sales_type" class="form-control-gf" /></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Ship Type</label><div class="form-input-container"><select class="form-control-gf" x-model="hawb.ship_type"><option value="NORMAL">NORMAL</option></select></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Cargo Pickup</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][cargo_pickup]'" :options="$agents" module="trade-partner" x-model="hawb.cargo_pickup" class="form-control-gf" /></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Delivery To/Pier</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][delivery_to]'" :options="$agents" module="trade-partner" x-model="hawb.delivery_to" class="form-control-gf" /></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Sales Type</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][sales_type]'" :options="$agents" module="trade-partner" x-model="hawb.sales_type" class="form-control-gf" /></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Ship Type</label><div class="form-input-container"><select :name="'hbls[' + index + '][ship_type]'" class="form-control-gf" x-model="hawb.ship_type"><option value="NORMAL">NORMAL</option><option value="DIRECT">DIRECT</option></select></div></div>
                             </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
@@ -2440,7 +2629,7 @@
 
                             <div style="display: flex; justify-content: flex-end; margin-top: 10px; align-items: center; gap: 10px;">
                                 <label class="form-label-gf" style="width:auto; margin:0;">Display Unit</label>
-                                <select class="form-control-gf" style="width: 150px;" x-model="hawb.display_unit"><option value="BOTH">Show Both</option><option value="KG">KG Only</option><option value="LB">LB Only</option></select>
+                                <select :name="'hbls[' + index + '][display_unit]'" class="form-control-gf" style="width: 150px;" x-model="hawb.display_unit"><option value="BOTH">Show Both</option><option value="KG">KG Only</option><option value="LB">LB Only</option></select>
                             </div>
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
@@ -2529,9 +2718,6 @@
             <!-- CHARGES TAB -->
             <div x-show="activeTab === 'charges'" class="main-grid" x-cloak>
                 <div class="portlet light">
-                    <div class="portlet-title">
-                        <span class="caption-subject"><i class="fa fa-money"></i> Charge Manifestation</span>
-                    </div>
                     <div class="portlet-body">
                         @include('partials.charges-invoice-modal')
 
@@ -3036,6 +3222,7 @@
                 </div>
             </div>
         </div>
+        </form>
         <!-- QUOTE MODAL -->
         <template x-teleport="body">
             <!-- QUOTE MODAL (Ocean Export UI Style) -->

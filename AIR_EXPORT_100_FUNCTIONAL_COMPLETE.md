@@ -221,10 +221,10 @@ public function uploadDocuments(Request $request, $id) {
 }
 
 public function getDocuments($id) {
-    $docs = Document::where('documentable_type', 'App\\Models\\AirExport')
+    $Tools = Document::where('documentable_type', 'App\\Models\\AirExport')
         ->where('documentable_id', $id)
         ->get();
-    return response()->json($docs);
+    return response()->json($Tools);
 }
 ```
 

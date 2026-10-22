@@ -7,6 +7,84 @@
         .btn-group .btn-tool:first-child{border-top-left-radius:4px;border-bottom-left-radius:4px;}
         .btn-group .btn-tool:last-child{border-top-right-radius:4px;border-bottom-right-radius:4px;}
         .portlet-tool{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+
+        /* ── COMPLETE NON-STICKY & RESPONSIVE TABLE STYLING ── */
+        .grid-table th,
+        .grid-table td,
+        .grid-table tr,
+        .grid-table th.sticky-col,
+        .grid-table td.sticky-col,
+        .grid-table th.sticky-col-header,
+        .sticky-col,
+        .sticky-col-header {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: 1 !important;
+        }
+
+        .grid-container {
+            width: 100% !important;
+            overflow: hidden !important;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .grid-wrapper {
+            width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            max-height: calc(100vh - 230px) !important;
+            min-height: 320px !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        .grid-table {
+            width: max-content !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            table-layout: auto !important;
+        }
+
+        .grid-table th {
+            background: #f8fafc !important;
+            color: #475569 !important;
+            font-weight: 600 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            border-right: 1px solid #e2e8f0 !important;
+            border-top: 1px solid #cbd5e1 !important;
+            padding: 6px 10px !important;
+            white-space: nowrap !important;
+            height: 28px !important;
+            text-align: left;
+            user-select: none;
+            font-size: 11px !important;
+        }
+
+        .grid-table td {
+            padding: 4px 10px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            border-right: 1px solid #e2e8f0 !important;
+            white-space: nowrap !important;
+            height: 28px !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            color: #334155;
+            background: #fff;
+            font-size: 11px !important;
+        }
+
+        .grid-table tbody tr:hover td {
+            background-color: #f1f5f9 !important;
+        }
+
+        .grid-table tbody tr.row-selected td {
+            background-color: #eff6ff !important;
+        }
+
         @media(max-width:768px){
             .page-content{padding:2px!important;overflow-x:hidden!important;}
             .portlet.light{margin:0!important;border-radius:0!important;}
@@ -15,15 +93,8 @@
             .portlet-tool{flex-direction:column!important;align-items:flex-start!important;padding:6px!important;gap:6px!important;}
             .portlet-tool>div{width:100%;}
             .btn-group{width:100%;flex-wrap:wrap;}
-            .btn-tool{font-size:8px!important;padding:0 6px!important;height:20px!important;}
-            .input-inline,.select-tool{width:100%!important;font-size:9px!important;}
-            .portlet-body{padding:0!important;overflow:hidden!important;}
-            .grid-wrapper{width:100%!important;height:calc(100vh - 350px)!important;min-height:200px!important;overflow-x:auto!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;}
-            .grid-table{font-size:8px!important;width:auto!important;min-width:1600px!important;table-layout:auto!important;}
-            .grid-table th,.grid-table td{padding:2px 4px!important;height:22px!important;white-space:nowrap!important;}
-            .filter-input{height:18px!important;font-size:8px!important;padding:0 3px!important;}
+            .grid-wrapper{max-height:calc(100vh - 350px)!important;min-height:200px!important;}
         }
-        @media(max-width:480px){.grid-table{font-size:7px!important;min-width:1400px!important;}}
     </style>
     @endpush
 
@@ -161,40 +232,50 @@
                         <table class="grid-table" id="main-grid">
                             <thead>
                                 <tr id="header-row">
-                                    <th class="sticky-col sticky-col-header" data-col="check"  style="width:25px;text-align:center;left:0;">
+                                    <th data-col="check"  style="width:35px;text-align:center;">
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
-                                    <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="color"    style="width:28px;text-align:center;left:53px;">Color</th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no"  style="width:120px;left:81px;">Booking No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="hawb_no"  style="width:120px;left:201px;">HAWB No.</th>
-                                    <th data-col="mawb_no"    style="width:130px;">MAWB No.</th>
-                                    <th data-col="customer"   style="width:150px;">Customer</th>
-                                    <th data-col="shipper"    style="width:150px;">Shipper</th>
-                                    <th data-col="consignee"  style="width:150px;">Consignee</th>
-                                    <th data-col="pkg"        style="width:60px;text-align:right;">Pkg</th>
-                                    <th data-col="gw"         style="width:70px;text-align:right;">G.W (KG)</th>
-                                    <th data-col="cw"         style="width:70px;text-align:right;">C.W (KG)</th>
-                                    <th data-col="etd"        style="width:75px;">ETD</th>
-                                    <th data-col="eta"        style="width:75px;">ETA</th>
-                                    <th data-col="departure"  style="width:120px;">Departure</th>
-                                    <th data-col="destination" style="width:120px;">Destination</th>
-                                    <th data-col="sales"      style="width:90px;">Sales</th>
-                                    <th data-col="op"         style="width:90px;">OP</th>
-                                    <th data-col="created_at" style="width:100px;">Created</th>
+                                    <th data-col="lock" style="width:35px;text-align:center;"><i class="fa fa-lock"></i></th>
+                                    <th data-col="color" style="width:40px;text-align:center;">Color</th>
+                                    <th data-col="file_no" style="min-width:130px;">Booking No.</th>
+                                    <th data-col="hawb_no" style="min-width:130px;font-weight:600;">HAWB No.</th>
+                                    <th data-col="mawb_no" style="min-width:130px;">MAWB No.</th>
+                                    <th data-col="customer" style="min-width:160px;">Customer</th>
+                                    <th data-col="shipper" style="min-width:160px;">Shipper</th>
+                                    <th data-col="consignee" style="min-width:160px;">Consignee</th>
+                                    <th data-col="pkg" style="min-width:70px;text-align:right;">Pkg</th>
+                                    <th data-col="gw" style="min-width:85px;text-align:right;">G.W (KG)</th>
+                                    <th data-col="cw" style="min-width:85px;text-align:right;">C.W (KG)</th>
+                                    <th data-col="etd" style="min-width:85px;">ETD</th>
+                                    <th data-col="eta" style="min-width:85px;">ETA</th>
+                                    <th data-col="departure" style="min-width:130px;">Departure</th>
+                                    <th data-col="destination" style="min-width:130px;">Destination</th>
+                                    <th data-col="sales" style="min-width:100px;">Sales</th>
+                                    <th data-col="op" style="min-width:100px;">OP</th>
+                                    <th data-col="created_at" style="min-width:100px;">Created</th>
                                 </tr>
 
                                 {{-- FILTER ROW --}}
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
-                                    <td class="sticky-col" style="left:0;"></td>
-                                    <td class="sticky-col" style="left:25px;"></td>
-                                    <td class="sticky-col" style="left:53px;"></td>
-                                    <td class="sticky-col" style="left:81px;"><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File…" oninput="applyFiltersTyping()"></td>
-                                    <td class="sticky-col" style="left:201px;"><input class="filter-input" style="width:100%;" data-param="filter_hawb" placeholder="HAWB…" oninput="applyFiltersTyping()"></td>
-                                    <td colspan="2"></td>
-                                    <td><input class="filter-input" data-col-idx="6" placeholder="Shipper…" oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="7" placeholder="Consignee…" oninput="applyFilters()"></td>
-                                    <td colspan="9"></td>
+                                    <td style="text-align:center;"></td>
+                                    <td style="text-align:center;"></td>
+                                    <td style="text-align:center;"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File…" oninput="applyFiltersTyping()"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-param="filter_hawb" placeholder="HAWB…" oninput="applyFiltersTyping()"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-param="filter_mawb" placeholder="MAWB…" oninput="applyFiltersTyping()"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-param="filter_customer" placeholder="Customer…" oninput="applyFiltersTyping()"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-col-idx="7" placeholder="Shipper…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" style="width:100%;" data-col-idx="8" placeholder="Consignee…" oninput="applyFilters()"></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                             </thead>
 
@@ -291,6 +372,13 @@
                 if (newPagination) document.getElementById('pagination-container').innerHTML = newPagination.innerHTML;
             }
 
+            // Re-apply column visibility toggles after AJAX update
+            document.querySelectorAll('#header-row th[data-col]').forEach(function(th) {
+                if (th.style.display === 'none') {
+                    toggleColumn(th.dataset.col, false);
+                }
+            });
+
             updateToolbar();
         } catch (e) {
             showToast('error', 'Failed to update grid');
@@ -354,13 +442,15 @@
     /* ================================================================
        CONFIG PANEL — column visibility
     ================================================================ */
-    var PINNED_COLS = ['check', 'color', 'file_no', 'hawb_no'];
+    var PINNED_COLS = ['check', 'lock'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
-        var open  = panel.style.display === 'none';
+        if (!panel) return;
+        var open  = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        var btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
 
@@ -382,10 +472,11 @@
 
     function toggleColumn(colName, show) {
         var th  = document.querySelector('#header-row th[data-col="' + colName + '"]');
+        if (!th) return;
         var idx = [...th.parentElement.children].indexOf(th);
         th.style.display = show ? '' : 'none';
         document.querySelectorAll('#grid-body tr, #filter-row').forEach(function(row) {
-            var cell = row.querySelectorAll('td, th')[idx];
+            var cell = row.children[idx];
             if (cell) cell.style.display = show ? '' : 'none';
         });
     }
@@ -393,7 +484,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -521,7 +612,7 @@
         var id = _colorShipmentId;
         fetch('/air-import/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: color })
         })
         .then(function(r) { return r.json(); })
@@ -544,7 +635,7 @@
         if (!id) return;
         fetch('/air-import/' + id + '/color', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: '' })
         })
         .then(function(r) { return r.json(); })

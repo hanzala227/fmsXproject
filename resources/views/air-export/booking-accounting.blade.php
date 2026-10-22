@@ -3,7 +3,7 @@
     <script>
         function bookingAccountingModule() {
             return {
-                toolsOpen: false,
+                ToolsOpen: false,
                 showChargeModal: false,
                 chargeModalType: 'AR',
                 includeDraft: true,
@@ -203,8 +203,8 @@
                     <span style="font-size: 10px; color: #64748b; font-weight: 600; margin-left: 12px;"><i class="fa fa-user-circle"></i> OPERATOR: {{ strtoupper($currentUser->name ?? auth()->user()->name ?? 'N/A') }}</span>
                 </div>
                 <div class="actions" style="display: flex; gap: 5px; position: relative;">
-                    <button class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="toolsOpen = !toolsOpen"><i class="fa fa-cogs"></i> TOOLS <i class="fa fa-angle-down"></i></button>
-                    <div x-show="toolsOpen" @click.away="toolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 200px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    <button class="btn-default-gf" style="height: 22px; padding: 0 8px; font-size: 10px;" @click="ToolsOpen = !ToolsOpen"><i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
+                    <div x-show="ToolsOpen" @click.away="ToolsOpen = false" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ddd; z-index: 100; min-width: 200px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
                         <a href="{{ isset($booking) ? route('shipments.freight-invoice', ['type' => 'air-export', 'id' => $booking->id]) : '#' }}" target="_blank" class="dropdown-item"><i class="fa fa-file-invoice mr-2" style="color: #3b82f6;"></i> GENERATE FREIGHT INVOICE</a>
                         <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
                         <a href="#" @click.prevent="alert('Booking confirmation sent.')" class="dropdown-item"><i class="fa fa-file-pdf mr-2"></i> BOOKING CONFIRMATION</a>

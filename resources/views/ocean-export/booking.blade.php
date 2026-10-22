@@ -1093,8 +1093,8 @@
                                 style="padding: 2px 8px; height: 24px;"><i
                                     class="fa fa-info"></i></button></hc-accounting-instruction-video-btn>
                         <div class="btn-group" style="display: inline-block; margin-left: 5px;">
-                            <button type="button" class="btn-default-gf" style="height: 24px; padding: 0 10px; font-size: 11px;" onclick="showToast('info', 'Tools menu is disabled in Booking mode.')"><i
-                                    class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i></button>
+                            <button type="button" class="btn-default-gf" style="height: 24px; padding: 0 10px; font-size: 11px;" onclick="showToast('info', 'Docs menu is disabled in Booking mode.')"><i
+                                    class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
                         </div>
                     </div>
                 </div>
@@ -1259,8 +1259,8 @@
                     </div>
                     <div class="actions">
                         <div class="btn-group" style="display: inline-block;">
-                            <button type="button" class="btn-default-gf" style="height: 24px; padding: 0 10px; font-size: 11px;" onclick="showToast('info', 'Tools menu is disabled in Booking mode.')"><i
-                                    class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i></button>
+                            <button type="button" class="btn-default-gf" style="height: 24px; padding: 0 10px; font-size: 11px;" onclick="showToast('info', 'Docs menu is disabled in Booking mode.')"><i
+                                    class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i></button>
                         </div>
                     </div>
                 </div>

@@ -50,7 +50,7 @@ class UpdateWarehouseAutomobileRequest extends FormRequest
             'cigarette_lighter' => 'nullable|boolean',
             'cargo_net' => 'nullable|boolean',
             'ashtray' => 'nullable|boolean',
-            'tools' => 'nullable|boolean',
+            'Tools' => 'nullable|boolean',
             'spare_tire' => 'nullable|boolean',
             'sun_roof' => 'nullable|boolean',
         ];

@@ -26,7 +26,15 @@ class AirExportHbl extends Model
         'incoterms_id', 'freight_term', 'sales_type',
         'dv_carriage', 'dv_customs', 'insurance', 'other_charge_term',
         'hbl_remark', 'mark', 'description', 'remark',
-        'op_id', 'color', 'is_blocked'
+        'op_id', 'color', 'is_blocked', 'commodities'
+    ];
+
+    protected $casts = [
+        'commodities' => 'array',
+        'booking_date' => 'date',
+        'feta' => 'date',
+        'cargo_ready_date' => 'date',
+        'is_blocked' => 'boolean',
     ];
 
     protected $attributes = [

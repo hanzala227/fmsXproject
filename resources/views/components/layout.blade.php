@@ -278,6 +278,7 @@
     
     <x-add-new-modal />
     <x-track-trace />
+    @include('components.carrier-tracking-drawer')
     
     {{-- 
     <script>

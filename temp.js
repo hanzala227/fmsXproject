@@ -1112,7 +1112,7 @@ function oceanExportModule() {
                     }
                 },
 
-                toolsAction(action, hblIdx = 0) {
+                ToolsAction(action, hblIdx = 0) {
                     const shipmentId = this.form ? this.form.id : null;
                     if (!shipmentId && !['block','unblock','copy','delete','batch_email','batch_print'].includes(action)) {
                         showToast('warning', 'Please save the shipment first.');
@@ -1781,25 +1781,25 @@ function oceanExportModule() {
             <!-- Tools Options (Scrollable) -->
             <div style="flex:1;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;-ms-overflow-style:none;">
                 <ul class="gf-tabs" style="border-bottom:none;margin-bottom:0;display:flex;white-space:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;">
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('block') : null"><a>Block</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('unblock') : null"><a>Unblock</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('block') : null"><a>Block</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('unblock') : null"><a>Unblock</a></li>
 
                     <template x-if="activeTab==='basic'">
                         <div style="display:flex;">
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('copy') : null"><a>Copy</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('copy_oi') : null"><a>Copy to OI</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('delete') : null"><a style="color:#ef4444;">Delete</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('doc_package') : null"><a>Doc Package</a></li>
-                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('mbl_print') : null"><a>MB/L Print</a></li>
+                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('copy') : null"><a>Copy</a></li>
+                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('copy_oi') : null"><a>Copy to OI</a></li>
+                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('delete') : null"><a style="color:#ef4444;">Delete</a></li>
+                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('doc_package') : null"><a>Doc Package</a></li>
+                            <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('mbl_print') : null"><a>MB/L Print</a></li>
                         </div>
                     </template>
 
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('manifest') : null"><a>Manifest</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('dev_seg') : null"><a>DEV/SEG</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('delivery_order') : null"><a>Delivery Order</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('profit_summary') : null"><a>Profit Summary</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('profit_detail') : null"><a>Profit Detail</a></li>
-                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? toolsAction('track_trace') : null"><a>Track-Trace</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('manifest') : null"><a>Manifest</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('dev_seg') : null"><a>DEV/SEG</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('delivery_order') : null"><a>Delivery Order</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('profit_summary') : null"><a>Profit Summary</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('profit_detail') : null"><a>Profit Detail</a></li>
+                    <li :class="!saved ? 'disabled-tab' : ''" @click="saved ? ToolsAction('track_trace') : null"><a>Track-Trace</a></li>
                 </ul>
             </div>
         </div>
@@ -2101,7 +2101,7 @@ function oceanExportModule() {
                             <span class="caption-subject" style="color: #fff; font-size: 11px; font-weight: 600;"><i class="fa fa-user"></i> HB/L Information <small style="color:rgba(255,255,255,0.85); margin-left: 10px; font-weight: normal;">OP : null</small></span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
                                 <!-- HBL Tools Inline -->
-                                <button type="button" @click="toolsAction('hbl_print', index)"
+                                <button type="button" @click="ToolsAction('hbl_print', index)"
                                     style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
                                     <i class="fa fa-print" style="color: #4b5563; font-size: 10px;"></i> HBL Print
                                 </button>
@@ -3208,7 +3208,7 @@ C.Hold <input type="checkbox" :name="'hbls['+index+'][is_customs_hold]'" value="
 
 
     <style>
-        .oi-tools-item {
+        .oi-Tools-item {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -3222,7 +3222,7 @@ C.Hold <input type="checkbox" :name="'hbls['+index+'][is_customs_hold]'" value="
             text-align: left;
             transition: background 0.15s;
         }
-        .oi-tools-item:hover {
+        .oi-Tools-item:hover {
             background: #f3f4f6;
         }
     </style>

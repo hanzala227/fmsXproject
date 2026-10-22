@@ -16,6 +16,8 @@ class UpdateAirExportRequest extends FormRequest
         $this->merge([
             'is_ecommerce' => filter_var($this->is_ecommerce, FILTER_VALIDATE_BOOLEAN),
             'is_blocked' => filter_var($this->is_blocked, FILTER_VALIDATE_BOOLEAN),
+            'is_direct_master' => filter_var($this->is_direct_master, FILTER_VALIDATE_BOOLEAN),
+            'internal_remark' => $this->internal_remark ?? $this->memo,
         ]);
     }
 
@@ -56,6 +58,8 @@ class UpdateAirExportRequest extends FormRequest
             'sales_type' => 'nullable|string',
             'is_blocked' => 'boolean',
             'is_direct_master' => 'boolean',
+            'cargo_type' => 'nullable|string|max:100',
+            'display_unit' => 'nullable|string|max:20',
             'internal_remark' => 'nullable|string',
 
             // Direct Master fields
@@ -65,6 +69,7 @@ class UpdateAirExportRequest extends FormRequest
             'dm_bill_to_id' => 'nullable|exists:trade_partners,id',
             'dm_consignee_id' => 'nullable|exists:trade_partners,id',
             'dm_notify_id' => 'nullable|exists:trade_partners,id',
+            'dm_sales_person_id' => 'nullable|exists:users,id',
 
             // MAWB party fields
             'shipper_id' => 'nullable|exists:trade_partners,id',
@@ -72,7 +77,7 @@ class UpdateAirExportRequest extends FormRequest
             'notify_id' => 'nullable|exists:trade_partners,id',
             'actual_shipper_id' => 'nullable|exists:trade_partners,id',
 
-            // NEW FIELDS - Added from migration
+            // Additional fields
             'incoterm_id' => 'nullable|string',
             'mark_number' => 'nullable|string',
             'service_term_from' => 'nullable|string',
@@ -84,8 +89,22 @@ class UpdateAirExportRequest extends FormRequest
             'trans_port2_id' => 'nullable|exists:ports,id',
             'trans_port3_id' => 'nullable|exists:ports,id',
             'delivery_port_id' => 'nullable|exists:ports,id',
-            'route_data' => 'nullable|json',
-            'dm_sales_person_id' => 'nullable|exists:users,id',
+            'route_data' => 'nullable|array',
+            'other_charges' => 'nullable|array',
+            'accounting_info' => 'nullable|array',
+            'commodities' => 'nullable|array',
+            'itn_no' => 'nullable|string|max:255',
+            'cers_no' => 'nullable|string|max:255',
+            'reference_no' => 'nullable|string|max:255',
+            'awb_date' => 'nullable|date',
+            'cargo_ready_date' => 'nullable|date',
+            'issuing_carrier' => 'nullable|string|max:255',
+            'awb_type' => 'nullable|string|max:50',
+            'dv_carriage' => 'nullable|string|max:255',
+            'dv_customs' => 'nullable|string|max:255',
+            'insurance' => 'nullable|string|max:255',
+            'wt_val' => 'nullable|string|max:255',
+            'other_term' => 'nullable|string|max:255',
 
             'hbls' => 'nullable|array',
             'hbls.*.id' => 'nullable|integer',

@@ -112,4 +112,8 @@ class OceanImport extends Model
     public function legacyCharges() { return $this->morphMany(Charge::class, 'chargeable'); }
     public function legacyDocuments() { return $this->morphMany(Document::class, 'documentable'); }
     public function statusLogs() { return $this->morphMany(ShipmentStatusLog::class, 'shipment'); }
+
+    // Tracking relations
+    public function trackings() { return $this->morphMany(ShipmentTracking::class, 'trackable'); }
+    public function latestTracking() { return $this->morphOne(ShipmentTracking::class, 'trackable')->latestOfMany(); }
 }

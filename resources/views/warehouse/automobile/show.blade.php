@@ -43,7 +43,7 @@
                     <div class="portlet-title">
                         <div class="caption-subject">Automobile</div>
                         <div>
-                            <button type="button" class="btn-default-gf"><i class="fa fa-cog"></i> Tools <i class="fa fa-angle-down"></i></button>
+                            <button type="button" class="btn-default-gf"><i class="fa fa-cog"></i> Docs <i class="fa fa-angle-down"></i></button>
                         </div>
                     </div>
                     <div class="portlet-body">
@@ -214,7 +214,7 @@
                                         'cigarette_lighter' => 'Cigarette Lighter',
                                         'cargo_net' => 'Cargo Net',
                                         'ashtray' => 'Ashtray',
-                                        'tools' => 'Tools',
+                                        'Tools' => 'Tools',
                                         'spare_tire' => 'Spare Tire',
                                         'sun_roof' => 'Sun Roof',
                                     ];
@@ -258,7 +258,7 @@
                         <button type="button" class="btn-freightx" @click="uploadModalOpen = true" style="border-radius:2px; padding: 4px 10px; font-size:11px; background:#10b981;">
                             <i class="fa fa-plus"></i>
                         </button>
-                        <button type="button" class="btn-default-gf" @click="deleteSelected()" :disabled="selectedDocs.length === 0">
+                        <button type="button" class="btn-default-gf" @click="deleteSelected()" :disabled="selectedTools.length === 0">
                             <i class="fa fa-trash"></i>
                         </button>
                         <select class="form-control-gf" x-model="purposeToSet" style="width: 120px; height:24px;">
@@ -279,16 +279,16 @@
                         </div>
                     </div>
                     <div class="portlet-body" style="padding:0;">
-                        <template x-for="(docs, purpose) in docsByPurpose" :key="purpose">
-                            <div x-show="docs.length > 0">
+                        <template x-for="(Tools, purpose) in ToolsByPurpose" :key="purpose">
+                            <div x-show="Tools.length > 0">
                                 <div class="gallery-row" x-text="purpose"></div>
                                 <div style="display:flex; flex-wrap:wrap; gap:10px; padding: 10px 15px;">
-                                    <template x-for="doc in docs" :key="doc.id">
+                                    <template x-for="doc in Tools" :key="doc.id">
                                         <div style="width: 120px; text-align:center; position:relative; border:1px solid #e2e8f0; padding:4px; border-radius:4px; cursor:pointer; transition:all 0.2s;" 
-                                             :style="(selectedDocs.includes(doc.id) || selectedDocs.includes(doc.id.toString())) ? 'border-color:#3b82f6; background:#eff6ff; box-shadow: 0 0 0 2px #3b82f6;' : ''"
+                                             :style="(selectedTools.includes(doc.id) || selectedTools.includes(doc.id.toString())) ? 'border-color:#3b82f6; background:#eff6ff; box-shadow: 0 0 0 2px #3b82f6;' : ''"
                                              @click="toggleSelection(doc.id)">
                                             <input type="checkbox" style="position:absolute; top:8px; left:8px; z-index:10; cursor:pointer; width:16px; height:16px;" 
-                                                   :checked="selectedDocs.includes(doc.id) || selectedDocs.includes(doc.id.toString())" 
+                                                   :checked="selectedTools.includes(doc.id) || selectedTools.includes(doc.id.toString())" 
                                                    @click.stop="toggleSelection(doc.id)">
                                             
                                             <a :href="doc.download_url" @click.stop style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.9); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:#3b82f6; text-decoration:none; z-index:10; box-shadow:0 1px 3px rgba(0,0,0,0.2);">
@@ -395,12 +395,12 @@
                     cigarette_lighter: '{{ old("cigarette_lighter", $warehouseAutomobile->cigarette_lighter ?? "0") }}',
                     cargo_net: '{{ old("cargo_net", $warehouseAutomobile->cargo_net ?? "0") }}',
                     ashtray: '{{ old("ashtray", $warehouseAutomobile->ashtray ?? "0") }}',
-                    tools: '{{ old("tools", $warehouseAutomobile->tools ?? "0") }}',
+                    Tools: '{{ old("Tools", $warehouseAutomobile->Tools ?? "0") }}',
                     spare_tire: '{{ old("spare_tire", $warehouseAutomobile->spare_tire ?? "0") }}',
                     sun_roof: '{{ old("sun_roof", $warehouseAutomobile->sun_roof ?? "0") }}',
                 },
                 documents: [],
-                selectedDocs: [],
+                selectedTools: [],
                 filterType: 'All Photo',
                 purposeToSet: '',
                 isUploading: false,
@@ -425,7 +425,7 @@
                     .then(data => {
                         if(data.success) {
                             this.documents = data.documents || [];
-                            this.selectedDocs = [];
+                            this.selectedTools = [];
                         }
                     })
                     .catch(err => {
@@ -437,7 +437,7 @@
                     if (this.filterType === 'All Photo') return this.documents;
                     return this.documents.filter(d => d.document_type === this.filterType);
                 },
-                get docsByPurpose() {
+                get ToolsByPurpose() {
                     let groups = { 'Receiving': [], 'Loading': [], 'Others': [] };
                     this.filteredDocuments.forEach(d => {
                         if (groups[d.document_type]) groups[d.document_type].push(d);
@@ -448,18 +448,18 @@
                 toggleSelection(id) {
                     let strId = id.toString();
                     let numId = Number(id);
-                    if (this.selectedDocs.includes(strId) || this.selectedDocs.includes(numId)) {
-                        this.selectedDocs = this.selectedDocs.filter(i => i !== strId && i !== numId);
+                    if (this.selectedTools.includes(strId) || this.selectedTools.includes(numId)) {
+                        this.selectedTools = this.selectedTools.filter(i => i !== strId && i !== numId);
                     } else {
-                        this.selectedDocs.push(numId);
+                        this.selectedTools.push(numId);
                     }
                 },
                 applyPurpose() {
-                    if (!this.purposeToSet || this.selectedDocs.length === 0) {
+                    if (!this.purposeToSet || this.selectedTools.length === 0) {
                         alert('Please select images and a purpose first.');
                         return;
                     }
-                    let promises = this.selectedDocs.map(id => {
+                    let promises = this.selectedTools.map(id => {
                         return fetch(`/warehouse/automobile/documents/${id}/purpose`, {
                             method: 'PATCH',
                             headers: {
@@ -476,9 +476,9 @@
                     }).catch(err => console.error('Purpose update error:', err));
                 },
                 deleteSelected() {
-                    if (this.selectedDocs.length === 0) return;
-                    if (!confirm('Are you sure you want to delete ' + this.selectedDocs.length + ' selected image(s)?')) return;
-                    let promises = this.selectedDocs.map(id => {
+                    if (this.selectedTools.length === 0) return;
+                    if (!confirm('Are you sure you want to delete ' + this.selectedTools.length + ' selected image(s)?')) return;
+                    let promises = this.selectedTools.map(id => {
                         return fetch(`/warehouse/automobile/documents/${id}`, {
                             method: 'DELETE',
                             headers: {
