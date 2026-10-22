@@ -382,7 +382,8 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
                         <label style="font-size:9px;color:#475569;font-weight:600;">POL</label>
-                        <select name="pol_id" class="input-inline" style="width:120px;height:20px;font-size:9px;">
+                        <select name="pol_id" class="input-inline" style="width:120px;height:20px;font-size:9px;" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                             <option value="">All</option>
                             @foreach($ports as $p)
                                 <option value="{{ $p->id }}" {{ request('pol_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -391,7 +392,8 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
                         <label style="font-size:9px;color:#475569;font-weight:600;">POD</label>
-                        <select name="pod_id" class="input-inline" style="width:120px;height:20px;font-size:9px;">
+                        <select name="pod_id" class="input-inline" style="width:120px;height:20px;font-size:9px;" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                             <option value="">All</option>
                             @foreach($ports as $p)
                                 <option value="{{ $p->id }}" {{ request('pod_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>

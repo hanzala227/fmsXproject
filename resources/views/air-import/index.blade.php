@@ -1712,9 +1712,51 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><select name="dep_port_id" class="form-control-gf"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}" {{ old('dep_port_id', $airImport->dep_port_id ?? '') == $port->id ? 'selected' : '' }}>{{ $port->code }} - {{ $port->name }}</option>@endforeach</select></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><select name="dst_port_id" class="form-control-gf"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}" {{ old('dst_port_id', $airImport->dst_port_id ?? '') == $port->id ? 'selected' : '' }}>{{ $port->code }} - {{ $port->name }}</option>@endforeach</select></div></div>
-                            <!-- Hidden per client instruction -->
+                            
+                            <div class="form-group-gf">
+    <label class="form-label-gf">Departure</label>
+    <div class="form-input-container">
+        <select
+            name="dep_port_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option
+                    value="{{ $port->id }}"
+                    {{ old('dep_port_id', $airImport->dep_port_id ?? '') == $port->id ? 'selected' : '' }}
+                >
+                    {{ $port->code }} - {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+                           <div class="form-group-gf">
+    <label class="form-label-gf">Destination</label>
+    <div class="form-input-container">
+        <select
+            name="dst_port_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option
+                    value="{{ $port->id }}"
+                    {{ old('dst_port_id', $airImport->dst_port_id ?? '') == $port->id ? 'selected' : '' }}
+                >
+                    {{ $port->code }} - {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div><!-- Hidden per client instruction -->
                             <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" value="{{ old('flight_no', $airImport->flight_no ?? '') }}"></div></div>
                             <div></div>
 
@@ -1727,7 +1769,29 @@
                             <div class="form-group-gf" style="display: none;"><label class="form-label-gf">ATA</label><div class="form-input-container"><input type="datetime-local" name="ata" class="form-control-gf" value="{{ old('ata', isset($airImport) && $airImport->ata ? $airImport->ata->format('Y-m-d\TH:i') : '') }}"></div></div>
 
                             <!-- Row 3 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Freight Location</label><div class="form-input-container"><select name="freight_location_id" class="form-control-gf"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}" {{ old('freight_location_id', $airImport->freight_location_id ?? '') == $port->id ? 'selected' : '' }}>{{ $port->name }}</option>@endforeach</select></div></div>
+                            <div class="form-group-gf">
+    <label class="form-label-gf">Freight Location</label>
+    <div class="form-input-container">
+        <select
+            name="freight_location_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option
+                    value="{{ $port->id }}"
+                    {{ old('freight_location_id', $airImport->freight_location_id ?? '') == $port->id ? 'selected' : '' }}
+                >
+                    {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+                            
                             <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Storage Start Date</label><div class="form-input-container"><input type="date" name="storage_start_date" class="form-control-gf" value="{{ old('storage_start_date', $airImport->storage_start_date ?? '') }}"></div></div>
                             <div></div>
                             <div></div>
@@ -1762,16 +1826,26 @@
                                             <template x-for="(route, idx) in form.routes" :key="idx">
                                                 <tr>
                                                     <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
-                                                    <td style="padding: 2px;">
-                                                        <div style="display:flex;">
-                                                            <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
-                                                                <option value="">Select...</option>
-                                                                @foreach($ports as $port)
-                                                                    <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                    </td>
+                                                   <td style="padding: 2px;">
+    <div style="display: flex;">
+        <select
+            :name="'routes['+idx+'][airport_id]'"
+            class="form-control-gf"
+            x-model="route.airport_id"
+            style="width: 100%; border: none; height: 24px; padding: 2px 4px;"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option value="{{ $port->id }}">
+                    {{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</td>
                                                     <td style="padding: 2px;">
                                                         <input type="datetime-local" :name="'routes['+idx+'][eta]'" class="form-control-gf" x-model="route.eta" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                     </td>
@@ -1985,9 +2059,50 @@
 
                             <div class="form-grid-4">
                                 <!-- Row 1 -->
-                                <div class="form-group-gf"><label class="form-label-gf">Freight Location</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][freight_location_id]'" x-model="hawb.freight_location_id"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}">{{ $port->name }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Final Destination</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][final_destination_id]'" x-model="hawb.final_destination_id"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}">{{ $port->name }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" :name="'hbls['+index+'][final_eta]'" x-model="hawb.final_eta"></div></div>
+                                
+                                <div class="form-group-gf">
+    <label class="form-label-gf">Freight Location......</label>
+    <div class="form-input-container">
+        <select
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+            :name="'hbls['+index+'][freight_location_id]'"
+            x-model="hawb.freight_location_id"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option value="{{ $port->id }}">
+                    {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+                               
+<div class="form-group-gf">
+    <label class="form-label-gf">Final Destination</label>
+    <div class="form-input-container">
+        <select
+            class="form-control-gf"
+            :name="'hbls['+index+'][final_destination_id]'"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+            x-model="hawb.final_destination_id"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option value="{{ $port->id }}">
+                    {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+
+<div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" :name="'hbls['+index+'][final_eta]'" x-model="hawb.final_eta"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Delivery Location</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][delivery_location_id]'" x-model="hawb.delivery_location_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
 
                                 <!-- Row 2 -->
@@ -2564,8 +2679,29 @@
 
                             <!-- Row 4 -->
                             <div class="form-group-gf"><label class="form-label-gf">Trucker</label><div class="form-input-container"><select name="trucker_id" class="form-control-gf"><option value="">Select...</option>@foreach($truckers as $trucker)<option value="{{ $trucker->id }}" {{ (isset($airImport) && $airImport->trucker_id == $trucker->id) ? 'selected' : '' }}>{{ $trucker->name }}</option>@endforeach</select></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Final Dest.</label><div class="form-input-container"><select name="final_destination_id" class="form-control-gf"><option value="">Select...</option>@foreach($ports as $port)<option value="{{ $port->id }}" {{ (isset($airImport) && $airImport->final_destination_id == $port->id) ? 'selected' : '' }}>{{ $port->name }}</option>@endforeach</select></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" name="final_eta" class="form-control-gf" value="{{ isset($airImport) && $airImport->final_eta ? $airImport->final_eta->format('Y-m-d') : '' }}"></div></div>
+                            <div class="form-group-gf">
+    <label class="form-label-gf">Final Dest.</label>
+    <div class="form-input-container">
+        <select
+            name="final_destination_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option
+                    value="{{ $port->id }}"
+                    {{ (isset($airImport) && $airImport->final_destination_id == $port->id) ? 'selected' : '' }}
+                >
+                    {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+ <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" name="final_eta" class="form-control-gf" value="{{ isset($airImport) && $airImport->final_eta ? $airImport->final_eta->format('Y-m-d') : '' }}"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">ISF 3rd Party</label><div class="form-input-container" style="justify-content: flex-start;"><input type="checkbox" name="isf_3rd_party" value="1" {{ (isset($airImport) && $airImport->isf_3rd_party) ? 'checked' : '' }}></div></div>
 
                             <!-- Row 5 -->
@@ -2821,21 +2957,34 @@
                                     @endforeach
                                 </select>
                             </div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container">
-                                <select class="form-control-gf" x-model="filters.pol" @change="applySearch()">
-                                    <option value="">Select...</option>
-                                    @foreach($ports as $port)
-                                        <option value="{{ $port->id }}">{{ $port->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div></div>
+                           <div class="form-group-gf">
+    <label class="form-label-gf">Departure</label>
+    <div class="form-input-container">
+        <select
+            class="form-control-gf"
+            x-model="filters.pol"
+            @change="applySearch()"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        >
+            <option value="">Select...</option>
+
+            @foreach($ports as $port)
+                <option value="{{ $port->id }}">
+                    {{ $port->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
                             <div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no" @keyup="applySearch()" placeholder="Search..."></div></div>
                         </div>
                         
                         <div class="main-grid">
                             <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date" @change="applySearch()"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container">
-                                <select class="form-control-gf" x-model="filters.pod" @change="applySearch()">
+                                <select class="form-control-gf" x-model="filters.pod" @change="applySearch()"  data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                     <option value="">Select...</option>
                                     @foreach($ports as $port)
                                         <option value="{{ $port->id }}">{{ $port->name }}</option>
@@ -3150,5 +3299,4 @@
         @endforeach
     @endif
 </script>
-
 </x-layout>

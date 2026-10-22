@@ -120,7 +120,7 @@ class OceanBookingController extends Controller
         $customers = TradePartner::whereIn('type', ['CS', 'CLIENT'])->get();
         $truckers = TradePartner::whereIn('type', ['TR', 'TRUCKER'])->get();
         $vessels = Vessel::all();
-        $ports = Port::all();
+        $ports = Port::all()->latest()->take(10)->get();
         $users = User::all();
         $serviceTerms = ServiceTerm::all();
         $containerTypes = ContainerType::all();

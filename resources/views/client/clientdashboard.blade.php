@@ -109,9 +109,7 @@
      HERO
 ========================================================= --}}
 <section class="hero"
-    style="background-image:
-        linear-gradient(90deg, rgba(10,22,45,.95) 30%, rgba(10,22,45,.2)),
-        url('{{ asset('images/banner.jpg') }}')">
+    style="margin-bottom: 10px;">
 
     <h1>Welcome back, {{ $loggedInUser->name ?? 'Customer' }}!</h1>
 
@@ -121,8 +119,8 @@
     </p>
 
     <div class="hero-btns">
-        <a href="{{ route('client.shipments') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Request Booking</a>
-        <a href="{{ route('client.tracking') }}" class="btn btn-outline"><i class="bi bi-search"></i> Track Shipment</a>
+        <a href="{{ route('client.shipments') }}" class=""><i class=""></i> Request Booking</a>
+        <a href="{{ route('client.tracking') }}" class=""><i class=""></i> Track Shipment</a>
     </div>
 </section>
 

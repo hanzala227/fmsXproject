@@ -762,7 +762,8 @@
                                 <div class="form-group-gf">
                                     <label class="form-label-gf"><span style="color:#ef4444;margin-right:2px;">*</span>POL</label>
                                     <div class="form-input-container">
-                                        <select class="form-control-gf" name="pol_id" x-model="pol_id">
+                                        <select class="form-control-gf" name="pol_id" x-model="pol_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                             <option value="">Select...</option>
                                             @foreach($ports as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                                         </select>
@@ -771,7 +772,8 @@
                                 <div class="form-group-gf">
                                     <label class="form-label-gf"><span style="color:#ef4444;margin-right:2px;">*</span>POD</label>
                                     <div class="form-input-container">
-                                        <select class="form-control-gf" name="pod_id" x-model="pod_id">
+                                        <select class="form-control-gf" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}" name="pod_id" x-model="pod_id">
                                             <option value="">Select...</option>
                                             @foreach($ports as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                                         </select>
@@ -922,13 +924,15 @@
                                     <div style="width:30px;"><i class="fa fa-bars" style="color:#ccc;"></i></div>
                                     <div style="width:35px;"><input type="checkbox" x-model="fr.selected"></div>
                                     <div style="width:150px;">
-                                        <select class="form-control-gf" x-model="fr.pol">
+                                        <select class="form-control-gf" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}" x-model="fr.pol">
                                             <option value="">Select...</option>
                                             @foreach($ports as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                                         </select>
                                     </div>
                                     <div style="width:150px;">
-                                        <select class="form-control-gf" x-model="fr.pod">
+                                        <select class="form-control-gf" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}" x-model="fr.pod">
                                             <option value="">Select...</option>
                                             @foreach($ports as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                                         </select>

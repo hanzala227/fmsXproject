@@ -723,7 +723,8 @@
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">POR</label>
                                 <div class="form-input-container"><select class="form-control-gf"
-                                        name="por_id" x-model="form.por_id">
+                                        name="por_id" x-model="form.por_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                         <option value="">Select...</option>
                                         @foreach($ports as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -731,7 +732,8 @@
                                     </select> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'por_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div>
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">POL</label>
-                                <div class="form-input-container"><select class="form-control-gf" name="pol_id" x-model="form.pol_id">
+                                <div class="form-input-container"><select class="form-control-gf" name="pol_id" x-model="form.pol_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                         <option value="">Select...</option>
                                         @foreach($ports as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -739,7 +741,8 @@
                                     </select> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'pol_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div>
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">POD</label>
-                                <div class="form-input-container"><select class="form-control-gf" name="pod_id" x-model="form.pod_id">
+                                <div class="form-input-container"><select class="form-control-gf" name="pod_id" x-model="form.pod_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                         <option value="">Select...</option>
                                         @foreach($ports as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -748,7 +751,8 @@
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">DEL</label>
                                 <div class="form-input-container"><select class="form-control-gf"
-                                        name="del_id" x-model="form.del_id">
+                                        name="del_id" x-model="form.del_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                         <option value="">Select...</option>
                                         @foreach($ports as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -757,7 +761,8 @@
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">F. Dest</label>
                                 <div class="form-input-container"><select class="form-control-gf"
-                                        name="fdest_id" x-model="form.fdest_id">
+                                        name="fdest_id" x-model="form.fdest_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}">
                                         <option value="">Select...</option>
                                         @foreach($ports as $p)
                                             <option value="{{ $p->id }}">{{ $p->name }}</option>

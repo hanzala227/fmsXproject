@@ -221,11 +221,19 @@
         control.classList.add('active');
         activeDropdown = wrapper;
 
-        if (searchInput) {
-            searchInput.value = '';
-            filterItems(wrapper, '');
-            setTimeout(() => searchInput.focus(), 50);
-        }
+      if (searchInput) {
+    searchInput.value = '';
+
+    const select = wrapper.__fmsOriginalSelect;
+
+    if (select?.dataset.ajaxSearch === 'true') {
+        searchRemoteOptions(wrapper, '');
+    } else {
+        filterItems(wrapper, '');
+    }
+
+    setTimeout(() => searchInput.focus(), 50);
+}
     }
 
     // Reposition active dropdown on window scroll or resize
@@ -286,7 +294,125 @@
             }
         }
     }
+function showSearchMessage(wrapper, message) {
+    const list = wrapper.querySelector('.fms-ss-list');
+    if (!list) return;
 
+    list.innerHTML = '';
+
+    const item = document.createElement('li');
+    item.className = 'fms-ss-item is-empty';
+    item.textContent = message;
+
+    list.appendChild(item);
+}
+
+async function searchRemoteOptions(wrapper, query) {
+    const select = wrapper.__fmsOriginalSelect;
+    const url = select?.dataset.searchUrl;
+
+    if (!select || !url) return;
+
+    // Har nayi search purani request ko invalidate karegi
+    const requestId = (wrapper.__fmsRequestId || 0) + 1;
+    wrapper.__fmsRequestId = requestId;
+
+    const search = query.trim();
+
+ 
+if (search.length > 0 && search.length < 2) {
+    showSearchMessage(
+        wrapper,
+        'Type at least 2 characters to search'
+    );
+    return;
+}
+
+    showSearchMessage(wrapper, 'Searching...');
+
+    try {
+        const searchUrl = new URL(url, window.location.origin);
+        searchUrl.searchParams.set('q', search);
+
+        const response = await fetch(searchUrl, {
+            headers: {
+                Accept: 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const ports = await response.json();
+
+        // Sirf latest request ke results display honge
+        if (requestId !== wrapper.__fmsRequestId) return;
+
+        if (!Array.isArray(ports)) {
+            throw new Error('Invalid search response');
+        }
+
+        const selectedValue = select.value;
+        const selectedOption = select.selectedOptions[0];
+        const selectedText = selectedOption?.textContent || '';
+
+        const placeholder = Array.from(select.options)
+            .find(option => option.value === '');
+
+        const placeholderText =
+            placeholder?.textContent || 'Select Port';
+
+        select.replaceChildren();
+
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = placeholderText;
+        select.appendChild(emptyOption);
+
+        // Existing selected value ko preserve karo
+        if (selectedValue) {
+            const selected = document.createElement('option');
+            selected.value = selectedValue;
+            selected.textContent = selectedText;
+            selected.selected = true;
+            select.appendChild(selected);
+        }
+
+        // Maximum 20 database results
+        ports.slice(0, 20).forEach(port => {
+            const value = String(port.id);
+
+            if (Array.from(select.options).some(
+                option => option.value === value
+            )) {
+                return;
+            }
+
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = port.name;
+
+            select.appendChild(option);
+        });
+
+        select.value = selectedValue;
+
+        refreshDropdownItems(wrapper);
+        filterItems(wrapper, search);
+
+    } catch (error) {
+        if (requestId !== wrapper.__fmsRequestId) return;
+
+        console.error('Global searchable select error:', error);
+
+        showSearchMessage(
+            wrapper,
+            'Search failed. Please try again.'
+        );
+    }
+}
     function filterItems(wrapper, query) {
         const list = wrapper.querySelector('.fms-ss-list');
         if (!list) return;
@@ -398,8 +524,21 @@
         searchInput.autocomplete = 'off';
 
         searchInput.addEventListener('input', function() {
-            filterItems(wrapper, searchInput.value);
-        });
+    const query = searchInput.value;
+    const select = wrapper.__fmsOriginalSelect;
+
+    if (wrapper.__fmsSearchTimer) {
+        clearTimeout(wrapper.__fmsSearchTimer);
+    }
+
+    if (select?.dataset.ajaxSearch === 'true') {
+        wrapper.__fmsSearchTimer = setTimeout(() => {
+            searchRemoteOptions(wrapper, query);
+        }, 250);
+    } else {
+        filterItems(wrapper, query);
+    }
+});
 
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {

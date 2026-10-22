@@ -182,7 +182,7 @@ class VesselScheduleController extends Controller
     protected function formView($schedule = null)
     {
         $vessels       = Vessel::all();
-        $ports         = Port::all();
+        $ports         = Port::all()->latest()->take(10)->get();
         $offices       = Office::where('is_active', true)->get();
         $users         = User::all();
         $serviceTerms  = ServiceTerm::all();

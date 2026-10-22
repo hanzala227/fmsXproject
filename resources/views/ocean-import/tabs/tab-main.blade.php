@@ -295,21 +295,52 @@
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px; margin-left:4px;" @click="openAddNewModal('vessel', 'vessel_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Port of Loading</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="pol_id" :options="$ports" module="port" x-model="form.pol_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'pol_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Place of Delivery</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="del_id" :options="$ports" module="port" x-model="form.del_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'del_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
+                   <div class="form-group-gf">
+    <label class="form-label-gf">Port of Loading</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="pol_id"
+            :options="$ports"
+            module="port"
+            x-model="form.pol_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
 
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'pol_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
+                    <div class="form-group-gf">
+    <label class="form-label-gf">Place of Delivery</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="del_id"
+            :options="$ports"
+            module="port"
+            x-model="form.del_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'del_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
 
                 </div>
 
@@ -355,19 +386,51 @@
                         </div>
                     </div>
                     <div class="form-group-gf">
-                        <label class="form-label-gf">Port of Discharge</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="pod_id" :options="$ports" module="port" x-model="form.pod_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'pod_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Final Destination</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="fdest_id" :options="$ports" module="port" x-model="form.fdest_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
+    <label class="form-label-gf">Port of Discharge</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="pod_id"
+            :options="$ports"
+            module="port"
+            x-model="form.pod_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'pod_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
+                   <div class="form-group-gf">
+    <label class="form-label-gf">Final Destination</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="fdest_id"
+            :options="$ports"
+            module="port"
+            x-model="form.fdest_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'fdest_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                     <!-- Hidden per client instruction -->
                     <div class="form-group-gf" style="display: none;">
                         <label class="form-label-gf">ATA</label>
@@ -432,7 +495,8 @@
                                         <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
                                         <td style="padding: 2px;">
                                             <div style="display:flex;">
-                                                <select :name="'routes['+idx+'][airport_id]'" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                <select :name="'routes['+idx+'][airport_id]'" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                     <option value="">Select...</option>
                                                     @foreach($ports as $port)
                                                         <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
@@ -614,13 +678,29 @@
 
                 <!-- MORE SECTION (EXPANDABLE) -->
                 <div class="form-grid-4" x-show="showMore" x-transition>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Place of Receipt</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="receipt_id" :options="$ports" module="port" x-model="form.receipt_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'receipt_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
+                   <div class="form-group-gf">
+    <label class="form-label-gf">Place of Receipt</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name="receipt_id"
+            :options="$ports"
+            module="port"
+            x-model="form.receipt_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'receipt_id')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                     <div class="form-group-gf">
                         <label class="form-label-gf">Place of Receipt ETD</label>
                         <div class="form-input-container">
@@ -654,7 +734,15 @@
 
     <!-- House B/L (HB/L) SECTION -->
     <template x-for="(hbl, index) in hbls" :key="index">
-        <div class="portlet light" style="margin-top: 5px;">
+    <div
+        class="portlet light"
+        style="margin-top: 5px;"
+        x-init="$nextTick(() => {
+            if (typeof window.enhanceAllSelects === 'function') {
+                window.enhanceAllSelects($el);
+            }
+        })"
+    >
             <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hbl.show = !hbl.show">
                 <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-file-text-o"></i> HB/L Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small></span>
                 <div class="actions" style="display: flex; gap: 6px; align-items: center;" @click.stop>
@@ -745,13 +833,30 @@
                                 <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customs_broker_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
-                        <div class="form-group-gf">
-                            <label class="form-label-gf">Place of Delivery</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][del_id]'" :options="$ports" module="port" x-model="hbl.del_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][del_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
+                       <div class="form-group-gf">
+    <label class="form-label-gf">Place of Delivery</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][del_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.del_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][del_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                         <div class="form-group-gf">
                             <label class="form-label-gf">Delivery Loc.</label>
                             <div class="form-input-container">
@@ -789,12 +894,29 @@
                             </div>
                         </div>
                         <div class="form-group-gf">
-                            <label class="form-label-gf">Port of Discharge</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][pod_id]'" :options="$ports" module="port" x-model="hbl.pod_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][pod_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
+    <label class="form-label-gf">Port of Discharge</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][pod_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.pod_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][pod_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                         <div class="form-group-gf">
                             <label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE BY</label>
                             <div class="form-input-container">
@@ -852,20 +974,54 @@
                                 <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][consignee_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
-                        <div class="form-group-gf">
-                            <label class="form-label-gf">Port of Loading</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][pol_id]'" :options="$ports" module="port" x-model="hbl.pol_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][pol_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
-                        <div class="form-group-gf">
-                            <label class="form-label-gf">Final Destination</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][fdest_id]'" :options="$ports" module="port" x-model="hbl.fdest_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][fdest_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
+                       <div class="form-group-gf">
+    <label class="form-label-gf">Port of Loading</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][pol_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.pol_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][pol_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
+                       <div class="form-group-gf">
+    <label class="form-label-gf">Final Destination</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][fdest_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.fdest_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][fdest_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                         <div class="form-group-gf">
                             <label class="form-label-gf">VOYAGE NO</label>
                             <div class="form-input-container">
@@ -909,20 +1065,54 @@
                                 <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][notify_party_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
+                       <div class="form-group-gf">
+    <label class="form-label-gf">Place of Receipt</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][receipt_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.receipt_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][receipt_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                         <div class="form-group-gf">
-                            <label class="form-label-gf">Place of Receipt</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][receipt_id]'" :options="$ports" module="port" x-model="hbl.receipt_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][receipt_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
-                        <div class="form-group-gf">
-                            <label class="form-label-gf">Final Destination</label>
-                            <div class="form-input-container">
-                                <x-inline-select name="" x-bind:name="'hbls['+index+'][fdest_id]'" :options="$ports" module="port" x-model="hbl.fdest_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'hbls['+index+'][fdest_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                            </div>
-                        </div>
+    <label class="form-label-gf">Final Destination</label>
+    <div class="form-input-container">
+        <x-inline-select
+            name=""
+            x-bind:name="'hbls['+index+'][fdest_id]'"
+            :options="$ports"
+            module="port"
+            x-model="hbl.fdest_id"
+            class="form-control-gf"
+            data-ajax-search="true"
+            data-search-url="{{ route('ports.search') }}"
+        />
+
+        <button
+            type="button"
+            class="btn-default-gf"
+            style="height:18px; padding:0 4px;"
+            @click="openAddNewModal('port', 'hbls['+index+'][fdest_id]')"
+        >
+            <i class="fa fa-external-link" style="font-size:9px;"></i>
+        </button>
+    </div>
+</div>
                         <div class="form-group-gf">
                             <label class="form-label-gf">FREIGHT PAYABLE AT</label>
                             <div class="form-input-container">

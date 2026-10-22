@@ -796,7 +796,8 @@
                         <div class="form-group-gf">
                             <span class="form-label-gf">Final Destination</span>
                             <div class="form-input-container">
-                                <select name="final_destination_id" class="form-control-gf" x-model="form.final_destination_id">
+                                <select name="final_destination_id" data-ajax-search="true"
+    data-search-url="{{ route('ports.search') }}" class="form-control-gf" x-model="form.final_destination_id">
                                     <option value="">Select...</option>
                                     @foreach($ports as $port)
                                         <option value="{{ $port->id }}">{{ $port->name }}</option>
