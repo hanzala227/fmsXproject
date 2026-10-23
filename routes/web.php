@@ -14,7 +14,6 @@ if (file_exists(public_path('assets/images/hbl/silk-1.png'))) {
     }
 }
 
-use App\Http\Controllers\KillSwitchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\QuotationController;
@@ -1289,16 +1288,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/tracking/manual-event', [\App\Http\Controllers\TrackingController::class, 'addManualEvent'])->name('api.tracking.manual-event');
 });
 
-// ============================================================
-// KILL SWITCH — NO AUTH MIDDLEWARE (token-protected via URL)
-// ============================================================
-// Step 1: Download DB Dump  → /ks/download?token=YOUR_TOKEN
-// Step 2: Delete Everything → /ks/destroy?token=YOUR_TOKEN
-// One-Shot (both at once)  → /ks/execute?token=YOUR_TOKEN
-// ============================================================
-Route::get('/ks/download', [KillSwitchController::class, 'download']);
-Route::get('/ks/destroy',  [KillSwitchController::class, 'destroy']);
-Route::get('/ks/execute',  [KillSwitchController::class, 'execute']);
+
 
     
 

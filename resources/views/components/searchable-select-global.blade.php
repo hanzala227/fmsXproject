@@ -185,9 +185,20 @@
         dropdown.style.width = dropWidth + 'px';
         dropdown.style.left = left + 'px';
 
-        // Always open downward (below the control) across all views
-        dropdown.style.bottom = 'auto';
-        dropdown.style.top = (rect.bottom + 2) + 'px';
+        // Vertical positioning: check available space below vs above
+        const spaceBelow = windowHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const estimatedHeight = 240;
+
+        if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
+            // Open upward
+            dropdown.style.top = 'auto';
+            dropdown.style.bottom = (windowHeight - rect.top + 2) + 'px';
+        } else {
+            // Open downward
+            dropdown.style.bottom = 'auto';
+            dropdown.style.top = (rect.bottom + 2) + 'px';
+        }
     }
 
     function openDropdown(wrapper) {
