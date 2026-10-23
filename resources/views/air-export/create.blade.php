@@ -2173,9 +2173,9 @@
 
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" data-ajax-search="true"
+                            <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container"><x-inline-select name="dep_port_id" data-ajax-search="true" data-type="AIR"
     data-search-url="{{ route('ports.search') }}" :options="$ports" module="port" x-model="form.departure" class="form-control-gf" /></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" data-ajax-search="true"
+                            <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container"><x-inline-select name="dst_port_id" data-ajax-search="true" data-type="AIR"
     data-search-url="{{ route('ports.search') }}" :options="$ports" module="port" x-model="form.destination" class="form-control-gf" /></div></div>
                             <!-- Hidden per client instruction -->
                             <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Flight No.</label><div class="form-input-container"><input type="text" name="flight_no" class="form-control-gf" x-model="form.flight_no"></div></div>
@@ -2227,7 +2227,7 @@
                                                     <td style="padding: 2px;">
                                                         <div style="display:flex;">
                                                             <select :name="'routes['+idx+'][airport_id]'" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}"class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+    data-search-url="{{ route('ports.search') }}" data-type="AIR" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                                 <option value="">Select...</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
@@ -2597,6 +2597,7 @@
             :name="'hbls[' + index + '][departure]'"
             x-model="hawb.departure"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select Departure Port</option>
@@ -2619,6 +2620,7 @@
             :name="'hbls[' + index + '][destination]'"
             x-model="hawb.destination"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select Destination Port</option>
@@ -2631,38 +2633,6 @@
         </select>
     </div>
 </div>
-
-<div class="form-group-gf">
-    <label class="form-label-gf">Destination</label>
-
-    <div class="form-input-container">
-        <select
-            class="form-control-gf"
-            :name="'hbls[' + index + '][destination]'"
-            x-model="hawb.destination"
-            data-ajax-search="true"
-            data-ajax-value="name"
-            data-search-url="{{ route('ports.search') }}"
-        >
-            <option value="">Select Destination Port</option>
-
-            @foreach ($ports as $port)
-                <option value="{{ $port->name }}">
-                    {{ $port->name }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</div>
-<script>
-    const etd = document.querySelector('[name="etd"]');
-
-console.log({
-    value: etd?.value,
-    visible: !!etd?.getClientRects().length,
-    display: etd ? getComputedStyle(etd).display : null
-});
-</script>
 <div class="form-group-gf"><label class="form-label-gf">Final ETA</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="hawb.feta"></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select class="form-control-gf" x-model="hawb.cargo_type"><option value="GENERAL CARGO">GENERAL CARGO</option></select></div></div>
 
@@ -3373,7 +3343,7 @@ console.log({
                         <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container">
                             <x-inline-select name="customer" :options="$agents" module="trade-partner" x-model="filters.customer" class="form-control-gf" />
                         </div></div>
-                        <div class="form-group-gf"><label class="form-label-gf">Departure</label><div class="form-input-container">
+                        <div class="form-group-gf"><label class="form-label-gf">Departure..</label><div class="form-input-container">
                             <x-inline-select name="pol" :options="$agents" module="trade-partner" x-model="filters.pol" class="form-control-gf" />
                         </div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
@@ -3381,7 +3351,7 @@ console.log({
                     <div class="main-grid">
                         <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date"></div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container">
-                            <select class="form-control-gf" x-model="filters.pod" data-ajax-search="true"
+                            <select class="form-control-gf" x-model="filters.pod" data-ajax-search="true" data-type="AIR"
     data-search-url="{{ route('ports.search') }}">
                                 <option value="">Select...</option>
                                 @foreach($ports as $port)

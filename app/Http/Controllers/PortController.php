@@ -47,14 +47,21 @@ class PortController extends Controller
         ], 201);
     }
 
-   public function search(Request $request)
+public function search(Request $request)
 {
     $q = trim($request->query('q', ''));
+    $type = strtoupper(trim($request->query('type', '')));
 
-    $query = Port::query();
+    // Sirf AIR aur SEA types allow hain
+    if (!in_array($type, ['AIR', 'SEA'], true)) {
+        return response()->json([]);
+    }
 
+    $query = Port::query()
+        ->where('type', $type);
+
+    // Port name se search
     if ($q !== '') {
-        // Require at least 2 characters for searching
         if (mb_strlen($q) < 2) {
             return response()->json([]);
         }
@@ -62,8 +69,7 @@ class PortController extends Controller
         $query->where('name', 'like', '%' . $q . '%');
     }
 
-    // Default: latest 30 records
-    // Search: maximum 30 matching records
+    // Latest 30 records
     $ports = $query
         ->orderByDesc('id')
         ->limit(30)
