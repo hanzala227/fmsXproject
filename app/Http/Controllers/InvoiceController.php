@@ -79,13 +79,13 @@ class InvoiceController extends Controller
         if (!in_array($sortField, $allowedSorts)) $sortField = 'created_at';
         if (!in_array($sortDir, ['asc', 'desc'])) $sortDir = 'desc';
 
+        // Apply filters to totals query BEFORE applying ordering and pagination
+        $totalsQuery = (clone $query)->reorder();
+
         $pageSize = $request->input('limit', 15);
         $invoices = $query->orderBy($sortField, $sortDir)->paginate($pageSize)->withQueryString();
 
         $baseCurrencyCode = $request->input('base_currency', 'USD');
-        
-        // Apply filters to totals query
-        $totalsQuery = clone $query;
         
         // Sum totals grouped by currency_id and type (AR vs AP), handling CN as negative
         $totalsGrouped = $totalsQuery->where('status', '!=', 'VOID')

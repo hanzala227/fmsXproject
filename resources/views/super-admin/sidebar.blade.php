@@ -27,9 +27,7 @@
                             'label' => 'Companies', 'icon' => 'fa-building', 'route' => 'super-admin.companies.index', 'match' => 'super-admin/companies',
                             'sub' => [
                                 ['label' => 'All Companies', 'route' => 'super-admin.companies.index', 'params' => []],
-                                ['label' => 'Active Companies', 'route' => 'super-admin.companies.index', 'params' => ['status' => 'active']],
-                                ['label' => 'Trial / Suspended', 'route' => 'super-admin.companies.index', 'params' => ['status' => 'trial']],
-                                ['label' => 'Add Company', 'route' => 'super-admin.companies.create', 'params' => []],
+                                ['label' => 'Add New Company', 'route' => 'super-admin.companies.create', 'params' => []],
                             ]
                         ],
                         [
