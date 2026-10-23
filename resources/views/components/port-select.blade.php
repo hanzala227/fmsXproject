@@ -12,12 +12,18 @@ document.querySelectorAll('select.port-select').forEach(function (selectElement)
         shouldLoad: function (searchText) {
             return searchText.length === 0 || searchText.length >= 2;
         },
-        load: function (searchText, callback) {
-            fetch("{{ route('ports.search') }}?q=" + encodeURIComponent(searchText))
-                .then(response => response.json())
-                .then(callback)
-                .catch(() => callback());
-        }
+       load: function (searchText, callback) {
+    const portType = selectElement.dataset.portType;
+
+    fetch(
+        "{{ route('ports.search') }}" +
+        "?q=" + encodeURIComponent(searchText) +
+        "&type=" + encodeURIComponent(portType)
+    )
+    .then(response => response.json())
+    .then(callback)
+    .catch(() => callback());
+}
     });
 });
 </script>

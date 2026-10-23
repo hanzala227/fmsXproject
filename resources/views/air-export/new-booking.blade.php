@@ -682,7 +682,7 @@
                 <!-- Column 3 -->
                 <div class="flex flex-col">
                     <div class="form-group-gf"><label class="form-label-gf">Port of Departure</label><div class="form-input-container">
-                        <select name="dep_port_id" class="form-control-gf">
+                        <select name="dep_port_id" class="form-control-gf" data-ajax-search="true" data-type="AIR" data-search-url="{{ route('ports.search') }}">
                             <option value="">Select Airport...</option>
                             @foreach($ports ?? [] as $p)
                                 <option value="{{ $p->id }}" {{ old('dep_port_id', isset($booking) ? $booking->dep_port_id : '') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -693,7 +693,7 @@
                         <input type="date" name="etd" class="form-control-gf" value="{{ old('etd', isset($booking) && $booking->etd ? $booking->etd->format('Y-m-d') : '') }}">
                     </div></div>
                     <div class="form-group-gf"><label class="form-label-gf">Port of Destination</label><div class="form-input-container">
-                        <select name="dst_port_id" class="form-control-gf">
+                        <select name="dst_port_id" class="form-control-gf" data-ajax-search="true" data-type="AIR" data-search-url="{{ route('ports.search') }}">
                             <option value="">Select Airport...</option>
                             @foreach($ports ?? [] as $p)
                                 <option value="{{ $p->id }}" {{ old('dst_port_id', isset($booking) ? $booking->dst_port_id : '') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>

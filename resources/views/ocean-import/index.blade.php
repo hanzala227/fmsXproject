@@ -3429,7 +3429,7 @@
                                     <x-inline-select name="customer" :options="$agents" module="trade-partner" type="customer" x-model="filters.customer" class="form-control-gf" />
                                 </div></div>
   <div class="form-group-gf">
-    <label class="form-label-gf">Port of Loading</label>
+    <label class="form-label-gf">Port of Loading....</label>
     <div class="form-input-container">
         <x-port-select
             model="filters.pol"

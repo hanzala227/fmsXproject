@@ -2290,7 +2290,7 @@
                                 <!-- Hidden per client instruction -->
                                 <div class="form-group-gf" style="display: none;"><label class="form-label-gf">Vessel</label><div class="form-input-container"><select name="vessel_id" class="form-control-gf" x-model="form.vessel_id"><option value="">Select...</option>@foreach($vessels as $vessel)<option value="{{ $vessel->id }}">{{ $vessel->name }}</option>@endforeach</select></div></div>
                            <div class="form-group-gf">
-    <label class="form-label-gf">Port of Loading...</label>
+    <label class="form-label-gf">Port of Loading</label>
 
     <div class="form-input-container">
         <x-inline-select
@@ -2301,6 +2301,7 @@
             data-ajax-search="true"
             data-search-url="{{ route('ports.search') }}"
             class="form-control-gf"
+            data-type="SEA"
         />
 
         <button
@@ -2326,6 +2327,7 @@
             x-model="form.del_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2365,6 +2367,7 @@
             x-model="form.pod_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2388,6 +2391,7 @@
             x-model="form.fdest_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2452,6 +2456,7 @@
             class="form-control-gf"
             x-model="route.airport_id"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
             style="width:100%; border:none; height:24px; padding:2px 4px;"
         >
@@ -2580,6 +2585,7 @@
             x-model="form.receipt_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2704,6 +2710,7 @@
             x-model="hbl.del_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2734,6 +2741,7 @@
             class="form-control-gf"
             x-model="hbl.pod_id"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -2765,6 +2773,7 @@
             x-model="hbl.receipt_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2789,6 +2798,7 @@
             x-model="hbl.del_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -2819,6 +2829,7 @@
             class="form-control-gf"
             x-model="hbl.pol_id"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -2840,6 +2851,7 @@
             x-model="hbl.fdest_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -3682,7 +3694,7 @@ document.querySelectorAll('select.port-select').forEach(function (selectElement)
         maxOptions: 20,
         loadThrottle: 300,
         load: function (searchText, callback) {
-            fetch("{{ route('ports.search') }}?q=" + encodeURIComponent(searchText))
+            fetch("{{ route('ports.search') }}?type=SEA&q=" + encodeURIComponent(searchText))
                 .then(response => response.json())
                 .then(callback)
                 .catch(() => callback());
@@ -3691,7 +3703,7 @@ document.querySelectorAll('select.port-select').forEach(function (selectElement)
 });
 </script>
                                 <div class="form-group-gf"><label class="form-label-gf">CY/CFS Loc.</label><div class="form-input-container"><select name="cy_location_id" class="form-control-gf" x-model="form.cy_location_id"><option value="">Select...</option>@foreach($agents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Final Dest.</label><div class="form-input-container"><x-inline-select name="fdest_id" :options="$ports" module="port" x-model="form.fdest_id" class="form-control-gf" /> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                                <div class="form-group-gf"><label class="form-label-gf">Final Dest.</label><div class="form-input-container"><x-inline-select name="fdest_id" :options="$ports" module="port" x-model="form.fdest_id" class="form-control-gf" data-ajax-search="true" data-type="SEA" data-search-url="{{ route('ports.search') }}" /> <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('port', 'fdest_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Freight</label><div class="form-input-container"><select name="freight_term" class="form-control-gf" x-model="form.freight_term"><option value="Prepaid">PREPAID</option><option value="Collect">COLLECT</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Expiry Date</label><div class="form-input-container"><input type="date" name="expiry_date" class="form-control-gf" x-model="form.expiry_date"></div></div>
                             </div>
@@ -3812,6 +3824,7 @@ document.querySelectorAll('select.port-select').forEach(function (selectElement)
             x-model="filters.pol"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
     </div>
@@ -3830,6 +3843,7 @@ document.querySelectorAll('select.port-select').forEach(function (selectElement)
             x-model="filters.pod"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
     </div>

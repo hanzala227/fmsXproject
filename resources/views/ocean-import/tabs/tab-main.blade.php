@@ -305,6 +305,7 @@
             x-model="form.pol_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -328,6 +329,7 @@
             x-model="form.del_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -395,6 +397,7 @@
             x-model="form.pod_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -418,6 +421,7 @@
             x-model="form.fdest_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -688,6 +692,7 @@
             x-model="form.receipt_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -844,6 +849,7 @@
             x-model="hbl.del_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -904,6 +910,7 @@
             x-model="hbl.pod_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -985,6 +992,7 @@
             x-model="hbl.pol_id"
             class="form-control-gf"
             data-ajax-search="true"
+             data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -1009,6 +1017,7 @@
             x-model="hbl.fdest_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -1076,6 +1085,7 @@
             x-model="hbl.receipt_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 
@@ -1100,6 +1110,7 @@
             x-model="hbl.fdest_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="SEA"
             data-search-url="{{ route('ports.search') }}"
         />
 

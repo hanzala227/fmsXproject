@@ -334,7 +334,15 @@ if (search.length > 0 && search.length < 2) {
         const searchUrl = new URL(url, window.location.origin);
         searchUrl.searchParams.set('q', search);
 
-        const response = await fetch(searchUrl, {
+        // Pass the selected module type (e.g. AIR or SEA) to Laravel.
+        // The original HTML <select> must have data-type="AIR" or data-type="SEA".
+        const type = (select.dataset.type || '').trim().toUpperCase();
+
+        if (type) {
+            searchUrl.searchParams.set('type', type);
+        }
+
+        const response = await fetch(searchUrl.toString(), {
             headers: {
                 Accept: 'application/json'
             },
@@ -635,4 +643,3 @@ if (search.length > 0 && search.length < 2) {
     }
 })();
 </script>
-

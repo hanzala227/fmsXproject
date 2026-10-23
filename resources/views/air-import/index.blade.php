@@ -1720,6 +1720,7 @@
             name="dep_port_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -1742,6 +1743,7 @@
             name="dst_port_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -1776,6 +1778,7 @@
             name="freight_location_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -1834,6 +1837,7 @@
             x-model="route.airport_id"
             style="width: 100%; border: none; height: 24px; padding: 2px 4px;"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -2066,6 +2070,7 @@
         <select
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
             :name="'hbls['+index+'][freight_location_id]'"
             x-model="hawb.freight_location_id"
@@ -2088,6 +2093,7 @@
             class="form-control-gf"
             :name="'hbls['+index+'][final_destination_id]'"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
             x-model="hawb.final_destination_id"
         >
@@ -2686,6 +2692,7 @@
             name="final_destination_id"
             class="form-control-gf"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -2965,6 +2972,7 @@
             x-model="filters.pol"
             @change="applySearch()"
             data-ajax-search="true"
+            data-type="AIR"
             data-search-url="{{ route('ports.search') }}"
         >
             <option value="">Select...</option>
@@ -2983,7 +2991,7 @@
                         <div class="main-grid">
                             <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date" @change="applySearch()"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container">
-                                <select class="form-control-gf" x-model="filters.pod" @change="applySearch()"  data-ajax-search="true"
+                                <select class="form-control-gf" x-model="filters.pod" @change="applySearch()" data-ajax-search="true" data-type="AIR"
     data-search-url="{{ route('ports.search') }}">
                                     <option value="">Select...</option>
                                     @foreach($ports as $port)
