@@ -26,10 +26,14 @@ class AirExport extends Model
         'agent_id', 'co_loader_id', 'trans_port_id', 'trans_port1_id', 'trans_port2_id', 'trans_port3_id', 'delivery_port_id',
         'route_data', 'itn_no', 'cers_no', 'reference_no', 'awb_date', 'cargo_ready_date',
         'issuing_carrier', 'awb_type', 'dv_carriage', 'dv_customs', 'insurance', 'wt_val', 'other_term', 'routes',
+        'cargo_type', 'display_unit', 'other_charges', 'accounting_info', 'commodities',
     ];
 
     protected $casts = [
         'routes' => 'array',
+        'other_charges' => 'array',
+        'accounting_info' => 'array',
+        'commodities' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
         'eta' => 'date',

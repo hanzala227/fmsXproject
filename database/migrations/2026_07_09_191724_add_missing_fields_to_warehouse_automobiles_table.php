@@ -31,7 +31,7 @@ return new class extends Migration
             $table->boolean('cigarette_lighter')->default(false);
             $table->boolean('cargo_net')->default(false);
             $table->boolean('ashtray')->default(false);
-            $table->boolean('tools')->default(false);
+            $table->boolean('Tools')->default(false);
             $table->boolean('spare_tire')->default(false);
             $table->boolean('sun_roof')->default(false);
         });
@@ -48,7 +48,7 @@ return new class extends Migration
                 'tire_size_front', 'tire_size_rear', 'mileage', 'w_sticker',
                 'remote_control', 'headphone', 'owners_manual', 'cd_player',
                 'cd_changer', 'first_aid_kit', 'floor_mat', 'cigarette_lighter',
-                'cargo_net', 'ashtray', 'tools', 'spare_tire', 'sun_roof'
+                'cargo_net', 'ashtray', 'Tools', 'spare_tire', 'sun_roof'
             ]);
         });
     }

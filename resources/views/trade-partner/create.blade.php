@@ -2,15 +2,15 @@
     @push('styles')
     <x-form-styles />
     <style>
-        .tp-create-page .tab-content { background: #fff; border: 1px solid #e2e8f0; border-top: none; padding: 10px; }
-        .tp-create-page .main-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; align-items: start; }
-        .tp-create-page .form-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px 10px; margin-bottom: 4px; align-items: center; }
-        .tp-create-page .form-group { display: flex; flex-direction: column; gap: 2px; }
-        .tp-create-page .form-group label { font-size: 10px; color: #475569; font-weight: 600; }
+        .tp-create-page .tab-content { background: #fff; border: 1px solid #e2e8f0; border-top: none; padding: 12px; }
+        .tp-create-page .main-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 12px; align-items: start; }
+        .tp-create-page .form-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px 10px; margin-bottom: 6px; align-items: start; }
+        .tp-create-page .form-group { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .tp-create-page .form-group label { font-size: 11px; color: #475569; font-weight: 600; line-height: 1.3; }
         .tp-create-page .required:after { content: " *"; color: #ef4444; }
         .tp-create-page input, .tp-create-page select, .tp-create-page textarea {
-            height: 20px; padding: 0 4px; font-size: 10px;
-            border: 1px solid #cbd5e1; border-radius: 2px; width: 100%;
+            height: 26px; padding: 2px 8px; font-size: 11px; font-weight: 500;
+            border: 1px solid #cbd5e1; border-radius: 3px; width: 100%;
             background-color: #fff; color: #1e293b;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.01);
             transition: all 0.2s ease;
@@ -19,32 +19,33 @@
         .tp-create-page input:focus, .tp-create-page select:focus, .tp-create-page textarea:focus {
             border-color: #3b82f6;
             outline: none;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
         }
-        .tp-create-page textarea { height: auto; min-height: 40px; padding: 4px; resize: vertical; }
+        .tp-create-page textarea { height: auto; min-height: 48px; padding: 5px 8px; resize: vertical; line-height: 1.4; }
         .tp-create-page input:disabled, .tp-create-page select:disabled, .tp-create-page textarea:disabled { background-color: #f1f5f9 !important; cursor: not-allowed; color: #94a3b8; }
         .tp-create-page .select-custom-arrow {
             appearance: none; -webkit-appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat; background-position: right 4px center; background-size: 8px; padding-right: 18px !important;
+            background-repeat: no-repeat; background-position: right 6px center; background-size: 9px; padding-right: 20px !important;
         }
         .tp-create-page .section-header-blue {
-            background: #3b82f6 !important; color: #fff; padding: 5px 10px;
+            background: #2563eb !important; color: #fff; padding: 6px 12px;
             font-weight: 700; text-transform: uppercase; font-size: 11px;
             display: flex; justify-content: space-between; align-items: center;
+            border-radius: 4px 4px 0 0;
         }
-        .tp-create-page .party-row-header { background: #fdfdfd; padding: 4px 10px; border: 1px solid #e2e8f0; border-top: none; display: flex; align-items: center; gap: 8px; }
-        .tp-create-page .party-row-header span { font-weight: 700; font-size: 10px; color: #475569; min-width: 140px; }
-        .tp-create-page .checkbox-container { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 8px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 3px; }
-        .tp-create-page .checkbox-item { display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #475569; }
-        .tp-create-page .checkbox-item input[type="checkbox"] { width: 12px; height: 12px; margin: 0; }
-        .tp-create-page .btn-sm { padding: 2px 8px; font-size: 9px; height: 20px; border-radius: 2px; font-weight: 600; text-transform: uppercase; cursor: pointer; border: none; }
-        .tp-create-page .btn-blue { background: #3b82f6; color: #fff; }
-        .tp-create-page .btn-blue:hover { background: #2563eb; }
-        .tp-create-page .btn-green { background: #32c5d2; color: #fff; }
-        .tp-create-page .btn-green:hover { background: #26a1ab; }
-        .tp-create-page .tp-save-btn { background: #3b82f6; color: #fff; padding: 6px 50px; border-radius: 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; border: none; cursor: pointer; transition: all 0.2s; }
-        .tp-create-page .tp-save-btn:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(59,130,246,0.25); }
+        .tp-create-page .party-row-header { background: #f8fafc; padding: 6px 12px; border: 1px solid #e2e8f0; border-top: none; display: flex; align-items: center; gap: 8px; }
+        .tp-create-page .party-row-header span { font-weight: 700; font-size: 11px; color: #334155; min-width: 150px; }
+        .tp-create-page .checkbox-container { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 10px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; }
+        .tp-create-page .checkbox-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #475569; }
+        .tp-create-page .checkbox-item input[type="checkbox"] { width: 13px; height: 13px; margin: 0; }
+        .tp-create-page .btn-sm { padding: 3px 10px; font-size: 10px; height: 24px; border-radius: 3px; font-weight: 600; text-transform: uppercase; cursor: pointer; border: none; }
+        .tp-create-page .btn-blue { background: #2563eb; color: #fff; }
+        .tp-create-page .btn-blue:hover { background: #1d4ed8; }
+        .tp-create-page .btn-green { background: #10b981; color: #fff; }
+        .tp-create-page .btn-green:hover { background: #059669; }
+        .tp-create-page .tp-save-btn { background: #2563eb; color: #fff; padding: 6px 50px; border-radius: 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; border: none; cursor: pointer; transition: all 0.2s; }
+        .tp-create-page .tp-save-btn:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(37,99,235,0.25); }
 
         @media (max-width: 1280px) {
             .tp-create-page .main-grid { grid-template-columns: 1fr !important; }
@@ -89,7 +90,7 @@
                 activeTab: 'basic',
                 firstTabSaved: {{ isset($tradePartner) && $tradePartner->id ? 'true' : 'false' }},
                 tradePartyOpen: true,
-                toolsOpen: false,
+                ToolsOpen: false,
 
                 // Settings / Configs / Permissions based on user criteria:
                 vm: {
@@ -540,7 +541,7 @@
                         showToast('error', 'An error occurred while sending email.');
                     });
                 },
-                toggleSelectAllDocs(e) {
+                toggleSelectAllTools(e) {
                     if (e.target.checked) {
                         this.selectedDocIds = this.documents.map(d => d.id);
                     } else {
@@ -632,7 +633,7 @@
                 },
 
                 copyTradePartner() {
-                    this.toolsOpen = false;
+                    this.ToolsOpen = false;
                     if (this.form.id) {
                         showToast('info', 'Copying Trade Partner details...');
                         this.form.id = '';
@@ -660,7 +661,7 @@
                 },
 
                 async deleteTradePartner() {
-                    this.toolsOpen = false;
+                    this.ToolsOpen = false;
                     if (!this.form.id) {
                         showToast('warning', 'Cannot delete an unsaved Trade Partner.');
                         return;
@@ -817,10 +818,10 @@
 
                 <!-- Tools Dropdown Header -->
                 <div style="position: relative; display: inline-block;">
-                    <button type="button" class="btn-default-gf" style="padding:6px 14px;" @click.stop="toolsOpen = !toolsOpen">
-                        <i class="fa fa-cogs"></i> Tools <i class="fa fa-angle-down"></i>
+                    <button type="button" class="btn-default-gf" style="padding:6px 14px;" @click.stop="ToolsOpen = !ToolsOpen">
+                        <i class="fa fa-cogs"></i> Docs <i class="fa fa-angle-down"></i>
                     </button>
-                    <div x-show="toolsOpen" @click.away="toolsOpen = false" x-cloak
+                    <div x-show="ToolsOpen" @click.away="ToolsOpen = false" x-cloak
                          style="position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 1050; min-width: 160px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); padding: 4px 0;">
                         <button type="button" @click="copyTradePartner()" 
                                 style="display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; font-weight: 500; color: #334155; background: transparent; border: none; cursor: pointer; transition: background 0.15s ease;"
@@ -935,10 +936,10 @@
                                 <div class="form-row">
                                     <div class="form-group" style="grid-column: span 6">
                                         <label class="required">Local Address</label>
-                                        <textarea x-model="form.local_address" style="min-height: 100px;" :disabled="!vm.user_permissions.hasEditAddressPerm"></textarea>
+                                        <textarea x-model="form.local_address" style="min-height: 130px; height: 130px;" :disabled="!vm.user_permissions.hasEditAddressPerm"></textarea>
                                     </div>
                                     <div class="form-group" style="grid-column: span 6">
-                                        <div class="form-row">
+                                        <div class="form-row" style="margin-bottom: 6px;">
                                             <div class="form-group" style="grid-column: span 6">
                                                 <label>IATA Code</label>
                                                 <input type="text" x-model="form.iata_code">
@@ -948,7 +949,7 @@
                                                 <input type="text" x-model="form.corporation_no">
                                             </div>
                                         </div>
-                                        <div class="form-row">
+                                        <div class="form-row" style="margin-bottom: 6px;">
                                             <div class="form-group" style="grid-column: span 6">
                                                 <label>SITA Profile</label>
                                                 <input type="text" x-model="form.sita_profile">
@@ -958,7 +959,7 @@
                                                 <input type="text" x-model="form.account_no">
                                             </div>
                                         </div>
-                                        <div class="form-row">
+                                        <div class="form-row" style="margin-bottom: 0;">
                                             <div class="form-group" style="grid-column: span 6">
                                                 <label>SCAC</label>
                                                 <input type="text" x-model="form.scac_code">
@@ -1030,21 +1031,25 @@
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 4">
-                                        <label>Print Address</label>
-                                        <div style="display: flex; gap: 10px; height: 24px; align-items: center;">
-                                            <label style="margin:0; font-weight: normal;"><input type="radio" name="pa" :value="true" x-model="form.print_address_use_default" @change="updatePreviews()" style="width:12px; height:12px;"> Default</label>
-                                            <label style="margin:0; font-weight: normal;"><input type="radio" name="pa" :value="false" x-model="form.print_address_use_default" @change="updatePreviews()" style="width:12px; height:12px;"> Alternate</label>
+                                    <div class="form-group" style="grid-column: span 6;">
+                                        <label>Print Address Options</label>
+                                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; min-height: 28px;">
+                                            <div style="display: flex; gap: 8px; align-items: center; border-right: 1px solid #cbd5e1; padding-right: 10px;">
+                                                <label style="margin:0; font-weight: 500; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                                    <input type="radio" name="pa" :value="true" x-model="form.print_address_use_default" @change="updatePreviews()" style="width:13px; height:13px; margin:0;"> Default
+                                                </label>
+                                                <label style="margin:0; font-weight: 500; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                                    <input type="radio" name="pa" :value="false" x-model="form.print_address_use_default" @change="updatePreviews()" style="width:13px; height:13px; margin:0;"> Alternate
+                                                </label>
+                                            </div>
+                                            <div style="display: flex; gap: 10px; align-items: center;">
+                                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.print_address_show_name" @change="updatePreviews()" style="width:13px; height:13px;"> Name</label>
+                                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.print_address_show_address" @change="updatePreviews()" style="width:13px; height:13px;"> Address</label>
+                                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.print_address_show_contact" @change="updatePreviews()" style="width:13px; height:13px;"> Contact Info</label>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="form-group" style="grid-column: span 4">
-                                        <div style="display: flex; gap: 10px; margin-top: 15px;">
-                                            <label class="checkbox-item"><input type="checkbox" x-model="form.print_address_show_name" @change="updatePreviews()"> Name</label>
-                                            <label class="checkbox-item"><input type="checkbox" x-model="form.print_address_show_address" @change="updatePreviews()"> Address</label>
-                                            <label class="checkbox-item"><input type="checkbox" x-model="form.print_address_show_contact" @change="updatePreviews()"> Contact Info</label>
-                                        </div>
-                                    </div>
-                                    <div class="form-group" style="grid-column: span 2">
+                                    <div class="form-group" style="grid-column: span 3;">
                                         <label>Status</label>
                                         <select class="select-custom-arrow" x-model="form.status">
                                             <option value="BUSINESS">BUSINESS</option>
@@ -1052,7 +1057,7 @@
                                             <option value="INACTIVE">INACTIVE</option>
                                         </select>
                                     </div>
-                                    <div class="form-group" style="grid-column: span 2">
+                                    <div class="form-group" style="grid-column: span 3;">
                                         <label :class="{ 'required': vm.enable_global_local_tp }">Sales Office</label>
                                         <select class="select-custom-arrow" x-model="form.sales_office_id">
                                             <option value="">Select Office...</option>
@@ -1063,79 +1068,77 @@
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 8;">
-                                        <label>Address Preview Box</label>
-                                        <textarea x-model="form.print_address_preview" :readonly="form.print_address_use_default === true || form.print_address_use_default === 'true'" :style="(form.print_address_use_default === true || form.print_address_use_default === 'true') ? 'min-height: 80px; background-color: #f5f7fa;' : 'min-height: 80px; background-color: #ffffff;'" class="form-control" placeholder="Live Address Preview..."></textarea>
-                                    </div>
-                                </div>
-                                <div class="form-row" style="margin-top: 5px; margin-bottom: 10px;">
-                                    <div class="form-group" style="grid-column: span 8;">
-                                        <button type="button" class="btn btn-sm btn-link" style="padding: 0; color: #007bff; font-weight: bold; text-decoration: none;" @click="addAddressBlock()">+ Add New Address</button>
+                                    <div class="form-group" style="grid-column: span 12;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                            <label style="margin: 0;">Address Preview Box</label>
+                                            <button type="button" class="btn btn-sm btn-link" style="padding: 0; color: #2563eb; font-weight: 600; font-size: 11px; text-decoration: none;" @click="addAddressBlock()">
+                                                <i class="fa fa-plus-circle"></i> Add Additional Address
+                                            </button>
+                                        </div>
+                                        <textarea x-model="form.print_address_preview" :readonly="form.print_address_use_default === true || form.print_address_use_default === 'true'" :style="(form.print_address_use_default === true || form.print_address_use_default === 'true') ? 'min-height: 70px; background-color: #f8fafc;' : 'min-height: 70px; background-color: #ffffff;'" placeholder="Live Address Preview..."></textarea>
                                     </div>
                                 </div>
                                 
                                 <template x-for="(addr, index) in form.additional_addresses" :key="index">
-                                    <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px; margin-bottom: 10px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                            <strong x-text="'Print Address ' + (index + 2)"></strong>
-                                            <button type="button" class="btn btn-sm btn-link" style="color: red; padding: 0; text-decoration: none;" @click="removeAddressBlock(index)">Remove</button>
+                                    <div style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 8px; margin-bottom: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                            <strong style="font-size: 11px; color: #2563eb;" x-text="'Print Address ' + (index + 2)"></strong>
+                                            <button type="button" class="btn btn-sm btn-link" style="color: #ef4444; padding: 0; font-weight: 600; font-size: 11px; text-decoration: none;" @click="removeAddressBlock(index)"><i class="fa fa-trash"></i> Remove</button>
                                         </div>
                                         <div class="form-row">
-                                            <div class="form-group" style="grid-column: span 4">
+                                            <div class="form-group" style="grid-column: span 12;">
                                                 <label>Print Address Option</label>
-                                                <div style="display: flex; gap: 10px; height: 24px; align-items: center;">
-                                                    <label style="margin:0; font-weight: normal;">
-                                                        <input type="radio" :name="'pa_' + index" :value="true" x-model="addr.use_default" @change="updatePreviews()" style="width:12px; height:12px;"> Default
-                                                    </label>
-                                                    <label style="margin:0; font-weight: normal;">
-                                                        <input type="radio" :name="'pa_' + index" :value="false" x-model="addr.use_default" @change="updatePreviews()" style="width:12px; height:12px;"> Alternate
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="form-group" style="grid-column: span 8">
-                                                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                                                    <label class="checkbox-item">
-                                                        <input type="checkbox" x-model="addr.show_name" @change="updatePreviews()"> Name
-                                                    </label>
-                                                    <label class="checkbox-item">
-                                                        <input type="checkbox" x-model="addr.show_address" @change="updatePreviews()"> Address
-                                                    </label>
-                                                    <label class="checkbox-item">
-                                                        <input type="checkbox" x-model="addr.show_contact" @change="updatePreviews()"> Contact Info
-                                                    </label>
+                                                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; min-height: 28px;">
+                                                    <div style="display: flex; gap: 8px; align-items: center; border-right: 1px solid #cbd5e1; padding-right: 10px;">
+                                                        <label style="margin:0; font-weight: 500; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                                            <input type="radio" :name="'pa_' + index" :value="true" x-model="addr.use_default" @change="updatePreviews()" style="width:13px; height:13px; margin:0;"> Default
+                                                        </label>
+                                                        <label style="margin:0; font-weight: 500; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                                            <input type="radio" :name="'pa_' + index" :value="false" x-model="addr.use_default" @change="updatePreviews()" style="width:13px; height:13px; margin:0;"> Alternate
+                                                        </label>
+                                                    </div>
+                                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                                        <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="addr.show_name" @change="updatePreviews()" style="width:13px; height:13px;"> Name</label>
+                                                        <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="addr.show_address" @change="updatePreviews()" style="width:13px; height:13px;"> Address</label>
+                                                        <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="addr.show_contact" @change="updatePreviews()" style="width:13px; height:13px;"> Contact Info</label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="form-row">
-                                            <div class="form-group" style="grid-column: span 8;">
+                                            <div class="form-group" style="grid-column: span 12;">
                                                 <label>Address Preview Box</label>
-                                                <textarea x-model="addr.preview" :readonly="addr.use_default === true || addr.use_default === 'true'" :style="(addr.use_default === true || addr.use_default === 'true') ? 'min-height: 80px; background-color: #f5f7fa;' : 'min-height: 80px; background-color: #ffffff;'" class="form-control" placeholder="Live Address Preview..."></textarea>
+                                                <textarea x-model="addr.preview" :readonly="addr.use_default === true || addr.use_default === 'true'" :style="(addr.use_default === true || addr.use_default === 'true') ? 'min-height: 70px; background-color: #f8fafc;' : 'min-height: 70px; background-color: #ffffff;'" placeholder="Live Address Preview..."></textarea>
                                             </div>
                                         </div>
                                     </div>
                                 </template>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 8">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>Remark</label>
-                                        <textarea x-model="form.remark" style="min-height: 40px;"></textarea>
+                                        <textarea x-model="form.remark" style="height: 56px; min-height: 56px; resize: vertical;"></textarea>
                                     </div>
-                                    <div class="form-group" style="grid-column: span 2">
-                                        <label>Sales Person</label>
-                                        <select class="select-custom-arrow" x-model="form.sales_person_id" :disabled="!vm.user_permissions.canEditSalesPerson">
-                                            <option value="">Select...</option>
-                                            @foreach($users as $u)
-                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group" style="grid-column: span 2">
-                                        <label>CP</label>
-                                        <select class="select-custom-arrow" x-model="form.cs_person_id">
-                                            <option value="">Select...</option>
-                                            @foreach($users as $u)
-                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                            @endforeach
-                                        </select>
+                                    <div class="form-group" style="grid-column: span 6;">
+                                        <div class="form-row" style="margin-bottom: 0;">
+                                            <div class="form-group" style="grid-column: span 6;">
+                                                <label>Sales Person</label>
+                                                <select class="select-custom-arrow" x-model="form.sales_person_id" :disabled="!vm.user_permissions.canEditSalesPerson">
+                                                    <option value="">Select...</option>
+                                                    @foreach($users as $u)
+                                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="form-group" style="grid-column: span 6;">
+                                                <label>CP</label>
+                                                <select class="select-custom-arrow" x-model="form.cs_person_id">
+                                                    <option value="">Select...</option>
+                                                    @foreach($users as $u)
+                                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1145,19 +1148,19 @@
                         <div class="portlet light">
                             <div class="portlet-title">
                                 <span class="caption-subject"><i class="fa fa-calculator"></i> Accounting Setting</span>
-                                <button type="button" class="btn-freightx" @click="copyFromLocalAddress()"><i class="fa fa-copy"></i> Copy from Local Address</button>
+                                <button type="button" class="btn-freightx" @click="copyFromLocalAddress()" style="font-size: 10px; padding: 3px 8px;"><i class="fa fa-copy"></i> Copy from Local Address</button>
                             </div>
                             <div class="portlet-body">
                                 <div class="form-group" style="margin-bottom: 8px;">
                                     <label>Billing Address</label>
-                                    <textarea x-model="form.billing_address" style="min-height: 70px;"></textarea>
+                                    <textarea x-model="form.billing_address" style="min-height: 75px; height: 75px;"></textarea>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 6">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>Tax ID / USCI No.</label>
                                         <input type="text" x-model="form.tax_id">
                                     </div>
-                                    <div class="form-group" style="grid-column: span 6">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>Payment Type</label>
                                         <select class="select-custom-arrow" x-model="form.payment_type">
                                             <option value="COD">COD</option>
@@ -1167,24 +1170,23 @@
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 12">
-                                        <label class="checkbox-item"><input type="checkbox" x-model="form.track_1099"> Track Payments for 1099 report payments</label>
+                                    <div class="form-group" style="grid-column: span 6;">
+                                        <label>Billing Options</label>
+                                        <div style="display: flex; flex-direction: column; gap: 4px; padding: 5px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; min-height: 26px; justify-content: center;">
+                                            <label class="checkbox-item" style="cursor: pointer; font-size: 11px;"><input type="checkbox" x-model="form.track_1099" style="width: 13px; height: 13px;"> 1099 Report</label>
+                                            <label class="checkbox-item" style="cursor: pointer; font-size: 11px;"><input type="checkbox" x-model="form.bill_to_agent" style="width: 13px; height: 13px;"> Bill To Agent</label>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 6">
-                                        <label class="checkbox-item"><input type="checkbox" x-model="form.bill_to_agent"> Bill To Agent</label>
-                                    </div>
-                                    <div class="form-group" style="grid-column: span 6">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>CLM ID / No.</label>
                                         <input type="text" x-model="form.clm_id" placeholder="Enter CLM ID">
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 7">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>Credit Term</label>
                                         <div style="display: flex; gap: 4px;">
-                                            <select class="select-custom-arrow" x-model="form.credit_term_unit" style="flex: 2;">
+                                            <select class="select-custom-arrow" x-model="form.credit_term_unit" style="flex: 1.4;">
                                                 <option value="Days">Days</option>
                                                 <option value="Months">Months</option>
                                                 <option value="Years">Years</option>
@@ -1192,61 +1194,74 @@
                                             <input type="text" x-model="form.credit_term_days" style="flex: 1;" placeholder="0">
                                         </div>
                                     </div>
-                                    <div class="form-group" style="grid-column: span 5">
+                                    <div class="form-group" style="grid-column: span 6;">
                                         <label>Credit Limit</label>
                                         <input type="text" x-model="form.credit_limit">
                                     </div>
                                 </div>
                                 <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 12">
+                                    <div class="form-group" style="grid-column: span 12;">
                                         <label>Accountant Name</label>
                                         <input type="text" x-model="form.accountant_name">
                                     </div>
                                 </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 8">
-                                        <label>Account Name 1</label>
-                                        <input type="text" x-model="form.bank_account_name_1">
+
+                                <!-- Bank Account 1 Box -->
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
+                                    <div style="font-weight: 700; font-size: 11px; color: #2563eb; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                                        <i class="fa fa-university"></i> Bank Account 1
                                     </div>
-                                    <div class="form-group" style="grid-column: span 4">
-                                        <label>Currency</label>
-                                        <select class="select-custom-arrow" x-model="form.bank_currency_1_id">
-                                            @foreach($currencies as $curr)
-                                                <option value="{{ $curr->id }}">{{ $curr->code }}</option>
-                                            @endforeach
-                                        </select>
+                                    <div class="form-row" style="margin-bottom: 6px;">
+                                        <div class="form-group" style="grid-column: span 8;">
+                                            <label>Account Name 1</label>
+                                            <input type="text" x-model="form.bank_account_name_1">
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 4;">
+                                            <label>Currency</label>
+                                            <select class="select-custom-arrow" x-model="form.bank_currency_1_id">
+                                                @foreach($currencies as $curr)
+                                                    <option value="{{ $curr->id }}">{{ $curr->code }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 12">
-                                        <label>Account No. 1</label>
-                                        <input type="text" x-model="form.bank_account_no_1">
+                                    <div class="form-row" style="margin-bottom: 0;">
+                                        <div class="form-group" style="grid-column: span 12;">
+                                            <label>Account No. 1</label>
+                                            <input type="text" x-model="form.bank_account_no_1">
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 8">
-                                        <label>Account Name 2</label>
-                                        <input type="text" x-model="form.bank_account_name_2">
+                                <!-- Bank Account 2 Box -->
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
+                                    <div style="font-weight: 700; font-size: 11px; color: #2563eb; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                                        <i class="fa fa-university"></i> Bank Account 2
                                     </div>
-                                    <div class="form-group" style="grid-column: span 4">
-                                        <label>Currency</label>
-                                        <select class="select-custom-arrow" x-model="form.bank_currency_2_id">
-                                            @foreach($currencies as $curr)
-                                                <option value="{{ $curr->id }}">{{ $curr->code }}</option>
-                                            @endforeach
-                                        </select>
+                                    <div class="form-row" style="margin-bottom: 6px;">
+                                        <div class="form-group" style="grid-column: span 8;">
+                                            <label>Account Name 2</label>
+                                            <input type="text" x-model="form.bank_account_name_2">
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 4;">
+                                            <label>Currency</label>
+                                            <select class="select-custom-arrow" x-model="form.bank_currency_2_id">
+                                                @foreach($currencies as $curr)
+                                                    <option value="{{ $curr->id }}">{{ $curr->code }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 12">
-                                        <label>Account No. 2</label>
-                                        <input type="text" x-model="form.bank_account_no_2">
+                                    <div class="form-row" style="margin-bottom: 0;">
+                                        <div class="form-group" style="grid-column: span 12;">
+                                            <label>Account No. 2</label>
+                                            <input type="text" x-model="form.bank_account_no_2">
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="form-row">
-                                    <div class="form-group" style="grid-column: span 12">
+                                <div class="form-row" style="margin-bottom: 0;">
+                                    <div class="form-group" style="grid-column: span 12;">
                                         <label>Profit Share (%)</label>
                                         <input type="text" x-model="form.profit_share_percent" placeholder="0.00">
                                     </div>
@@ -1256,50 +1271,48 @@
                     </div>
 
                     <!-- Pop-up Tips -->
-                    <div class="portlet light">
+                    <div class="portlet light" style="margin-top: 10px;">
                         <div class="portlet-title">
                             <span class="caption-subject"><i class="fa fa-lightbulb-o"></i> Pop-up Tips</span>
                         </div>
                         <div class="portlet-body" style="padding: 10px;">
-                            <div class="checkbox-container">
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.door_to_door"> Door to Door</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.bad_customer"> Bad Customer</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.import_only"> Import Only</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.export_only"> Export Only</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.co_loader"> Co-loader</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.custom_clear"> Custom Clear</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.warehouse"> Warehouse</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.isf_charges"> ISF Charges</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.free_hand_cargo"> Free Hand Cargo</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.nomination"> Nomination</label>
-                                <label class="checkbox-item"><input type="checkbox" x-model="form.popup_tips.see_memo_remark"> See Memo Remark</label>
+                            <div class="checkbox-container" style="display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.door_to_door" style="width: 13px; height: 13px;"> Door to Door</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.bad_customer" style="width: 13px; height: 13px;"> Bad Customer</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.import_only" style="width: 13px; height: 13px;"> Import Only</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.export_only" style="width: 13px; height: 13px;"> Export Only</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.co_loader" style="width: 13px; height: 13px;"> Co-loader</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.custom_clear" style="width: 13px; height: 13px;"> Custom Clear</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.warehouse" style="width: 13px; height: 13px;"> Warehouse</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.isf_charges" style="width: 13px; height: 13px;"> ISF Charges</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.free_hand_cargo" style="width: 13px; height: 13px;"> Free Hand Cargo</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.nomination" style="width: 13px; height: 13px;"> Nomination</label>
+                                <label class="checkbox-item" style="cursor: pointer;"><input type="checkbox" x-model="form.popup_tips.see_memo_remark" style="width: 13px; height: 13px;"> See Memo Remark</label>
                             </div>
                         </div>
-                    </div>
-
                     <!-- Portal Access -->
-                    <div class="portlet light" style="border: 2px solid #3b82f6; background-color: #eff6ff;">
-                        <div class="portlet-title" style="border-bottom: 1px solid #bfdbfe;">
-                            <span class="caption-subject" style="color: #1d4ed8; font-weight: bold;"><i class="fa fa-lock" style="color: #3b82f6;"></i> Customer Portal Access (Optional)</span>
+                    <div class="portlet light" style="margin-top: 10px; border: 1px solid #93c5fd; background-color: #f0f7ff;">
+                        <div class="portlet-title" style="background: #e0f2fe; border-bottom: 1px solid #bfdbfe;">
+                            <span class="caption-subject" style="color: #1d4ed8; font-weight: 700;"><i class="fa fa-lock" style="color: #2563eb;"></i> Customer Portal Access (Optional)</span>
                         </div>
-                        <div class="portlet-body">
-                            <div class="form-row">
-                                <div class="form-group" style="grid-column: span 5">
+                        <div class="portlet-body" style="padding: 10px 12px;">
+                            <div class="form-row" style="margin-bottom: 4px; align-items: flex-end;">
+                                <div class="form-group" style="grid-column: span 5;">
                                     <label style="color: #1e293b; font-weight: 600;">Email Address for Login</label>
-                                    <input type="email" x-model="form.portal_email" id="portal_email" @input="portalEmailTouched = true" placeholder="customer@example.com" style="border: 1px solid #cbd5e1; background: #fff;">
+                                    <input type="email" x-model="form.portal_email" id="portal_email" @input="portalEmailTouched = true" placeholder="customer@example.com" style="border: 1px solid #94a3b8; background: #fff;">
                                 </div>
-                                <div class="form-group" style="grid-column: span 5">
+                                <div class="form-group" style="grid-column: span 5;">
                                     <label style="color: #1e293b; font-weight: 600;">Password <span style="font-weight: normal; color: #64748b;" x-show="form.id">(Leave blank to keep current)</span></label>
-                                    <input type="password" x-model="form.portal_password" id="portal_password" placeholder="Min 6 characters" style="border: 1px solid #cbd5e1; background: #fff;">
+                                    <input type="password" x-model="form.portal_password" id="portal_password" placeholder="Min 6 characters" style="border: 1px solid #94a3b8; background: #fff;">
                                 </div>
-                                <div class="form-group" style="grid-column: span 2; display: flex; align-items: flex-end;" x-show="form.id">
-                                    <button type="button" class="btn-tool" style="width: 100%; height: 28px; line-height: 1; background-color: #3b82f6; color: white;" @click="grantPortalAccess()">
+                                <div class="form-group" style="grid-column: span 2;" x-show="form.id">
+                                    <button type="button" class="btn-freightx" style="width: 100%; height: 26px; justify-content: center;" @click="grantPortalAccess()">
                                         <i class="fa fa-key"></i> Update Access
                                     </button>
                                 </div>
                             </div>
-                            <div style="margin-top: 10px; font-size: 12px; color: #475569;">
-                                <i class="fa fa-info-circle" style="color: #3b82f6;"></i> <strong>Note:</strong> If you are creating a new Trade Partner, simply fill in the email and password above and hit Save. The portal access will be created automatically. 
+                            <div style="margin-top: 6px; font-size: 11px; color: #475569;">
+                                <i class="fa fa-info-circle" style="color: #2563eb;"></i> <strong>Note:</strong> If you are creating a new Trade Partner, simply fill in the email and password above and hit Save. The portal access will be created automatically. 
                             </div>
                         </div>
                     </div>
@@ -1326,8 +1339,8 @@
                                             <td style="text-align: center;">
                                                 <button type="button" class="btn-tool-icon" style="background:#ef4444; color:#fff; border-color:#ef4444;" @click="removeMemo(index)"><i class="fa fa-trash"></i></button>
                                             </td>
-                                            <td><input type="text" x-model="memo.subject" style="height: 20px;"></td>
-                                            <td><input type="text" x-model="memo.content" style="height: 20px;"></td>
+                                            <td><input type="text" x-model="memo.subject" style="height: 26px;"></td>
+                                            <td><input type="text" x-model="memo.content" style="height: 26px;"></td>
                                             <td style="color: #888;" x-text="memo.user ? memo.user.name : loggedInUser"></td>
                                         </tr>
                                     </template>
@@ -1367,14 +1380,14 @@
                                         <tr>
                                             <td style="text-align: center;"><input type="checkbox"></td>
                                             <td style="text-align: center;"><input type="checkbox" x-model="contact.is_representative" style="width: 13px; height: 13px;"></td>
-                                            <td><input type="text" x-model="contact.email_name" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.title" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.division" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.cell_phone" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.phone" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.fax" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="email" x-model="contact.email" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
-                                            <td><input type="text" x-model="contact.remark" style="height: 20px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.email_name" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.title" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.division" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.cell_phone" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.phone" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.fax" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="email" x-model="contact.email" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
+                                            <td><input type="text" x-model="contact.remark" style="height: 26px;" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"></td>
                                             <td style="text-align: center;">
                                                 <button type="button" class="btn-tool-icon" style="background:#ef4444; color:#fff; border-color:#ef4444;" @click="removeContact(index)" :disabled="!vm.user_permissions.hasEditContactPersonInfoPerm"><i class="fa fa-trash"></i></button>
                                             </td>
@@ -1418,14 +1431,14 @@
                                                         <td style="text-align: center;"><input type="checkbox"></td>
                                                         <td style="text-align: center;"><input type="checkbox" x-model="party.is_default" style="width:13px; height:13px;"></td>
                                                         <td>
-                                                            <select class="select-custom-arrow" x-model="party.related_partner_id" style="height: 22px;" :disabled="!vm.user_permissions.hasEditTradePartyPerm">
+                                                            <select class="select-custom-arrow" x-model="party.related_partner_id" style="height: 26px;" :disabled="!vm.user_permissions.hasEditTradePartyPerm">
                                                                 <option value="">Select Partner...</option>
                                                                 @foreach($allTradePartners as $tp)
                                                                     <option value="{{ $tp->id }}">{{ $tp->name }}</option>
                                                                 @endforeach
                                                             </select>
                                                         </td>
-                                                        <td><input type="text" x-model="party.description" style="height: 22px;" :disabled="!vm.user_permissions.hasEditTradePartyPerm"></td>
+                                                        <td><input type="text" x-model="party.description" style="height: 26px;" :disabled="!vm.user_permissions.hasEditTradePartyPerm"></td>
                                                         <td style="text-align: center;">
                                                             <button type="button" class="btn-tool-icon" style="background:#ef4444; color:#fff; border-color:#ef4444;" @click="removeRelatedParty(relatedParties.indexOf(party))" :disabled="!vm.user_permissions.hasEditTradePartyPerm"><i class="fa fa-trash"></i></button>
                                                         </td>
@@ -1740,7 +1753,7 @@
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th style="width: 25px; text-align: center;"><input type="checkbox" @change="toggleSelectAllDocs($event)" style="width:12px; height:12px;"></th>
+                                                    <th style="width: 25px; text-align: center;"><input type="checkbox" @change="toggleSelectAllTools($event)" style="width:12px; height:12px;"></th>
                                                     <th style="text-align: center;">NAME</th>
                                                     <th style="width: 80px; text-align: center;">DATE</th>
                                                     <th style="width: 60px; text-align: center;">SIZE</th>

@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('air_bookings', function (Blueprint $table) {
-            $table->boolean('is_locked')->default(false)->after('is_blocked');
+            if (!Schema::hasColumn('air_bookings', 'is_locked')) {
+                $table->boolean('is_locked')->default(false)->after('is_blocked');
+            }
         });
     }
 

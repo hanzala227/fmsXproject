@@ -648,17 +648,17 @@
                 <div class="modal-close" @click="showDocModal = false" style="color: white; float: right;">&times;</div>
             </div>
             <div style="max-height: 300px; overflow-y: auto; background: #64748b; color: white;">
-                <template x-for="doc in availableDocs" :key="doc.id">
+                <template x-for="doc in availableTools" :key="doc.id">
                     <div style="padding: 10px 16px; border-bottom: 1px solid #475569; display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" :value="doc.id" x-model="selectedDocIds">
                         <span x-text="doc.original_name || doc.file_name"></span>
                     </div>
                 </template>
-                <div x-show="availableDocs.length === 0" style="padding: 20px; color: #cbd5e1; text-align: center;">
+                <div x-show="availableTools.length === 0" style="padding: 20px; color: #cbd5e1; text-align: center;">
                     No documents found in Doc Center.
                 </div>
             </div>
-            <button style="width: 100%; background: #2dd4bf; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer;" @click="applyDocs">Apply</button>
+            <button style="width: 100%; background: #2dd4bf; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer;" @click="applyTools">Apply</button>
         </div>
     </div>
 
@@ -680,7 +680,7 @@
                     show: false,
                     message: ''
                 },
-                availableDocs: @json($shipment->documents ?? []),
+                availableTools: @json($shipment->documents ?? []),
                 selectedDocIds: [],
                 includeMyself: false,
                 showType: 'our_company',
@@ -709,8 +709,8 @@
                     ]
                 },
                 
-                applyDocs() {
-                    this.availableDocs.forEach(doc => {
+                applyTools() {
+                    this.availableTools.forEach(doc => {
                         if (this.selectedDocIds.includes(doc.id.toString()) || this.selectedDocIds.includes(doc.id)) {
                             if (!this.emailForm.attachments.find(a => a.id === doc.id)) {
                                 this.emailForm.attachments.push({

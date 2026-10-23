@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('warehouse_shippings', function (Blueprint $table) {
             if (!Schema::hasColumn('warehouse_shippings', 'items_data')) {
-                $table->json('items_data')->nullable()->after('memos_data');
+                $table->json('items_data')->nullable();
             }
         });
     }

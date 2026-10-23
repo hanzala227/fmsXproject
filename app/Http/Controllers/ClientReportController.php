@@ -53,11 +53,19 @@ class ClientReportController extends Controller
 
         foreach ($sources as $label => $model) {
             $rows = $model::where('company_id', $companyId)
-                ->where('dm_customer_id', $customerId)
+                ->where(function ($q) use ($customerId) {
+                    $q->where('dm_customer_id', $customerId)
+                      ->orWhere('dm_shipper_id', $customerId)
+                      ->orWhere('dm_consignee_id', $customerId);
+                })
+                ->with(['vessel' => function($q) { $q->select('id', 'name'); }])
                 ->get();
 
             foreach ($rows as $shipment) {
                 $shipment->shipment_type = $label;
+                if (empty($shipment->status)) {
+                    $shipment->status = 'In Transit';
+                }
                 $allShipments->push($shipment);
             }
         }
@@ -111,18 +119,19 @@ class ClientReportController extends Controller
             $a    = $s->getAttributes();
             $orig = $a['dep_port_id'] ?? $a['pol_id'] ?? null;
             $dest = $a['dst_port_id'] ?? $a['pod_id'] ?? null;
+            $vesselName = $s->vessel->name ?? null;
 
             return (object) [
                 'file_no'     => $a['file_no'] ?? null,
                 'type'        => $s->shipment_type,
                 'reference'   => $a['mawb_no'] ?? $a['mbl_no'] ?? null,
-                'carrier_ref' => $a['flight_no'] ?? $a['vessel_id'] ?? null,
+                'carrier_ref' => $vesselName ?: ($a['flight_no'] ?? '-'),
                 'voyage'      => $a['voyage'] ?? null,
                 'origin'      => $orig ? ($ports[$orig] ?? $orig) : null,
                 'destination' => $dest ? ($ports[$dest] ?? $dest) : null,
                 'etd'         => $fmt($a['etd'] ?? null),
                 'eta'         => $fmt($a['eta'] ?? null),
-                'status'      => $a['status'] ?? null,
+                'status'      => $s->status ?: 'In Transit',
             ];
         })->values();
 

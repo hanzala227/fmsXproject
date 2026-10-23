@@ -108,5 +108,93 @@
             </table>
         </div>
     </div>
+
+    <!-- LIVE CARRIER TRACKING MILESTONES -->
+    @if(isset($tracking) && $tracking)
+        @php
+            $badge = $tracking->status_badge;
+            $stepNum = $badge['step'] ?? 2;
+            $stepLabels = ['Booking Confirmed', 'Gate In', 'Loaded on Vessel', 'In Transit', 'Discharged', 'Delivered'];
+        @endphp
+        <div style="background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px;">
+            <div style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #334155;">
+                    <i class="fa fa-map-marker" style="color: #3b82f6; margin-right: 6px;"></i> Live Carrier Tracking Milestones
+                </h3>
+                <span style="display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; background: {{ $badge['bg'] }}; color: {{ $badge['color'] }};">
+                    {{ $badge['label'] }} ({{ strtoupper($tracking->carrier_code) }})
+                </span>
+            </div>
+
+            <div style="padding: 20px;">
+                <!-- Stepper -->
+                <div style="display: flex; justify-content: space-between; position: relative; margin-bottom: 24px;">
+                    <div style="position: absolute; left: 16px; right: 16px; top: 12px; height: 3px; background: #e2e8f0; z-index: 1;"></div>
+                    <div style="position: absolute; left: 16px; top: 12px; height: 3px; background: #3b82f6; z-index: 2; width: {{ ($stepNum / 5) * 100 }}%;"></div>
+
+                    @foreach($stepLabels as $sIdx => $sLabel)
+                        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; width: 68px; position: relative; z-index: 3;">
+                            <div style="width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; {{ $sIdx <= $stepNum ? 'background:#3b82f6; color:#fff;' : 'background:#fff; border:2px solid #cbd5e1; color:#94a3b8;' }}">
+                                @if($sIdx < $stepNum)
+                                    <i class="fa fa-check"></i>
+                                @else
+                                    {{ $sIdx + 1 }}
+                                @endif
+                            </div>
+                            <span style="font-size: 10px; margin-top: 6px; font-weight: 600; {{ $sIdx <= $stepNum ? 'color:#1e293b;' : 'color:#94a3b8;' }}">
+                                {{ $sLabel }}
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+
+                <!-- Event Timeline List -->
+                <div style="position: relative; padding-left: 20px;">
+                    <div style="position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: #e2e8f0;"></div>
+
+                    @forelse($tracking->events as $evt)
+                        @php $cls = $evt->classifier_badge; @endphp
+                        <div style="position: relative; margin-bottom: 14px;">
+                            <div style="position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; border: 2px solid #fff; box-shadow: 0 0 0 1px #3b82f6;"></div>
+                            
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <strong style="font-size: 12px; color: #1e293b;">{{ $evt->title }}</strong>
+                                        <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; background: {{ $cls['bg'] }}; color: {{ $cls['color'] }}; margin-left: 6px;">
+                                            {{ $cls['text'] }}
+                                        </span>
+                                    </div>
+                                    <span style="font-size: 11px; color: #64748b; font-family: monospace;">
+                                        {{ $evt->event_date_time ? $evt->event_date_time->format('M d, Y H:i') : '' }}
+                                    </span>
+                                </div>
+                                @if($evt->description)
+                                    <div style="font-size: 11px; color: #475569; margin-top: 3px;">
+                                        {{ $evt->description }}
+                                    </div>
+                                @endif
+                                <div style="display: flex; gap: 12px; font-size: 10px; color: #64748b; margin-top: 4px;">
+                                    @if($evt->location_name)
+                                        <span><i class="fa fa-map-marker"></i> {{ $evt->location_name }}</span>
+                                    @endif
+                                    @if($evt->facility_name)
+                                        <span><i class="fa fa-building-o"></i> {{ $evt->facility_name }}</span>
+                                    @endif
+                                    @if($evt->vessel_name)
+                                        <span><i class="fa fa-ship"></i> {{ $evt->vessel_name }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 16px;">
+                            No milestone events reported yet.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 @endsection

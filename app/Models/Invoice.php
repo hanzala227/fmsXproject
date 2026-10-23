@@ -73,6 +73,47 @@ class Invoice extends Model
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
+    public function getInvoiceableTypeAttribute($value)
+    {
+        if (empty($value)) {
+            return $value;
+        }
+
+        // If backslashes were stripped: e.g. AppModelsOceanImport -> App\Models\OceanImport
+        if (str_starts_with($value, 'AppModels')) {
+            $class = 'App\\Models\\' . substr($value, 9);
+            if (class_exists($class)) {
+                return $class;
+            }
+        }
+
+        // If simple class name without namespace: e.g. OceanImport -> App\Models\OceanImport
+        if (!str_contains($value, '\\')) {
+            $class = 'App\\Models\\' . $value;
+            if (class_exists($class)) {
+                return $class;
+            }
+        }
+
+        // If class does not exist, return null to avoid fatal error during morph resolution
+        if (!class_exists($value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    public function setInvoiceableTypeAttribute($value)
+    {
+        if (!empty($value) && str_starts_with($value, 'AppModels')) {
+            $class = 'App\\Models\\' . substr($value, 9);
+            if (class_exists($class)) {
+                $value = $class;
+            }
+        }
+        $this->attributes['invoiceable_type'] = $value;
+    }
+
     public function invoiceable()
     {
         return $this->morphTo();

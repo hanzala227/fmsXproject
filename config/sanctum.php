@@ -58,7 +58,7 @@ return [
     | security scanning initiatives maintained by open source platforms
     | that notify developers if they commit tokens into repositories.
     |
-    | See: https://docs.github.com/en/code-security/secret-scanning/about-secret-scanning
+    | See: https://Tools.github.com/en/code-security/secret-scanning/about-secret-scanning
     |
     */
 

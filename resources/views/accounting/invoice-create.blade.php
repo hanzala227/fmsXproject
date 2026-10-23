@@ -465,13 +465,13 @@
                     </div>
                     <div class="portlet-body">
                         <div class="table-toolbar" style="margin-bottom:8px;">
-                            <button type="button" class="btn-tool-icon" @click="deleteSelectedDocs()" :disabled="selectedDocIds.length === 0" title="Delete selected"><i class="fa fa-trash" style="color:#ef4444;"></i></button>
+                            <button type="button" class="btn-tool-icon" @click="deleteSelectedTools()" :disabled="selectedDocIds.length === 0" title="Delete selected"><i class="fa fa-trash" style="color:#ef4444;"></i></button>
                             <span style="font-size:10px;color:#64748b;">Documents: <strong x-text="documents.length"></strong></span>
                         </div>
                         <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:3px;">
                             <table class="table-custom">
                                 <thead><tr>
-                                    <th style="width:28px;text-align:center;"><input type="checkbox" @change="toggleAllDocs($event.target.checked)"></th>
+                                    <th style="width:28px;text-align:center;"><input type="checkbox" @change="toggleAllTools($event.target.checked)"></th>
                                     <th>File Name</th><th style="width:70px;">Size</th><th style="width:80px;">Type</th><th style="width:90px;">Uploaded</th><th style="width:70px;">Uploader</th><th style="width:80px;text-align:center;">Action</th>
                                 </tr></thead>
                                 <tbody>
@@ -698,7 +698,7 @@
                     .catch(err => showToast('error', 'Network error: ' + (err.message || 'Unknown')));
                 },
 
-                toggleAllDocs(checked) { this.selectedDocIds = checked ? this.documents.map((_, i) => i) : []; },
+                toggleAllTools(checked) { this.selectedDocIds = checked ? this.documents.map((_, i) => i) : []; },
                 uploadDocument(e) {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -731,7 +731,7 @@
                         .then(r => r.json()).then(d => { if (d.success) { this.documents.splice(idx, 1); showToast('success', 'Deleted.'); } })
                         .catch(() => showToast('error', 'Delete failed.'));
                 },
-                deleteSelectedDocs() {
+                deleteSelectedTools() {
                     if (!this.selectedDocIds.length) return;
                     if (!confirm('Delete ' + this.selectedDocIds.length + ' document(s)?')) return;
                     [...this.selectedDocIds].sort((a, b) => b - a).forEach(i => {

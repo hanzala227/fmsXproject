@@ -469,8 +469,7 @@
                                         </th>
                                         <th class="sticky-col sticky-col-header" data-col="lock"    style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                         <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">Booking No.</th>
-                                        <th class="sticky-col sticky-col-header" data-col="color"   style="width:35px;left:160px;text-align:center;">CR</th>
-                                        <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:195px;">MAWB No.</th>
+                                        <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:160px;">MAWB No.</th>
                                         <th data-col="status"     style="width:70px;">Status</th>
                                         <th data-col="flight_no"  style="width:80px;">Flight No.</th>
                                         <th data-col="hbl_count"  style="width:40px;text-align:right;">HBL</th>
@@ -497,21 +496,20 @@
                                         <td class="sticky-col" style="left:0;"></td>
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"><input class="filter-input" data-col-idx="2" placeholder="Booking No.." oninput="applyFilters()"></td>
-                                        <td class="sticky-col" style="left:160px;"></td>
-                                        <td class="sticky-col" style="left:160px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
+                                        <td class="sticky-col" style="left:160px;"><input class="filter-input" data-col-idx="3" placeholder="MAWB.." oninput="applyFilters()"></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
-                                        <td><input class="filter-input" data-col-idx="8" placeholder="Office.." oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="9" placeholder="Shipper.." oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="10" placeholder="ETD.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="7" placeholder="Office.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="8" placeholder="Shipper.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="9" placeholder="ETD.." oninput="applyFilters()"></td>
                                         <td></td>
-                                        <td><input class="filter-input" data-col-idx="12" placeholder="ETA.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="11" placeholder="ETA.." oninput="applyFilters()"></td>
                                         <td></td>
-                                        <td><input class="filter-input" data-col-idx="14" placeholder="Dep.." oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="15" placeholder="Dst.." oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="16" placeholder="OA.." oninput="applyFilters()"></td>
-                                        <td><input class="filter-input" data-col-idx="17" placeholder="Customer.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="13" placeholder="Dep.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="14" placeholder="Dst.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="15" placeholder="OA.." oninput="applyFilters()"></td>
+                                        <td><input class="filter-input" data-col-idx="16" placeholder="Customer.." oninput="applyFilters()"></td>
                                         <td colspan="6"></td>
                                     </tr>
                                 </thead>
@@ -713,9 +711,9 @@
     }
 
     var FILTER_MAP = {
-        2: 'filter_file_no', 4: 'filter_mawb_no', 8: 'filter_office',
-        9: 'filter_shipper', 10: 'filter_etd', 12: 'filter_eta',
-        14: 'filter_dep', 15: 'filter_dst', 16: 'filter_oa', 17: 'filter_customer'
+        2: 'filter_file_no', 3: 'filter_mawb_no', 7: 'filter_office',
+        8: 'filter_shipper', 9: 'filter_etd', 11: 'filter_eta',
+        13: 'filter_dep', 14: 'filter_dst', 15: 'filter_oa', 16: 'filter_customer'
     };
 
     function applyFilters() {
@@ -759,13 +757,15 @@
     /* ================================================================
        CONFIG PANEL — column visibility
     ================================================================ */
-    var PINNED_COLS = ['check', 'lock', 'file_no', 'color', 'mawb_no'];
+    var PINNED_COLS = ['check', 'lock', 'file_no', 'mawb_no'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
-        var open  = panel.style.display === 'none';
+        if (!panel) return;
+        var open  = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        var btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
 
@@ -798,7 +798,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -1007,7 +1007,7 @@
         var id = _colorId;
         fetch('{{ route("air-export.update-color", "ID") }}'.replace('ID', id), {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: color })
         })
         .then(function(r) { return r.json(); })
@@ -1029,7 +1029,7 @@
         if (!id) return;
         fetch('{{ route("air-export.update-color", "ID") }}'.replace('ID', id), {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: '' })
         })
         .then(function(r) { return r.json(); })

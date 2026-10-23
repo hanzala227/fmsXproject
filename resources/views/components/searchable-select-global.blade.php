@@ -182,13 +182,13 @@
             left = Math.max(10, windowWidth - dropWidth - 10);
         }
 
+        dropdown.style.width = dropWidth + 'px';
+        dropdown.style.left = left + 'px';
+
         // Vertical positioning: check available space below vs above
         const spaceBelow = windowHeight - rect.bottom;
         const spaceAbove = rect.top;
         const estimatedHeight = 240;
-
-        dropdown.style.width = dropWidth + 'px';
-        dropdown.style.left = left + 'px';
 
         if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
             // Open upward

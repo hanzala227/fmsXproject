@@ -27,12 +27,17 @@ class StoreOceanExportRequest extends FormRequest
     {
         $booleanFields = [
             'is_direct_master', 'is_ecommerce', 'is_isf_3rd_party',
-            'is_ror', 'is_hold', 'is_blocked',
+            'is_ror', 'is_hold', 'is_blocked', 'is_obl_received', 'is_do_sent',
         ];
         $mergeData = [];
         foreach ($booleanFields as $field) {
             if ($this->has($field)) {
                 $mergeData[$field] = filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+        foreach (['lfd', 'do_sent_date'] as $dateField) {
+            if ($this->has($dateField) && $this->input($dateField) === '') {
+                $mergeData[$dateField] = null;
             }
         }
         
@@ -76,6 +81,18 @@ class StoreOceanExportRequest extends FormRequest
                 foreach (['date_of_issue', 'obl_received_date', 'fr_released_date', 'an_sent_date', 'do_sent_date'] as $dateField) {
                     if (isset($hbl[$dateField]) && $hbl[$dateField] === '') {
                         $hbls[$index][$dateField] = null;
+                    }
+                }
+                if (isset($hbl['containers']) && is_array($hbl['containers'])) {
+                    foreach ($hbl['containers'] as $cIdx => $c) {
+                        foreach (['pkg_qty', 'weight_kg', 'measure_cbm'] as $numField) {
+                            if (isset($c[$numField]) && $c[$numField] === '') {
+                                $hbls[$index]['containers'][$cIdx][$numField] = null;
+                            }
+                        }
+                        if (isset($c['container_no']) && $c['container_no'] === 'MANUAL' && !empty($c['manual_container_no'])) {
+                            $hbls[$index]['containers'][$cIdx]['container_no'] = $c['manual_container_no'];
+                        }
                     }
                 }
             }
@@ -143,6 +160,12 @@ class StoreOceanExportRequest extends FormRequest
             'obl_received_date' => 'nullable|date',
             'released_date' => 'nullable|date',
             'latest_gate_in' => 'nullable|date',
+            'mark' => 'nullable|string',
+            'description' => 'nullable|string',
+            'is_obl_received' => 'nullable|boolean',
+            'lfd' => 'nullable|date',
+            'is_do_sent' => 'nullable|boolean',
+            'do_sent_date' => 'nullable|date',
             
             'is_ecommerce' => 'boolean',
             'is_released' => 'boolean',
@@ -267,6 +290,27 @@ class StoreOceanExportRequest extends FormRequest
             'hbls.*.name_account' => 'nullable|string',
             'hbls.*.group_comm' => 'nullable|string',
             'hbls.*.line_code' => 'nullable|string',
+            'hbls.*.po_mapping_type' => 'nullable|string',
+            'hbls.*.hbl_mark' => 'nullable|string',
+            'hbls.*.hbl_description' => 'nullable|string',
+            
+            'hbls.*.containers' => 'nullable|array',
+            'hbls.*.containers.*.container_no' => 'nullable|string',
+            'hbls.*.containers.*.manual_container_no' => 'nullable|string',
+            'hbls.*.containers.*.pkg_qty' => 'nullable|numeric',
+            'hbls.*.containers.*.pkg_unit' => 'nullable|string',
+            'hbls.*.containers.*.weight_kg' => 'nullable|numeric',
+            'hbls.*.containers.*.weight_unit' => 'nullable|string',
+            'hbls.*.containers.*.measure_cbm' => 'nullable|numeric',
+            'hbls.*.containers.*.measure_unit' => 'nullable|string',
+            'hbls.*.containers.*.po_no' => 'nullable|string',
+
+            'hbls.*.commodities' => 'nullable|array',
+            'hbls.*.commodities.*.hbl_no' => 'nullable|string',
+            'hbls.*.commodities.*.commodity_desc' => 'nullable|string',
+            'hbls.*.commodities.*.hts_code' => 'nullable|string',
+            'hbls.*.commodities.*.container_no' => 'nullable|string',
+            'hbls.*.commodities.*.po_no' => 'nullable|string',
             
             'charges' => 'nullable|array',
             

@@ -2,6 +2,32 @@
 <x-layout>
     @push('styles')
     <x-list-styles />
+    <style>
+        .invoice-summary-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+        .summary-total-bar {
+            background: #ffffff;
+            border-radius: 4px;
+            padding: 5px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            min-height: 32px;
+        }
+        .currency-chips-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+    </style>
     @endpush
 
     {{-- TOAST CONTAINER --}}
@@ -123,85 +149,119 @@
 
         <div class="portlet light">
             {{-- PORTLET TITLE --}}
-            <div class="portlet-title">
-                <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">{{ $docType ?? 'INV/DN/CN' }} LIST</span>
-                    <div class="summary-stats" style="display:flex;flex-direction:column;gap:4px;">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="grand-totals" style="background:#eff6ff;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;display:flex;align-items:center;gap:8px;font-size:11px;">
-                                <strong style="color:#1d4ed8;">AR Total:</strong> 
-                                <form action="{{ request()->url() }}" method="GET" style="display:inline-block;margin:0;">
-                                    @foreach(request()->except(['base_currency', 'page']) as $key => $value)
-                                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                                    @endforeach
-                                    <select name="base_currency" onchange="this.form.submit()" style="border:none;background:transparent;font-weight:bold;color:#3b82f6;cursor:pointer;outline:none;padding:0;">
-                                        @foreach($availableCurrencies as $cur)
-                                            <option value="{{ $cur->code }}" {{ $baseCurrencyCode === $cur->code ? 'selected' : '' }}>{{ $cur->code }}</option>
-                                        @endforeach
-                                    </select>
-                                </form>
-                                <span>Inv: <span class="val" style="color:#0f172a;font-weight:600;">{{ number_format($grandTotalInvoiceAR, 2) }}</span></span>
-                                <span>Paid: <span class="val paid" style="color:#10b981;font-weight:600;">{{ number_format($grandTotalPaidAR, 2) }}</span></span>
-                                <span>Bal: <span class="val" style="color:#ef4444;font-weight:600;">{{ number_format($grandTotalBalanceAR, 2) }}</span></span>
-                            </div>
-                            <div class="currency-groups" style="display:flex;gap:12px;font-size:10px;color:#64748b;overflow-x:auto;white-space:nowrap;">
-                                @foreach($totalsByCurrencyAR as $code => $totals)
-                                    <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}">
-                                        <strong>{{ $code }}:</strong> {{ number_format($totals['invoice'], 2) }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        </div>
-                        
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="grand-totals" style="background:#fef2f2;padding:2px 8px;border-radius:4px;border:1px solid #fecaca;display:flex;align-items:center;gap:8px;font-size:11px;">
-                                <strong style="color:#b91c1c;">AP Total:</strong> 
-                                <span style="font-weight:bold;color:#b91c1c;">{{ $baseCurrencyCode }}</span>
-                                <span>Inv: <span class="val" style="color:#0f172a;font-weight:600;">{{ number_format($grandTotalInvoiceAP, 2) }}</span></span>
-                                <span>Paid: <span class="val paid" style="color:#10b981;font-weight:600;">{{ number_format($grandTotalPaidAP, 2) }}</span></span>
-                                <span>Bal: <span class="val" style="color:#ef4444;font-weight:600;">{{ number_format($grandTotalBalanceAP, 2) }}</span></span>
-                            </div>
-                            <div class="currency-groups" style="display:flex;gap:12px;font-size:10px;color:#64748b;overflow-x:auto;white-space:nowrap;">
-                                @foreach($totalsByCurrencyAP as $code => $totals)
-                                    <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}">
-                                        <strong>{{ $code }}:</strong> {{ number_format($totals['invoice'], 2) }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
-                    <span id="sel-badge" style="display:none;font-size:10px;color:#3b82f6;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:10px;border:1px solid #bfdbfe;"></span>
-                </div>
-                <div class="actions" style="display:flex;gap:4px;position:relative;align-items:center;">
-                    <button class="btn-action-round" id="btn-filter" onclick="toggleFilter()" title="Toggle filter row">
-                        <i class="fa fa-filter"></i> Filter
-                    </button>
-                    <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
-                        </button>
-                        <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
-                            <div id="col-toggles"></div>
-                        </div>
-                    </div>
-                    <a class="btn-action-round white" href="{{ route('accounting.invoices.export-csv') }}" title="Download as CSV/Excel" target="_blank">
-                        <i class="fa fa-file-excel-o"></i> Excel <i class="fa fa-angle-down"></i>
-                    </a>
-                    
-                    <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round white" id="btn-tools" onclick="toggleTools()" title="Batch Tools">
-                            <i class="fa fa-wrench"></i> Tools <i class="fa fa-angle-down"></i>
-                        </button>
-                        <div class="config-panel" id="tools-panel" style="display:none;min-width:140px;">
-                            <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('POSTED')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-check" style="color:#10b981;width:16px;"></i> Mark as Posted</a>
-                            <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('DRAFT')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-pencil" style="color:#f59e0b;width:16px;"></i> Mark as Draft</a>
-                        </div>
+            <div class="portlet-title" style="display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:8px 10px;height:auto;min-height:unset;">
+                {{-- ROW 1: TITLE & ACTION BUTTONS --}}
+                <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap;">
+                    <div class="caption" style="display:flex;align-items:center;gap:8px;margin:0;">
+                        <span class="caption-subject" style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;letter-spacing:0.3px;">
+                            <i class="fa fa-file-text-o" style="color:#3b82f6;margin-right:4px;"></i>{{ $docType ?? 'INV/DN/CN' }} LIST
+                        </span>
+                        <span id="sel-badge" style="display:none;font-size:10px;color:#2563eb;font-weight:600;background:#eff6ff;padding:2px 8px;border-radius:12px;border:1px solid #bfdbfe;"></span>
                     </div>
 
-                    <a href="{{ route('accounting.invoices.create') }}" class="btn-action-round green-btn">
-                        <i class="fa fa-plus"></i> New Invoice
-                    </a>
+                    <div class="actions" style="display:flex;gap:5px;position:relative;align-items:center;flex-shrink:0;">
+                        <button class="btn-action-round" id="btn-filter" onclick="toggleFilter()" title="Toggle filter row">
+                            <i class="fa fa-filter"></i> Filter
+                        </button>
+                        <div style="position:relative;display:inline-flex;align-items:center;">
+                            <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
+                                <i class="fa fa-cogs"></i> Config
+                            </button>
+                            <div class="config-panel" id="config-panel" style="display:none;">
+                                <div class="config-panel-title">Column Visibility</div>
+                                <div id="col-toggles"></div>
+                            </div>
+                        </div>
+                        <a class="btn-action-round white" href="{{ route('accounting.invoices.export-csv') }}" title="Download as CSV/Excel" target="_blank">
+                            <i class="fa fa-file-excel-o" style="color:#16a34a;"></i> Excel <i class="fa fa-angle-down"></i>
+                        </a>
+                        
+                        <div style="position:relative;display:inline-flex;align-items:center;">
+                            <button class="btn-action-round white" id="btn-Tools" onclick="toggleTools()" title="Batch Docs">
+                                <i class="fa fa-wrench" style="color:#475569;"></i> Docs <i class="fa fa-angle-down"></i>
+                            </button>
+                            <div class="config-panel" id="Tools-panel" style="display:none;min-width:140px;">
+                                <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('POSTED')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-check" style="color:#10b981;width:16px;"></i> Mark as Posted</a>
+                                <a href="javascript:void(0)" class="dropdown-item-gf" onclick="batchUpdateStatus('DRAFT')" style="display:block;padding:6px 12px;color:#1e293b;text-decoration:none;"><i class="fa fa-pencil" style="color:#f59e0b;width:16px;"></i> Mark as Draft</a>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('accounting.invoices.create') }}" class="btn-action-round green-btn" style="box-shadow: 0 1px 2px rgba(34,197,94,0.3);">
+                            <i class="fa fa-plus"></i> New Invoice
+                        </a>
+                    </div>
+                </div>
+
+                {{-- ROW 2: TOTALS SUMMARY BARS (AR & AP FULL WIDTH - ZERO OVERFLOW) --}}
+                <div class="invoice-summary-stack">
+                    {{-- AR TOTAL BAR --}}
+                    <div class="summary-total-bar" style="border:1px solid #bfdbfe;border-left:3px solid #2563eb;box-shadow:0 1px 2px rgba(37,99,235,0.05);">
+                        {{-- Left: Badge, Currency Selector, Inv / Paid / Bal --}}
+                        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">
+                            <span style="background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:0.4px;white-space:nowrap;">
+                                AR TOTAL
+                            </span>
+                            <form action="{{ request()->url() }}" method="GET" style="display:inline-block;margin:0;">
+                                @foreach(request()->except(['base_currency', 'page']) as $key => $value)
+                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                                @endforeach
+                                <select name="base_currency" onchange="this.form.submit()" title="Change Base Currency" style="border:1px solid #bfdbfe;background:#eff6ff;font-weight:700;color:#1d4ed8;font-size:10px;height:22px;padding:0 6px;border-radius:3px;cursor:pointer;outline:none;">
+                                    @foreach($availableCurrencies as $cur)
+                                        <option value="{{ $cur->code }}" {{ $baseCurrencyCode === $cur->code ? 'selected' : '' }}>{{ $cur->code }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                            <div style="display:flex;align-items:center;gap:10px;font-size:11px;white-space:nowrap;">
+                                <span style="color:#64748b;">Inv: <strong style="color:#0f172a;font-weight:700;">{{ number_format($grandTotalInvoiceAR, 2) }}</strong></span>
+                                <span style="color:#64748b;">Paid: <strong style="color:#16a34a;font-weight:700;">{{ number_format($grandTotalPaidAR, 2) }}</strong></span>
+                                <span style="color:#64748b;">Bal: <strong style="color:#ef4444;font-weight:700;">{{ number_format($grandTotalBalanceAR, 2) }}</strong></span>
+                            </div>
+                        </div>
+
+                        {{-- Right: Currency Chips (All Visible - Flex Wrap) --}}
+                        @if(count($totalsByCurrencyAR) > 0)
+                        <div class="currency-chips-wrap">
+                            <span style="font-size:10px;color:#64748b;font-weight:600;margin-right:2px;">By Currency:</span>
+                            @foreach($totalsByCurrencyAR as $code => $totals)
+                                <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}" style="background:#f0f9ff;border:1px solid #bae6fd;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
+                                    <span style="font-weight:700;color:#0284c7;">{{ $code }}:</span>
+                                    <span style="font-weight:600;color:#1e293b;">{{ number_format($totals['invoice'], 2) }}</span>
+                                </span>
+                            @endforeach
+                        </div>
+                        @endif
+                    </div>
+
+                    {{-- AP TOTAL BAR --}}
+                    <div class="summary-total-bar" style="border:1px solid #fecaca;border-left:3px solid #dc2626;box-shadow:0 1px 2px rgba(220,38,38,0.05);">
+                        {{-- Left: Badge, Currency Indicator, Inv / Paid / Bal --}}
+                        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">
+                            <span style="background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:0.4px;white-space:nowrap;">
+                                AP TOTAL
+                            </span>
+                            <span style="border:1px solid #fecaca;background:#fef2f2;font-weight:700;color:#b91c1c;font-size:10px;height:22px;line-height:20px;padding:0 6px;border-radius:3px;display:inline-flex;align-items:center;box-sizing:border-box;">
+                                {{ $baseCurrencyCode }}
+                            </span>
+                            <div style="display:flex;align-items:center;gap:10px;font-size:11px;white-space:nowrap;">
+                                <span style="color:#64748b;">Inv: <strong style="color:#0f172a;font-weight:700;">{{ number_format($grandTotalInvoiceAP, 2) }}</strong></span>
+                                <span style="color:#64748b;">Paid: <strong style="color:#16a34a;font-weight:700;">{{ number_format($grandTotalPaidAP, 2) }}</strong></span>
+                                <span style="color:#64748b;">Bal: <strong style="color:#ef4444;font-weight:700;">{{ number_format($grandTotalBalanceAP, 2) }}</strong></span>
+                            </div>
+                        </div>
+
+                        {{-- Right: Currency Chips (All Visible - Flex Wrap) --}}
+                        @if(count($totalsByCurrencyAP) > 0)
+                        <div class="currency-chips-wrap">
+                            <span style="font-size:10px;color:#64748b;font-weight:600;margin-right:2px;">By Currency:</span>
+                            @foreach($totalsByCurrencyAP as $code => $totals)
+                                <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}" style="background:#fff1f2;border:1px solid #fecdd3;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
+                                    <span style="font-weight:700;color:#e11d48;">{{ $code }}:</span>
+                                    <span style="font-weight:600;color:#1e293b;">{{ number_format($totals['invoice'], 2) }}</span>
+                                </span>
+                            @endforeach
+                        </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -330,8 +390,16 @@
                                         <td class="sticky-col" style="width:130px;left:50px;">{{ $invoice->billTo ? Str::limit($invoice->billTo->name, 18) : '' }}</td>
                                         {{-- Booking No. --}}
                                         <td class="sticky-col" style="width:90px;left:180px;">
-                                            @if($invoice->invoiceable)
-                                                <a href="#" class="col-link">{{ Str::limit(method_exists($invoice->invoiceable, 'getFileNoAttribute') ? $invoice->invoiceable->file_no : ($invoice->invoiceable->file_no ?? '--'), 12) }}</a>
+                                            @php
+                                                $relatedShipment = null;
+                                                try {
+                                                    $relatedShipment = $invoice->invoiceable;
+                                                } catch (\Throwable $e) {
+                                                    $relatedShipment = null;
+                                                }
+                                            @endphp
+                                            @if($relatedShipment)
+                                                <a href="#" class="col-link">{{ Str::limit(method_exists($relatedShipment, 'getFileNoAttribute') ? $relatedShipment->file_no : ($relatedShipment->file_no ?? '--'), 12) }}</a>
                                             @endif
                                         </td>
                                         {{-- Invoice No. --}}
@@ -381,8 +449,8 @@
                                         <td>{{ $invoice->created_at ? $invoice->created_at->format('m-d-Y') : '' }}</td>
                                         <td>--</td>
                                         <td>{{ $invoice->updated_at ? $invoice->updated_at->format('m-d-Y') : '' }}</td>
-                                        <td>{{ $invoice->mbl_no ?? optional($invoice->invoiceable)->mbl_no ?? optional($invoice->invoiceable)->mawb_no ?? '--' }}</td>
-                                        <td>{{ optional($invoice->invoiceable)->hbl_no ?? optional($invoice->invoiceable)->hawb_no ?? '--' }}</td>
+                                        <td>{{ $invoice->mbl_no ?? optional($relatedShipment)->mbl_no ?? optional($relatedShipment)->mawb_no ?? '--' }}</td>
+                                        <td>{{ optional($relatedShipment)->hbl_no ?? optional($relatedShipment)->hawb_no ?? '--' }}</td>
                                         <td style="text-align:center;"><span class="badge-status {{ $statusBadge }}">{{ $invoice->status }}</span></td>
                                         <td>--</td>
                                         <td></td>
@@ -509,7 +577,7 @@
     }
 
     function batchUpdateStatus(status) {
-        const panel = document.getElementById('tools-panel');
+        const panel = document.getElementById('Tools-panel');
         if(panel) panel.style.display = 'none';
         
         const ids = getSelectedIds();
@@ -909,10 +977,10 @@
     }
     
     function toggleTools() {
-        const panel = document.getElementById('tools-panel');
+        const panel = document.getElementById('Tools-panel');
         const open  = panel.style.display === 'none';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-tools').classList.toggle('active', open);
+        document.getElementById('btn-Tools').classList.toggle('active', open);
     }
 
     function buildConfigPanel() {
@@ -945,16 +1013,16 @@
     document.addEventListener('click', e => {
         const configPanel = document.getElementById('config-panel');
         const configBtn   = document.getElementById('btn-config');
-        if (configPanel && configPanel.style.display !== 'none' && !configPanel.contains(e.target) && !configBtn.contains(e.target)) {
+        if (configPanel && configBtn && configPanel.style && configPanel.style.display !== 'none' && !configPanel.contains(e.target) && !configBtn.contains(e.target)) {
             configPanel.style.display = 'none';
             configBtn.classList.remove('active');
         }
         
-        const toolsPanel = document.getElementById('tools-panel');
-        const toolsBtn   = document.getElementById('btn-tools');
-        if (toolsPanel && toolsPanel.style.display !== 'none' && !toolsPanel.contains(e.target) && !toolsBtn.contains(e.target)) {
-            toolsPanel.style.display = 'none';
-            toolsBtn.classList.remove('active');
+        const ToolsPanel = document.getElementById('Tools-panel');
+        const ToolsBtn   = document.getElementById('btn-Tools');
+        if (ToolsPanel && ToolsBtn && ToolsPanel.style && ToolsPanel.style.display !== 'none' && !ToolsPanel.contains(e.target) && !ToolsBtn.contains(e.target)) {
+            ToolsPanel.style.display = 'none';
+            ToolsBtn.classList.remove('active');
         }
     });
 

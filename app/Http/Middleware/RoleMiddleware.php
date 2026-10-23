@@ -30,8 +30,16 @@ class RoleMiddleware
             return $next($request);
         }
 
+        // Get the target dashboard URL
+        $targetUrl = $this->getDashboardUrl($user);
+
+        // If the target URL is the current request URL, allow access to prevent an infinite loop
+        if ($request->url() === $targetUrl || $request->fullUrl() === $targetUrl) {
+            return $next($request);
+        }
+
         // Redirect to the correct dashboard for the user's role
-        return redirect($this->getDashboardUrl($user));
+        return redirect($targetUrl);
     }
 
     /**

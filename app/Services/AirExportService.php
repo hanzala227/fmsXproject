@@ -20,14 +20,55 @@ class AirExportService
         return $data;
     }
 
+    private function syncRouteDefaults(array $data): array
+    {
+        if (!empty($data['routes']) && is_array($data['routes'])) {
+            $firstRoute = $data['routes'][0] ?? null;
+            $lastRoute = end($data['routes']) ?: null;
+            if ($firstRoute && is_array($firstRoute)) {
+                if (empty($data['dep_port_id']) && !empty($firstRoute['airport_id'])) {
+                    $data['dep_port_id'] = $firstRoute['airport_id'];
+                }
+                if (empty($data['etd']) && !empty($firstRoute['etd'])) {
+                    $data['etd'] = substr($firstRoute['etd'], 0, 10);
+                }
+                if (empty($data['atd']) && !empty($firstRoute['atd'])) {
+                    $data['atd'] = substr($firstRoute['atd'], 0, 10);
+                }
+                if (empty($data['flight_no']) && !empty($firstRoute['flight_no'])) {
+                    $data['flight_no'] = $firstRoute['flight_no'];
+                }
+                if (empty($data['carrier_id']) && !empty($firstRoute['carrier_id'])) {
+                    $data['carrier_id'] = $firstRoute['carrier_id'];
+                }
+            }
+            if ($lastRoute && is_array($lastRoute)) {
+                if (empty($data['dst_port_id']) && !empty($lastRoute['airport_id'])) {
+                    $data['dst_port_id'] = $lastRoute['airport_id'];
+                }
+                if (empty($data['eta']) && !empty($lastRoute['eta'])) {
+                    $data['eta'] = substr($lastRoute['eta'], 0, 10);
+                }
+                if (empty($data['ata']) && !empty($lastRoute['ata'])) {
+                    $data['ata'] = substr($lastRoute['ata'], 0, 10);
+                }
+            }
+        }
+        return $data;
+    }
+
     public function store(array $data)
     {
         return DB::transaction(function () use ($data) {
             $data = $this->coerceNumericDefaults($data);
+            $data = $this->syncRouteDefaults($data);
             $airExport = AirExport::create($data);
 
-            if (isset($data['hbls'])) {
+            if (isset($data['hbls']) && is_array($data['hbls'])) {
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no'])) {
+                        continue;
+                    }
                     $hblData = $this->coerceNumericDefaults($hblData);
                     $airExport->hbls()->create($hblData);
                 }
@@ -54,11 +95,15 @@ class AirExportService
     {
         return DB::transaction(function () use ($airExport, $data) {
             $data = $this->coerceNumericDefaults($data);
+            $data = $this->syncRouteDefaults($data);
             $airExport->update($data);
 
             $submittedHblIds = [];
-            if (isset($data['hbls'])) {
+            if (isset($data['hbls']) && is_array($data['hbls'])) {
                 foreach ($data['hbls'] as $hblData) {
+                    if (empty($hblData['hawb_no'])) {
+                        continue;
+                    }
                     $hblData = $this->coerceNumericDefaults($hblData);
                     if (isset($hblData['id']) && $hblData['id']) {
                         $hbl = AirExportHbl::withTrashed()->find($hblData['id']);

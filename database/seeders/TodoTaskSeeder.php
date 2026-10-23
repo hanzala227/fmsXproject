@@ -168,7 +168,7 @@ class TodoTaskSeeder extends Seeder
             [
                 'module' => 'air-export',
                 'title' => 'Export Documentation',
-                'description' => 'Prepare air waybill and export docs',
+                'description' => 'Prepare air waybill and export Tools',
                 'config' => json_encode($defaultConfig),
                 'order' => 2,
                 'is_active' => true,

@@ -637,4 +637,33 @@
         
         /* Hide global browser-top loading lines (Turbo/NProgress/Pace) that might conflict with AI UI */
         .turbo-progress-bar, #nprogress, .pace { display: none !important; opacity: 0 !important; visibility: hidden !important; }
+
+        /* Frexo Trigger Button (Decent Blue Theme) */
+        .frexo-trigger-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #2563eb;
+            color: #ffffff !important;
+            border: 1px solid #1d4ed8;
+            padding: 4px 11px;
+            height: 28px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            transition: background 0.15s ease;
+            text-decoration: none !important;
+        }
+        .frexo-trigger-btn:hover {
+            background: #1d4ed8;
+        }
+        .frexo-spark-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #ffffff;
+        }
     </style>

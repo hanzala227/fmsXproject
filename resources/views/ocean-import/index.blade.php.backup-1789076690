@@ -738,7 +738,7 @@
                         }
                     });
                 },
-                toolsAction(action) {
+                ToolsAction(action) {
                     console.log('[Tools] action called:', action);
                     console.log('[Tools] this:', this);
                     console.log('[Tools] showCopyModal before:', this.showCopyModal);
@@ -1893,68 +1893,68 @@
                     <i class="fa fa-angle-down" style="font-size:10px;color:#9ca3af;" :style="showToolsMenu ? 'transform:rotate(180deg)' : ''"></i>
                 </button>
                 <div x-show="showToolsMenu" x-transition style="position:absolute;right:8px;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:9999;min-width:230px;padding:6px 0;">
-                    <button type="button" class="oi-tools-item" @click="toolsAction('block');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('block');showToolsMenu=false">
                         <i class="fa fa-ban" style="color:#ef4444;width:16px;"></i> Block
                     </button>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('unblock');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('unblock');showToolsMenu=false">
                         <i class="fa fa-unlock" style="color:#22c55e;width:16px;"></i> Unblock
                     </button>
                     <template x-if="activeTab==='basic'">
                         <div>
-                            <button type="button" class="oi-tools-item" @click="toolsAction('copy');showToolsMenu=false">
+                            <button type="button" class="oi-Tools-item" @click="ToolsAction('copy');showToolsMenu=false">
                                 <i class="fa fa-copy" style="color:#3b82f6;width:16px;"></i> Copy
                             </button>
-                            <button type="button" class="oi-tools-item" @click="toolsAction('apply_all_hbl');showToolsMenu=false">
+                            <button type="button" class="oi-Tools-item" @click="ToolsAction('apply_all_hbl');showToolsMenu=false">
                                 <i class="fa fa-files-o" style="color:#8b5cf6;width:16px;"></i> Apply to all HB/Ls
                             </button>
-                            <button type="button" class="oi-tools-item" @click="toolsAction('delete');showToolsMenu=false" style="color:#ef4444;">
+                            <button type="button" class="oi-Tools-item" @click="ToolsAction('delete');showToolsMenu=false" style="color:#ef4444;">
                                 <i class="fa fa-trash" style="color:#ef4444;width:16px;"></i> Delete
                             </button>
-                            <button type="button" class="oi-tools-item" @click="toolsAction('batch_email');showToolsMenu=false">
+                            <button type="button" class="oi-Tools-item" @click="ToolsAction('batch_email');showToolsMenu=false">
                                 <i class="fa fa-envelope" style="color:#0ea5e9;width:16px;"></i> Batch Email
                             </button>
-                            <button type="button" class="oi-tools-item" @click="toolsAction('batch_print');showToolsMenu=false">
+                            <button type="button" class="oi-Tools-item" @click="ToolsAction('batch_print');showToolsMenu=false">
                                 <i class="fa fa-print" style="color:#64748b;width:16px;"></i> Batch Print
                             </button>
                         </div>
                     </template>
                     <div style="height:1px;background:#f1f5f9;margin:4px 0;"></div>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('manifest');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('manifest');showToolsMenu=false">
                         <i class="fa fa-file-text" style="color:#374151;width:16px;"></i> Manifest
                     </button>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('dev_seg');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('dev_seg');showToolsMenu=false">
                         <i class="fa fa-code-fork" style="color:#2563eb;width:16px;"></i> DEV/SEG
                     </button>
-                    <button type="button" class="oi-tools-item" disabled style="opacity:0.4;cursor:not-allowed;">
+                    <button type="button" class="oi-Tools-item" disabled style="opacity:0.4;cursor:not-allowed;">
                         <i class="fa fa-bell" style="color:#9ca3af;width:16px;"></i> Consolidated Arrival Notice
                     </button>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('delivery_order');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('delivery_order');showToolsMenu=false">
                         <i class="fa fa-truck" style="color:#f59e0b;width:16px;"></i> Delivery Order
                     </button>
                     <div style="height:1px;background:#f1f5f9;margin:4px 0;"></div>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('profit_summary');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('profit_summary');showToolsMenu=false">
                         <i class="fa fa-bar-chart" style="color:#10b981;width:16px;"></i> Profit Report - Summary
                     </button>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('profit_detail');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('profit_detail');showToolsMenu=false">
                         <i class="fa fa-line-chart" style="color:#10b981;width:16px;"></i> Profit Report - Detail
                     </button>
                     <div style="height:1px;background:#f1f5f9;margin:4px 0;"></div>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('cargo_manifest_status');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('cargo_manifest_status');showToolsMenu=false">
                         <i class="fa fa-ship" style="color:#0ea5e9;width:16px;"></i> Cargo Manifest Status
                     </button>
-                    <button type="button" class="oi-tools-item" @click="toolsAction('track_trace');showToolsMenu=false">
+                    <button type="button" class="oi-Tools-item" @click="ToolsAction('track_trace');showToolsMenu=false">
                         <i class="fa fa-map-marker" style="color:#6366f1;width:16px;"></i> Open in Track-Trace
                     </button>
                 </div>
             </div>
         </div>
         <style>
-        .oi-tools-item {
+        .oi-Tools-item {
             display:flex;align-items:center;gap:8px;width:100%;padding:7px 16px;
             font-size:12px;color:#374151;background:transparent;border:none;cursor:pointer;text-align:left;
             transition:background 0.15s;
         }
-        .oi-tools-item:hover:not(:disabled) { background:#f3f4f6; }
+        .oi-Tools-item:hover:not(:disabled) { background:#f3f4f6; }
         </style>
 
         <div style="padding-bottom: 50px;">

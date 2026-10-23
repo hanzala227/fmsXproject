@@ -27,9 +27,7 @@
                             'label' => 'Companies', 'icon' => 'fa-building', 'route' => 'super-admin.companies.index', 'match' => 'super-admin/companies',
                             'sub' => [
                                 ['label' => 'All Companies', 'route' => 'super-admin.companies.index', 'params' => []],
-                                ['label' => 'Active Companies', 'route' => 'super-admin.companies.index', 'params' => ['status' => 'active']],
-                                ['label' => 'Trial / Suspended', 'route' => 'super-admin.companies.index', 'params' => ['status' => 'trial']],
-                                ['label' => 'Add Company', 'route' => 'super-admin.companies.create', 'params' => []],
+                                ['label' => 'Add New Company', 'route' => 'super-admin.companies.create', 'params' => []],
                             ]
                         ],
                         [
@@ -84,7 +82,7 @@
                             'sub' => [
                                 ['label' => 'All Integrations', 'route' => '#'],
                                 ['label' => 'API Integrations', 'route' => '#'],
-                                ['label' => 'Carrier / Customs', 'route' => '#'],
+                                ['label' => 'Carrier Tracking APIs', 'route' => 'super-admin.carrier-tracking.index'],
                                 ['label' => 'Integration Logs', 'route' => '#'],
                                 ['label' => 'API Keys', 'route' => '#'],
                                 ['label' => 'AI Engine Settings', 'route' => 'super-admin.ai-settings.index'],

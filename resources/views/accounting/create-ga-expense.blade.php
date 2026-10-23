@@ -505,7 +505,7 @@
                     .catch(err => showToast('error', 'Network error: ' + (err.message || 'Unknown')));
                 },
 
-                toggleAllDocs(checked) { this.selectedDocIds = checked ? this.documents.map((_, i) => i) : []; },
+                toggleAllTools(checked) { this.selectedDocIds = checked ? this.documents.map((_, i) => i) : []; },
                 uploadDocument(e) {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -526,7 +526,7 @@
                         .then(r => r.json()).then(d => { if (d.success) { this.documents.splice(idx, 1); showToast('success', 'Deleted.'); } })
                         .catch(() => showToast('error', 'Delete failed.'));
                 },
-                deleteSelectedDocs() {
+                deleteSelectedTools() {
                     if (!this.selectedDocIds.length) return;
                     if (!confirm('Delete ' + this.selectedDocIds.length + ' document(s)?')) return;
                     [...this.selectedDocIds].sort((a, b) => b - a).forEach(i => {

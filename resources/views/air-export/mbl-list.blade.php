@@ -173,7 +173,7 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
                         <label style="font-size:9px;color:#475569;font-weight:600;">Departure</label>
-                        <select name="dep_port_id" class="input-inline" style="width:120px;height:20px;font-size:9px;">
+                        <select name="dep_port_id" class="input-inline" style="width:120px;height:20px;font-size:9px;" data-ajax-search="true" data-search-url="{{ route('ports.search') }}">
                             <option value="">All</option>
                             @foreach($ports as $p)
                                 <option value="{{ $p->id }}" {{ request('dep_port_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -182,7 +182,7 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:1px;">
                         <label style="font-size:9px;color:#475569;font-weight:600;">Destination</label>
-                        <select name="dst_port_id" class="input-inline" style="width:120px;height:20px;font-size:9px;">
+                        <select name="dst_port_id" class="input-inline" style="width:120px;height:20px;font-size:9px;" data-ajax-search="true" data-search-url="{{ route('ports.search') }}">
                             <option value="">All</option>
                             @foreach($ports as $p)
                                 <option value="{{ $p->id }}" {{ request('dst_port_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -220,8 +220,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="file_no" style="width:110px;left:50px;">Booking No.</th>
-                                    <th class="sticky-col sticky-col-header" data-col="color" style="width:35px;left:160px;text-align:center;">CR</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:195px;">MAWB No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:150px;left:160px;">MAWB No.</th>
 
                                     <th data-col="status" style="width:70px;">Status</th>
                                     <th data-col="flight_no" style="width:90px;">Flight No.</th>
@@ -247,16 +246,15 @@
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
                                     <td class="sticky-col" style="left:50px;"><input class="filter-input" style="width:100%;" data-col-idx="2" placeholder="Booking No.." oninput="applyFilters()"></td>
-                                    <td class="sticky-col" style="left:160px;"></td>
-                                    <td class="sticky-col" style="left:160px;"><input class="filter-input" style="width:100%;" data-col-idx="4" placeholder="MAWB.." oninput="applyFilters()"></td>
+                                    <td class="sticky-col" style="left:160px;"><input class="filter-input" style="width:100%;" data-col-idx="3" placeholder="MAWB.." oninput="applyFilters()"></td>
                                     <td colspan="3"></td>
-                                    <td><input class="filter-input" data-col-idx="8" placeholder="ETD.." oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="9" placeholder="ETA.." oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="10" placeholder="Dep.." oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="11" placeholder="Dest.." oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="12" placeholder="Shipper.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="7" placeholder="ETD.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="8" placeholder="ETA.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="9" placeholder="Dep.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="10" placeholder="Dest.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="11" placeholder="Shipper.." oninput="applyFilters()"></td>
                                     <td></td>
-                                    <td><input class="filter-input" data-col-idx="14" placeholder="Customer.." oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="13" placeholder="Customer.." oninput="applyFilters()"></td>
                                     <td colspan="7"></td>
                                 </tr>
                             </thead>
@@ -458,10 +456,10 @@
     }
 
     var FILTER_MAP = {
-        2: 'filter_file_no', 4: 'filter_mawb_no',
-        8: 'filter_etd', 9: 'filter_eta',
-        10: 'filter_dep', 11: 'filter_dst',
-        12: 'filter_shipper', 14: 'filter_customer'
+        2: 'filter_file_no', 3: 'filter_mawb_no',
+        7: 'filter_etd', 8: 'filter_eta',
+        9: 'filter_dep', 10: 'filter_dst',
+        11: 'filter_shipper', 13: 'filter_customer'
     };
 
     function applyFilters() {
@@ -500,13 +498,15 @@
     /* ================================================================
        CONFIG PANEL — column visibility
     ================================================================ */
-    var PINNED_COLS = ['check', 'lock', 'file_no', 'color', 'mawb_no'];
+    var PINNED_COLS = ['check', 'lock', 'file_no', 'mawb_no'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
-        var open  = panel.style.display === 'none';
+        if (!panel) return;
+        var open  = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = open ? 'block' : 'none';
-        document.getElementById('btn-config').classList.toggle('active', open);
+        var btn = document.getElementById('btn-config');
+        if (btn) btn.classList.toggle('active', open);
         if (open) buildConfigPanel();
     }
 
@@ -539,7 +539,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn   = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
@@ -733,7 +733,7 @@
         var id = _colorId;
         fetch('{{ route("air-export.update-color", "ID") }}'.replace('ID', id), {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: color })
         })
         .then(function(r) { return r.json(); })
@@ -755,7 +755,7 @@
         if (!id) return;
         fetch('{{ route("air-export.update-color", "ID") }}'.replace('ID', id), {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ color: '' })
         })
         .then(function(r) { return r.json(); })

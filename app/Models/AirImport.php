@@ -34,7 +34,13 @@ class AirImport extends Model
         // Direct Master fields
         'is_direct_master', 'dm_customer_id', 'dm_shipper_id', 'dm_consignee_id',
         'dm_notify_id', 'dm_bill_to_id', 'dm_sales_person_id', 'is_blocked',
-        'transportation', 'routes',
+        'transportation', 'freight', 'routes',
+        // Additional audited fields
+        'awb_type', 'dm_sales_type', 'business_referred_by_id',
+        'gross_weight_kg', 'gross_weight_lb', 'chargeable_weight_kg', 'chargeable_weight_lb',
+        'volume_weight_kg', 'volume_cbm', 'incoterm_id', 'svc_term_from_id', 'svc_term_to_id',
+        'service_term_from', 'service_term_to', 'cargo_type', 'stackable',
+        'available_date', 'display_unit',
     ];
 
     protected $casts = [
@@ -46,6 +52,7 @@ class AirImport extends Model
         'is_ecommerce' => 'boolean',
         'final_eta' => 'date',
         'last_free_day' => 'date',
+        'available_date' => 'date',
         'storage_start_date' => 'date',
         'pod_eta' => 'date',
         'go_date' => 'date',
@@ -61,8 +68,15 @@ class AirImport extends Model
         'door_delivered_date' => 'date',
         'is_direct_master' => 'boolean',
         'is_blocked' => 'boolean',
+        'stackable' => 'boolean',
         'memos' => 'array',
+        'routes' => 'array',
     ];
+
+    public function getReferredByIdAttribute()
+    {
+        return $this->business_referred_by_id;
+    }
 
     public function releasedBy() { return $this->belongsTo(User::class, 'released_by_id'); }
 

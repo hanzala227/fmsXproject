@@ -581,7 +581,7 @@ renderProfitChart() {
             type: 'line',
             toolbar: {
                 show: true,
-                tools: {
+                Tools: {
                     download: true,
                     selection: false,
                     zoom: false,

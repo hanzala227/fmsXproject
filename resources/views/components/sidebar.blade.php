@@ -169,6 +169,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                 ['url' => '/report/shipment', 'label' => 'Shipment Report'],
                                 ['url' => '/report/container-storage', 'label' => 'Container Storage Report'],
                             ]],
+                            ['id' => 'tracking', 'label' => 'Track & Trace', 'icon' => 'fa-location-arrow', 'url' => '/tracking', 'sub' => []],
                         ];
                     }
                 @endphp
@@ -201,11 +202,24 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                             }
                         }
                         
-                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedMenuIds));
+                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedMenuIds) || $m['id'] === 'tracking');
                     }
                 @endphp
 
                 @foreach($menus as $menu)
+                @if(empty($menu['sub']))
+                <div class="relative">
+                    <a href="{{ $menu['url'] ?? '#' }}"
+                       class="sidebar-nav-item w-full flex items-center transition-all duration-200 {{ isset($menu['url']) && Request::is(trim($menu['url'], '/')) ? 'active-link' : 'nav-link' }}"
+                       :class="isCollapsed ? 'justify-center px-0' : 'justify-between px-5'"
+                       style="text-decoration: none;">
+                        <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
+                            <i class="fa {{ $menu['icon'] }} text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
+                            <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">{{ $menu['label'] }}</span>
+                        </div>
+                    </a>
+                </div>
+                @else
                 <div x-data="{ open: openMenus.includes('{{ $menu['id'] }}'), hovered: false, isCollapsed: document.body.classList.contains('sidebar-collapsed') }"
                      @sidebar-toggled.window="isCollapsed = document.body.classList.contains('sidebar-collapsed')"
                      @mouseenter="if(isCollapsed) hovered = true"
@@ -250,6 +264,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                         @endforeach
                     </div>
                 </div>
+                @endif
                 @endforeach
 
                 {{-- Support Center (Tenant Admin) --}}

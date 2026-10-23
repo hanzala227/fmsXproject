@@ -68,54 +68,148 @@
                 </div>
             </div>
 
-            <!-- MBL CORE FIELDS GRID -->
+            <!-- Hidden Fields Preserved for Backend & Form Submission -->
+            <div style="display: none;">
+                <input type="hidden" name="contract_no" x-model="form.contract_no">
+                <input type="hidden" name="carrier_id" x-model="form.carrier_id">
+                <input type="hidden" name="acct_carrier_id" x-model="form.acct_carrier_id">
+            </div>
+
+            <!-- MBL CORE FIELDS GRID (Balanced 4-Column Layout) -->
             <div class="form-grid-4">
-                <!-- Column 1 -->
-                <div class="flex flex-col">
+                <!-- Row 1 -->
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Booking No.</label>
+                    <div class="form-input-container">
+                        <input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly style="background:#f5f5f5;">
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf" style="color:red;">* MB/L No.</label>
+                    <div class="form-input-container">
+                        <input type="text" name="mbl_no" class="form-control-gf" x-model="form.mbl_no" required>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf" style="color:red;">* Office</label>
+                    <div class="form-input-container">
+                        <select name="office_id" class="form-control-gf" x-model="form.office_id" required>
+                            <option value="">Select Office...</option>
+                            @foreach($offices as $office)
+                                <option value="{{ $office->id }}">{{ $office->code }} - {{ $office->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">B/L Type</label>
+                    <div class="form-input-container">
+                        <select name="bl_type" class="form-control-gf" x-model="form.bl_type">
+                            <option value="">Select...</option>
+                            <option value="NORMAL">NORMAL</option>
+                            <option value="MEMO">MEMO</option>
+                            <option value="SEA WAYBILL">SEA WAYBILL</option>
+                            <option value="SURRENDERED">SURRENDERED</option>
+                            <option value="TELEX">TELEX</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 2 -->
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Post Date</label>
+                    <div class="form-input-container">
+                        <input type="date" name="post_date" class="form-control-gf" x-model="form.post_date">
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Sub B/L No.</label>
+                    <div class="form-input-container">
+                        <input type="text" name="sub_bl_no" class="form-control-gf" x-model="form.sub_bl_no">
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Oversea Agent</label>
+                    <div class="form-input-container">
+                        <x-inline-select name="oversea_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.oversea_agent_id" class="form-control-gf" />
+                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'oversea_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Co-loader</label>
+                    <div class="form-input-container">
+                        <x-inline-select name="co_loader_id" :options="$agents" module="trade-partner" type="agent" x-model="form.co_loader_id" class="form-control-gf" />
+                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'co_loader_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                    </div>
+                </div>
+
+                <!-- Row 3 -->
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Forwarding Agent</label>
+                    <div class="form-input-container">
+                        <x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.forwarding_agent_id" class="form-control-gf" />
+                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'forwarding_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">OP</label>
+                    <div class="form-input-container">
+                        <select name="op_id" class="form-control-gf" x-model="form.op_id">
+                            <option value="">Select Operator...</option>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Direct Master</label>
+                    <div class="form-input-container">
+                        <input type="checkbox" name="is_direct_master" value="1" x-model="isDirectMaster">
+                    </div>
+                </div>
+                <div class="form-group-gf"></div>
+            </div>
+
+            <!-- DIRECT MASTER CONDITIONAL FIELDS -->
+            <div x-show="isDirectMaster" x-transition style="margin-top: 4px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
+                <div class="form-grid-4">
                     <div class="form-group-gf">
-                        <label class="form-label-gf">Booking No.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="file_no" class="form-control-gf" x-model="form.file_no" readonly style="background:#f5f5f5;">
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Post Date</label>
-                        <div class="form-input-container">
-                            <input type="date" name="post_date" class="form-control-gf" x-model="form.post_date">
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Forwarding Agent</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.forwarding_agent_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'forwarding_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">OP</label>
-                        <div class="form-input-container">
-                            <select name="op_id" class="form-control-gf" x-model="form.op_id">
-                                <option value="">Select Operator...</option>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
-                        <label class="form-label-gf">Customer Ref.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="agent_ref_no" class="form-control-gf" x-model="form.agent_ref_no">
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
                         <label class="form-label-gf">Customer</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_customer_id" :options="$agents" module="trade-partner" type="customer" x-model="form.dm_customer_id" class="form-control-gf" />
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_customer_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
+                    <div class="form-group-gf">
+                        <label class="form-label-gf">Shipper</label>
+                        <div class="form-input-container">
+                            <x-inline-select name="dm_shipper_id" :options="$agents" module="trade-partner" type="shipper" x-model="form.dm_shipper_id" class="form-control-gf" />
+                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group-gf">
+                        <label class="form-label-gf">Consignee</label>
+                        <div class="form-input-container">
+                            <x-inline-select name="dm_consignee_id" :options="$agents" module="trade-partner" type="consignee" x-model="form.dm_consignee_id" class="form-control-gf" />
+                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group-gf">
+                        <label class="form-label-gf">Notify</label>
+                        <div class="form-input-container">
+                            <x-inline-select name="dm_notify_id" :options="$agents" module="trade-partner" type="notify" x-model="form.dm_notify_id" class="form-control-gf" />
+                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group-gf">
+                        <label class="form-label-gf">Customer Ref.</label>
+                        <div class="form-input-container">
+                            <input type="text" name="agent_ref_no" class="form-control-gf" x-model="form.agent_ref_no">
+                        </div>
+                    </div>
+                    <div class="form-group-gf">
                         <label class="form-label-gf">Sales</label>
                         <div class="form-input-container">
                             <select name="dm_sales_person_id" class="form-control-gf" x-model="form.dm_sales_person_id">
@@ -126,95 +220,14 @@
                             </select>
                         </div>
                     </div>
-                </div>
-
-                <!-- Column 2 -->
-                <div class="flex flex-col">
                     <div class="form-group-gf">
-                        <label class="form-label-gf" style="color:red;">* MB/L No.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="mbl_no" class="form-control-gf" x-model="form.mbl_no" required>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Oversea Agent</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="oversea_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.oversea_agent_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'oversea_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Co-loader</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="co_loader_id" :options="$agents" module="trade-partner" type="agent" x-model="form.co_loader_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'co_loader_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Contract No.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="contract_no" class="form-control-gf" x-model="form.contract_no">
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
-                        <label class="form-label-gf">Shipper</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="dm_shipper_id" :options="$agents" module="trade-partner" type="shipper" x-model="form.dm_shipper_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
                         <label class="form-label-gf">Bill To</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_bill_to_id" :options="$agents" module="trade-partner" type="customer" x-model="form.dm_bill_to_id" class="form-control-gf" />
                             <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_bill_to_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Column 3 -->
-                <div class="flex flex-col">
                     <div class="form-group-gf">
-                        <label class="form-label-gf" style="color:red;">* Office</label>
-                        <div class="form-input-container">
-                            <select name="office_id" class="form-control-gf" x-model="form.office_id" required>
-                                <option value="">Select Office...</option>
-                                @foreach($offices as $office)
-                                    <option value="{{ $office->id }}">{{ $office->code }} - {{ $office->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Carrier</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="carrier_id" :options="$agents" module="trade-partner" type="carrier" x-model="form.carrier_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'carrier_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Agent Ref No.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="agent_ref_no" class="form-control-gf" x-model="form.agent_ref_no">
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Direct Master</label>
-                        <div class="form-input-container">
-                            <input type="checkbox" name="is_direct_master" value="1" x-model="isDirectMaster">
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
-                        <label class="form-label-gf">Consignee</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="dm_consignee_id" :options="$agents" module="trade-partner" type="consignee" x-model="form.dm_consignee_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
                         <label class="form-label-gf">Sales Type</label>
                         <div class="form-input-container">
                             <select name="sales_type" class="form-control-gf" x-model="form.sales_type">
@@ -224,46 +237,8 @@
                             </select>
                         </div>
                     </div>
-                </div>
 
-                <!-- Column 4 -->
-                <div class="flex flex-col">
                     <div class="form-group-gf">
-                        <label class="form-label-gf">B/L Type</label>
-                        <div class="form-input-container">
-                            <select name="bl_type" class="form-control-gf" x-model="form.bl_type">
-                                <option value="">Select...</option>
-                                <option value="NORMAL">NORMAL</option>
-                                <option value="MEMO">MEMO</option>
-                                <option value="SEA WAYBILL">SEA WAYBILL</option>
-                                <option value="SURRENDERED">SURRENDERED</option>
-                                <option value="TELEX">TELEX</option>
-                            </select>
-                        </div>
-                    </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Acct. Carrier</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="acct_carrier_id" :options="$agents" module="trade-partner" type="carrier" x-model="form.acct_carrier_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'acct_carrier_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Sub B/L No.</label>
-                        <div class="form-input-container">
-                            <input type="text" name="sub_bl_no" class="form-control-gf" x-model="form.sub_bl_no">
-                        </div>
-                    </div>
-                    <div class="form-group-gf" style="height: 19px;"></div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
-                        <label class="form-label-gf">Notify</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="dm_notify_id" :options="$agents" module="trade-partner" type="notify" x-model="form.dm_notify_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
-                    </div>
-                    <div class="form-group-gf" x-show="isDirectMaster">
                         <label class="form-label-gf">Cargo Type</label>
                         <div class="form-input-container">
                             <select name="cargo_type" class="form-control-gf" x-model="form.cargo_type">
@@ -276,6 +251,9 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-group-gf"></div>
+                    <div class="form-group-gf"></div>
+                    <div class="form-group-gf"></div>
                 </div>
             </div>
             <!-- LOGISTICS & ROUTING GRID -->
@@ -549,127 +527,89 @@
                 </div>
             </div>
 
-            <!-- FREIGHT & SERVICE TERMS GRID -->
+            <!-- Hidden Freight Fields Preserved for Backend -->
+            <div style="display: none;">
+                <input type="hidden" name="latest_gate_in" x-model="form.latest_gate_in">
+                <input type="hidden" name="business_referred_by_id" x-model="form.business_referred_by_id">
+            </div>
+
+            <!-- FREIGHT & SERVICE TERMS GRID (Balanced 4-Column Layout) -->
             <div class="form-grid-4">
-                <!-- Column 1 -->
-                <div class="space-y-[4px]">
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Freight</label>
-                        <div class="form-input-container">
-                            <select name="freight_term" class="form-control-gf" x-model="form.freight_term">
-                                <option value="Prepaid">Prepaid</option>
-                                <option value="Collect">Collect</option>
-                            </select>
-                        </div>
+                <!-- Row 1 -->
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Freight</label>
+                    <div class="form-input-container">
+                        <select name="freight_term" class="form-control-gf" x-model="form.freight_term">
+                            <option value="Prepaid">Prepaid</option>
+                            <option value="Collect">Collect</option>
+                        </select>
                     </div>
-
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">OB/L Type</label>
-                        <div class="form-input-container">
-                            <select name="obl_type" class="form-control-gf" x-model="form.obl_type">
-                                <option value="ORIGINAL BILL OF LADING">ORIGINAL BILL OF LADING</option>
-                                <option value="SEA WAYBILL">SEA WAYBILL</option>
-                            </select>
-                        </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Ship Mode</label>
+                    <div class="form-input-container">
+                        <select name="ship_mode" class="form-control-gf" x-model="form.ship_mode">
+                            <option value="FCL">FCL</option>
+                            <option value="LCL">LCL</option>
+                        </select>
                     </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Latest Gate In</label>
-                        <div class="form-input-container">
-                            <input type="date" name="latest_gate_in" class="form-control-gf" x-model="form.latest_gate_in">
-                            <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i>
-                        </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Service Term</label>
+                    <div class="form-input-container">
+                        <select name="service_term_from_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_from_id">
+                            <option value="">Select...</option>
+                            @foreach($serviceTerms as $st)
+                                <option value="{{ $st->id }}">{{ $st->code }}</option>
+                            @endforeach
+                        </select>
+                        <span class="mx-1">~</span>
+                        <select name="service_term_to_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_to_id">
+                            <option value="">Select...</option>
+                            @foreach($serviceTerms as $st)
+                                <option value="{{ $st->id }}">{{ $st->code }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf">Container/Qty</label>
+                    <div class="form-input-container">
+                        <input type="text" class="form-control-gf" :value="form.containers.length + ' Container(s)'" readonly style="background: #f8fafc;">
                     </div>
                 </div>
 
-                <!-- Column 2 -->
-                <div class="space-y-[4px]">
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Ship Mode</label>
-                        <div class="form-input-container">
-                            <select name="ship_mode" class="form-control-gf" x-model="form.ship_mode">
-                                <option value="FCL">FCL</option>
-                                <option value="LCL">LCL</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">
-                            <input type="checkbox" name="is_obl_received" value="1" x-model="form.is_obl_received" class="mr-1"> OB/L Received
-                        </label>
-                        <div class="form-input-container">
-                            <input type="date" name="obl_received_date" class="form-control-gf" x-model="form.obl_received_date">
-                            <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i>
-                        </div>
+                <!-- Row 2 -->
+                <div class="form-group-gf">
+                    <label class="form-label-gf">OB/L Type</label>
+                    <div class="form-input-container">
+                        <select name="obl_type" class="form-control-gf" x-model="form.obl_type">
+                            <option value="ORIGINAL BILL OF LADING">ORIGINAL BILL OF LADING</option>
+                            <option value="SEA WAYBILL">SEA WAYBILL</option>
+                        </select>
                     </div>
                 </div>
-
-                <!-- Column 3 -->
-                <div class="space-y-[4px]">
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Service Term</label>
-                        <div class="form-input-container">
-                            <select name="service_term_from_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_from_id">
-                                <option value="">Select...</option>
-                                @foreach($serviceTerms as $st)
-                                    <option value="{{ $st->id }}">{{ $st->code }}</option>
-                                @endforeach
-                            </select>
-                            <span class="mx-1">~</span>
-                            <select name="service_term_to_id" class="form-control-gf" style="width: 45%;" x-model="form.service_term_to_id">
-                                <option value="">Select...</option>
-                                @foreach($serviceTerms as $st)
-                                    <option value="{{ $st->id }}">{{ $st->code }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                   <div class="form-group-gf">
-    <label class="form-label-gf">
-        <input
-            type="checkbox"
-            name="is_released"
-            value="1"
-            x-model="form.is_released"
-            class="mr-1"
-        >
-        Released Date
-    </label>
-
-    <div class="form-input-container">
-        <input
-            type="date"
-            name="released_date"
-            class="form-control-gf"
-            x-model="form.released_date"
-            :disabled="!form.is_released"
-        >
-
-        <i
-            class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer"
-            @click="if (form.is_released) $el.previousElementSibling.showPicker()"
-        ></i>
-    </div>
-</div>
-                </div>
-
-                <!-- Column 4 -->
-                <div class="space-y-[4px]">
-                    <div class="form-group-gf">
-                        <label class="form-label-gf">Container/Qty</label>
-                        <div class="form-input-container">
-                            <input type="text" class="form-control-gf" :value="form.containers.length + ' Container(s)'" readonly>
-                        </div>
-                    </div>
-                    <!-- Hidden per client instruction -->
-                    <div class="form-group-gf" style="display: none;">
-                        <label class="form-label-gf">Business Referred By</label>
-                        <div class="form-input-container">
-                            <x-inline-select name="business_referred_by_id" :options="$agents" module="trade-partner" type="customer" x-model="form.business_referred_by_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'business_referred_by_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                        </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf" style="display:flex; align-items:center; justify-content:flex-end; gap:3px;">
+                        <input type="checkbox" name="is_obl_received" value="1" x-model="form.is_obl_received" class="mr-1">
+                        <span>OB/L Received</span>
+                    </label>
+                    <div class="form-input-container">
+                        <input type="date" name="obl_received_date" class="form-control-gf" x-model="form.obl_received_date">
+                        <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="$el.previousElementSibling.showPicker()"></i>
                     </div>
                 </div>
+                <div class="form-group-gf">
+                    <label class="form-label-gf" style="display:flex; align-items:center; justify-content:flex-end; gap:3px;">
+                        <input type="checkbox" name="is_released" value="1" x-model="form.is_released" class="mr-1">
+                        <span>Released Date</span>
+                    </label>
+                    <div class="form-input-container">
+                        <input type="date" name="released_date" class="form-control-gf" x-model="form.released_date" :disabled="!form.is_released">
+                        <i class="fa fa-calendar text-[10px] text-gray-400 cursor-pointer" @click="if (form.is_released) $el.previousElementSibling.showPicker()"></i>
+                    </div>
+                </div>
+                <div class="form-group-gf"></div>
             </div>
 
             <!-- Hidden per client instruction: More toggle, Place of Receipt, Place of Receipt ETD, Return Location, E-Commerce, Internal Remarks -->
@@ -755,17 +695,17 @@
                     <div style="position: relative;" x-data="{ openHblMenu: false }" @click.away="openHblMenu = false">
                         <button type="button" @click="openHblMenu = !openHblMenu"
                             style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
-                            <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Tools <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                            <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Docs <i class="fa fa-angle-down" style="font-size: 10px;"></i>
                         </button>
                         <div x-show="openHblMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
                             <ul style="list-style: none; padding: 4px 0; margin: 0;">
-                                <li><button type="button" @click="toolsAction('copy_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
-                                <li><button type="button" @click="toolsAction('move_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
-                                <li><button type="button" @click="toolsAction('proof_of_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
-                                <li><button type="button" @click="toolsAction('release_order', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
-                                <li><button type="button" @click="toolsAction('carrier_certificate', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
-                                <li><button type="button" @click="toolsAction('pickup_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
-                                <li><button type="button" @click="toolsAction('forwarder_cargo_receipt', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
+                                <li><button type="button" @click="ToolsAction('copy_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
+                                <li><button type="button" @click="ToolsAction('move_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
+                                <li><button type="button" @click="ToolsAction('proof_of_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
+                                <li><button type="button" @click="ToolsAction('release_order', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock-alt" style="width:14px; text-align:center; margin-right:4px;"></i> Release Order</button></li>
+                                <li><button type="button" @click="ToolsAction('carrier_certificate', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-certificate" style="width:14px; text-align:center; margin-right:4px;"></i> Carrier Certificate</button></li>
+                                <li><button type="button" @click="ToolsAction('pickup_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Pickup &amp; Delivery Instr.</button></li>
+                                <li><button type="button" @click="ToolsAction('forwarder_cargo_receipt', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Forwarder Cargo Receipt</button></li>
                             </ul>
                         </div>
                     </div>

@@ -1837,7 +1837,7 @@
                 "parser"
             ],
             "support": {
-                "docs": "https://commonmark.thephpleague.com/",
+                "Tools": "https://commonmark.thephpleague.com/",
                 "forum": "https://github.com/thephpleague/commonmark/discussions",
                 "issues": "https://github.com/thephpleague/commonmark/issues",
                 "rss": "https://github.com/thephpleague/commonmark/releases.atom",
@@ -1924,7 +1924,7 @@
                 "schema"
             ],
             "support": {
-                "docs": "https://config.thephpleague.com/",
+                "Tools": "https://config.thephpleague.com/",
                 "issues": "https://github.com/thephpleague/config/issues",
                 "rss": "https://github.com/thephpleague/config/releases.atom",
                 "source": "https://github.com/thephpleague/config"
@@ -2163,7 +2163,7 @@
                 "ext-intl": "to handle IDN host with the best performance",
                 "ext-uri": "to use the PHP native URI class",
                 "jeremykendall/php-domain-parser": "to further parse the URI host and resolve its Public Suffix and Top Level Domain",
-                "league/uri-components": "to provide additional tools to manipulate URI objects components",
+                "league/uri-components": "to provide additional Tools to manipulate URI objects components",
                 "league/uri-polyfill": "to backport the PHP URI extension for older versions of PHP",
                 "php-64bit": "to improve IPV4 host parsing",
                 "rowbot/url": "to handle URLs using the WHATWG URL Living Standard specification",
@@ -2218,7 +2218,7 @@
                 "ws"
             ],
             "support": {
-                "docs": "https://uri.thephpleague.com",
+                "Tools": "https://uri.thephpleague.com",
                 "forum": "https://thephpleague.slack.com",
                 "issues": "https://github.com/thephpleague/uri-src/issues",
                 "source": "https://github.com/thephpleague/uri/tree/7.8.1"
@@ -2280,7 +2280,7 @@
                     "homepage": "https://nyamsprod.com"
                 }
             ],
-            "description": "Common tools for parsing and resolving RFC3987/RFC3986 URI",
+            "description": "Common Tools for parsing and resolving RFC3987/RFC3986 URI",
             "homepage": "https://uri.thephpleague.com",
             "keywords": [
                 "data-uri",
@@ -2302,7 +2302,7 @@
                 "ws"
             ],
             "support": {
-                "docs": "https://uri.thephpleague.com",
+                "Tools": "https://uri.thephpleague.com",
                 "forum": "https://thephpleague.slack.com",
                 "issues": "https://github.com/thephpleague/uri-src/issues",
                 "source": "https://github.com/thephpleague/uri-interfaces/tree/7.8.1"
@@ -2570,7 +2570,7 @@
                 "time"
             ],
             "support": {
-                "docs": "https://carbonphp.github.io/carbon/guide/getting-started/introduction.html",
+                "Tools": "https://carbonphp.github.io/carbon/guide/getting-started/introduction.html",
                 "issues": "https://github.com/CarbonPHP/carbon/issues",
                 "source": "https://github.com/CarbonPHP/carbon"
             },
@@ -3907,16 +3907,16 @@
             "time": "2026-04-17T11:37:58+00:00"
         },
         {
-            "name": "spatie/laravel-package-tools",
+            "name": "spatie/laravel-package-Tools",
             "version": "1.93.3",
             "source": {
                 "type": "git",
-                "url": "https://github.com/spatie/laravel-package-tools.git",
+                "url": "https://github.com/spatie/laravel-package-Tools.git",
                 "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/7aeef26bd8d4909bec744dbf47aee7d1395588c1",
+                "url": "https://api.github.com/repos/spatie/laravel-package-Tools/zipball/7aeef26bd8d4909bec744dbf47aee7d1395588c1",
                 "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1",
                 "shasum": ""
             },
@@ -3950,14 +3950,14 @@
                 }
             ],
             "description": "Tools for creating Laravel packages",
-            "homepage": "https://github.com/spatie/laravel-package-tools",
+            "homepage": "https://github.com/spatie/laravel-package-Tools",
             "keywords": [
-                "laravel-package-tools",
+                "laravel-package-Tools",
                 "spatie"
             ],
             "support": {
-                "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.3"
+                "issues": "https://github.com/spatie/laravel-package-Tools/issues",
+                "source": "https://github.com/spatie/laravel-package-Tools/tree/1.93.3"
             },
             "funding": [
                 {
@@ -3987,7 +3987,7 @@
                 "illuminate/contracts": "^12.0|^13.0",
                 "illuminate/database": "^12.0|^13.0",
                 "php": "^8.3",
-                "spatie/laravel-package-tools": "^1.0"
+                "spatie/laravel-package-Tools": "^1.0"
             },
             "require-dev": {
                 "larastan/larastan": "^3.9",
@@ -4424,7 +4424,7 @@
                     "homepage": "https://symfony.com/contributors"
                 }
             ],
-            "description": "Provides tools to manage errors and ease debugging PHP code",
+            "description": "Provides Tools to manage errors and ease debugging PHP code",
             "homepage": "https://symfony.com",
             "support": {
                 "source": "https://github.com/symfony/error-handler/tree/v7.4.8"
@@ -4509,7 +4509,7 @@
                     "homepage": "https://symfony.com/contributors"
                 }
             ],
-            "description": "Provides tools that allow your application components to communicate with each other by dispatching events and listening to them",
+            "description": "Provides Tools that allow your application components to communicate with each other by dispatching events and listening to them",
             "homepage": "https://symfony.com",
             "support": {
                 "source": "https://github.com/symfony/event-dispatcher/tree/v7.4.8"
@@ -6284,7 +6284,7 @@
                     "homepage": "https://symfony.com/contributors"
                 }
             ],
-            "description": "Provides tools to internationalize your application",
+            "description": "Provides Tools to internationalize your application",
             "homepage": "https://symfony.com",
             "support": {
                 "source": "https://github.com/symfony/translation/tree/v7.4.8"
@@ -7446,7 +7446,7 @@
                 "testing"
             ],
             "support": {
-                "docs": "https://docs.mockery.io/",
+                "Tools": "https://Tools.mockery.io/",
                 "issues": "https://github.com/mockery/mockery/issues",
                 "rss": "https://github.com/mockery/mockery/releases.atom",
                 "security": "https://github.com/mockery/mockery/security/advisories",

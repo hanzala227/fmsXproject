@@ -14,13 +14,13 @@ return new class extends Migration
         // 1. Add columns to ocean_export_hbls
         Schema::table('ocean_export_hbls', function (Blueprint $table) {
             if (!Schema::hasColumn('ocean_export_hbls', 'po_mapping_type')) {
-                $table->string('po_mapping_type')->default('container')->after('po_no');
+                $table->string('po_mapping_type')->default('container');
             }
             if (!Schema::hasColumn('ocean_export_hbls', 'hbl_mark')) {
-                $table->text('hbl_mark')->nullable()->after('po_mapping_type');
+                $table->text('hbl_mark')->nullable();
             }
             if (!Schema::hasColumn('ocean_export_hbls', 'hbl_description')) {
-                $table->text('hbl_description')->nullable()->after('hbl_mark');
+                $table->text('hbl_description')->nullable();
             }
         });
 

@@ -396,18 +396,17 @@
                                     <td class="sticky-col" style="left:190px;background:#eff6ff;">
                                         <input class="filter-input" data-col-idx="4" placeholder="Waybill…" oninput="applyFiltersTyping()" onkeyup="if(event.key==='Enter') applyFilters()" style="width:100%;">
                                     </td>
-                                    <td class="sticky-col" style="left:310px;background:#eff6ff;"></td>
                                     <td>
-                                        <select class="filter-select" data-col-idx="6" onchange="applyFilters()" style="width:100%;">
+                                        <select class="filter-select" data-col-idx="5" onchange="applyFilters()" style="width:100%;">
                                             <option value="">All Carriers</option>
                                             @foreach($carriers as $c)
                                                 <option value="{{ $c->id }}" {{ request('carrier_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td><input class="filter-input" data-col-idx="7" placeholder="Booking No…" oninput="applyFiltersTyping()" onkeyup="if(event.key==='Enter') applyFilters()" style="width:100%;"></td>
+                                    <td><input class="filter-input" data-col-idx="6" placeholder="Booking No…" oninput="applyFiltersTyping()" onkeyup="if(event.key==='Enter') applyFilters()" style="width:100%;"></td>
                                     <td>
-                                        <select class="filter-select" data-col-idx="8" onchange="applyFilters()" style="width:100%;">
+                                        <select class="filter-select" data-col-idx="7" onchange="applyFilters()" style="width:100%;">
                                             <option value="">All Offices</option>
                                             @foreach($offices as $o)
                                                 <option value="{{ $o->id }}" {{ request('office_id') == $o->id ? 'selected' : '' }}>{{ $o->name }}</option>
@@ -468,7 +467,7 @@
                                 </tr>
                                 @empty
                                 <tr id="empty-row">
-                                    <td colspan="11" style="text-align:center;padding:30px 10px;color:#94a3b8;">
+                                    <td colspan="10" style="text-align:center;padding:30px 10px;color:#94a3b8;">
                                         <i class="fa fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>
                                         No MAWB stocks found.
                                     </td>
@@ -658,13 +657,13 @@
         var waybill = document.querySelector('#filter-row input[data-col-idx="4"]')?.value?.trim() || '';
         if (waybill) url.searchParams.set('search', waybill); // Use 'search' param for waybill
         
-        var carrier = document.querySelector('#filter-row select[data-col-idx="6"]')?.value || '';
+        var carrier = document.querySelector('#filter-row select[data-col-idx="5"]')?.value || '';
         if (carrier) url.searchParams.set('carrier_id', carrier);
         
-        var fileNo = document.querySelector('#filter-row input[data-col-idx="7"]')?.value?.trim() || '';
+        var fileNo = document.querySelector('#filter-row input[data-col-idx="6"]')?.value?.trim() || '';
         if (fileNo) url.searchParams.set('search', fileNo); // Use 'search' param for file_no
         
-        var office = document.querySelector('#filter-row select[data-col-idx="8"]')?.value || '';
+        var office = document.querySelector('#filter-row select[data-col-idx="7"]')?.value || '';
         if (office) url.searchParams.set('office_id', office);
         
         window.history.replaceState({}, '', url.toString());
@@ -672,14 +671,15 @@
     }
 
     /* ---------- Config ---------- */
-    var PINNED_COLS = ['check', 'lock', 'status', 'prefix', 'waybill', 'color'];
+    var PINNED_COLS = ['check', 'lock', 'status', 'prefix', 'waybill'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');
         var btn = document.getElementById('btn-config');
+        if (!panel) return;
         var open = panel.style.display !== 'none';
         panel.style.display = open ? 'none' : 'block';
-        btn.classList.toggle('active', !open);
+        if (btn) btn.classList.toggle('active', !open);
         if (!open) buildConfigPanel();
     }
 
@@ -714,7 +714,7 @@
     document.addEventListener('click', function(e) {
         var panel = document.getElementById('config-panel');
         var btn = document.getElementById('btn-config');
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+        if (panel && btn && panel.style && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
             panel.style.display = 'none';
             btn.classList.remove('active');
         }
