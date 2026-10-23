@@ -38,8 +38,8 @@
     <nav class="fx-nav menu">
         @foreach ($menu as $m)
             @php
-                $active = Route::has($m[2]) && request()->routeIs($m[2] . '*');
-                $href   = $m[2] ?: '#';
+                $active = request()->is('client-portal/' . $m[2] . '*');
+                $href   = $m[2] ? url('client-portal/' . $m[2]) : '#';
                 $hasSub = !empty($m[4]) && !empty($m[5]);
             @endphp
 
@@ -117,8 +117,8 @@
             @endphp
    @foreach ($menu as $m)
             @php
-                $active = Route::has($m[2]) && request()->routeIs($m[2] . '*');
-                $href   = $m[2] ?: '#';
+                $active = request()->is('client-portal/' . $m[2] . '*');
+                $href   = $m[2] ? url('client-portal/' . $m[2]) : '#';
                 $hasSub = !empty($m[4]) && !empty($m[5]);
             @endphp
 

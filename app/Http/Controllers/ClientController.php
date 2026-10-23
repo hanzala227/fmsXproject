@@ -17,13 +17,18 @@ class ClientController extends Controller
     /**
      * Display a listing of the resource.
      */
-        public function index()
+    public function index()
     {
         $loggedInUser = auth()->user();
 
         $companyId = $loggedInUser->company_id;
         $customerId = $loggedInUser->trade_partner_id;
 
+        $filterClosure = function ($q) use ($customerId) {
+            $q->where('dm_customer_id', $customerId)
+              ->orWhere('dm_shipper_id', $customerId)
+              ->orWhere('dm_consignee_id', $customerId);
+        };
 
         /*
         |--------------------------------------------------------------------------
@@ -32,7 +37,8 @@ class ClientController extends Controller
         */
 
         $airImports = AirImport::where('company_id', $companyId)
-            ->where('dm_customer_id', $customerId)
+            ->where($filterClosure)
+            ->with(['depPort', 'dstPort', 'carrier'])
             ->latest()
             ->get();
 
@@ -44,7 +50,8 @@ class ClientController extends Controller
         */
 
         $airExports = AirExport::where('company_id', $companyId)
-            ->where('dm_customer_id', $customerId)
+            ->where($filterClosure)
+            ->with(['depPort', 'dstPort', 'carrier'])
             ->latest()
             ->get();
 
@@ -56,7 +63,8 @@ class ClientController extends Controller
         */
 
         $oceanImports = OceanImport::where('company_id', $companyId)
-            ->where('dm_customer_id', $customerId)
+            ->where($filterClosure)
+            ->with(['portOfLoading', 'portOfDischarge', 'vessel', 'carrier'])
             ->latest()
             ->get();
 
@@ -68,7 +76,8 @@ class ClientController extends Controller
         */
 
         $oceanExports = OceanExport::where('company_id', $companyId)
-            ->where('dm_customer_id', $customerId)
+            ->where($filterClosure)
+            ->with(['portOfLoading', 'portOfDischarge', 'vessel', 'carrier'])
             ->latest()
             ->get();
 
@@ -83,21 +92,25 @@ class ClientController extends Controller
 
         foreach ($airImports as $shipment) {
             $shipment->shipment_mode = 'Air Import';
+            if (empty($shipment->status)) $shipment->status = 'In Transit';
             $allShipments->push($shipment);
         }
 
         foreach ($airExports as $shipment) {
             $shipment->shipment_mode = 'Air Export';
+            if (empty($shipment->status)) $shipment->status = 'In Transit';
             $allShipments->push($shipment);
         }
 
         foreach ($oceanImports as $shipment) {
             $shipment->shipment_mode = 'Ocean Import';
+            if (empty($shipment->status)) $shipment->status = 'In Transit';
             $allShipments->push($shipment);
         }
 
         foreach ($oceanExports as $shipment) {
             $shipment->shipment_mode = 'Ocean Export';
+            if (empty($shipment->status)) $shipment->status = 'In Transit';
             $allShipments->push($shipment);
         }
 
@@ -230,9 +243,10 @@ class ClientController extends Controller
 
         $overdueInvoiceAmount = $invoices
             ->filter(function ($invoice) {
-
-                return strtolower($invoice->status ?? '') === 'overdue';
-
+                return strtolower($invoice->status ?? '') !== 'paid'
+                    && !empty($invoice->due_date)
+                    && \Carbon\Carbon::parse($invoice->due_date)->lt(today())
+                    && (float) ($invoice->balance_amount ?? 0) > 0;
             })
             ->sum('balance_amount');
 
