@@ -846,21 +846,36 @@
                 aiPreviewMode: false,
                 isAiProcessing: false,
                 documentPreviewUrl: '',
+                uploadedDocs: [],
+                activeDocIndex: 0,
                 aiError: '',
                 extractedData: [],
 
-                // --- AI Auto-Fill Logic ---
+                // --- AI Auto-Fill Logic (Supports Multi-File: PDF + PDF, JPG + PDF, JPG + JPG) ---
                 handleAiUpload(e) {
-                    if (!e.target.files.length) return;
+                    if (!e.target.files || !e.target.files.length) return;
                     
-                    const file = e.target.files[0];
+                    const files = Array.from(e.target.files);
                     const formData = new FormData();
-                    formData.append('document', file);
                     
-                    if (this.documentPreviewUrl) {
-                        URL.revokeObjectURL(this.documentPreviewUrl);
+                    if (this.uploadedDocs && this.uploadedDocs.length) {
+                        this.uploadedDocs.forEach(d => URL.revokeObjectURL(d.url));
                     }
-                    this.documentPreviewUrl = URL.createObjectURL(file);
+                    this.uploadedDocs = [];
+                    
+                    files.forEach(file => {
+                        formData.append('documents[]', file);
+                        const isPdf = file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+                        this.uploadedDocs.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(0) + ' KB',
+                            url: URL.createObjectURL(file),
+                            isPdf: isPdf
+                        });
+                    });
+                    
+                    this.activeDocIndex = 0;
+                    this.documentPreviewUrl = this.uploadedDocs[0].url;
                     
                     this.isAiProcessing = true;
                     this.aiPreviewMode = true;
@@ -925,6 +940,7 @@
                                 { label: 'Cargo Description', key: 'description', val: m.description },
                                 { label: 'ETA', key: 'eta', val: m.eta },
                                 { label: 'ETD', key: 'etd', val: m.etd },
+                                { label: 'Incoterm', key: 'incoterm_id', val: m.incoterm_id, display: m.incoterm_name || m.incoterm, nameKey: 'incoterm_name' },
                             ];
                             
                             mblMap.forEach(field => {
@@ -958,6 +974,7 @@
                                     { label: `${hPrefix}Pieces`, key: 'pkg_qty', val: h.pieces || h.pkg_qty },
                                     { label: `${hPrefix}Departure`, key: 'departure', val: h.departure_id || h.departure_name, display: h.departure_name },
                                     { label: `${hPrefix}Destination`, key: 'destination', val: h.destination_id || h.destination_name, display: h.destination_name },
+                                    { label: `${hPrefix}Incoterms`, key: 'incoterms_id', val: h.incoterm_id || h.incoterm_code || h.incoterm, display: h.incoterm_name || h.incoterm },
                                     { label: `${hPrefix}Nature of Goods`, key: 'description', val: h.description },
                                 ];
                                 
@@ -1205,6 +1222,9 @@
                             this.form.internal_remark = m.description;
                             this.form.memo = m.description;
                         }
+                        if (m.incoterm_id) {
+                            this.form.incoterm_id = m.incoterm_id;
+                        }
                     }
 
                     // 2. Routes Mapping
@@ -1342,6 +1362,9 @@
                             targetHawb.op = this.form.op || '';
                             targetHawb.sales_type = this.form.sales_type || '';
                             targetHawb.ship_type = this.form.ship_type || 'NORMAL';
+                            if (h.incoterms_id) {
+                                targetHawb.incoterms_id = h.incoterms_id;
+                            }
                             if (h.description) {
                                 targetHawb.commodities = [{
                                     description: h.description,

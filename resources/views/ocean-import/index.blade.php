@@ -48,6 +48,8 @@
                 isAiProcessing: false,
                 aiPreviewMode: false,
                 documentPreviewUrl: '',
+                uploadedDocs: [],
+                activeDocIndex: 0,
                 extractedData: [],
                 aiError: '',
                 showCopyModal: false,
@@ -807,19 +809,31 @@
                         }
                     });
                 },
-                // --- AI Auto-Fill Logic ---
+                // --- AI Auto-Fill Logic (Supports Multi-File: PDF + PDF, JPG + PDF, JPG + JPG) ---
                 handleAiUpload(e) {
-                    if (!e.target.files.length) return;
+                    if (!e.target.files || !e.target.files.length) return;
                     
-                    const file = e.target.files[0];
+                    const files = Array.from(e.target.files);
                     const formData = new FormData();
-                    formData.append('document', file);
                     
-                    // Create preview URL
-                    if (this.documentPreviewUrl) {
-                        URL.revokeObjectURL(this.documentPreviewUrl);
+                    if (this.uploadedDocs && this.uploadedDocs.length) {
+                        this.uploadedDocs.forEach(d => URL.revokeObjectURL(d.url));
                     }
-                    this.documentPreviewUrl = URL.createObjectURL(file);
+                    this.uploadedDocs = [];
+                    
+                    files.forEach(file => {
+                        formData.append('documents[]', file);
+                        const isPdf = file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+                        this.uploadedDocs.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(0) + ' KB',
+                            url: URL.createObjectURL(file),
+                            isPdf: isPdf
+                        });
+                    });
+                    
+                    this.activeDocIndex = 0;
+                    this.documentPreviewUrl = this.uploadedDocs[0].url;
                     
                     this.isAiProcessing = true;
                     this.aiPreviewMode = true;
@@ -881,6 +895,7 @@
                                 { label: 'Description', key: 'description', val: m.description },
                                 { label: 'ETA', key: 'eta', val: m.eta },
                                 { label: 'ETD', key: 'etd', val: m.etd },
+                                { label: 'Incoterm', key: 'incoterm_id', val: m.incoterm_id, display: m.incoterm_name || m.incoterm, nameKey: 'incoterm_name' },
                             ];
                             
                             mblMap.forEach(field => {
@@ -920,6 +935,7 @@
                                 { label: 'Gross Weight', key: 'weight', val: h.weight },
                                 { label: 'Volume (CBM)', key: 'volume', val: h.volume },
                                 { label: 'Pieces', key: 'pieces', val: h.pieces },
+                                { label: 'Incoterms', key: 'incoterms_id', val: h.incoterm_code || h.incoterms_id || h.incoterm, display: h.incoterm_name || h.incoterm },
                             ];
                             
                             hblMap.forEach(field => {
@@ -1100,6 +1116,7 @@
                             {id: 'cfs_location_id', name: 'cfs_location_name', fallback: 'CFS Location'},
                             {id: 'business_referred_by_id', name: 'business_referred_by_name', fallback: 'Referred By'},
                             {id: 'vessel_id', name: 'vessel_name', fallback: 'Vessel'},
+                            {id: 'incoterm_id', name: 'incoterm_name', fallback: 'Incoterm'},
                         ];
                         
                         mblFks.forEach(fk => {
@@ -1233,6 +1250,9 @@
                         if (hbl.fdest_id) {
                             ensureOptionExists('fdest_id', hbl.fdest_id, hbl.fdest_name || 'Final Dest');
                             this.hbls[0].fdest_id = hbl.fdest_id;
+                        }
+                        if (hbl.incoterms_id) {
+                            this.hbls[0].incoterms_id = hbl.incoterms_id;
                         }
                     }
 

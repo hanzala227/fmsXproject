@@ -143,96 +143,200 @@ class AiExtractionController extends Controller
         }
     }
 
-    // Helper to get or create a TradePartner
-    private function getOrCreateTradePartner($name)
+    // Helper to get or create a TradePartner with Multi-Tenant Isolation
+    private function getOrCreateTradePartner($name, $preferredType = 'AGENT')
     {
         if (empty($name) || !is_string($name)) return null;
         $name = trim($name);
         if ($name === '') return null;
 
-        // 1. Exact match on name or alias
-        $tp = \App\Models\TradePartner::where('name', $name)
-            ->orWhere('alias', $name)
-            ->orWhere('print_name', $name)
+        $companyId = auth()->user()->company_id ?? 1;
+
+        // 1. Exact match within company
+        $tp = \App\Models\TradePartner::where('company_id', $companyId)
+            ->where(function($q) use ($name) {
+                $q->where('name', $name)
+                  ->orWhere('alias', $name)
+                  ->orWhere('print_name', $name);
+            })
             ->first();
         if ($tp) return $tp->id;
 
-        // 2. Try match on leading company name token (e.g. "Emirates" from "Emirates Airline Cargo")
+        // 2. Fuzzy match on significant token (>= 4 chars) within company
         $firstWord = trim(explode(' ', $name)[0]);
-        if (strlen($firstWord) >= 3) {
-            $tp = \App\Models\TradePartner::where('name', 'like', '%' . $firstWord . '%')->first();
+        if (strlen($firstWord) >= 4) {
+            $tp = \App\Models\TradePartner::where('company_id', $companyId)
+                ->where('name', 'like', '%' . $firstWord . '%')
+                ->first();
             if ($tp) return $tp->id;
         }
 
-        // 3. Create new with unique code
+        // 3. Fallback check across all partners if not found in company (shared global carriers/airlines)
+        $globalTp = \App\Models\TradePartner::where(function($q) use ($name) {
+                $q->where('name', $name)
+                  ->orWhere('alias', $name);
+            })
+            ->first();
+        if ($globalTp) return $globalTp->id;
+
+        // 4. Create new partner safely under the logged in company
         $cleanLetters = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $name));
         $prefix = substr($cleanLetters, 0, 3);
         if (strlen($prefix) < 2) $prefix = 'TP';
 
         $code = $prefix . rand(1000, 9999);
         $attempts = 0;
-        while (\App\Models\TradePartner::withTrashed()->where('code', $code)->exists() && $attempts < 50) {
+        while (\App\Models\TradePartner::withTrashed()->where('company_id', $companyId)->where('code', $code)->exists() && $attempts < 50) {
             $code = $prefix . rand(1000, 9999);
             $attempts++;
         }
 
         try {
             $tp = \App\Models\TradePartner::create([
+                'company_id' => $companyId,
                 'name' => $name,
                 'code' => $code,
-                'type' => 'AGENT'
+                'type' => $preferredType
             ]);
             return $tp->id;
         } catch (\Throwable $e) {
-            $fallback = \App\Models\TradePartner::where('code', $code)->first() ?? \App\Models\TradePartner::first();
+            $fallback = \App\Models\TradePartner::where('company_id', $companyId)->first() ?? \App\Models\TradePartner::first();
             return $fallback ? $fallback->id : null;
         }
     }
 
-    // Helper to find a User
+    // Helper to find a User within current company
     private function getUser($name)
     {
         if (empty($name) || !is_string($name)) return null;
         $name = trim($name);
         if ($name === '') return null;
 
-        $user = \App\Models\User::where('name', $name)->first();
+        $companyId = auth()->user()->company_id ?? 1;
+
+        $user = \App\Models\User::where('company_id', $companyId)->where('name', $name)->first();
         if ($user) return $user->id;
 
         $search = trim(explode(' ', $name)[0]);
         if (strlen($search) >= 2) {
-            $user = \App\Models\User::where('name', 'like', '%' . $search . '%')->first();
+            $user = \App\Models\User::where('company_id', $companyId)->where('name', 'like', '%' . $search . '%')->first();
             if ($user) return $user->id;
         }
         return null;
     }
 
-    // Helper to find ContainerType
+    // Helper to find ContainerType with ISO Equipment Code Normalizer
     private function getContainerType($name)
     {
         if (empty($name)) return null;
-        $search = trim($name);
-        $ct = \App\Models\ContainerType::where('name', 'like', '%' . $search . '%')->first();
+        $raw = strtoupper(trim($name));
+        
+        // 1. Direct ISO dictionary lookup
+        $isoMap = [
+            '20GP' => '20GP', '20DC' => '20DC', '20DV' => '20GP', '20FT' => '20GP', '20 STANDARD' => '20GP', '22G1' => '20GP',
+            '40GP' => '40GP', '40DC' => '40DC', '40DV' => '40GP', '40FT' => '40GP', '40 STANDARD' => '40GP', '42G1' => '40GP',
+            '40HC' => '40HC', '40HQ' => '40HQ', '40 HIGH CUBE' => '40HQ', '40HIGHCUBE' => '40HQ', '45G1' => '40HC',
+            '45HC' => '45HC', '45HQ' => '45HQ', '45 HIGH CUBE' => '45HQ',
+            '20RF' => '20RF', '20 REEFER' => '20RF', '40RF' => '40RF', '40 REEFER' => '40RF',
+            '20OT' => '20OT', '20 OPEN TOP' => '20OT', '40OT' => '40OT', '40 OPEN TOP' => '40OT',
+            '20FR' => '20FR', '20 FLAT RACK' => '20FR', '40FR' => '40FR', '40 FLAT RACK' => '40FR',
+            '20TK' => '20TK', '20 TANK' => '20TK', '40TK' => '40TK',
+        ];
+
+        // Clean input of quotes, dashes, spaces
+        $normalized = str_replace(["'", '"', '-', '_', ' '], '', $raw);
+        if (isset($isoMap[$normalized])) {
+            $mappedCode = $isoMap[$normalized];
+            $ct = \App\Models\ContainerType::where('code', $mappedCode)->orWhere('name', $mappedCode)->first();
+            if ($ct) return $ct->id;
+        }
+
+        // Try exact code or name
+        $ct = \App\Models\ContainerType::where('code', $raw)->orWhere('name', $raw)->first();
+        if ($ct) return $ct->id;
+
+        // Try contains like
+        $ct = \App\Models\ContainerType::where('name', 'like', '%' . $raw . '%')
+            ->orWhere('description', 'like', '%' . $raw . '%')
+            ->first();
         return $ct ? $ct->id : null;
     }
 
+    // Helper to find PackageUnit (UNECE Rec 21 Standard)
+    private function getPackageUnitId($name)
+    {
+        if (empty($name)) return null;
+        $raw = strtoupper(trim($name));
+
+        $unitMap = [
+            'CTN' => 'CTN', 'CARTON' => 'CTN', 'CARTONS' => 'CTN', 'BOX' => 'CTN', 'BOXES' => 'CTN',
+            'PLT' => 'PLT', 'PALLET' => 'PLT', 'PALLETS' => 'PLT', 'SKID' => 'PLT', 'SKIDS' => 'PLT',
+            'PCS' => 'PCS', 'PIECE' => 'PCS', 'PIECES' => 'PCS', 'UNIT' => 'PCS', 'UNITS' => 'PCS',
+            'PKG' => 'PKG', 'PACKAGE' => 'PKG', 'PACKAGES' => 'PKG', 'PKGS' => 'PKG',
+            'DRUM' => 'DRUM', 'DRUMS' => 'DRUM', 'BAG' => 'BAG', 'BAGS' => 'BAG',
+        ];
+
+        $target = $unitMap[$raw] ?? $raw;
+        $unit = \App\Models\PackageUnit::where('code', $target)->orWhere('name', 'like', '%' . $target . '%')->first();
+        if ($unit) return $unit->id;
+
+        $first = \App\Models\PackageUnit::first();
+        return $first ? $first->id : null;
+    }
+
     // Helper to find Incoterm
-    private function getIncotermId($name)
+    private function getIncoterm($name)
     {
         if (empty($name)) return null;
         $search = strtoupper(trim($name));
-        $inco = \App\Models\Incoterm::where('code', $search)->orWhere('name', 'like', '%' . $search . '%')->first();
+        return \App\Models\Incoterm::where('code', $search)->orWhere('name', 'like', '%' . $search . '%')->first();
+    }
+
+    private function getIncotermId($name)
+    {
+        $inco = $this->getIncoterm($name);
         return $inco ? $inco->id : null;
+    }
+
+    // Helper to sanitize & format IATA MAWB numbers (e.g. 176-12345675)
+    private function sanitizeMawbNumber($raw)
+    {
+        if (empty($raw)) return null;
+        $clean = preg_replace('/[^0-9]/', '', (string)$raw);
+        if (strlen($clean) === 11) {
+            return substr($clean, 0, 3) . '-' . substr($clean, 3);
+        }
+        return trim((string)$raw);
+    }
+
+    // Helper to resolve multiple or single uploaded files
+    private function resolveUploadedFiles(Request $request): array
+    {
+        $request->validate([
+            'documents'   => 'nullable|array|max:10',
+            'documents.*' => 'file|mimes:pdf,txt,csv,jpg,jpeg,png,webp|max:15360',
+            'document'    => 'nullable|file|mimes:pdf,txt,csv,jpg,jpeg,png,webp|max:15360',
+        ]);
+
+        $files = [];
+        if ($request->hasFile('documents')) {
+            $files = $request->file('documents');
+        } elseif ($request->hasFile('document')) {
+            $files = [$request->file('document')];
+        }
+
+        if (empty($files)) {
+            throw new Exception("Please upload at least one valid document (PDF, JPG, PNG).");
+        }
+
+        return $files;
     }
 
     public function extractOceanImport(Request $request)
     {
-        $request->validate([
-            'document' => 'required|file|mimes:pdf,txt,csv|max:10240', // max 10MB
-        ]);
-
         try {
-            $data = $this->aiService->extractData($request->file('document'), 'ocean_import');
+            $files = $this->resolveUploadedFiles($request);
+            $data = $this->aiService->extractData($files, 'ocean_import');
 
             // --- Database Mapping (Jugaar) ---
             if (isset($data['mbl'])) {
@@ -256,6 +360,16 @@ class AiExtractionController extends Controller
                 if (!empty($data['mbl']['cfs_location_name'])) $data['mbl']['cfs_location_id'] = $this->getOrCreateTradePartner($data['mbl']['cfs_location_name']);
                 if (!empty($data['mbl']['business_referred_by_name'])) $data['mbl']['business_referred_by_id'] = $this->getOrCreateTradePartner($data['mbl']['business_referred_by_name']);
                 
+                // Incoterm
+                if (!empty($data['mbl']['incoterm'])) {
+                    $inco = $this->getIncoterm($data['mbl']['incoterm']);
+                    if ($inco) {
+                        $data['mbl']['incoterm_id'] = $inco->id;
+                        $data['mbl']['incoterm_code'] = $inco->code;
+                        $data['mbl']['incoterm_name'] = $inco->code . ' - ' . $inco->name;
+                    }
+                }
+                
                 // Vessel
                 if (!empty($data['mbl']['vessel_name'])) {
                     $vName = trim(explode('/', $data['mbl']['vessel_name'])[0]);
@@ -275,6 +389,15 @@ class AiExtractionController extends Controller
                     if (!empty($hbl['customer_name'])) $hbl['customer_id'] = $this->getOrCreateTradePartner($hbl['customer_name']);
                     if (!empty($hbl['sales_person_name'])) $hbl['sales_person_id'] = $this->getOrCreateTradePartner($hbl['sales_person_name']);
                     if (!empty($hbl['forwarding_agent_name'])) $hbl['forwarding_agent_id'] = $this->getOrCreateTradePartner($hbl['forwarding_agent_name']);
+                    if (!empty($hbl['incoterm'])) {
+                        $inco = $this->getIncoterm($hbl['incoterm']);
+                        if ($inco) {
+                            $hbl['incoterm_id'] = $inco->id;
+                            $hbl['incoterm_code'] = $inco->code;
+                            $hbl['incoterm_name'] = $inco->code . ' - ' . $inco->name;
+                            $hbl['incoterms_id'] = $inco->code;
+                        }
+                    }
                 }
             }
 
@@ -288,6 +411,7 @@ class AiExtractionController extends Controller
             if (isset($data['containers']) && is_array($data['containers'])) {
                 foreach ($data['containers'] as &$container) {
                     if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
+                    if (!empty($container['package_unit'])) $container['package_unit_id'] = $this->getPackageUnitId($container['package_unit']);
                 }
             }
             
@@ -308,12 +432,9 @@ class AiExtractionController extends Controller
 
     public function extractOceanExport(Request $request)
     {
-        $request->validate([
-            'document' => 'required|file|mimes:pdf,txt,csv|max:10240', // max 10MB
-        ]);
-
         try {
-            $data = $this->aiService->extractData($request->file('document'), 'ocean_export');
+            $files = $this->resolveUploadedFiles($request);
+            $data = $this->aiService->extractData($files, 'ocean_export');
 
             // --- Database Mapping (Jugaar) ---
             if (isset($data['mbl'])) {
@@ -343,6 +464,16 @@ class AiExtractionController extends Controller
                 if (!empty($data['mbl']['empty_pickup_name'])) $data['mbl']['empty_pickup_id'] = $this->getOrCreateTradePartner($data['mbl']['empty_pickup_name']);
                 if (!empty($data['mbl']['delivery_location_name'])) $data['mbl']['delivery_location_id'] = $this->getOrCreateTradePartner($data['mbl']['delivery_location_name']);
 
+                // Incoterm
+                if (!empty($data['mbl']['incoterm'])) {
+                    $inco = $this->getIncoterm($data['mbl']['incoterm']);
+                    if ($inco) {
+                        $data['mbl']['incoterm_id'] = $inco->id;
+                        $data['mbl']['incoterm_code'] = $inco->code;
+                        $data['mbl']['incoterm_name'] = $inco->code . ' - ' . $inco->name;
+                    }
+                }
+
                 // Vessel
                 if (!empty($data['mbl']['vessel_name'])) {
                     $vName = trim(explode('/', $data['mbl']['vessel_name'])[0]);
@@ -362,6 +493,15 @@ class AiExtractionController extends Controller
                     if (!empty($hbl['customer_name'])) $hbl['customer_id'] = $this->getOrCreateTradePartner($hbl['customer_name']);
                     if (!empty($hbl['sales_person_name'])) $hbl['sales_person_id'] = $this->getOrCreateTradePartner($hbl['sales_person_name']);
                     if (!empty($hbl['forwarding_agent_name'])) $hbl['forwarding_agent_id'] = $this->getOrCreateTradePartner($hbl['forwarding_agent_name']);
+                    if (!empty($hbl['incoterm'])) {
+                        $inco = $this->getIncoterm($hbl['incoterm']);
+                        if ($inco) {
+                            $hbl['incoterm_id'] = $inco->id;
+                            $hbl['incoterm_code'] = $inco->code;
+                            $hbl['incoterm_name'] = $inco->code . ' - ' . $inco->name;
+                            $hbl['incoterms_id'] = $inco->code;
+                        }
+                    }
                     
                     if (!empty($hbl['pol_name'])) $hbl['pol_id'] = $this->getOrCreatePort($hbl['pol_name']);
                     if (!empty($hbl['pod_name'])) $hbl['pod_id'] = $this->getOrCreatePort($hbl['pod_name']);
@@ -381,6 +521,7 @@ class AiExtractionController extends Controller
             if (isset($data['containers']) && is_array($data['containers'])) {
                 foreach ($data['containers'] as &$container) {
                     if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
+                    if (!empty($container['package_unit'])) $container['package_unit_id'] = $this->getPackageUnitId($container['package_unit']);
                 }
             }
             
@@ -401,18 +542,19 @@ class AiExtractionController extends Controller
 
     public function extractAirImport(Request $request)
     {
-        $request->validate([
-            'document' => 'required|file|mimes:pdf,txt,csv,jpg,jpeg,png,webp|max:10240', // max 10MB
-        ]);
-
         try {
-            $data = $this->aiService->extractData($request->file('document'), 'air_import');
+            $files = $this->resolveUploadedFiles($request);
+            $data = $this->aiService->extractData($files, 'air_import');
 
             if (isset($data['mbl'])) {
-                // Normalize MAWB / MBL number
+                // Normalize MAWB / MBL number & IATA 11-digit format (xxx-xxxxxxxx)
                 if (empty($data['mbl']['mawb_no']) && !empty($data['mbl']['mbl_no'])) {
                     $data['mbl']['mawb_no'] = $data['mbl']['mbl_no'];
                 } elseif (empty($data['mbl']['mbl_no']) && !empty($data['mbl']['mawb_no'])) {
+                    $data['mbl']['mbl_no'] = $data['mbl']['mawb_no'];
+                }
+                if (!empty($data['mbl']['mawb_no'])) {
+                    $data['mbl']['mawb_no'] = $this->sanitizeMawbNumber($data['mbl']['mawb_no']);
                     $data['mbl']['mbl_no'] = $data['mbl']['mawb_no'];
                 }
 
@@ -482,23 +624,36 @@ class AiExtractionController extends Controller
                 // Incoterms
                 $incoRaw = $data['mbl']['incoterms'] ?? $data['mbl']['incoterm'] ?? null;
                 if (!empty($incoRaw)) {
-                    $incoId = $this->getIncotermId($incoRaw);
-                    if ($incoId) {
-                        $data['mbl']['incoterm_id'] = $incoId;
+                    $inco = $this->getIncoterm($incoRaw);
+                    if ($inco) {
+                        $data['mbl']['incoterm_id'] = $inco->id;
+                        $data['mbl']['incoterm_code'] = $inco->code;
+                        $data['mbl']['incoterm_name'] = $inco->code . ' - ' . $inco->name;
                     }
                 }
 
-                // Normalize weights & packages on MBL
+                // Normalize IATA Air Freight weights & packages on MBL
                 if (empty($data['mbl']['gross_weight']) && !empty($data['mbl']['weight'])) {
                     $data['mbl']['gross_weight'] = $data['mbl']['weight'];
                 } elseif (empty($data['mbl']['weight']) && !empty($data['mbl']['gross_weight'])) {
                     $data['mbl']['weight'] = $data['mbl']['gross_weight'];
                 }
-                if (empty($data['mbl']['volume']) && !empty($data['mbl']['volume_weight'])) {
-                    $data['mbl']['volume'] = $data['mbl']['volume_weight'];
-                } elseif (empty($data['mbl']['volume_weight']) && !empty($data['mbl']['volume'])) {
-                    $data['mbl']['volume_weight'] = $data['mbl']['volume'];
+
+                if (!empty($data['mbl']['volume'])) {
+                    $cbm = (float)$data['mbl']['volume'];
+                    // IATA Standard: 1 CBM = 166.67 KG
+                    $calcVolW = round($cbm * 166.67, 2);
+                    if (empty($data['mbl']['volume_weight']) || (float)$data['mbl']['volume_weight'] == $cbm) {
+                        $data['mbl']['volume_weight'] = $calcVolW;
+                    }
                 }
+
+                $gross = (float)($data['mbl']['gross_weight'] ?? ($data['mbl']['weight'] ?? 0));
+                $volW = (float)($data['mbl']['volume_weight'] ?? 0);
+                if (empty($data['mbl']['chargeable_weight'])) {
+                    $data['mbl']['chargeable_weight'] = max($gross, $volW);
+                }
+
                 if (empty($data['mbl']['pieces']) && !empty($data['mbl']['pkg_qty'])) {
                     $data['mbl']['pieces'] = $data['mbl']['pkg_qty'];
                 } elseif (empty($data['mbl']['pkg_qty']) && !empty($data['mbl']['pieces'])) {
@@ -545,16 +700,25 @@ class AiExtractionController extends Controller
                         $hbl['hbl_no'] = $hbl['hawb_no'];
                     }
 
-                    // Normalize weights
+                    // Normalize IATA Air Freight weights on HBL
                     if (empty($hbl['gross_weight']) && !empty($hbl['weight'])) {
                         $hbl['gross_weight'] = $hbl['weight'];
                     } elseif (empty($hbl['weight']) && !empty($hbl['gross_weight'])) {
                         $hbl['weight'] = $hbl['gross_weight'];
                     }
-                    if (empty($hbl['volume_weight']) && !empty($hbl['volume'])) {
-                        $hbl['volume_weight'] = $hbl['volume'];
-                    } elseif (empty($hbl['volume']) && !empty($hbl['volume_weight'])) {
-                        $hbl['volume'] = $hbl['volume_weight'];
+
+                    if (!empty($hbl['volume'])) {
+                        $hCbm = (float)$hbl['volume'];
+                        $hCalcVolW = round($hCbm * 166.67, 2);
+                        if (empty($hbl['volume_weight']) || (float)$hbl['volume_weight'] == $hCbm) {
+                            $hbl['volume_weight'] = $hCalcVolW;
+                        }
+                    }
+
+                    $hGross = (float)($hbl['gross_weight'] ?? ($hbl['weight'] ?? 0));
+                    $hVolW = (float)($hbl['volume_weight'] ?? 0);
+                    if (empty($hbl['chargeable_weight'])) {
+                        $hbl['chargeable_weight'] = max($hGross, $hVolW);
                     }
 
                     if (!empty($hbl['shipper_name'])) $hbl['shipper_id'] = $this->getOrCreateTradePartner($hbl['shipper_name']);
@@ -590,18 +754,19 @@ class AiExtractionController extends Controller
 
     public function extractAirExport(Request $request)
     {
-        $request->validate([
-            'document' => 'required|file|mimes:pdf,txt,csv,jpg,jpeg,png,webp|max:10240', // max 10MB
-        ]);
-
         try {
-            $data = $this->aiService->extractData($request->file('document'), 'air_export');
+            $files = $this->resolveUploadedFiles($request);
+            $data = $this->aiService->extractData($files, 'air_export');
 
             if (isset($data['mbl'])) {
-                // Normalize MAWB / MBL number
+                // Normalize MAWB / MBL number & IATA 11-digit format (xxx-xxxxxxxx)
                 if (empty($data['mbl']['mawb_no']) && !empty($data['mbl']['mbl_no'])) {
                     $data['mbl']['mawb_no'] = $data['mbl']['mbl_no'];
                 } elseif (empty($data['mbl']['mbl_no']) && !empty($data['mbl']['mawb_no'])) {
+                    $data['mbl']['mbl_no'] = $data['mbl']['mawb_no'];
+                }
+                if (!empty($data['mbl']['mawb_no'])) {
+                    $data['mbl']['mawb_no'] = $this->sanitizeMawbNumber($data['mbl']['mawb_no']);
                     $data['mbl']['mbl_no'] = $data['mbl']['mawb_no'];
                 }
 
@@ -673,23 +838,36 @@ class AiExtractionController extends Controller
                 // Incoterms
                 $incoRaw = $data['mbl']['incoterms'] ?? $data['mbl']['incoterm'] ?? null;
                 if (!empty($incoRaw)) {
-                    $incoId = $this->getIncotermId($incoRaw);
-                    if ($incoId) {
-                        $data['mbl']['incoterm_id'] = $incoId;
+                    $inco = $this->getIncoterm($incoRaw);
+                    if ($inco) {
+                        $data['mbl']['incoterm_id'] = $inco->id;
+                        $data['mbl']['incoterm_code'] = $inco->code;
+                        $data['mbl']['incoterm_name'] = $inco->code . ' - ' . $inco->name;
                     }
                 }
 
-                // Normalize weights & packages on MBL
+                // Normalize IATA Air Freight weights & packages on MBL
                 if (empty($data['mbl']['gross_weight']) && !empty($data['mbl']['weight'])) {
                     $data['mbl']['gross_weight'] = $data['mbl']['weight'];
                 } elseif (empty($data['mbl']['weight']) && !empty($data['mbl']['gross_weight'])) {
                     $data['mbl']['weight'] = $data['mbl']['gross_weight'];
                 }
-                if (empty($data['mbl']['volume']) && !empty($data['mbl']['volume_weight'])) {
-                    $data['mbl']['volume'] = $data['mbl']['volume_weight'];
-                } elseif (empty($data['mbl']['volume_weight']) && !empty($data['mbl']['volume'])) {
-                    $data['mbl']['volume_weight'] = $data['mbl']['volume'];
+
+                if (!empty($data['mbl']['volume'])) {
+                    $cbm = (float)$data['mbl']['volume'];
+                    // IATA Standard: 1 CBM = 166.67 KG
+                    $calcVolW = round($cbm * 166.67, 2);
+                    if (empty($data['mbl']['volume_weight']) || (float)$data['mbl']['volume_weight'] == $cbm) {
+                        $data['mbl']['volume_weight'] = $calcVolW;
+                    }
                 }
+
+                $gross = (float)($data['mbl']['gross_weight'] ?? ($data['mbl']['weight'] ?? 0));
+                $volW = (float)($data['mbl']['volume_weight'] ?? 0);
+                if (empty($data['mbl']['chargeable_weight'])) {
+                    $data['mbl']['chargeable_weight'] = max($gross, $volW);
+                }
+
                 if (empty($data['mbl']['pieces']) && !empty($data['mbl']['pkg_qty'])) {
                     $data['mbl']['pieces'] = $data['mbl']['pkg_qty'];
                 } elseif (empty($data['mbl']['pkg_qty']) && !empty($data['mbl']['pieces'])) {
@@ -736,16 +914,25 @@ class AiExtractionController extends Controller
                         $hbl['hbl_no'] = $hbl['hawb_no'];
                     }
 
-                    // Normalize weights
+                    // Normalize IATA Air Freight weights on HBL
                     if (empty($hbl['gross_weight']) && !empty($hbl['weight'])) {
                         $hbl['gross_weight'] = $hbl['weight'];
                     } elseif (empty($hbl['weight']) && !empty($hbl['gross_weight'])) {
                         $hbl['weight'] = $hbl['gross_weight'];
                     }
-                    if (empty($hbl['volume_weight']) && !empty($hbl['volume'])) {
-                        $hbl['volume_weight'] = $hbl['volume'];
-                    } elseif (empty($hbl['volume']) && !empty($hbl['volume_weight'])) {
-                        $hbl['volume'] = $hbl['volume_weight'];
+
+                    if (!empty($hbl['volume'])) {
+                        $hCbm = (float)$hbl['volume'];
+                        $hCalcVolW = round($hCbm * 166.67, 2);
+                        if (empty($hbl['volume_weight']) || (float)$hbl['volume_weight'] == $hCbm) {
+                            $hbl['volume_weight'] = $hCalcVolW;
+                        }
+                    }
+
+                    $hGross = (float)($hbl['gross_weight'] ?? ($hbl['weight'] ?? 0));
+                    $hVolW = (float)($hbl['volume_weight'] ?? 0);
+                    if (empty($hbl['chargeable_weight'])) {
+                        $hbl['chargeable_weight'] = max($hGross, $hVolW);
                     }
 
                     if (!empty($hbl['shipper_name'])) $hbl['shipper_id'] = $this->getOrCreateTradePartner($hbl['shipper_name']);

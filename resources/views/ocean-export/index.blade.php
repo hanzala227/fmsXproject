@@ -56,6 +56,8 @@
                 aiLoading: false,
                 aiPreviewMode: false,
                 documentPreviewUrl: '',
+                uploadedDocs: [],
+                activeDocIndex: 0,
                 extractedData: [],
                 
                 // Initialize saved state based on whether we have an ID
@@ -655,23 +657,34 @@
                         carrier_id: ''
                     });
                 },
-                uploadAiDocument() {
+                uploadAiDocument(e) {
                     const fileInput = document.getElementById('aiDocumentFile');
-                    if (!fileInput.files.length) {
-                        if (typeof showToast === 'function') showToast('error', 'Please select a file first.');
-                        else alert('Please select a file first.');
+                    const files = e && e.target && e.target.files ? Array.from(e.target.files) : (fileInput && fileInput.files ? Array.from(fileInput.files) : []);
+                    if (!files.length) {
+                        if (typeof showToast === 'function') showToast('error', 'Please select at least one document.');
+                        else alert('Please select at least one document.');
                         return;
                     }
                     
-                    const file = fileInput.files[0];
                     const formData = new FormData();
-                    formData.append('document', file);
-                    
-                    // Create preview URL
-                    if (this.documentPreviewUrl) {
-                        URL.revokeObjectURL(this.documentPreviewUrl);
+                    if (this.uploadedDocs && this.uploadedDocs.length) {
+                        this.uploadedDocs.forEach(d => URL.revokeObjectURL(d.url));
                     }
-                    this.documentPreviewUrl = URL.createObjectURL(file);
+                    this.uploadedDocs = [];
+                    
+                    files.forEach(file => {
+                        formData.append('documents[]', file);
+                        const isPdf = file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+                        this.uploadedDocs.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(0) + ' KB',
+                            url: URL.createObjectURL(file),
+                            isPdf: isPdf
+                        });
+                    });
+                    
+                    this.activeDocIndex = 0;
+                    this.documentPreviewUrl = this.uploadedDocs[0].url;
                     
                     this.aiLoading = true;
                     this.aiPreviewMode = true;
@@ -712,6 +725,7 @@
                                     { label: 'Description', key: 'description', val: m.description },
                                     { label: 'ETA', key: 'eta', val: m.eta },
                                     { label: 'ETD', key: 'etd', val: m.etd },
+                                    { label: 'Incoterm', key: 'incoterm_id', val: m.incoterm_code || m.incoterm_id, display: m.incoterm_name || m.incoterm, nameKey: 'incoterm_name' },
                                 ];
                                 
                                 mblMap.forEach(field => {
@@ -751,6 +765,7 @@
                                     { label: 'Gross Weight', key: 'weight', val: h.weight },
                                     { label: 'Volume (CBM)', key: 'volume', val: h.volume },
                                     { label: 'Pieces', key: 'pieces', val: h.pieces },
+                                    { label: 'Incoterms', key: 'incoterms_id', val: h.incoterm_code || h.incoterms_id || h.incoterm, display: h.incoterm_name || h.incoterm },
                                 ];
                                 
                                 hblMap.forEach(field => {
@@ -922,6 +937,9 @@
                             this.form.is_released = 1;
                             this.form.released_date = data.mbl.released_date;
                         }
+                        if (data.mbl.incoterm_code || data.mbl.incoterm_id) {
+                            this.form.incoterm_id = data.mbl.incoterm_code || data.mbl.incoterm_id;
+                        }
 
                         // Foreign Keys (Jugaar)
                         const mblFks = [
@@ -1078,6 +1096,9 @@
                         if (hbl.fdest_id) {
                             ensureOptionExists('fdest_id', hbl.fdest_id, hbl.fdest_name || 'Final Dest');
                             this.hbls[0].fdest_id = hbl.fdest_id;
+                        }
+                        if (hbl.incoterms_id) {
+                            this.hbls[0].incoterms_id = hbl.incoterms_id;
                         }
                     }
 

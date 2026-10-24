@@ -98,24 +98,25 @@
                     <input {!! $fileInputRef !!} 
                            id="{{ $fileInputId }}" 
                            type="file" 
+                           multiple
                            style="display: none;" 
                            @change="{{ $uploadMethod }}" 
-                           accept=".pdf,.txt,.csv,.jpg,.jpeg,.png">
+                           accept=".pdf,.txt,.csv,.jpg,.jpeg,.png,.webp">
 
                     <div class="frexo-dropzone-content">
                         <div class="frexo-drop-icon">
                             <i class="fa fa-cloud-upload"></i>
                         </div>
                         <h4 class="frexo-drop-title">
-                            <span>Drop your document here, or</span> 
+                            <span>Drop shipping document(s) here, or</span> 
                             <span class="frexo-browse-link">Browse files</span>
                         </h4>
-                        <p class="frexo-drop-desc">Supports multi-page PDFs, scanned images, and structured CSV/text spreadsheets</p>
+                        <p class="frexo-drop-desc">Upload multiple documents in one shot (e.g. Invoice + Packing List + B/L). Supports PDF, JPG, PNG, CSV.</p>
                         
                         <div class="frexo-formats-row">
-                            <span class="frexo-format-pill"><i class="fa fa-file-pdf-o"></i> PDF Document</span>
-                            <span class="frexo-format-pill"><i class="fa fa-file-image-o"></i> JPG / PNG Image</span>
-                            <span class="frexo-format-pill"><i class="fa fa-file-excel-o"></i> CSV / TXT</span>
+                            <span class="frexo-format-pill"><i class="fa fa-files-o"></i> Multi-Doc Single Shot</span>
+                            <span class="frexo-format-pill"><i class="fa fa-file-pdf-o"></i> PDF Documents</span>
+                            <span class="frexo-format-pill"><i class="fa fa-file-image-o"></i> JPG / PNG Scans</span>
                         </div>
                     </div>
                 </label>
@@ -156,20 +157,47 @@
                         <div class="frexo-pane-title">
                             <i class="fa fa-file-text-o"></i>
                             <span>Document Preview</span>
+                            <span x-show="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length > 1" 
+                                  style="font-size: 11px; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 12px; margin-left: 6px; font-weight: 600;"
+                                  x-text="(uploadedDocs ? uploadedDocs.length : 1) + ' documents loaded'"></span>
                         </div>
                         <button type="button" 
                                 class="frexo-btn-subtle" 
-                                @click="aiPreviewMode = false; documentPreviewUrl = null;" 
+                                @click="aiPreviewMode = false; documentPreviewUrl = null; if(typeof uploadedDocs !== 'undefined' && uploadedDocs) uploadedDocs.forEach(d => URL.revokeObjectURL(d.url)); uploadedDocs = [];" 
                                 :disabled="{{ $loadingVar }}"
-                                title="Select a different document">
-                            <i class="fa fa-repeat"></i> Change Document
+                                title="Select different documents">
+                            <i class="fa fa-repeat"></i> Change Documents
                         </button>
+                    </div>
+
+                    <!-- Multi-document Switcher Tabs -->
+                    <div x-show="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length > 1" 
+                         style="display: flex; gap: 6px; padding: 6px 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; overflow-x: auto;">
+                        <template x-for="(doc, idx) in (uploadedDocs || [])" :key="idx">
+                            <button type="button" 
+                                    @click="activeDocIndex = idx; documentPreviewUrl = doc.url;"
+                                    :style="activeDocIndex === idx ? 'background: #2563eb; color: #ffffff; border-color: #2563eb;' : 'background: #ffffff; color: #475569; border-color: #cbd5e1;'"
+                                    style="padding: 4px 10px; border-radius: 4px; font-size: 11px; border: 1px solid; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; transition: all 0.15s ease;">
+                                <i :class="doc.isPdf ? 'fa fa-file-pdf-o' : 'fa fa-file-image-o'"></i>
+                                <span x-text="doc.name"></span>
+                                <span style="opacity: 0.7; font-size: 10px;" x-text="'(' + doc.size + ')'"></span>
+                            </button>
+                        </template>
                     </div>
 
                     <div class="frexo-preview-box">
                         <template x-if="documentPreviewUrl">
-                            <iframe :src="documentPreviewUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH'" 
-                                    class="frexo-preview-frame"></iframe>
+                            <div style="width: 100%; height: 100%;">
+                                <template x-if="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs[activeDocIndex] && !uploadedDocs[activeDocIndex].isPdf">
+                                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0f172a; overflow: auto; padding: 10px;">
+                                        <img :src="documentPreviewUrl" style="max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border-radius: 4px;">
+                                    </div>
+                                </template>
+                                <template x-if="!uploadedDocs || !uploadedDocs[activeDocIndex] || uploadedDocs[activeDocIndex].isPdf">
+                                    <iframe :src="documentPreviewUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH'" 
+                                            class="frexo-preview-frame"></iframe>
+                                </template>
+                            </div>
                         </template>
 
                         <template x-if="!documentPreviewUrl">

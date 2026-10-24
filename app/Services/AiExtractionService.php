@@ -12,60 +12,79 @@ use Smalot\PdfParser\Parser;
 class AiExtractionService
 {
     /**
-     * Extract structured data from an uploaded file for a specific module.
+     * Extract structured data from one or multiple uploaded files for a specific module.
      *
-     * @param UploadedFile $file
+     * @param UploadedFile|array $fileOrFiles
      * @param string $module (e.g., 'ocean_import')
      * @return array|null
      * @throws Exception
      */
-    public function extractData(UploadedFile $file, string $module): ?array
+    public function extractData($fileOrFiles, string $module): ?array
     {
         $settings = AiSetting::current();
         if (!$settings || !$settings->api_key) {
             throw new Exception("AI is not configured. Please contact the Super Admin to configure AI settings.");
         }
 
-        $extension = strtolower($file->getClientOriginalExtension());
-        $text = '';
-        $imageBase64 = null;
-        $mimeType = null;
+        $files = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
+        if (empty($files)) {
+            throw new Exception("No files provided for extraction.");
+        }
 
-        // Support direct image formats
-        if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
-            $imageBase64 = base64_encode(file_get_contents($file->getPathname()));
-            $mimeType = $file->getClientMimeType() ?: ('image/' . $extension);
-        } else {
-            // 1. Extract text from document
-            $text = $this->extractTextFromFile($file);
+        $documentTexts = [];
+        $documentImages = [];
 
-            // If PDF had no digital text (scanned PDF), attempt to render first page with pdftoppm
-            if (empty(trim($text)) && $extension === 'pdf' && is_executable('/usr/bin/pdftoppm')) {
-                try {
-                    $tempPrefix = sys_get_temp_dir() . '/pdf_scan_' . uniqid();
-                    $cmd = '/usr/bin/pdftoppm -png -r 150 -f 1 -l 1 ' . escapeshellarg($file->getPathname()) . ' ' . escapeshellarg($tempPrefix);
-                    @exec($cmd);
-                    $renderedImg = $tempPrefix . '-1.png';
-                    if (file_exists($renderedImg)) {
-                        $imageBase64 = base64_encode(file_get_contents($renderedImg));
-                        $mimeType = 'image/png';
-                        @unlink($renderedImg);
+        foreach ($files as $idx => $file) {
+            if (!$file instanceof UploadedFile) continue;
+
+            $filename = $file->getClientOriginalName();
+            $extension = strtolower($file->getClientOriginalExtension());
+
+            // Support direct image formats
+            if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+                $imageBase64 = base64_encode(file_get_contents($file->getPathname()));
+                $mimeType = $file->getClientMimeType() ?: ('image/' . ($extension === 'jpg' ? 'jpeg' : $extension));
+                $documentImages[] = [
+                    'name' => $filename,
+                    'base64' => $imageBase64,
+                    'mime' => $mimeType,
+                ];
+            } else {
+                // 1. Extract text from document
+                $text = $this->extractTextFromFile($file);
+
+                if (!empty(trim($text))) {
+                    $documentTexts[] = "=== DOCUMENT #" . ($idx + 1) . " (Filename: {$filename}) ===\n" . $text;
+                } else if ($extension === 'pdf' && is_executable('/usr/bin/pdftoppm')) {
+                    // If PDF had no digital text (scanned PDF), render first 2 pages with pdftoppm
+                    try {
+                        $tempPrefix = sys_get_temp_dir() . '/pdf_scan_' . uniqid();
+                        $cmd = '/usr/bin/pdftoppm -png -r 150 -f 1 -l 2 ' . escapeshellarg($file->getPathname()) . ' ' . escapeshellarg($tempPrefix);
+                        @exec($cmd);
+                        foreach (glob($tempPrefix . '-*.png') as $pageIdx => $renderedImg) {
+                            $documentImages[] = [
+                                'name' => $filename . ' (Page ' . ($pageIdx + 1) . ')',
+                                'base64' => base64_encode(file_get_contents($renderedImg)),
+                                'mime' => 'image/png',
+                            ];
+                            @unlink($renderedImg);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning("pdftoppm conversion failed for {$filename}: " . $e->getMessage());
                     }
-                } catch (\Throwable $e) {
-                    Log::warning("pdftoppm conversion failed: " . $e->getMessage());
                 }
             }
+        }
 
-            if (empty(trim($text)) && empty($imageBase64)) {
-                throw new Exception("Could not extract any text or image from the provided document.");
-            }
+        if (empty($documentTexts) && empty($documentImages)) {
+            throw new Exception("Could not extract any readable text or images from the provided document(s).");
         }
 
         // 2. Get prompt/schema for module
         $schemaPrompt = $this->getSchemaPrompt($module);
 
         // 3. Call AI
-        $jsonResponse = $this->callAi($settings, $text, $schemaPrompt, $imageBase64, $mimeType);
+        $jsonResponse = $this->callAi($settings, $documentTexts, $schemaPrompt, $documentImages);
 
         // 4. Parse JSON
         $data = $this->parseJsonFromResponse($jsonResponse);
@@ -113,7 +132,7 @@ class AiExtractionService
         return substr($text ?? '', 0, 30000);
     }
 
-    private function callAi(AiSetting $settings, ?string $text, string $schemaPrompt, ?string $imageBase64 = null, ?string $mimeType = 'image/jpeg'): string
+    private function callAi(AiSetting $settings, array $documentTexts, string $schemaPrompt, array $documentImages = []): string
     {
         $baseUrl = rtrim($settings->base_url, '/');
         $apiType = strtolower($settings->api_type ?? 'openai');
@@ -135,34 +154,46 @@ class AiExtractionService
              }
         }
 
-        $systemPrompt = "You are a senior, highly experienced 30+ year freight forwarding AI expert. Your task is to extract shipping data from the provided document text and return it STRICTLY as a JSON object matching the requested schema. You must extract with 100% accuracy and zero mistakes.
+        $systemPrompt = "You are a senior, highly experienced 30+ year freight forwarding AI expert. Your task is to extract shipping data from the provided document(s) and return it STRICTLY as a JSON object matching the requested schema. You must extract with 100% accuracy and zero mistakes.
 
-CRITICAL INSTRUCTIONS:
-1. EXHAUSTIVE EXTRACTION: Do not miss a single detail. Analyze the entire text meticulously. Look for every field in the schema.
-2. SHIPPER / CONSIGNEE / NOTIFY: Always extract the full company names for Shipper, Consignee, and Notify Party. If they appear in the document (even on a Master Bill), map them into the `hbls` array (as well as `mbl` if applicable) so the system can display them.
-3. MULTIPLE ENTITIES: If there are multiple Notify Parties, combine them or extract the primary one, but DO NOT leave the field empty.
-4. REFERENCES: Extract all Booking Numbers, Export References (INV NO, EXP NO, S/C NO). Put them in `booking_no`, `agent_ref_no`, or `contract_no`.
-5. ROUTING: Distinguish pre-carriage, main carrier, vessel, and flight. Extract EVERY explicitly documented transportation leg into the `routes` or `flights` array. Capture Port of Loading (POL), Port of Discharge (POD), Place of Receipt, and Place of Delivery accurately.
-6. CONTAINERS & PACKAGES: Extract EVERY container into the `containers` array, including Container No, Seal No, Size/Type, Weight, Volume, and Pieces.
-7. COMMODITY & MARKS: Extract Shipping Marks and full Description of packages and goods (including H.S. Codes).
-8. Use null for missing values. DO NOT invent or fabricate missing fields.
-9. STRICT JSON: DO NOT include any markdown formatting (like ```json), explanations, or additional text. Output ONLY the raw JSON object.";
+CRITICAL INSTRUCTIONS FOR MULTI-DOCUMENT / SINGLE-DOCUMENT EXTRACTION:
+1. UNIFIED SINGLE BOOKING SYNTHESIS: You may be provided with one or multiple documents for a single shipment booking (e.g. Bill of Lading, Commercial Invoice, Packing List, Cargo Manifest, Booking Note). All provided documents belong to the SAME shipment. Synthesize and cross-reference ALL documents into ONE unified, complete JSON response matching the schema.
+2. COMMERCIAL PARTIES: Always extract the full company names for Shipper, Consignee, and Notify Party (usually found in Commercial Invoice or Bill of Lading). If they appear anywhere, map them into the `hbls` array (as well as `mbl` if applicable).
+3. CARGO SPECS & WEIGHTS: Extract Gross Weight, Volume (CBM/Measurement), Total Pieces/Packages from the Packing List or Bill of Lading.
+4. CONTAINERS: Extract EVERY container into the `containers` array, including Container No, Seal No, Size/Type, Weight, Volume, and Pieces. Consolidate container information across documents so you DO NOT create duplicate containers.
+5. REFERENCES: Extract all Booking Numbers, MBL/MAWB, HBL/HAWB, Export References, and Invoice Numbers.
+6. ROUTING: Distinguish Port of Loading (POL), Port of Discharge (POD), Place of Receipt, Final Destination, Carrier Line, Vessel Name, and Voyage.
+7. Use null for missing values. DO NOT invent or fabricate missing fields.
+8. STRICT JSON: DO NOT include any markdown formatting (like ```json), explanations, or additional text. Output ONLY the raw JSON object.";
 
-        if (!empty($imageBase64)) {
-            $userContent = [
-                [
-                    'type' => 'text',
-                    'text' => "Analyze the attached shipping document carefully. Extract shipping data strictly matching the requested schema:\n\nREQUIRED SCHEMA:\n" . $schemaPrompt
-                ],
-                [
+        $totalDocsCount = count($documentTexts) + count($documentImages);
+        $multiDocHeader = "=== SHIPPING DOCUMENTS PROVIDED FOR SHIPMENT BOOKING ({$totalDocsCount} documents) ===\n\n";
+
+        if (!empty($documentImages)) {
+            $userContent = [];
+            $textPart = $multiDocHeader;
+            
+            if (!empty($documentTexts)) {
+                $textPart .= "TEXT/DIGITAL DOCUMENTS:\n" . implode("\n\n--------------------------------\n\n", $documentTexts) . "\n\n";
+            }
+            
+            $textPart .= "The user has also attached " . count($documentImages) . " document image(s) below. Analyze all texts and attached images together to extract the complete shipment booking.\n\nREQUIRED SCHEMA:\n" . $schemaPrompt;
+
+            $userContent[] = [
+                'type' => 'text',
+                'text' => $textPart
+            ];
+
+            foreach ($documentImages as $img) {
+                $userContent[] = [
                     'type' => 'image_url',
                     'image_url' => [
-                        'url' => 'data:' . ($mimeType ?: 'image/jpeg') . ';base64,' . $imageBase64
+                        'url' => 'data:' . ($img['mime'] ?: 'image/jpeg') . ';base64,' . $img['base64']
                     ]
-                ]
-            ];
+                ];
+            }
         } else {
-            $userContent = "DOCUMENT TEXT:\n---\n" . $text . "\n---\n\nREQUIRED SCHEMA:\n" . $schemaPrompt;
+            $userContent = $multiDocHeader . implode("\n\n--------------------------------\n\n", $documentTexts) . "\n\nREQUIRED SCHEMA:\n" . $schemaPrompt;
         }
 
         $messages = [
@@ -276,6 +307,8 @@ CRITICAL INSTRUCTIONS:
                 "etd" => "YYYY-MM-DD (Estimated Time of Departure)",
                 "eta" => "YYYY-MM-DD (Estimated Time of Arrival)",
                 "business_referred_by_name" => "string (Business referred by)",
+                "freight_term" => "string (Freight term, e.g. PREPAID, COLLECT)",
+                "incoterm" => "string (Incoterm, e.g. FOB, CIF, EXW, DAP, CFR, DDP)",
                 "description" => "string (Cargo description or remarks)"
             ],
             "routes" => [
@@ -323,6 +356,7 @@ CRITICAL INSTRUCTIONS:
                     "container_no" => "string (e.g. TCNU1234567)",
                     "seal_no" => "string",
                     "container_type" => "string (e.g. 20GP, 40HQ)",
+                    "package_unit" => "string (Package unit e.g. CTN, PLT, PCS, PKG)",
                     "weight" => "float (Gross weight in KG if specific to this container)",
                     "volume" => "float (Volume in CBM if specific to this container)",
                     "pieces" => "integer (Pieces/Packages if specific to this container)"
@@ -385,6 +419,8 @@ CRITICAL INSTRUCTIONS:
                 "ship_mode" => "string (Ship mode, e.g. FCL, LCL)",
                 "business_referred_by_name" => "string (Business referred by)",
                 "is_express_bl" => "boolean (true if express BL)",
+                "freight_term" => "string (Freight term, e.g. PREPAID, COLLECT)",
+                "incoterm" => "string (Incoterm, e.g. FOB, CIF, EXW, DAP, CFR, DDP)",
                 "description" => "string (Cargo description or remarks)"
             ],
             "routes" => [
@@ -432,6 +468,7 @@ CRITICAL INSTRUCTIONS:
                     "container_no" => "string (e.g. TCNU1234567)",
                     "seal_no" => "string",
                     "container_type" => "string (e.g. 20GP, 40HQ)",
+                    "package_unit" => "string (Package unit e.g. CTN, PLT, PCS, PKG)",
                     "weight" => "float (Gross weight in KG if specific to this container)",
                     "volume" => "float (Volume in CBM if specific to this container)",
                     "pieces" => "integer (Pieces/Packages if specific to this container)"

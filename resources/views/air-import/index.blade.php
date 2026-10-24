@@ -117,6 +117,8 @@
                 aiPreviewMode: false,
                 aiError: '',
                 documentPreviewUrl: null,
+                uploadedDocs: [],
+                activeDocIndex: 0,
                 extractedData: [],
                 activeTab: 'basic',
                 showConnectingFlight: false,
@@ -822,19 +824,31 @@
                     alert('Status log added successfully!');
                 },
                 
-                // --- AI Auto-Fill Logic ---
+                // --- AI Auto-Fill Logic (Supports Multi-File: PDF + PDF, JPG + PDF, JPG + JPG) ---
                 handleAiUpload(e) {
-                    if (!e.target.files.length) return;
+                    if (!e.target.files || !e.target.files.length) return;
                     
-                    const file = e.target.files[0];
+                    const files = Array.from(e.target.files);
                     const formData = new FormData();
-                    formData.append('document', file);
                     
-                    // Create preview URL
-                    if (this.documentPreviewUrl) {
-                        URL.revokeObjectURL(this.documentPreviewUrl);
+                    if (this.uploadedDocs && this.uploadedDocs.length) {
+                        this.uploadedDocs.forEach(d => URL.revokeObjectURL(d.url));
                     }
-                    this.documentPreviewUrl = URL.createObjectURL(file);
+                    this.uploadedDocs = [];
+                    
+                    files.forEach(file => {
+                        formData.append('documents[]', file);
+                        const isPdf = file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+                        this.uploadedDocs.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(0) + ' KB',
+                            url: URL.createObjectURL(file),
+                            isPdf: isPdf
+                        });
+                    });
+                    
+                    this.activeDocIndex = 0;
+                    this.documentPreviewUrl = this.uploadedDocs[0].url;
                     
                     this.isAiProcessing = true;
                     this.aiPreviewMode = true;
@@ -891,7 +905,8 @@
                                     { label: 'ETA', key: 'eta', val: m.eta },
                                     { label: 'ETD', key: 'etd', val: m.etd },
                                     { label: 'ATA', key: 'ata', val: m.ata },
-                                    { label: 'ATD', key: 'atd', val: m.atd }
+                                    { label: 'ATD', key: 'atd', val: m.atd },
+                                    { label: 'Incoterm', key: 'incoterm_id', val: m.incoterm_id, display: m.incoterm_name || m.incoterm, nameKey: 'incoterm_name' }
                                 ];
                                 
                                 mblMap.forEach(field => {
