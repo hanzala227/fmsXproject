@@ -336,6 +336,17 @@ class AiExtractionController extends Controller
     {
         try {
             $files = $this->resolveUploadedFiles($request);
+
+            if (config('frexo_ai.enabled', false)) {
+                $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
+                $result = $pipeline->execute($files, 'ocean_import');
+                return response()->json([
+                    'success' => true,
+                    'data' => $result->toArray(),
+                    'message' => 'Document processed successfully via Staged Pipeline.'
+                ]);
+            }
+
             $data = $this->aiService->extractData($files, 'ocean_import');
 
             // --- Database Mapping (Jugaar) ---
@@ -434,6 +445,17 @@ class AiExtractionController extends Controller
     {
         try {
             $files = $this->resolveUploadedFiles($request);
+
+            if (config('frexo_ai.enabled', false)) {
+                $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
+                $result = $pipeline->execute($files, 'ocean_export');
+                return response()->json([
+                    'success' => true,
+                    'data' => $result->toArray(),
+                    'message' => 'Document processed successfully via Staged Pipeline.'
+                ]);
+            }
+
             $data = $this->aiService->extractData($files, 'ocean_export');
 
             // --- Database Mapping (Jugaar) ---
@@ -544,6 +566,17 @@ class AiExtractionController extends Controller
     {
         try {
             $files = $this->resolveUploadedFiles($request);
+
+            if (config('frexo_ai.enabled', false)) {
+                $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
+                $result = $pipeline->execute($files, 'air_import');
+                return response()->json([
+                    'success' => true,
+                    'data' => $result->toArray(),
+                    'message' => 'Document processed successfully via Staged Pipeline.'
+                ]);
+            }
+
             $data = $this->aiService->extractData($files, 'air_import');
 
             if (isset($data['mbl'])) {
@@ -756,6 +789,17 @@ class AiExtractionController extends Controller
     {
         try {
             $files = $this->resolveUploadedFiles($request);
+
+            if (config('frexo_ai.enabled', false)) {
+                $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
+                $result = $pipeline->execute($files, 'air_export');
+                return response()->json([
+                    'success' => true,
+                    'data' => $result->toArray(),
+                    'message' => 'Document processed successfully via Staged Pipeline.'
+                ]);
+            }
+
             $data = $this->aiService->extractData($files, 'air_export');
 
             if (isset($data['mbl'])) {

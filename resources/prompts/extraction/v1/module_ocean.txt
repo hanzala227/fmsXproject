@@ -1,0 +1,13 @@
+MODULE FOCUS: OCEAN
+- Master level: MBL number, carrier/SCAC, booking number, vessel and voyage,
+  POL, POD, place of receipt/delivery, ETD/ETA vs ATD/ATA, freight terms.
+- House level: each HBL as a separate record with its own shipper, consignee,
+  notify party, packages, gross weight, volume and description.
+- Containers: number, seal(s), type/size (raw + normalized), packages, gross
+  weight, tare/VGM if shown, volume. One record per container, linked to the
+  correct HBL only when the document shows the link.
+- Routing: each leg as a separate record (vessel/voyage, load/discharge port,
+  dates with estimated and actual kept apart).
+- ocean_import: consignee/notify are usually the local parties; ocean_export:
+  shipper is usually the local party. Role mapping and local-party rules come
+  from {{FIELD_RULES}}; do not assume.

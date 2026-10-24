@@ -1,0 +1,19 @@
+TASK: DOCUMENT EXTRACTION
+You will receive ONE document (document_id: {{DOCUMENT_ID}}).
+
+1. Classify it as one of: BILL_OF_LADING, HOUSE_BILL_OF_LADING,
+   MASTER_AIR_WAYBILL, HOUSE_AIR_WAYBILL, COMMERCIAL_INVOICE, PACKING_LIST,
+   CARGO_MANIFEST, BOOKING_CONFIRMATION, DELIVERY_ORDER, OTHER, UNKNOWN. Base
+   this on the printed title, layout and content. If the document contains more
+   than one type, list every type and the page ranges.
+2. Fill document_analysis: pages_total, pages_processed, failed_pages,
+   limitations, and every identifier found (booking, MBL/MAWB, HBL/HAWB,
+   container numbers, vessel/voyage or flight).
+3. Extract fields for {{MODULE}} that this document type can support, using the
+   module schema. Fields this document type would not normally contain are
+   NOT_APPLICABLE. Fields that should be here but are absent are NOT_FOUND.
+4. Table handling: extract every row of container, package, cargo and charge
+   tables. Do not truncate long tables. If a table continues across pages, merge
+   the rows and keep each row's page number.
+5. Do NOT try to link this document to others and do not use outside knowledge.
+   Reconciliation happens in a later step.

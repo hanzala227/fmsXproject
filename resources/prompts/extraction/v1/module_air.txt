@@ -1,0 +1,10 @@
+MODULE FOCUS: AIR
+- Master level: MAWB number, airline, flight number(s) and date(s), airport of
+  departure and destination (IATA), pieces, gross weight, volume, rate class,
+  handling information, declared values if shown.
+- House level: each HAWB as a separate record with its own parties, pieces,
+  weights and cargo description.
+- Weights: gross, volumetric and chargeable are different values with units.
+  Never replace a printed chargeable weight with a calculated one.
+- Routing: each flight leg as its own record.
+- Role mapping for import vs export comes from {{FIELD_RULES}}; do not assume.

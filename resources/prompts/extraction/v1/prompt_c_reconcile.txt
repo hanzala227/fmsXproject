@@ -1,0 +1,28 @@
+TASK: RECONCILIATION
+Input: the extraction JSON for each document, plus trusted context. You do not
+see the original files. Use only what is in these results.
+
+1. GROUPING. Link documents into shipment_groups only through matching
+   identifiers (booking number, MBL/MAWB, HBL/HAWB, container numbers) or strong
+   combined evidence (parties plus route plus cargo). List the matching
+   identifiers in association_evidence. Set association_status: CONFIRMED (a
+   hard identifier matches), PROBABLE (soft evidence only), UNCERTAIN. A document
+   without enough evidence goes to unmatched_documents. Never merge documents
+   with contradicting hard identifiers.
+2. MERGING. For each group build form_data from the per-document values:
+   - choose the proposed value by document authority in {{FIELD_RULES}}
+   - if documents disagree materially, add a conflicts entry with all candidates
+     and sources, and keep the proposed value flagged CONFLICT
+   - if values agree after normalization, keep the strongest evidence and list
+     the others as corroboration
+3. RECORDS. Keep every distinct HBL/HAWB, container and leg.
+   - same container number on the same HBL listed twice = possible duplicate
+     (flag, do not delete)
+   - same container on different HBLs or groups = flag for review
+   - do not sum or redistribute weights, packages or volumes across levels
+4. CROSS-CHECKS. Report in warnings: totals vs row sums at the same level,
+   mismatching units, dates out of logical order, vessel/flight mismatches,
+   party differences between master and house (informational only).
+5. Copy field_evidence from the document results; do not create evidence that no
+   document result contains. If data is not supported, use null.
+6. Return the final JSON in the response schema only.
