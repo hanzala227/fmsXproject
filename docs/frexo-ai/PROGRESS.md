@@ -7,8 +7,8 @@
 | Chunk 2: Schemas & Field Registry | PASSED | 1 | docs/frexo-ai/reports/chunk-2.md | frexo-ai: chunk 2 - module schemas and field registry |
 | Chunk 3: Staged Extraction Pipeline | PASSED | 1 | docs/frexo-ai/reports/chunk-3.md | frexo-ai: chunk 3 - staged extraction pipeline |
 | Chunk 4: Deterministic Validation | PASSED | 1 | docs/frexo-ai/reports/chunk-4.md | frexo-ai: chunk 4 - deterministic validation |
-| Chunk 5: Tenant Safety, Matching, Apply, Audit | IN_PROGRESS | 1 | docs/frexo-ai/reports/chunk-5.md | pending |
-| Chunk 6: Review Modal & Form Application | PENDING | 0 | docs/frexo-ai/reports/chunk-6.md | pending |
+| Chunk 5: Tenant Safety, Matching, Apply, Audit | PASSED | 1 | docs/frexo-ai/reports/chunk-5.md | frexo-ai: chunk 5 - tenant safety matching apply audit |
+| Chunk 6: Review Modal & Form Application | IN_PROGRESS | 1 | docs/frexo-ai/reports/chunk-6.md | pending |
 | Chunk 7: Resilience & Observability | PENDING | 0 | docs/frexo-ai/reports/chunk-7.md | pending |
 | Chunk 8: Testing, Eval Harness, Rollout | PENDING | 0 | docs/frexo-ai/reports/chunk-8.md | pending |
 | Chunk 9: Final Verification Loop | PENDING | 0 | docs/frexo-ai/reports/chunk-9.md | pending |

@@ -1009,4 +1009,61 @@ class AiExtractionController extends Controller
             ], 200);
         }
     }
+
+    /**
+     * Apply extraction fields with tenant isolation, revalidation, and audit trail.
+     */
+    public function apply(Request $request, \App\Services\FrexoAi\Apply\ExtractionApplyService $applyService)
+    {
+        try {
+            $payload = $request->validate([
+                'run_uuid' => 'required|string',
+                'idempotency_token' => 'required|string',
+                'module' => 'required|string',
+                'expected_form_version' => 'nullable|integer',
+                'current_form_version' => 'nullable|integer',
+                'existing_values' => 'nullable|array',
+                'accepted_fields' => 'nullable|array',
+                'rejected_fields' => 'nullable|array',
+            ]);
+
+            $result = $applyService->apply($payload);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            $statusCode = str_contains($e->getMessage(), 'STALE_FORM_STATE') ? 409 : 422;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Search and match entity with candidate list; never auto-creates records.
+     */
+    public function matchEntity(Request $request, \App\Services\FrexoAi\Matching\TenantEntityMatcher $matcher)
+    {
+        try {
+            $entityType = $request->input('entity_type', 'trade_partner');
+            $query = $request->input('query', '');
+
+            if ($entityType === 'port') {
+                $result = $matcher->matchPort($query);
+            } else {
+                $type = $request->input('partner_type');
+                $result = $matcher->matchTradePartner($query, null, $type);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }

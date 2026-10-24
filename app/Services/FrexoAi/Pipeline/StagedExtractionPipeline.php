@@ -59,6 +59,40 @@ class StagedExtractionPipeline
         // Map final form data to application structure (stripping any internal workflow fields)
         $dto->formData = FormDataMapper::mapToApplicationStructure($module, $dto->formData);
 
+        // Optionally persist extraction run if database is configured and user is authenticated
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('frexo_extraction_runs') && auth()->check() && auth()->user()->company_id) {
+                $run = \App\Models\FrexoAi\ExtractionRun::create([
+                    'uuid' => $dto->uuid,
+                    'company_id' => auth()->user()->company_id,
+                    'user_id' => auth()->id(),
+                    'module' => $module,
+                    'schema_version' => $dto->schemaVersion,
+                    'status' => 'PENDING',
+                    'processing_summary' => $dto->processingSummary,
+                ]);
+
+                foreach ($dto->fieldEvidence as $ev) {
+                    \App\Models\FrexoAi\FieldEvidence::create([
+                        'run_id' => $run->id,
+                        'company_id' => auth()->user()->company_id,
+                        'field_path' => $ev->fieldPath,
+                        'scope' => $ev->scope,
+                        'raw_value' => is_scalar($ev->rawValue) ? (string) $ev->rawValue : json_encode($ev->rawValue),
+                        'normalized_value' => is_scalar($ev->normalizedValue) ? (string) $ev->normalizedValue : json_encode($ev->normalizedValue),
+                        'unit' => $ev->unit,
+                        'status' => $ev->status,
+                        'source_document_id' => $ev->sourceDocumentId,
+                        'source_page' => $ev->sourcePage,
+                        'evidence_text' => $ev->evidenceText,
+                        'derivation' => $ev->derivation,
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // DB logging is non-fatal for extraction pipeline execution
+        }
+
         return $dto;
     }
 }

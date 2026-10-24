@@ -4,6 +4,7 @@ namespace App\Services\FrexoAi\DTO;
 
 class ExtractionResultDTO
 {
+    public string $uuid;
     public string $schemaVersion = '1.0';
     public string $module;
     /** @var DocumentAnalysisDTO[] */
@@ -21,8 +22,10 @@ class ExtractionResultDTO
 
     public function __construct(
         string $module,
-        string $schemaVersion = '1.0'
+        string $schemaVersion = '1.0',
+        ?string $uuid = null
     ) {
+        $this->uuid = $uuid ?? (string) \Illuminate\Support\Str::uuid();
         $this->module = $module;
         $this->schemaVersion = $schemaVersion;
     }
@@ -58,6 +61,7 @@ class ExtractionResultDTO
     public function toArray(): array
     {
         return [
+            'run_uuid' => $this->uuid,
             'schema_version' => $this->schemaVersion,
             'module' => $this->module,
             'document_analysis' => array_map(fn($d) => $d instanceof DocumentAnalysisDTO ? $d->toArray() : $d, $this->documentAnalysis),

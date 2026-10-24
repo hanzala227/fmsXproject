@@ -113,6 +113,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/api/ai/extract/ocean-export', [\App\Http\Controllers\AiExtractionController::class, 'extractOceanExport'])->name('ai.extract.ocean-export');
     Route::post('/api/ai/extract/air-import', [\App\Http\Controllers\AiExtractionController::class, 'extractAirImport'])->name('ai.extract.air-import');
     Route::post('/api/ai/extract/air-export', [\App\Http\Controllers\AiExtractionController::class, 'extractAirExport'])->name('ai.extract.air-export');
+    Route::post('/api/ai/extract/apply', [\App\Http\Controllers\AiExtractionController::class, 'apply'])->name('ai.extract.apply');
+    Route::post('/api/ai/extract/match-entity', [\App\Http\Controllers\AiExtractionController::class, 'matchEntity'])->name('ai.extract.match-entity');
 
     Route::get('/ocean-import/list', [OceanImportController::class, 'index'])->name('ocean-import.index');
     Route::get('/ocean-import/create', [OceanImportController::class, 'create'])->name('ocean-import.create');
