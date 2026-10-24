@@ -7,12 +7,19 @@ use InvalidArgumentException;
 class FieldEvidenceDTO
 {
     public const STATUS_EXPLICIT = 'EXPLICIT';
+
     public const STATUS_DERIVED = 'DERIVED';
+
     public const STATUS_AMBIGUOUS = 'AMBIGUOUS';
+
     public const STATUS_CONFLICT = 'CONFLICT';
+
     public const STATUS_NOT_FOUND = 'NOT_FOUND';
+
     public const STATUS_UNREADABLE = 'UNREADABLE';
+
     public const STATUS_NOT_APPLICABLE = 'NOT_APPLICABLE';
+
     public const STATUS_REVIEW_REQUIRED = 'REVIEW_REQUIRED';
 
     public static function allowedStatuses(): array
@@ -30,12 +37,19 @@ class FieldEvidenceDTO
     }
 
     public string $fieldPath;
+
     public string $scope;
+
     public mixed $rawValue;
+
     public mixed $normalizedValue;
+
     public ?string $unit;
+
     public string $status;
+
     public ?array $source; // ['document_id' => ..., 'document_type' => ..., 'page' => ..., 'evidence_text' => ..., 'region' => ...]
+
     public ?array $derivation; // ['rule' => ..., 'inputs' => [...]]
 
     public function __construct(
@@ -48,7 +62,7 @@ class FieldEvidenceDTO
         ?array $source = null,
         ?array $derivation = null
     ) {
-        if (!in_array($status, self::allowedStatuses(), true)) {
+        if (! in_array($status, self::allowedStatuses(), true)) {
             throw new InvalidArgumentException("Invalid field evidence status: $status");
         }
 

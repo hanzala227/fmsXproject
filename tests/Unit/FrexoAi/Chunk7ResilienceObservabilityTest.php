@@ -4,9 +4,9 @@ namespace Tests\Unit\FrexoAi;
 
 use App\Models\AiSetting;
 use App\Services\FrexoAi\Client\GeminiClient;
+use App\Services\FrexoAi\Client\MockGeminiClient;
 use App\Services\FrexoAi\Observability\FrexoAiLogger;
 use App\Services\FrexoAi\Pipeline\Stage2PerDocumentExtractor;
-use App\Services\FrexoAi\Client\MockGeminiClient;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -18,7 +18,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
      */
     public function test_transient_429_retries_up_to_max_retries(): void
     {
-        $setting = new AiSetting();
+        $setting = new AiSetting;
         $setting->api_key = 'test-secret-key-12345';
         $setting->base_url = 'https://mock.api.endpoint';
         $setting->model_name = 'gemini-1.5-pro';
@@ -27,8 +27,9 @@ class Chunk7ResilienceObservabilityTest extends TestCase
         Http::fake([
             '*' => function () use (&$attempts) {
                 $attempts++;
+
                 return Http::response(['error' => 'Rate limit exceeded'], 429);
-            }
+            },
         ]);
 
         config(['frexo_ai.max_retries' => 2]);
@@ -51,7 +52,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
      */
     public function test_permanent_errors_are_not_retried(): void
     {
-        $setting = new AiSetting();
+        $setting = new AiSetting;
         $setting->api_key = 'invalid-api-key';
         $setting->base_url = 'https://mock.api.endpoint';
 
@@ -59,8 +60,9 @@ class Chunk7ResilienceObservabilityTest extends TestCase
         Http::fake([
             '*' => function () use (&$attempts) {
                 $attempts++;
+
                 return Http::response(['error' => 'Invalid API key'], 401);
-            }
+            },
         ]);
 
         config(['frexo_ai.max_retries' => 2]);
@@ -82,14 +84,14 @@ class Chunk7ResilienceObservabilityTest extends TestCase
      */
     public function test_safety_blocked_response_is_handled(): void
     {
-        $setting = new AiSetting();
+        $setting = new AiSetting;
         $setting->api_key = 'test-key';
         $setting->base_url = 'https://mock.api.endpoint';
 
         Http::fake([
             '*' => Http::response([
-                'promptFeedback' => ['blockReason' => 'SAFETY']
-            ], 200)
+                'promptFeedback' => ['blockReason' => 'SAFETY'],
+            ], 200),
         ]);
 
         $client = new GeminiClient($setting);
@@ -105,16 +107,16 @@ class Chunk7ResilienceObservabilityTest extends TestCase
      */
     public function test_empty_response_is_handled(): void
     {
-        $setting = new AiSetting();
+        $setting = new AiSetting;
         $setting->api_key = 'test-key';
         $setting->base_url = 'https://mock.api.endpoint';
 
         Http::fake([
             '*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '   ']]
-                ]
-            ], 200)
+                    ['message' => ['content' => '   ']],
+                ],
+            ], 200),
         ]);
 
         $client = new GeminiClient($setting);
@@ -143,7 +145,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
                 'failed_pages' => [],
                 'text_layer' => 'BILL OF LADING MEDU1234567',
                 'images' => [],
-            ]
+            ],
         ];
 
         $result = $stage2->extractAll('ocean_import', $docs);
@@ -159,7 +161,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
      */
     public function test_irreparable_json_fails_document_visibly(): void
     {
-        $garbage = "Sorry, I cannot process this document because it is unclear. [NOT JSON]";
+        $garbage = 'Sorry, I cannot process this document because it is unclear. [NOT JSON]';
 
         $mockClient = new MockGeminiClient([$garbage]);
         $stage2 = new Stage2PerDocumentExtractor($mockClient);
@@ -172,7 +174,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
                 'failed_pages' => [],
                 'text_layer' => 'Corrupt text',
                 'images' => [],
-            ]
+            ],
         ];
 
         $result = $stage2->extractAll('ocean_import', $docs);
@@ -192,7 +194,7 @@ class Chunk7ResilienceObservabilityTest extends TestCase
             'api_key' => 'AIzaSyA_SECRET_KEY_123456789',
             'authorization' => 'Bearer sensitive_token_abc',
             'bearer_token' => 'secret_jwt_payload',
-            'raw_text' => str_repeat("Full freight document text content with cargo descriptions... ", 50),
+            'raw_text' => str_repeat('Full freight document text content with cargo descriptions... ', 50),
             'status_code' => 200,
         ];
 
@@ -223,13 +225,13 @@ class Chunk7ResilienceObservabilityTest extends TestCase
                 // Check for dangerous logging calls like Log::info($apiKey) or Log::info($textLayer)
                 if (preg_match('/Log::[a-z]+\([^)]*(?:api_key|token|text_layer|raw_text)[^)]*\)/i', $code, $matches)) {
                     // Check if it's using FrexoAiLogger::sanitize
-                    if (!str_contains($code, 'FrexoAiLogger::sanitize')) {
-                        $violations[] = $file->getRealPath() . ' => ' . $matches[0];
+                    if (! str_contains($code, 'FrexoAiLogger::sanitize')) {
+                        $violations[] = $file->getRealPath().' => '.$matches[0];
                     }
                 }
             }
         }
 
-        $this->assertEmpty($violations, "Potential unredacted logging found in: " . implode(', ', $violations));
+        $this->assertEmpty($violations, 'Potential unredacted logging found in: '.implode(', ', $violations));
     }
 }

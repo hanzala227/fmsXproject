@@ -21,9 +21,13 @@ use RuntimeException;
 class ExtractionApplyService
 {
     public Iso6346ContainerValidator $containerValidator;
+
     public ContainerTypeNormalizer $containerTypeNormalizer;
+
     public IataMawbValidator $mawbValidator;
+
     public PortCodeValidator $portCodeValidator;
+
     public DateLogicValidator $dateLogicValidator;
 
     public function __construct(
@@ -33,24 +37,17 @@ class ExtractionApplyService
         ?PortCodeValidator $portCodeValidator = null,
         ?DateLogicValidator $dateLogicValidator = null
     ) {
-        $this->containerValidator = $containerValidator ?? new Iso6346ContainerValidator();
-        $this->containerTypeNormalizer = $containerTypeNormalizer ?? new ContainerTypeNormalizer();
-        $this->mawbValidator = $mawbValidator ?? new IataMawbValidator();
-        $this->portCodeValidator = $portCodeValidator ?? new PortCodeValidator();
-        $this->dateLogicValidator = $dateLogicValidator ?? new DateLogicValidator();
+        $this->containerValidator = $containerValidator ?? new Iso6346ContainerValidator;
+        $this->containerTypeNormalizer = $containerTypeNormalizer ?? new ContainerTypeNormalizer;
+        $this->mawbValidator = $mawbValidator ?? new IataMawbValidator;
+        $this->portCodeValidator = $portCodeValidator ?? new PortCodeValidator;
+        $this->dateLogicValidator = $dateLogicValidator ?? new DateLogicValidator;
     }
 
     /**
      * Revalidates accepted fields, enforces overwrite policies and immutability.
      * Pure validation logic with no DB side-effects.
      *
-     * @param string $module
-     * @param array $acceptedFields
-     * @param array $existingValues
-     * @param int|null $runId
-     * @param int|null $companyId
-     * @param int|null $userId
-     * @return array
      * @throws InvalidArgumentException
      */
     public function validateAndFilterFields(
@@ -98,10 +95,10 @@ class ExtractionApplyService
             $oldValue = $existingValues[$fieldPath] ?? null;
 
             if ($fieldDef) {
-                if ($fieldDef->overwritePolicy === 'never' && !empty($oldValue)) {
+                if ($fieldDef->overwritePolicy === 'never' && ! empty($oldValue)) {
                     throw new InvalidArgumentException("OVERWRITE_POLICY_VIOLATION: Overwrite policy for {$fieldPath} is 'never'.");
                 }
-                if ($fieldDef->overwritePolicy === 'only_if_empty' && !empty($oldValue) && !$userConfirmed) {
+                if ($fieldDef->overwritePolicy === 'only_if_empty' && ! empty($oldValue) && ! $userConfirmed) {
                     throw new InvalidArgumentException("OVERWRITE_POLICY_VIOLATION: Field {$fieldPath} already has a value and user_confirmed is false.");
                 }
             }
@@ -181,28 +178,26 @@ class ExtractionApplyService
      * Apply validated extraction fields within a DB transaction.
      * Enforces tenant isolation, idempotency, optimistic locking, overwrite policies, and audit logging.
      *
-     * @param array $payload
-     * @return array
      * @throws InvalidArgumentException|ValidationException|RuntimeException
      */
     public function apply(array $payload): array
     {
         // 1. Tenant Safety: Resolve authenticated company_id strictly from server session
         $user = Auth::user();
-        if (!$user || empty($user->company_id)) {
-            throw new InvalidArgumentException("Unauthorized: Valid authenticated tenant session required.");
+        if (! $user || empty($user->company_id)) {
+            throw new InvalidArgumentException('Unauthorized: Valid authenticated tenant session required.');
         }
         $companyId = (int) $user->company_id;
         $userId = (int) $user->id;
 
         $runUuid = $payload['run_uuid'] ?? null;
-        if (!$runUuid) {
-            throw new InvalidArgumentException("Missing required parameter: run_uuid");
+        if (! $runUuid) {
+            throw new InvalidArgumentException('Missing required parameter: run_uuid');
         }
 
         $idempotencyToken = $payload['idempotency_token'] ?? null;
-        if (!$idempotencyToken) {
-            throw new InvalidArgumentException("Missing required parameter: idempotency_token");
+        if (! $idempotencyToken) {
+            throw new InvalidArgumentException('Missing required parameter: idempotency_token');
         }
 
         // 2. Idempotency Check: prevent duplicate execution
@@ -227,8 +222,8 @@ class ExtractionApplyService
             ->where('company_id', $companyId)
             ->first();
 
-        if (!$run) {
-            throw new InvalidArgumentException("Extraction run not found or forbidden for current tenant.");
+        if (! $run) {
+            throw new InvalidArgumentException('Extraction run not found or forbidden for current tenant.');
         }
 
         // 4. Optimistic Version Check
@@ -236,7 +231,7 @@ class ExtractionApplyService
         $currentFormVersion = $payload['current_form_version'] ?? null;
         if ($expectedFormVersion !== null && $currentFormVersion !== null) {
             if ($expectedFormVersion !== $currentFormVersion) {
-                throw new RuntimeException("STALE_FORM_STATE: Form was modified since extraction started.");
+                throw new RuntimeException('STALE_FORM_STATE: Form was modified since extraction started.');
             }
         }
 
@@ -279,11 +274,11 @@ class ExtractionApplyService
 
         // 6. DB Transaction Execution
         DB::transaction(function () use ($run, $idempotencyToken, $appliedData, $auditsToCreate, $decisionsToCreate) {
-            if (!empty($auditsToCreate)) {
+            if (! empty($auditsToCreate)) {
                 ExtractionAudit::insert($auditsToCreate);
             }
 
-            if (!empty($decisionsToCreate)) {
+            if (! empty($decisionsToCreate)) {
                 ReviewDecision::insert($decisionsToCreate);
             }
 

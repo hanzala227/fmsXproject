@@ -2,17 +2,18 @@
 
 namespace App\Services\FrexoAi\Pipeline;
 
+use Exception;
 use Illuminate\Http\UploadedFile;
 use Smalot\PdfParser\Parser;
-use Exception;
 
 class Stage1IngestClassify
 {
     /**
      * Ingest and validate uploaded files, assign server IDs, extract text and page counts.
      *
-     * @param array<UploadedFile> $files
+     * @param  array<UploadedFile>  $files
      * @return array Ingested document records
+     *
      * @throws Exception
      */
     public function ingest(array $files): array
@@ -27,15 +28,15 @@ class Stage1IngestClassify
         $ingested = [];
 
         foreach ($files as $idx => $file) {
-            if (!$file instanceof UploadedFile) {
+            if (! $file instanceof UploadedFile) {
                 continue;
             }
 
             if ($file->getSize() > ($maxSizeKb * 1024)) {
-                throw new Exception("File {$file->getClientOriginalName()} exceeds maximum size of " . ($maxSizeKb / 1024) . "MB.");
+                throw new Exception("File {$file->getClientOriginalName()} exceeds maximum size of ".($maxSizeKb / 1024).'MB.');
             }
 
-            $serverDocId = 'doc_' . uniqid() . '_' . ($idx + 1);
+            $serverDocId = 'doc_'.uniqid().'_'.($idx + 1);
             $filename = $file->getClientOriginalName();
             $ext = strtolower($file->getClientOriginalExtension());
             $mime = $file->getClientMimeType() ?: '';
@@ -78,7 +79,7 @@ class Stage1IngestClassify
         }
 
         if (empty($ingested)) {
-            throw new Exception("No valid readable documents were provided.");
+            throw new Exception('No valid readable documents were provided.');
         }
 
         return $ingested;
@@ -93,9 +94,9 @@ class Stage1IngestClassify
         // 1. Try pdftotext
         if (is_executable('/usr/bin/pdftotext')) {
             try {
-                $cmd = '/usr/bin/pdftotext -layout ' . escapeshellarg($path) . ' -';
+                $cmd = '/usr/bin/pdftotext -layout '.escapeshellarg($path).' - 2>/dev/null';
                 $out = @shell_exec($cmd);
-                if (!empty($out) && trim($out) !== '') {
+                if (! empty($out) && trim($out) !== '') {
                     $text = $out;
                 }
             } catch (\Throwable $e) {
@@ -105,7 +106,7 @@ class Stage1IngestClassify
 
         // 2. Fallback Smalot parser to get page count and text if pdftotext was empty
         try {
-            $parser = new Parser();
+            $parser = new Parser;
             $pdf = $parser->parseFile($path);
             $parsedPages = $pdf->getPages();
             $pages = count($parsedPages);
@@ -126,11 +127,11 @@ class Stage1IngestClassify
     protected function renderPdfPagesToImages(string $path, int $maxPages = 2): array
     {
         $images = [];
-        $tempPrefix = sys_get_temp_dir() . '/pdf_scan_' . uniqid();
-        $cmd = '/usr/bin/pdftoppm -png -r 150 -f 1 -l ' . $maxPages . ' ' . escapeshellarg($path) . ' ' . escapeshellarg($tempPrefix);
+        $tempPrefix = sys_get_temp_dir().'/pdf_scan_'.uniqid();
+        $cmd = '/usr/bin/pdftoppm -png -r 150 -f 1 -l '.$maxPages.' '.escapeshellarg($path).' '.escapeshellarg($tempPrefix);
         @exec($cmd);
 
-        $rendered = glob($tempPrefix . '-*.png');
+        $rendered = glob($tempPrefix.'-*.png');
         if (is_array($rendered)) {
             foreach ($rendered as $idx => $imgFile) {
                 $images[] = [

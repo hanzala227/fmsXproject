@@ -1,0 +1,82 @@
+{
+  "name": "Ocean Import Standard Bill of Lading",
+  "module": "ocean_import",
+  "document": {
+    "filename": "mbl_ocean_import.pdf",
+    "text_layer": "BILL OF LADING\nB/L NO: MEDU9876543\nVESSEL: MSC DANIELA VOYAGE: 2401W\nPOL: CNSHA SHANGHAI\nPOD: USLAX LOS ANGELES\nCONTAINER: CSQU3054383 40HC\nWEIGHT: 18500 KGS VOLUME: 45 CBM PIECES: 500 PKGS\nSHIPPER: ACME EXPORTS LTD\nCONSIGNEE: PACIFIC TRADING LLC"
+  },
+  "mock_response": {
+    "document_type": "BILL_OF_LADING",
+    "mbl": {
+      "mbl_no": "MEDU9876543",
+      "vessel_name": "MSC DANIELA",
+      "voyage": "2401W",
+      "pol_name": "CNSHA",
+      "pod_name": "USLAX",
+      "eta": "2026-11-15",
+      "etd": "2026-10-28"
+    },
+    "hbls": [
+      {
+        "hbl_no": "HBL-OI-101",
+        "shipper_name": "ACME EXPORTS LTD",
+        "consignee_name": "PACIFIC TRADING LLC",
+        "weight": 18500.0,
+        "volume": 45.0,
+        "pieces": 500
+      }
+    ],
+    "containers": [
+      {
+        "container_no": "CSQU3054383",
+        "container_type": "40HQ",
+        "seal_no": "SL99281"
+      }
+    ],
+    "routes": [
+      {
+        "leg_type": "OCEAN",
+        "carrier_name": "MSC",
+        "vessel_name": "MSC DANIELA",
+        "voyage": "2401W",
+        "pol_name": "CNSHA",
+        "pod_name": "USLAX"
+      }
+    ],
+    "field_evidence": [
+      {
+        "field_path": "mbl.mbl_no",
+        "scope": "master",
+        "raw_value": "MEDU9876543",
+        "normalized_value": "MEDU9876543",
+        "unit": null,
+        "status": "EXPLICIT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "B/L NO: MEDU9876543"
+      },
+      {
+        "field_path": "containers.0.container_no",
+        "scope": "container",
+        "raw_value": "CSQU3054383",
+        "normalized_value": "CSQU3054383",
+        "unit": null,
+        "status": "EXPLICIT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "CONTAINER: CSQU3054383"
+      }
+    ],
+    "conflicts": []
+  },
+  "expected": {
+    "fields": {
+      "mbl.mbl_no": "MEDU9876543",
+      "mbl.vessel_name": "MSC DANIELA",
+      "containers.0.container_no": "CSQU3054383"
+    },
+    "conflicts_count": 0,
+    "containers_count": 1,
+    "hbls_count": 1
+  }
+}

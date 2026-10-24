@@ -10,9 +10,7 @@ class DocumentAuthorityResolver
      * Resolve conflicting values between documents using document authority priorities.
      * Still returns a CONFLICT candidate when documents disagree materially.
      *
-     * @param string $fieldPath
-     * @param string $scope
-     * @param array<array{value: mixed, doc_type: string, doc_id: string, priority: int}> $candidates
+     * @param  array<array{value: mixed, doc_type: string, doc_id: string, priority: int}>  $candidates
      * @return array{proposed: mixed, conflict: ?ConflictCandidateDTO}
      */
     public function resolve(string $fieldPath, string $scope, array $candidates): array
@@ -26,12 +24,12 @@ class DocumentAuthorityResolver
         }
 
         // Sort candidates by authority priority descending
-        usort($candidates, fn($a, $b) => ($b['priority'] ?? 50) <=> ($a['priority'] ?? 50));
+        usort($candidates, fn ($a, $b) => ($b['priority'] ?? 50) <=> ($a['priority'] ?? 50));
 
         $top = $candidates[0];
         $distinctValues = [];
         foreach ($candidates as $c) {
-            $norm = is_string($c['value']) ? strtolower(trim($c['value'])) : (string)$c['value'];
+            $norm = is_string($c['value']) ? strtolower(trim($c['value'])) : (string) $c['value'];
             $distinctValues[$norm] = true;
         }
 
@@ -45,7 +43,7 @@ class DocumentAuthorityResolver
             $fieldPath,
             $scope,
             $top['value'],
-            array_map(fn($c) => [
+            array_map(fn ($c) => [
                 'value' => $c['value'],
                 'document_type' => $c['doc_type'] ?? 'UNKNOWN',
                 'document_id' => $c['doc_id'] ?? 'unknown',

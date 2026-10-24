@@ -5,13 +5,19 @@ namespace App\Services\FrexoAi\Validation;
 class ValidationResult
 {
     public const STATUS_PASS = 'pass';
+
     public const STATUS_WARN = 'warn';
+
     public const STATUS_FAIL = 'fail';
 
     public string $status;
+
     public string $code;
+
     public string $message;
+
     public string $fieldPath;
+
     public mixed $normalizedValue;
 
     public function __construct(

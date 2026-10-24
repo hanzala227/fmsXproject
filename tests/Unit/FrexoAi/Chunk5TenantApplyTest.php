@@ -6,8 +6,6 @@ use App\Models\User;
 use App\Services\FrexoAi\Apply\ExtractionApplyService;
 use App\Services\FrexoAi\Matching\TenantEntityMatcher;
 use App\Services\FrexoAi\Registry\FieldRegistry;
-use App\Services\FrexoAi\Validation\IataMawbValidator;
-use App\Services\FrexoAi\Validation\Iso6346ContainerValidator;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 use RuntimeException;
@@ -26,13 +24,14 @@ class Chunk5TenantApplyTest extends TestCase
      */
     protected function mockAuthUser(int $userId = 1, int $companyId = 100): User
     {
-        $user = new User();
+        $user = new User;
         $user->id = $userId;
         $user->company_id = $companyId;
         $user->name = 'Test Operator';
         $user->email = 'operator@tenant100.test';
 
         Auth::setUser($user);
+
         return $user;
     }
 
@@ -43,7 +42,7 @@ class Chunk5TenantApplyTest extends TestCase
     {
         $this->mockAuthUser(userId: 1, companyId: 100);
 
-        $matcher = new TenantEntityMatcher();
+        $matcher = new TenantEntityMatcher;
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Cross-tenant access violation');
@@ -59,7 +58,7 @@ class Chunk5TenantApplyTest extends TestCase
     {
         Auth::logout();
 
-        $matcher = new TenantEntityMatcher();
+        $matcher = new TenantEntityMatcher;
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unauthenticated tenant context');
@@ -72,7 +71,7 @@ class Chunk5TenantApplyTest extends TestCase
      */
     public function test_entity_name_normalization(): void
     {
-        $matcher = new TenantEntityMatcher();
+        $matcher = new TenantEntityMatcher;
 
         $this->assertEquals('mediterranean shipping', $matcher->normalizeEntityName('Mediterranean Shipping Co.'));
         $this->assertEquals('hapag lloyd', $matcher->normalizeEntityName('Hapag-Lloyd, Inc.'));
@@ -85,7 +84,7 @@ class Chunk5TenantApplyTest extends TestCase
      */
     public function test_file_number_and_ids_are_strictly_immutable_on_apply(): void
     {
-        $applyService = new ExtractionApplyService();
+        $applyService = new ExtractionApplyService;
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('OVERWRITE_POLICY_VIOLATION: Forbidden attempt to overwrite immutable field: mbl.file_no');
@@ -97,7 +96,7 @@ class Chunk5TenantApplyTest extends TestCase
                     'field_path' => 'mbl.file_no',
                     'value' => 'HACKED-FILE-999',
                     'raw_value' => 'HACKED-FILE-999',
-                ]
+                ],
             ]
         );
     }
@@ -125,7 +124,7 @@ class Chunk5TenantApplyTest extends TestCase
         $this->expectExceptionMessage('STALE_FORM_STATE');
 
         if ($expectedFormVersion !== $currentFormVersion) {
-            throw new RuntimeException("STALE_FORM_STATE: Form was modified since extraction started.");
+            throw new RuntimeException('STALE_FORM_STATE: Form was modified since extraction started.');
         }
     }
 
@@ -134,7 +133,7 @@ class Chunk5TenantApplyTest extends TestCase
      */
     public function test_deterministic_revalidation_rejects_invalid_container_format(): void
     {
-        $applyService = new ExtractionApplyService();
+        $applyService = new ExtractionApplyService;
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('VALIDATION_FAILURE [INVALID_CONTAINER_LENGTH]');
@@ -146,7 +145,7 @@ class Chunk5TenantApplyTest extends TestCase
                     'field_path' => 'containers.0.container_no',
                     'value' => 'MSCU123', // Too short, fails format
                     'raw_value' => 'MSCU123',
-                ]
+                ],
             ]
         );
     }
@@ -156,7 +155,7 @@ class Chunk5TenantApplyTest extends TestCase
      */
     public function test_deterministic_revalidation_rejects_invalid_mawb_length(): void
     {
-        $applyService = new ExtractionApplyService();
+        $applyService = new ExtractionApplyService;
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('VALIDATION_FAILURE [INVALID_MAWB_LENGTH]');
@@ -168,7 +167,7 @@ class Chunk5TenantApplyTest extends TestCase
                     'field_path' => 'master.mawb_no',
                     'value' => '020-1234', // Too short, fails MAWB format
                     'raw_value' => '020-1234',
-                ]
+                ],
             ]
         );
     }
@@ -178,7 +177,7 @@ class Chunk5TenantApplyTest extends TestCase
      */
     public function test_valid_field_application_produces_audits(): void
     {
-        $applyService = new ExtractionApplyService();
+        $applyService = new ExtractionApplyService;
 
         $result = $applyService->validateAndFilterFields(
             module: 'ocean_import',
@@ -189,7 +188,7 @@ class Chunk5TenantApplyTest extends TestCase
                     'raw_value' => 'EVER GIVEN',
                     'source_document_id' => 'doc_1',
                     'source_page' => 1,
-                ]
+                ],
             ],
             existingValues: [],
             runId: 10,
@@ -212,7 +211,7 @@ class Chunk5TenantApplyTest extends TestCase
     {
         $dirs = [
             app_path('Services/FrexoAi'),
-            app_path('Http/Controllers/AiExtractionController.php')
+            app_path('Http/Controllers/AiExtractionController.php'),
         ];
 
         $violations = [];
@@ -237,7 +236,7 @@ class Chunk5TenantApplyTest extends TestCase
             }
         }
 
-        $this->assertEmpty($violations, "Found untrusted company_id reads in: " . implode(', ', $violations));
+        $this->assertEmpty($violations, 'Found untrusted company_id reads in: '.implode(', ', $violations));
     }
 
     /**

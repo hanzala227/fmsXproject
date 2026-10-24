@@ -23,6 +23,7 @@ class PortCodeValidator
             if (preg_match('/\b([A-Z]{3})\b/', $clean, $m)) {
                 return ValidationResult::pass($fieldPath, $m[1], 'VALID_IATA_EXTRACTED');
             }
+
             return ValidationResult::warn(
                 'AMBIGUOUS_AIRPORT_NAME',
                 "Airport identifier '$raw' is not a standard 3-letter IATA code. Inference skipped.",

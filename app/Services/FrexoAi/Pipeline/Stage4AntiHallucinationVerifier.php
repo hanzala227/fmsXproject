@@ -11,9 +11,7 @@ class Stage4AntiHallucinationVerifier
      * Deterministically verify every field_evidence against ingested document text layers.
      * Downgrades unverified or fabricated fields to REVIEW_REQUIRED.
      *
-     * @param ExtractionResultDTO $dto
-     * @param array $ingestedDocs Indexed by document_id or list with 'document_id' and 'text_layer'
-     * @return ExtractionResultDTO
+     * @param  array  $ingestedDocs  Indexed by document_id or list with 'document_id' and 'text_layer'
      */
     public function verify(ExtractionResultDTO $dto, array $ingestedDocs): ExtractionResultDTO
     {
@@ -34,10 +32,11 @@ class Stage4AntiHallucinationVerifier
             $evidenceSnippet = $evidence->source['evidence_text'] ?? null;
 
             // 1. Check if document was issued by the server
-            if (!$docId || !isset($docsById[$docId])) {
+            if (! $docId || ! isset($docsById[$docId])) {
                 $evidence->status = FieldEvidenceDTO::STATUS_REVIEW_REQUIRED;
                 $dto->addWarning('UNVERIFIED_SOURCE', "Source document ID '{$docId}' was not issued by server.", $evidence->fieldPath);
                 $downgradedCount++;
+
                 continue;
             }
 
@@ -48,6 +47,7 @@ class Stage4AntiHallucinationVerifier
                 $evidence->status = FieldEvidenceDTO::STATUS_REVIEW_REQUIRED;
                 $dto->addWarning('INVALID_PAGE', "Referenced page $page exceeds document page count {$docData['pages_total']}.", $evidence->fieldPath);
                 $downgradedCount++;
+
                 continue;
             }
 
@@ -60,18 +60,19 @@ class Stage4AntiHallucinationVerifier
             // 4. Verify snippet presence in digital text layer
             if (empty($evidenceSnippet)) {
                 $evidence->status = FieldEvidenceDTO::STATUS_REVIEW_REQUIRED;
-                $dto->addWarning('MISSING_EVIDENCE', "No verbatim evidence snippet provided for field.", $evidence->fieldPath);
+                $dto->addWarning('MISSING_EVIDENCE', 'No verbatim evidence snippet provided for field.', $evidence->fieldPath);
                 $downgradedCount++;
+
                 continue;
             }
 
             $normSnippet = $this->normalizeText($evidenceSnippet);
-            if (!str_contains($docData['text_layer'], $normSnippet)) {
+            if (! str_contains($docData['text_layer'], $normSnippet)) {
                 // Fuzzy fallback: check if raw_value is contained
-                $normRaw = $this->normalizeText((string)$evidence->rawValue);
-                if (empty($normRaw) || !str_contains($docData['text_layer'], $normRaw)) {
+                $normRaw = $this->normalizeText((string) $evidence->rawValue);
+                if (empty($normRaw) || ! str_contains($docData['text_layer'], $normRaw)) {
                     $evidence->status = FieldEvidenceDTO::STATUS_REVIEW_REQUIRED;
-                    $dto->addWarning('EVIDENCE_NOT_FOUND', "Evidence snippet not found in verbatim document text.", $evidence->fieldPath);
+                    $dto->addWarning('EVIDENCE_NOT_FOUND', 'Evidence snippet not found in verbatim document text.', $evidence->fieldPath);
                     $downgradedCount++;
                 }
             }
@@ -90,6 +91,7 @@ class Stage4AntiHallucinationVerifier
     {
         // Normalize whitespace and lowercase for comparison
         $clean = preg_replace('/\s+/', ' ', $text);
+
         return strtolower(trim($clean));
     }
 }

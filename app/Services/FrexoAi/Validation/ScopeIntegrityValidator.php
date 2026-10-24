@@ -8,11 +8,7 @@ class ScopeIntegrityValidator
      * Verify sum integrity between itemized records (containers or HBLs) and master total.
      * Flags warnings if mismatch exceeds tolerance, NEVER redistributes or edits values.
      *
-     * @param float|null $masterTotal
-     * @param array<float> $itemizedValues
-     * @param string $fieldPath
-     * @param float $tolerancePercent
-     * @return ValidationResult|null
+     * @param  array<float>  $itemizedValues
      */
     public function validateSum(
         ?float $masterTotal,

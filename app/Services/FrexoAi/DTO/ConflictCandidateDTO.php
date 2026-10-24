@@ -5,9 +5,13 @@ namespace App\Services\FrexoAi\DTO;
 class ConflictCandidateDTO
 {
     public string $fieldPath;
+
     public string $scope;
+
     public mixed $proposedValue;
+
     public array $candidates; // array of ['value' => ..., 'source' => [...]]
+
     public string $reason;
 
     public function __construct(

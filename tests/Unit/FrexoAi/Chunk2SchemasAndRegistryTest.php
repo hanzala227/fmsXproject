@@ -2,11 +2,11 @@
 
 namespace Tests\Unit\FrexoAi;
 
-use PHPUnit\Framework\TestCase;
-use App\Services\FrexoAi\Registry\FieldRegistry;
-use App\Services\FrexoAi\Registry\FieldDefinition;
-use App\Services\FrexoAi\Schema\SchemaBuilder;
 use App\Services\FrexoAi\Mapper\FormDataMapper;
+use App\Services\FrexoAi\Registry\FieldDefinition;
+use App\Services\FrexoAi\Registry\FieldRegistry;
+use App\Services\FrexoAi\Schema\SchemaBuilder;
+use PHPUnit\Framework\TestCase;
 
 class Chunk2SchemasAndRegistryTest extends TestCase
 {
@@ -74,12 +74,12 @@ class Chunk2SchemasAndRegistryTest extends TestCase
             $this->assertArrayHasKey('hbls', $schema['properties']);
 
             $mblProps = $schema['properties']['mbl']['properties'];
-            $this->assertArrayNotHasKey('file_no', $mblProps, "Gemini schema must NEVER include file_no");
-            $this->assertArrayNotHasKey('post_date', $mblProps, "Gemini schema must NEVER include post_date");
-            $this->assertArrayNotHasKey('op_name', $mblProps, "Gemini schema must NEVER include op_name");
-            $this->assertArrayNotHasKey('dm_sales_person_name', $mblProps, "Gemini schema must NEVER include dm_sales_person_name");
-            $this->assertArrayNotHasKey('company_id', $mblProps, "Gemini schema must NEVER include company_id");
-            $this->assertArrayNotHasKey('id', $mblProps, "Gemini schema must NEVER include DB id");
+            $this->assertArrayNotHasKey('file_no', $mblProps, 'Gemini schema must NEVER include file_no');
+            $this->assertArrayNotHasKey('post_date', $mblProps, 'Gemini schema must NEVER include post_date');
+            $this->assertArrayNotHasKey('op_name', $mblProps, 'Gemini schema must NEVER include op_name');
+            $this->assertArrayNotHasKey('dm_sales_person_name', $mblProps, 'Gemini schema must NEVER include dm_sales_person_name');
+            $this->assertArrayNotHasKey('company_id', $mblProps, 'Gemini schema must NEVER include company_id');
+            $this->assertArrayNotHasKey('id', $mblProps, 'Gemini schema must NEVER include DB id');
         }
     }
 
@@ -109,15 +109,15 @@ class Chunk2SchemasAndRegistryTest extends TestCase
                     'container_no' => 'MSCU7654321',
                     'seal_no' => 'SL999',
                     'container_type' => '40HC',
-                ]
+                ],
             ],
             'hbls' => [
                 [
                     'hbl_no' => 'HBL001',
                     'shipper_name' => 'Acme Corp',
                     'sales_person_name' => 'Malicious Hacker',
-                ]
-            ]
+                ],
+            ],
         ];
 
         $mapped = FormDataMapper::mapToApplicationStructure('ocean_import', $maliciousAiOutput);

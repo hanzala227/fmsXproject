@@ -2,11 +2,11 @@
 
 namespace Tests\Unit\FrexoAi;
 
-use Tests\TestCase;
 use App\Services\FrexoAi\Client\MockGeminiClient;
-use App\Services\FrexoAi\Pipeline\StagedExtractionPipeline;
 use App\Services\FrexoAi\DTO\FieldEvidenceDTO;
+use App\Services\FrexoAi\Pipeline\StagedExtractionPipeline;
 use Illuminate\Http\UploadedFile;
+use Tests\TestCase;
 
 class Chunk3StagedPipelineTest extends TestCase
 {
@@ -15,8 +15,8 @@ class Chunk3StagedPipelineTest extends TestCase
         $modules = ['ocean_import', 'ocean_export', 'air_import', 'air_export'];
 
         foreach ($modules as $module) {
-            $mockClient = new MockGeminiClient();
-            
+            $mockClient = new MockGeminiClient;
+
             // Queue Stage 2 extraction response
             $mockClient->queueResponse(json_encode([
                 'document_type' => 'BILL_OF_LADING',
@@ -30,20 +30,20 @@ class Chunk3StagedPipelineTest extends TestCase
                         'hbl_no' => 'HBL-001',
                         'shipper_name' => 'Global Logistics Inc',
                         'pieces' => 100,
-                    ]
+                    ],
                 ],
                 'containers' => [
                     [
                         'container_no' => 'MSCU1234567',
                         'seal_no' => 'SL123',
                         'container_type' => '40HQ',
-                    ]
+                    ],
                 ],
                 'routes' => [
                     [
                         'vessel_name' => 'MAERSK MC-KINNEY',
                         'voyage' => '001W',
-                    ]
+                    ],
                 ],
                 'field_evidence' => [
                     [
@@ -55,9 +55,9 @@ class Chunk3StagedPipelineTest extends TestCase
                         'source' => [
                             'page' => 1,
                             'evidence_text' => 'B/L No: MBL-TEST-123',
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ]));
 
             $pipeline = new StagedExtractionPipeline($mockClient);
@@ -82,8 +82,8 @@ class Chunk3StagedPipelineTest extends TestCase
 
     public function test_failed_document_is_marked_as_failed_in_document_analysis(): void
     {
-        $mockClient = new MockGeminiClient();
-        
+        $mockClient = new MockGeminiClient;
+
         // Doc 1 succeeds
         $mockClient->queueResponse(json_encode([
             'document_type' => 'COMMERCIAL_INVOICE',
@@ -109,7 +109,7 @@ class Chunk3StagedPipelineTest extends TestCase
 
     public function test_anti_hallucination_downgrades_fabricated_evidence_to_review_required(): void
     {
-        $mockClient = new MockGeminiClient();
+        $mockClient = new MockGeminiClient;
 
         // Model claims evidence that is NOT present in document text
         $mockClient->queueResponse(json_encode([
@@ -125,9 +125,9 @@ class Chunk3StagedPipelineTest extends TestCase
                     'source' => [
                         'page' => 1,
                         'evidence_text' => 'Completely invented text not in document',
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ]));
 
         $pipeline = new StagedExtractionPipeline($mockClient);

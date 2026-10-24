@@ -1,0 +1,41 @@
+{
+  "name": "Air Import Volumetric Calculation",
+  "module": "air_import",
+  "document": {
+    "filename": "mawb_air_import.pdf",
+    "text_layer": "AIR WAYBILL\nMAWB NO: 020-12345674\nAIRPORT OF DEPARTURE: FRA FRANKFURT\nAIRPORT OF DESTINATION: JFK NEW YORK\nGROSS WEIGHT: 420.0 KG\nVOLUME: 3.5 CBM\nCHARGEABLE WEIGHT: 583.5 KG"
+  },
+  "mock_response": {
+    "document_type": "AIR_WAYBILL",
+    "master": {
+      "mawb_no": "020-12345674",
+      "departure_name": "FRA",
+      "destination_name": "JFK",
+      "gross_weight": 420.0,
+      "chargeable_weight": 583.5,
+      "cbm": 3.5
+    },
+    "field_evidence": [
+      {
+        "field_path": "master.mawb_no",
+        "scope": "master",
+        "raw_value": "020-12345674",
+        "normalized_value": "020-12345674",
+        "unit": null,
+        "status": "EXPLICIT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "MAWB NO: 020-12345674"
+      }
+    ],
+    "conflicts": []
+  },
+  "expected": {
+    "fields": {
+      "master.mawb_no": "020-12345674",
+      "master.departure_name": "FRA",
+      "master.destination_name": "JFK"
+    },
+    "conflicts_count": 0
+  }
+}

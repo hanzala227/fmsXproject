@@ -8,8 +8,11 @@ class MockGeminiClient implements GeminiClientInterface
 {
     /** @var array<string, string|callable> */
     protected array $cannedResponses = [];
+
     protected ?string $defaultResponse = null;
+
     public array $callHistory = [];
+
     protected int $callCount = 0;
 
     public function __construct(array $cannedResponses = [])
@@ -22,12 +25,14 @@ class MockGeminiClient implements GeminiClientInterface
     public function queueResponse(string|callable|\Throwable $jsonOrError): self
     {
         $this->cannedResponses[] = $jsonOrError;
+
         return $this;
     }
 
     public function setDefaultResponse(string $json): self
     {
         $this->defaultResponse = $json;
+
         return $this;
     }
 
@@ -45,7 +50,7 @@ class MockGeminiClient implements GeminiClientInterface
             'temperature' => $temperature,
         ];
 
-        if (!empty($this->cannedResponses)) {
+        if (! empty($this->cannedResponses)) {
             $next = array_shift($this->cannedResponses);
             if ($next instanceof Exception) {
                 throw $next;
@@ -53,7 +58,8 @@ class MockGeminiClient implements GeminiClientInterface
             if (is_callable($next)) {
                 return $next($systemInstruction, $userContents);
             }
-            return (string)$next;
+
+            return (string) $next;
         }
 
         if ($this->defaultResponse !== null) {

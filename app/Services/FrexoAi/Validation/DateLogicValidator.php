@@ -20,9 +20,9 @@ class DateLogicValidator
 
         // Check for ambiguous slash formats e.g. 03/04/2026 vs 25/04/2026
         if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $trimmed, $m)) {
-            $n1 = (int)$m[1];
-            $n2 = (int)$m[2];
-            $year = (int)$m[3];
+            $n1 = (int) $m[1];
+            $n2 = (int) $m[2];
+            $year = (int) $m[3];
 
             if ($n1 <= 12 && $n2 <= 12 && $n1 !== $n2) {
                 return ValidationResult::warn(
@@ -36,12 +36,14 @@ class DateLogicValidator
             // If n1 > 12, then n1 must be day: DD/MM/YYYY
             if ($n1 > 12) {
                 $iso = sprintf('%04d-%02d-%02d', $year, $n2, $n1);
+
                 return ValidationResult::pass($fieldPath, $iso);
             }
 
             // If n2 > 12, then n2 must be day: MM/DD/YYYY
             if ($n2 > 12) {
                 $iso = sprintf('%04d-%02d-%02d', $year, $n1, $n2);
+
                 return ValidationResult::pass($fieldPath, $iso);
             }
         }
@@ -77,7 +79,7 @@ class DateLogicValidator
             return ValidationResult::warn(
                 'DEPARTURE_AFTER_ARRIVAL',
                 "Departure ($etd) is later than arrival ($eta). Values kept as stated without swap.",
-                $prefix . 'etd'
+                $prefix.'etd'
             );
         }
 

@@ -27,10 +27,10 @@ class IataMawbValidator
 
         $prefix = substr($digits, 0, 3);
         $serial7 = substr($digits, 3, 7);
-        $checkDigit = (int)substr($digits, 10, 1);
+        $checkDigit = (int) substr($digits, 10, 1);
 
-        $expectedCheckDigit = ((int)$serial7) % 7;
-        $formatted = $prefix . '-' . substr($digits, 3);
+        $expectedCheckDigit = ((int) $serial7) % 7;
+        $formatted = $prefix.'-'.substr($digits, 3);
 
         if ($checkDigit !== $expectedCheckDigit) {
             return ValidationResult::warn(

@@ -35,7 +35,7 @@ class Iso6346ContainerValidator
         $serial = substr($clean, 4, 6);
         $checkDigit = substr($clean, 10, 1);
 
-        if (!ctype_alpha($prefix) || !ctype_digit($serial) || !ctype_digit($checkDigit)) {
+        if (! ctype_alpha($prefix) || ! ctype_digit($serial) || ! ctype_digit($checkDigit)) {
             return ValidationResult::fail(
                 'INVALID_CONTAINER_FORMAT',
                 "Container number '$raw' does not match format (4 letters + 7 digits)",
@@ -48,13 +48,13 @@ class Iso6346ContainerValidator
         $sum = 0;
         for ($i = 0; $i < 10; $i++) {
             $char = $clean[$i];
-            $val = ctype_alpha($char) ? (self::$letterValues[$char] ?? 0) : (int)$char;
+            $val = ctype_alpha($char) ? (self::$letterValues[$char] ?? 0) : (int) $char;
             $sum += $val * (2 ** $i);
         }
 
         $calculatedCheckDigit = ($sum % 11) % 10;
 
-        if ((int)$checkDigit !== $calculatedCheckDigit) {
+        if ((int) $checkDigit !== $calculatedCheckDigit) {
             return ValidationResult::warn(
                 'CONTAINER_CHECK_DIGIT_MISMATCH',
                 "Container '$raw' has check digit '$checkDigit', expected '$calculatedCheckDigit'. Stored without correction.",

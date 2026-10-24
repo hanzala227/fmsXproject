@@ -8,7 +8,6 @@ use App\Services\FrexoAi\Observability\FrexoAiLogger;
 use App\Services\FrexoAi\Schema\SchemaBuilder;
 use Exception;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
 
 class Stage2PerDocumentExtractor
 {
@@ -22,8 +21,6 @@ class Stage2PerDocumentExtractor
     /**
      * Run extraction per document with partial failure tolerance and JSON repair.
      *
-     * @param string $module
-     * @param array $ingestedDocs
      * @return array ['document_results' => array, 'analyses' => DocumentAnalysisDTO[]]
      */
     public function extractAll(string $module, array $ingestedDocs): array
@@ -32,7 +29,7 @@ class Stage2PerDocumentExtractor
         $analyses = [];
 
         $schema = SchemaBuilder::buildGeminiResponseSchema($module);
-        $manifest = json_encode(array_map(fn($d) => [
+        $manifest = json_encode(array_map(fn ($d) => [
             'document_id' => $d['document_id'],
             'filename' => $d['filename'],
             'pages_total' => $d['pages_total'],
@@ -41,7 +38,7 @@ class Stage2PerDocumentExtractor
 
         $promptA = File::get(resource_path('prompts/extraction/v1/prompt_a_system.txt'));
         $promptB = File::get(resource_path('prompts/extraction/v1/prompt_b_document.txt'));
-        $moduleAddOn = File::get(resource_path("prompts/extraction/v1/module_" . (str_starts_with($module, 'ocean') ? 'ocean' : 'air') . ".txt"));
+        $moduleAddOn = File::get(resource_path('prompts/extraction/v1/module_'.(str_starts_with($module, 'ocean') ? 'ocean' : 'air').'.txt'));
 
         foreach ($ingestedDocs as $doc) {
             $docId = $doc['document_id'];
@@ -69,22 +66,22 @@ class Stage2PerDocumentExtractor
                 $promptB
             );
 
-            $system .= "\n\n" . $task . "\n\n" . $moduleAddOn;
+            $system .= "\n\n".$task."\n\n".$moduleAddOn;
 
             // Build user contents
             $userContents = [];
             $userContents[] = [
                 'type' => 'text',
-                'text' => "=== DOCUMENT TO EXTRACT (ID: {$docId}, Name: {$doc['filename']}) ===\n" . $doc['text_layer']
+                'text' => "=== DOCUMENT TO EXTRACT (ID: {$docId}, Name: {$doc['filename']}) ===\n".$doc['text_layer'],
             ];
 
-            if (!empty($doc['images'])) {
+            if (! empty($doc['images'])) {
                 foreach ($doc['images'] as $img) {
                     $userContents[] = [
                         'type' => 'image_url',
                         'image_url' => [
-                            'url' => 'data:' . ($img['mime'] ?: 'image/jpeg') . ';base64,' . $img['base64']
-                        ]
+                            'url' => 'data:'.($img['mime'] ?: 'image/jpeg').';base64,'.$img['base64'],
+                        ],
                     ];
                 }
             }
@@ -94,7 +91,7 @@ class Stage2PerDocumentExtractor
                 $decoded = json_decode($rawJson, true);
 
                 // Maximum one repair attempt for malformed JSON
-                if (!is_array($decoded)) {
+                if (! is_array($decoded)) {
                     FrexoAiLogger::logJsonRepairAttempt('batch_run', $docId, 1);
                     $cleaned = trim($rawJson);
                     // Strip markdown fences
@@ -105,20 +102,20 @@ class Stage2PerDocumentExtractor
                         $cleaned = $matches[0];
                     }
                     $decoded = json_decode($cleaned, true);
-                    if (!is_array($decoded)) {
-                        throw new Exception("MALFORMED_JSON_OUTPUT: Document output could not be parsed as valid JSON after repair attempt.");
+                    if (! is_array($decoded)) {
+                        throw new Exception('MALFORMED_JSON_OUTPUT: Document output could not be parsed as valid JSON after repair attempt.');
                     }
                 }
 
                 if (isset($decoded['document_type'])) {
-                    $analysis->documentType = (string)$decoded['document_type'];
+                    $analysis->documentType = (string) $decoded['document_type'];
                 }
 
                 $results[$docId] = $decoded;
             } catch (\Throwable $e) {
                 FrexoAiLogger::logExtractionFailed('batch_run', 'STAGE2_DOC_ERROR', $e->getMessage(), ['doc_id' => $docId]);
                 $analysis->status = 'FAILED';
-                $analysis->limitations[] = "Extraction failure: " . $e->getMessage();
+                $analysis->limitations[] = 'Extraction failure: '.$e->getMessage();
                 $results[$docId] = [
                     'mbl' => [],
                     'hbls' => [],

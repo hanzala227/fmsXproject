@@ -2,17 +2,17 @@
 
 namespace Tests\Unit\FrexoAi;
 
-use Tests\TestCase;
-use App\Services\FrexoAi\Validation\Iso6346ContainerValidator;
-use App\Services\FrexoAi\Validation\IataMawbValidator;
-use App\Services\FrexoAi\Validation\ContainerTypeNormalizer;
 use App\Services\FrexoAi\Validation\AirWeightValidator;
+use App\Services\FrexoAi\Validation\ContainerTypeNormalizer;
 use App\Services\FrexoAi\Validation\DateLogicValidator;
-use App\Services\FrexoAi\Validation\NullVsZeroValidator;
+use App\Services\FrexoAi\Validation\DocumentAuthorityResolver;
 use App\Services\FrexoAi\Validation\DuplicateContainerValidator;
+use App\Services\FrexoAi\Validation\IataMawbValidator;
+use App\Services\FrexoAi\Validation\Iso6346ContainerValidator;
+use App\Services\FrexoAi\Validation\NullVsZeroValidator;
 use App\Services\FrexoAi\Validation\PortCodeValidator;
 use App\Services\FrexoAi\Validation\ScopeIntegrityValidator;
-use App\Services\FrexoAi\Validation\DocumentAuthorityResolver;
+use Tests\TestCase;
 
 class Chunk4DeterministicValidationTest extends TestCase
 {
@@ -21,7 +21,7 @@ class Chunk4DeterministicValidationTest extends TestCase
      */
     public function test_iso_6346_container_validator(string $input, string $expectedStatus, ?string $expectedCode): void
     {
-        $validator = new Iso6346ContainerValidator();
+        $validator = new Iso6346ContainerValidator;
         $result = $validator->validate($input);
 
         $this->assertEquals($expectedStatus, $result->status);
@@ -47,7 +47,7 @@ class Chunk4DeterministicValidationTest extends TestCase
      */
     public function test_iata_mawb_validator(string $input, string $expectedStatus, ?string $expectedCode, ?string $expectedFormatted): void
     {
-        $validator = new IataMawbValidator();
+        $validator = new IataMawbValidator;
         $result = $validator->validate($input);
 
         $this->assertEquals($expectedStatus, $result->status);
@@ -72,16 +72,16 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_container_type_normalizer(): void
     {
-        $normalizer = new ContainerTypeNormalizer();
+        $normalizer = new ContainerTypeNormalizer;
 
         // Valid mappings
         $this->assertEquals('40HQ', $normalizer->normalize("40' HIGH CUBE")->normalizedValue);
-        $this->assertEquals('40HQ', $normalizer->normalize("40HC")->normalizedValue);
+        $this->assertEquals('40HQ', $normalizer->normalize('40HC')->normalizedValue);
         $this->assertEquals('20GP', $normalizer->normalize("20' STANDARD")->normalizedValue);
-        $this->assertEquals('40RF', $normalizer->normalize("40HR")->normalizedValue);
+        $this->assertEquals('40RF', $normalizer->normalize('40HR')->normalizedValue);
 
         // Edge unrecognized: keeps raw, warns
-        $unrec = $normalizer->normalize("99 SPECIAL TANK");
+        $unrec = $normalizer->normalize('99 SPECIAL TANK');
         $this->assertTrue($unrec->isWarn());
         $this->assertEquals('99 SPECIAL TANK', $unrec->normalizedValue);
     }
@@ -108,7 +108,7 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_date_logic_validator(): void
     {
-        $validator = new DateLogicValidator();
+        $validator = new DateLogicValidator;
 
         // Valid ISO
         $this->assertTrue($validator->validateDate('2026-10-24')->isPass());
@@ -132,7 +132,7 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_null_vs_zero_validator(): void
     {
-        $validator = new NullVsZeroValidator();
+        $validator = new NullVsZeroValidator;
 
         // Null / empty kept as null
         $this->assertNull($validator->validate(null, 'mbl.weight')->normalizedValue);
@@ -151,7 +151,7 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_duplicate_container_validator(): void
     {
-        $validator = new DuplicateContainerValidator();
+        $validator = new DuplicateContainerValidator;
 
         $containers = [
             ['container_no' => 'MSCU1234567', 'hbl_no' => 'HBL1'],
@@ -169,7 +169,7 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_port_code_validator(): void
     {
-        $validator = new PortCodeValidator();
+        $validator = new PortCodeValidator;
 
         // UNLOCODE
         $this->assertTrue($validator->validate('USLAX', 'UNLOCODE')->isPass());
@@ -184,7 +184,7 @@ class Chunk4DeterministicValidationTest extends TestCase
 
     public function test_scope_integrity_and_authority_resolver(): void
     {
-        $scopeValidator = new ScopeIntegrityValidator();
+        $scopeValidator = new ScopeIntegrityValidator;
 
         // Sum matching
         $this->assertTrue($scopeValidator->validateSum(1000.0, [500.0, 500.0])->isPass());
@@ -195,7 +195,7 @@ class Chunk4DeterministicValidationTest extends TestCase
         $this->assertEquals('SCOPE_SUM_MISMATCH', $resMismatch->code);
 
         // Document Authority
-        $resolver = new DocumentAuthorityResolver();
+        $resolver = new DocumentAuthorityResolver;
         $candidates = [
             ['value' => '15000 KG', 'doc_type' => 'BILL_OF_LADING', 'doc_id' => 'doc_1', 'priority' => 70],
             ['value' => '15200 KG', 'doc_type' => 'PACKING_LIST', 'doc_id' => 'doc_2', 'priority' => 95],

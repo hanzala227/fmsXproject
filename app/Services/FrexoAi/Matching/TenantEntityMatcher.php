@@ -23,6 +23,7 @@ class TenantEntityMatcher
             if ($explicitCompanyId !== null && $explicitCompanyId !== $authCompanyId) {
                 throw new InvalidArgumentException("Cross-tenant access violation: forbidden entity lookup for company {$explicitCompanyId}");
             }
+
             return (int) $authCompanyId;
         }
 
@@ -30,7 +31,7 @@ class TenantEntityMatcher
             return (int) $explicitCompanyId;
         }
 
-        throw new InvalidArgumentException("Unauthenticated tenant context: company_id is required.");
+        throw new InvalidArgumentException('Unauthenticated tenant context: company_id is required.');
     }
 
     /**
@@ -67,13 +68,14 @@ class TenantEntityMatcher
         $exactMatches = (clone $baseQuery)
             ->where(function ($q) use ($rawQuery) {
                 $q->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($rawQuery)])
-                  ->orWhereRaw('LOWER(TRIM(code)) = ?', [mb_strtolower($rawQuery)])
-                  ->orWhereRaw('LOWER(TRIM(alias)) = ?', [mb_strtolower($rawQuery)]);
+                    ->orWhereRaw('LOWER(TRIM(code)) = ?', [mb_strtolower($rawQuery)])
+                    ->orWhereRaw('LOWER(TRIM(alias)) = ?', [mb_strtolower($rawQuery)]);
             })
             ->get();
 
         if ($exactMatches->count() === 1) {
             $partner = $exactMatches->first();
+
             return [
                 'match_type' => 'EXACT',
                 'entity_id' => $partner->id,
@@ -89,9 +91,9 @@ class TenantEntityMatcher
 
         // 2. Normalized exact match (ignoring Inc, LLC, Ltd, punctuation)
         $candidates = (clone $baseQuery)
-            ->where(function ($q) use ($normalizedQuery, $rawQuery) {
-                $q->where('name', 'LIKE', '%' . substr($normalizedQuery, 0, 15) . '%')
-                  ->orWhere('alias', 'LIKE', '%' . substr($normalizedQuery, 0, 15) . '%');
+            ->where(function ($q) use ($normalizedQuery) {
+                $q->where('name', 'LIKE', '%'.substr($normalizedQuery, 0, 15).'%')
+                    ->orWhere('alias', 'LIKE', '%'.substr($normalizedQuery, 0, 15).'%');
             })
             ->limit(10)
             ->get();
@@ -105,6 +107,7 @@ class TenantEntityMatcher
 
         if (count($normalizedMatches) === 1) {
             $partner = $normalizedMatches[0];
+
             return [
                 'match_type' => 'NORMALIZED_EXACT',
                 'entity_id' => $partner->id,
@@ -160,6 +163,7 @@ class TenantEntityMatcher
         $exactCode = Port::whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($rawQuery)])->get();
         if ($exactCode->count() === 1) {
             $port = $exactCode->first();
+
             return [
                 'match_type' => 'EXACT',
                 'entity_id' => $port->id,
@@ -177,6 +181,7 @@ class TenantEntityMatcher
         $exactName = Port::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($rawQuery)])->get();
         if ($exactName->count() === 1) {
             $port = $exactName->first();
+
             return [
                 'match_type' => 'EXACT',
                 'entity_id' => $port->id,
@@ -191,8 +196,8 @@ class TenantEntityMatcher
         }
 
         // 3. Partial candidates
-        $candidates = Port::where('name', 'LIKE', '%' . $rawQuery . '%')
-            ->orWhere('code', 'LIKE', '%' . $rawQuery . '%')
+        $candidates = Port::where('name', 'LIKE', '%'.$rawQuery.'%')
+            ->orWhere('code', 'LIKE', '%'.$rawQuery.'%')
             ->limit(5)
             ->get();
 
@@ -225,17 +230,18 @@ class TenantEntityMatcher
         $cleaned = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $cleaned);
         // Common legal entity suffixes
         $suffixes = ['\binc\b', '\bllc\b', '\bltd\b', '\bcorp\b', '\bcorporation\b', '\bgmbh\b', '\bco\b', '\bcompany\b', '\bpte\b', '\bpty\b', '\bsa\b', '\bsp z o o\b'];
-        
+
         // Loop to strip compound suffixes such as "(Pte.) Ltd." or "Co., Ltd."
         $prev = '';
         while ($prev !== $cleaned) {
             $prev = $cleaned;
             foreach ($suffixes as $suffix) {
-                $cleaned = preg_replace('/' . $suffix . '$/i', '', trim($cleaned));
-                $cleaned = preg_replace('/' . $suffix . '\s+/i', ' ', trim($cleaned));
+                $cleaned = preg_replace('/'.$suffix.'$/i', '', trim($cleaned));
+                $cleaned = preg_replace('/'.$suffix.'\s+/i', ' ', trim($cleaned));
             }
             $cleaned = trim($cleaned);
         }
+
         // Collapse multiple whitespace
         return trim(preg_replace('/\s+/', ' ', $cleaned));
     }

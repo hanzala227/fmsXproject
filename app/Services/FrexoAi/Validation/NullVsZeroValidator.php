@@ -18,6 +18,7 @@ class NullVsZeroValidator
             if ($isExplicitZeroInDoc) {
                 return ValidationResult::pass($fieldPath, 0, 'EXPLICIT_ZERO_STATED');
             }
+
             return ValidationResult::warn(
                 'ZERO_VALUE_REQUIRES_EVIDENCE',
                 "Field '$fieldPath' has value 0 without explicit evidence in document. Null preserved.",

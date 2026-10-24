@@ -1,0 +1,48 @@
+{
+  "name": "Cross Document Weight Conflict",
+  "module": "ocean_import",
+  "document": {
+    "filename": "bill_of_lading.pdf",
+    "text_layer": "B/L NO: MEDU1112223\nGROSS WEIGHT: 18500 KGS"
+  },
+  "mock_response": {
+    "document_type": "BILL_OF_LADING",
+    "mbl": {
+      "mbl_no": "MEDU1112223"
+    },
+    "hbls": [
+      {
+        "hbl_no": "HBL-001",
+        "weight": 18500.0
+      }
+    ],
+    "field_evidence": [
+      {
+        "field_path": "hbl.weight",
+        "scope": "house",
+        "raw_value": "18500",
+        "normalized_value": 18500.0,
+        "unit": "KGS",
+        "status": "CONFLICT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "GROSS WEIGHT: 18500 KGS"
+      }
+    ],
+    "conflicts": [
+      {
+        "field_path": "hbl.weight",
+        "candidates": [
+          { "document_id": "doc_1", "value": 18500.0, "source": "BILL_OF_LADING" },
+          { "document_id": "doc_2", "value": 21000.0, "source": "COMMERCIAL_INVOICE" }
+        ],
+        "chosen_value": 18500.0,
+        "reason": "Bill of Lading has higher freight authority than Commercial Invoice for cargo weight, but operator review is required."
+      }
+    ]
+  },
+  "expected": {
+    "conflicts_count": 1,
+    "has_conflict_on": "hbl.weight"
+  }
+}

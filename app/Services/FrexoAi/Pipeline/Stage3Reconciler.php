@@ -6,8 +6,7 @@ use App\Services\FrexoAi\Client\GeminiClientInterface;
 use App\Services\FrexoAi\DTO\ConflictCandidateDTO;
 use App\Services\FrexoAi\DTO\ExtractionResultDTO;
 use App\Services\FrexoAi\DTO\FieldEvidenceDTO;
-use App\Services\FrexoAi\Schema\SchemaBuilder;
-use Exception;
+use Illuminate\Support\Facades\File;
 
 class Stage3Reconciler
 {
@@ -18,103 +17,95 @@ class Stage3Reconciler
         $this->client = $client;
     }
 
-    /**
-     * Reconcile multiple document extractions into a unified shipment result.
-     *
-     * @param string $module
-     * @param array $documentResults [doc_id => [...]]
-     * @param array $ingestedDocs
-     * @param ExtractionResultDTO $dto
-     * @return ExtractionResultDTO
-     */
-    public function reconcile(string $module, array $documentResults, array $ingestedDocs, ExtractionResultDTO $dto): ExtractionResultDTO
-    {
-        // 1. If only 1 document, deterministic pass-through
-        if (count($documentResults) === 1) {
+    public function reconcile(
+        string $module,
+        array $documentResults,
+        array $ingestedDocs,
+        ExtractionResultDTO $dto
+    ): ExtractionResultDTO {
+        $isAir = str_starts_with($module, 'air_');
+
+        // Shortcut for 0 or 1 document: no cross-document reconciliation needed
+        if (count($documentResults) <= 1) {
             $docId = array_key_first($documentResults);
             $rawResult = $documentResults[$docId] ?? [];
 
             $dto->shipmentGroups[] = [
                 'group_id' => 'group_1',
-                'documents' => [$docId],
+                'documents' => $docId ? [$docId] : [],
                 'association_status' => 'CONFIRMED',
                 'association_evidence' => ['single_document'],
             ];
 
+            $master = ! empty($rawResult['master']) ? $rawResult['master'] : ($rawResult['mbl'] ?? []);
+            $houses = ! empty($rawResult['hawbs']) ? $rawResult['hawbs'] : ($rawResult['hbls'] ?? []);
+            if (empty($houses) && isset($rawResult['hawb'])) {
+                $houses = [$rawResult['hawb']];
+            }
+
             $dto->formData = [
-                'mbl' => $rawResult['mbl'] ?? [],
-                'hbls' => $rawResult['hbls'] ?? [],
+                'mbl' => $master,
+                'master' => $master,
+                'hbls' => $houses,
+                'hawbs' => $houses,
                 'containers' => $rawResult['containers'] ?? [],
                 'routes' => $rawResult['routes'] ?? ($rawResult['flights'] ?? []),
             ];
 
-            $this->populateEvidenceFromRaw($dto, $rawResult, $docId);
+            if (! empty($rawResult['conflicts']) && is_array($rawResult['conflicts'])) {
+                foreach ($rawResult['conflicts'] as $c) {
+                    $dto->addConflict(new ConflictCandidateDTO(
+                        $c['field_path'] ?? 'unknown',
+                        $c['scope'] ?? ($isAir ? 'master' : 'mbl'),
+                        $c['chosen_value'] ?? ($c['proposed_value'] ?? null),
+                        $c['candidates'] ?? [],
+                        $c['reason'] ?? 'Material difference between sources'
+                    ));
+                }
+            }
+
+            if (! empty($rawResult['warnings']) && is_array($rawResult['warnings'])) {
+                foreach ($rawResult['warnings'] as $w) {
+                    $dto->addWarning($w['code'] ?? 'RECONCILIATION_WARNING', $w['message'] ?? 'Warning detected', $w['field_path'] ?? null);
+                }
+            }
+
+            if ($docId) {
+                $this->populateEvidenceFromRaw($dto, $rawResult, $docId);
+            }
+
             return $dto;
         }
 
-        // 2. Multi-document reconciliation call
-        $promptA = file_get_contents(resource_path('prompts/extraction/v1/prompt_a_system.txt'));
-        $promptC = file_get_contents(resource_path('prompts/extraction/v1/prompt_c_reconcile.txt'));
-        $moduleAddOn = str_starts_with($module, 'ocean_')
-            ? file_get_contents(resource_path('prompts/extraction/v1/module_ocean.txt'))
-            : file_get_contents(resource_path('prompts/extraction/v1/module_air.txt'));
-
-        $fieldRules = SchemaBuilder::buildFieldRulesText($module);
-        $manifest = json_encode(array_map(fn($d) => [
-            'document_id' => $d['document_id'],
-            'filename' => $d['filename'],
-        ], $ingestedDocs));
+        // Multiple documents: run Stage 3 Reconciler call
+        $promptA = File::get(resource_path('prompts/extraction/v1/prompt_a_system.txt'));
+        $promptC = File::get(resource_path('prompts/extraction/v1/prompt_c_reconcile.txt'));
+        $moduleAddOn = File::get(resource_path('prompts/extraction/v1/module_'.($isAir ? 'air' : 'ocean').'.txt'));
 
         $system = str_replace(
             ['{{MODULE}}', '{{DOCUMENT_MANIFEST}}', '{{FIELD_RULES}}', '{{EXISTING_SHIPMENT_CONTEXT}}'],
-            [$module, $manifest, $fieldRules, 'Synthesize multiple extracted shipment documents.'],
+            [$module, json_encode($ingestedDocs), '', 'Reconcile multi-document shipment data.'],
             $promptA
-        );
-
-        $system .= "\n\n" . $promptC . "\n\n" . $moduleAddOn;
+        )."\n\n".$promptC."\n\n".$moduleAddOn;
 
         $userContents = [
             [
                 'type' => 'text',
-                'text' => "PER-DOCUMENT EXTRACTION RESULTS TO RECONCILE:\n" . json_encode($documentResults, JSON_PRETTY_PRINT)
-            ]
+                'text' => "PER-DOCUMENT EXTRACTION RESULTS TO RECONCILE:\n".json_encode($documentResults, JSON_PRETTY_PRINT),
+            ],
         ];
 
         $reconcileSchema = [
             'type' => 'object',
             'properties' => [
-                'shipment_groups' => [
-                    'type' => 'array',
-                    'items' => [
-                        'type' => 'object',
-                        'properties' => [
-                            'group_id' => ['type' => 'string'],
-                            'documents' => ['type' => 'array', 'items' => ['type' => 'string']],
-                            'association_status' => ['type' => 'string', 'enum' => ['CONFIRMED', 'PROBABLE', 'UNCERTAIN']],
-                            'association_evidence' => ['type' => 'array', 'items' => ['type' => 'string']],
-                        ]
-                    ]
-                ],
-                'unmatched_documents' => [
-                    'type' => 'array',
-                    'items' => ['type' => 'string']
-                ],
-                'form_data' => SchemaBuilder::buildGeminiResponseSchema($module),
-                'conflicts' => [
-                    'type' => 'array',
-                    'items' => [
-                        'type' => 'object',
-                        'properties' => [
-                            'field_path' => ['type' => 'string'],
-                            'scope' => ['type' => 'string'],
-                            'proposed_value' => ['type' => 'string'],
-                            'reason' => ['type' => 'string'],
-                            'candidates' => ['type' => 'array', 'items' => ['type' => 'object']],
-                        ]
-                    ]
-                ]
+                'shipment_groups' => ['type' => 'array'],
+                'unmatched_documents' => ['type' => 'array'],
+                'form_data' => ['type' => 'object'],
+                'conflicts' => ['type' => 'array'],
+                'calculations' => ['type' => 'array'],
+                'warnings' => ['type' => 'array'],
             ],
-            'required' => ['shipment_groups', 'form_data']
+            'required' => ['shipment_groups', 'form_data'],
         ];
 
         try {
@@ -124,34 +115,67 @@ class Stage3Reconciler
             if (is_array($decoded)) {
                 $dto->shipmentGroups = $decoded['shipment_groups'] ?? [];
                 $dto->unmatchedDocuments = $decoded['unmatched_documents'] ?? [];
-                $dto->formData = $decoded['form_data'] ?? [];
+
+                $fd = $decoded['form_data'] ?? [];
+                $master = $fd['master'] ?? ($fd['mbl'] ?? []);
+                $houses = $fd['hawbs'] ?? ($fd['hbls'] ?? []);
+
+                $dto->formData = [
+                    'mbl' => $master,
+                    'master' => $master,
+                    'hbls' => $houses,
+                    'hawbs' => $houses,
+                    'containers' => $fd['containers'] ?? [],
+                    'routes' => $fd['routes'] ?? ($fd['flights'] ?? []),
+                ];
 
                 if (isset($decoded['conflicts']) && is_array($decoded['conflicts'])) {
                     foreach ($decoded['conflicts'] as $c) {
                         $dto->addConflict(new ConflictCandidateDTO(
                             $c['field_path'] ?? 'unknown',
-                            $c['scope'] ?? 'master',
-                            $c['proposed_value'] ?? null,
+                            $c['scope'] ?? ($isAir ? 'master' : 'mbl'),
+                            $c['proposed_value'] ?? ($c['chosen_value'] ?? null),
                             $c['candidates'] ?? [],
                             $c['reason'] ?? 'Material difference between documents'
                         ));
                     }
                 }
+
+                if (isset($decoded['warnings']) && is_array($decoded['warnings'])) {
+                    foreach ($decoded['warnings'] as $w) {
+                        $dto->addWarning(
+                            $w['code'] ?? 'RECONCILIATION_WARNING',
+                            $w['message'] ?? 'Difference detected',
+                            $w['field_path'] ?? null
+                        );
+                    }
+                }
             }
         } catch (\Throwable $e) {
-            // Fallback: merge non-empty fields deterministically from first successful doc to last
-            $merged = ['mbl' => [], 'hbls' => [], 'containers' => [], 'routes' => []];
-            foreach ($documentResults as $dId => $res) {
-                if (isset($res['mbl']) && is_array($res['mbl'])) {
-                    $merged['mbl'] = array_merge($merged['mbl'], array_filter($res['mbl'], fn($v) => !is_null($v)));
+            // Fallback: programmatic merge of per-document results
+            $merged = [
+                'mbl' => [],
+                'master' => [],
+                'hbls' => [],
+                'hawbs' => [],
+                'containers' => [],
+                'routes' => [],
+            ];
+            foreach ($documentResults as $res) {
+                $m = $res['master'] ?? ($res['mbl'] ?? []);
+                if (! empty($m)) {
+                    $merged['mbl'] = array_merge($merged['mbl'], $m);
+                    $merged['master'] = array_merge($merged['master'], $m);
                 }
-                if (!empty($res['hbls'])) {
-                    $merged['hbls'] = array_merge($merged['hbls'], $res['hbls']);
+                $h = $res['hawbs'] ?? ($res['hbls'] ?? []);
+                if (! empty($h)) {
+                    $merged['hbls'] = array_merge($merged['hbls'], $h);
+                    $merged['hawbs'] = array_merge($merged['hawbs'], $h);
                 }
-                if (!empty($res['containers'])) {
+                if (! empty($res['containers'])) {
                     $merged['containers'] = array_merge($merged['containers'], $res['containers']);
                 }
-                if (!empty($res['routes'])) {
+                if (! empty($res['routes'])) {
                     $merged['routes'] = array_merge($merged['routes'], $res['routes']);
                 }
             }
@@ -182,12 +206,15 @@ class Stage3Reconciler
                 ));
             }
         } else {
-            // Auto-create explicit evidence for top-level mbl values
-            if (isset($raw['mbl']) && is_array($raw['mbl'])) {
-                foreach ($raw['mbl'] as $k => $v) {
-                    if (is_null($v) || is_array($v)) continue;
+            // Auto-create explicit evidence for top-level master/mbl values
+            $master = $raw['master'] ?? ($raw['mbl'] ?? []);
+            if (is_array($master)) {
+                foreach ($master as $k => $v) {
+                    if (is_null($v) || is_array($v)) {
+                        continue;
+                    }
                     $dto->addFieldEvidence(new FieldEvidenceDTO(
-                        "mbl.$k",
+                        "mbl.{$k}",
                         'master',
                         $v,
                         $v,
@@ -196,7 +223,7 @@ class Stage3Reconciler
                         [
                             'document_id' => $docId,
                             'page' => 1,
-                            'evidence_text' => (string)$v,
+                            'evidence_text' => (string) $v,
                         ]
                     ));
                 }

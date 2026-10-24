@@ -8,7 +8,7 @@ class AirWeightValidator
 
     public function __construct(?float $defaultFactor = null)
     {
-        $this->defaultFactor = $defaultFactor ?? (float)config('frexo_ai.air_volumetric_factor', 166.67);
+        $this->defaultFactor = $defaultFactor ?? (float) config('frexo_ai.air_volumetric_factor', 166.67);
     }
 
     /**
@@ -29,7 +29,7 @@ class AirWeightValidator
         if ($volumeCbm !== null && $volumeCbm > 0) {
             $calcVolumetric = round($volumeCbm * $factor, 2);
             $results['volume_weight'] = ValidationResult::pass(
-                $prefix . 'volume_weight',
+                $prefix.'volume_weight',
                 $calcVolumetric,
                 'VOLUMETRIC_WEIGHT_CALCULATED'
             );
@@ -37,7 +37,7 @@ class AirWeightValidator
 
         if ($grossWeight !== null && $grossWeight > 0) {
             $results['gross_weight'] = ValidationResult::pass(
-                $prefix . 'gross_weight',
+                $prefix.'gross_weight',
                 $grossWeight
             );
         }
@@ -49,12 +49,12 @@ class AirWeightValidator
                 $results['chargeable_weight'] = ValidationResult::warn(
                     'CHARGEABLE_WEIGHT_LOWER_THAN_MINIMUM',
                     "Document stated chargeable weight ({$statedChargeableWeight} KG) is lower than max(gross: {$grossWeight}, volumetric: {$calcVolumetric}). Preserved as stated.",
-                    $prefix . 'chargeable_weight',
+                    $prefix.'chargeable_weight',
                     $statedChargeableWeight
                 );
             } else {
                 $results['chargeable_weight'] = ValidationResult::pass(
-                    $prefix . 'chargeable_weight',
+                    $prefix.'chargeable_weight',
                     $statedChargeableWeight,
                     'DOCUMENT_STATED_CHARGEABLE_WEIGHT'
                 );
@@ -63,7 +63,7 @@ class AirWeightValidator
             // Not stated in document: derive rule max(gross, volumetric)
             $derived = max($grossWeight ?? 0, $calcVolumetric ?? 0);
             $results['chargeable_weight'] = ValidationResult::pass(
-                $prefix . 'chargeable_weight',
+                $prefix.'chargeable_weight',
                 $derived,
                 'DERIVED_CHARGEABLE_WEIGHT'
             );
@@ -71,7 +71,7 @@ class AirWeightValidator
             $results['chargeable_weight'] = ValidationResult::fail(
                 'MISSING_AIR_WEIGHTS',
                 'Neither gross weight nor volume is provided to determine chargeable weight',
-                $prefix . 'chargeable_weight',
+                $prefix.'chargeable_weight',
                 null
             );
         }

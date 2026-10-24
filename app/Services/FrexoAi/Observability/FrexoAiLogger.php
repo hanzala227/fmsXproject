@@ -21,13 +21,15 @@ class FrexoAiLogger
             foreach ($forbiddenKeys as $forbidden) {
                 if (str_contains($lowerKey, $forbidden)) {
                     $sanitized[$k] = '[REDACTED_SECRET]';
+
                     continue 2;
                 }
             }
 
             // Never log full raw document text or large base64 payloads
             if ($lowerKey === 'content' || $lowerKey === 'raw_text' || $lowerKey === 'document_text' || $lowerKey === 'file_content') {
-                $sanitized[$k] = is_string($v) ? '[DOCUMENT_TEXT_REDACTED_LEN_' . strlen($v) . ']' : '[REDACTED]';
+                $sanitized[$k] = is_string($v) ? '[DOCUMENT_TEXT_REDACTED_LEN_'.strlen($v).']' : '[REDACTED]';
+
                 continue;
             }
 
@@ -35,7 +37,7 @@ class FrexoAiLogger
                 $sanitized[$k] = self::sanitize($v);
             } elseif (is_string($v) && strlen($v) > 500) {
                 // Truncate overly long strings
-                $sanitized[$k] = substr($v, 0, 500) . '...[TRUNCATED_LEN_' . strlen($v) . ']';
+                $sanitized[$k] = substr($v, 0, 500).'...[TRUNCATED_LEN_'.strlen($v).']';
             } else {
                 $sanitized[$k] = $v;
             }

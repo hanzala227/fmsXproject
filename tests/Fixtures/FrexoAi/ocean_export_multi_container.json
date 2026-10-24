@@ -1,0 +1,49 @@
+{
+  "name": "Ocean Export Multi Container Booking",
+  "module": "ocean_export",
+  "document": {
+    "filename": "booking_confirm_oe.pdf",
+    "text_layer": "CARRIER BOOKING CONFIRMATION\nBOOKING NO: BKG-992104\nVESSEL: MAERSK MC-KINNEY MOLLER\nPOL: USNYC NEW YORK\nPOD: DEHAM HAMBURG\nCONTAINER 1: MSKU9012344 (40HQ)\nCONTAINER 2: MSKU9012350 (20GP)\nCOMMODITY: INDUSTRIAL MACHINERY"
+  },
+  "mock_response": {
+    "document_type": "BOOKING_CONFIRMATION",
+    "mbl": {
+      "booking_no": "BKG-992104",
+      "vessel_name": "MAERSK MC-KINNEY MOLLER",
+      "pol_name": "USNYC",
+      "pod_name": "DEHAM"
+    },
+    "containers": [
+      {
+        "container_no": "MSKU9012344",
+        "container_type": "40HQ"
+      },
+      {
+        "container_no": "MSKU9012350",
+        "container_type": "20GP"
+      }
+    ],
+    "field_evidence": [
+      {
+        "field_path": "mbl.booking_no",
+        "scope": "master",
+        "raw_value": "BKG-992104",
+        "normalized_value": "BKG-992104",
+        "unit": null,
+        "status": "EXPLICIT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "BOOKING NO: BKG-992104"
+      }
+    ],
+    "conflicts": []
+  },
+  "expected": {
+    "fields": {
+      "mbl.booking_no": "BKG-992104",
+      "mbl.vessel_name": "MAERSK MC-KINNEY MOLLER"
+    },
+    "conflicts_count": 0,
+    "containers_count": 2
+  }
+}

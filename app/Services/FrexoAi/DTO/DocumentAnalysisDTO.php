@@ -5,13 +5,21 @@ namespace App\Services\FrexoAi\DTO;
 class DocumentAnalysisDTO
 {
     public string $documentId;
+
     public string $filename;
+
     public string $documentType; // BILL_OF_LADING, COMMERCIAL_INVOICE, PACKING_LIST, etc.
+
     public int $pagesTotal;
+
     public int $pagesProcessed;
+
     public array $failedPages;
+
     public string $status; // SUCCESS, PARTIAL, FAILED
+
     public array $identifiers; // ['booking_no' => ..., 'mbl_no' => ..., 'container_nos' => [...]]
+
     public array $limitations;
 
     public function __construct(

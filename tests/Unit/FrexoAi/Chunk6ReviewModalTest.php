@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\FrexoAi;
 
+use App\Http\Controllers\AiExtractionController;
 use Tests\TestCase;
 
 class Chunk6ReviewModalTest extends TestCase
@@ -25,7 +26,7 @@ class Chunk6ReviewModalTest extends TestCase
             $isVerified = in_array($item['status'], ['EXPLICIT', 'DERIVED'], true)
                 && empty($item['hasConflict'])
                 && empty($item['hasWarning'])
-                && !in_array($item['status'], ['CONFLICT', 'AMBIGUOUS', 'REVIEW_REQUIRED', 'UNREADABLE'], true);
+                && ! in_array($item['status'], ['CONFLICT', 'AMBIGUOUS', 'REVIEW_REQUIRED', 'UNREADABLE'], true);
 
             $item['selected'] = $isVerified;
         }
@@ -51,9 +52,9 @@ class Chunk6ReviewModalTest extends TestCase
             'value' => null,
             'candidates' => [
                 ['id' => 10, 'name' => 'Shanghai', 'code' => 'CNSHA'],
-                ['id' => 12, 'name' => 'Ningbo', 'code' => 'CNNGB']
+                ['id' => 12, 'name' => 'Ningbo', 'code' => 'CNNGB'],
             ],
-            'selected' => false
+            'selected' => false,
         ];
 
         // Ensure candidate array is intact and operator selection sets value
@@ -78,7 +79,7 @@ class Chunk6ReviewModalTest extends TestCase
         $this->assertFalse(config('frexo_ai.enabled'));
 
         // Controller checks config('frexo_ai.enabled')
-        $controller = new \ReflectionClass(\App\Http\Controllers\AiExtractionController::class);
+        $controller = new \ReflectionClass(AiExtractionController::class);
         $this->assertTrue($controller->hasMethod('extractOceanImport'));
         $this->assertTrue($controller->hasMethod('extractOceanExport'));
         $this->assertTrue($controller->hasMethod('extractAirImport'));

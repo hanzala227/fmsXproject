@@ -66,7 +66,7 @@ class SchemaBuilder
             'required' => ['mbl', 'hbls'],
         ];
 
-        if (!empty($containerProperties)) {
+        if (! empty($containerProperties)) {
             $schema['properties']['containers'] = [
                 'type' => 'array',
                 'description' => 'List of shipping containers',
@@ -77,7 +77,7 @@ class SchemaBuilder
             ];
         }
 
-        if (!empty($routeProperties)) {
+        if (! empty($routeProperties)) {
             $schema['properties']['routes'] = [
                 'type' => 'array',
                 'description' => 'Multi-leg shipping route legs',
@@ -88,7 +88,7 @@ class SchemaBuilder
             ];
         }
 
-        if (!empty($flightProperties)) {
+        if (! empty($flightProperties)) {
             $schema['properties']['flights'] = [
                 'type' => 'array',
                 'description' => 'Multi-leg flight schedule',
@@ -111,13 +111,15 @@ class SchemaBuilder
         $fields = FieldRegistry::getFields($module);
         $lines = [];
 
-        $lines[] = "FIELD SPECIFICATIONS FOR MODULE: " . strtoupper($module);
-        $lines[] = "CRITICAL: The following fields are strictly INTERNAL_WORKFLOW and MUST NEVER be extracted from documents or populated: File Number (mbl.file_no), Post Date (mbl.post_date), Operator (mbl.op_name), Sales Person (mbl.dm_sales_person_name), Company ID (mbl.company_id), Database record IDs.";
-        $lines[] = "";
-        $lines[] = "EXTRACTABLE FIELDS, UNITS, AND AUTHORITY RULES:";
+        $lines[] = 'FIELD SPECIFICATIONS FOR MODULE: '.strtoupper($module);
+        $lines[] = 'CRITICAL: The following fields are strictly INTERNAL_WORKFLOW and MUST NEVER be extracted from documents or populated: File Number (mbl.file_no), Post Date (mbl.post_date), Operator (mbl.op_name), Sales Person (mbl.dm_sales_person_name), Company ID (mbl.company_id), Database record IDs.';
+        $lines[] = '';
+        $lines[] = 'EXTRACTABLE FIELDS, UNITS, AND AUTHORITY RULES:';
 
         foreach ($fields as $field) {
-            if ($field->isInternalWorkflow()) continue;
+            if ($field->isInternalWorkflow()) {
+                continue;
+            }
 
             $ruleDesc = "- {$field->path} ({$field->type})";
             if ($field->unit) {

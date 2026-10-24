@@ -1,0 +1,51 @@
+{
+  "name": "Air Export Multi HAWB Consolidation",
+  "module": "air_export",
+  "document": {
+    "filename": "air_export_manifest.pdf",
+    "text_layer": "CONSOLIDATION MANIFEST\nMAWB: 176-76543210\nFLIGHT: EK201 / 14NOV\nHAWB 1: HAWB-AE-001 | SHP: TECH CORP | CBM: 1.2 | WT: 150 KG\nHAWB 2: HAWB-AE-002 | SHP: GLOBAL LOGISTICS | CBM: 2.0 | WT: 300 KG"
+  },
+  "mock_response": {
+    "document_type": "AIR_WAYBILL",
+    "master": {
+      "mawb_no": "176-76543210",
+      "flight_no": "EK201"
+    },
+    "hawbs": [
+      {
+        "hawb_no": "HAWB-AE-001",
+        "shipper_name": "TECH CORP",
+        "weight": 150.0,
+        "volume": 1.2
+      },
+      {
+        "hawb_no": "HAWB-AE-002",
+        "shipper_name": "GLOBAL LOGISTICS",
+        "weight": 300.0,
+        "volume": 2.0
+      }
+    ],
+    "field_evidence": [
+      {
+        "field_path": "master.mawb_no",
+        "scope": "master",
+        "raw_value": "176-76543210",
+        "normalized_value": "176-76543210",
+        "unit": null,
+        "status": "EXPLICIT",
+        "source_document_id": "doc_1",
+        "source_page": 1,
+        "evidence_text": "MAWB: 176-76543210"
+      }
+    ],
+    "conflicts": []
+  },
+  "expected": {
+    "fields": {
+      "master.mawb_no": "176-76543210",
+      "master.flight_no": "EK201"
+    },
+    "conflicts_count": 0,
+    "hawbs_count": 2
+  }
+}

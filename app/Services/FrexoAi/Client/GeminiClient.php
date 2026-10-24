@@ -4,8 +4,8 @@ namespace App\Services\FrexoAi\Client;
 
 use App\Models\AiSetting;
 use App\Services\FrexoAi\Observability\FrexoAiLogger;
-use Illuminate\Support\Facades\Http;
 use Exception;
+use Illuminate\Support\Facades\Http;
 
 class GeminiClient implements GeminiClientInterface
 {
@@ -22,8 +22,8 @@ class GeminiClient implements GeminiClientInterface
         array $responseSchema,
         ?float $temperature = null
     ): string {
-        if (!$this->settings || !$this->settings->api_key) {
-            throw new Exception("AI settings or API Key not configured.");
+        if (! $this->settings || ! $this->settings->api_key) {
+            throw new Exception('AI settings or API Key not configured.');
         }
 
         $baseUrl = rtrim($this->settings->base_url, '/');
@@ -33,7 +33,7 @@ class GeminiClient implements GeminiClientInterface
             $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
         }
 
-        if (!str_ends_with($baseUrl, '/chat/completions')) {
+        if (! str_ends_with($baseUrl, '/chat/completions')) {
             if (str_ends_with($baseUrl, '/v1') || str_ends_with($baseUrl, '/v1beta/openai')) {
                 $baseUrl .= '/chat/completions';
             } else {
@@ -66,7 +66,7 @@ class GeminiClient implements GeminiClientInterface
         while ($attempt <= $maxRetries) {
             try {
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $this->settings->api_key,
+                    'Authorization' => 'Bearer '.$this->settings->api_key,
                     'Content-Type' => 'application/json',
                 ])->timeout($timeout)->post($baseUrl, $payload);
 
@@ -80,6 +80,7 @@ class GeminiClient implements GeminiClientInterface
                         $delayMs = ($baseDelayMs * (2 ** ($attempt - 1))) + $jitter;
                         FrexoAiLogger::logRetry('gemini_call', $attempt, $statusCode, "HTTP {$statusCode} transient provider status");
                         usleep($delayMs * 1000);
+
                         continue;
                     }
                 }
@@ -93,17 +94,17 @@ class GeminiClient implements GeminiClientInterface
 
                 // Check safety blocks
                 if (isset($data['promptFeedback']['blockReason'])) {
-                    throw new Exception("SAFETY_BLOCKED: Content was blocked by safety filter: " . $data['promptFeedback']['blockReason']);
+                    throw new Exception('SAFETY_BLOCKED: Content was blocked by safety filter: '.$data['promptFeedback']['blockReason']);
                 }
 
                 $choice = $data['choices'][0] ?? null;
                 if ($choice && isset($choice['finish_reason']) && $choice['finish_reason'] === 'safety') {
-                    throw new Exception("SAFETY_BLOCKED: Content output was terminated by safety filter.");
+                    throw new Exception('SAFETY_BLOCKED: Content output was terminated by safety filter.');
                 }
 
                 $content = $choice['message']['content'] ?? '';
                 if (empty(trim($content))) {
-                    throw new Exception("EMPTY_RESPONSE: Empty completion returned from AI service.");
+                    throw new Exception('EMPTY_RESPONSE: Empty completion returned from AI service.');
                 }
 
                 return $content;
@@ -118,6 +119,7 @@ class GeminiClient implements GeminiClientInterface
                         $delayMs = ($baseDelayMs * $attempt) + random_int(10, 50);
                         FrexoAiLogger::logRetry('gemini_call', $attempt, 408, "Network timeout: {$msg}");
                         usleep($delayMs * 1000);
+
                         continue;
                     }
                 }
@@ -127,6 +129,6 @@ class GeminiClient implements GeminiClientInterface
             }
         }
 
-        throw new Exception("AI call failed after retries: " . ($lastException ? $lastException->getMessage() : "Unknown error"));
+        throw new Exception('AI call failed after retries: '.($lastException ? $lastException->getMessage() : 'Unknown error'));
     }
 }
