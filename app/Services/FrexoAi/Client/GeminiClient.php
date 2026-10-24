@@ -3,8 +3,8 @@
 namespace App\Services\FrexoAi\Client;
 
 use App\Models\AiSetting;
+use App\Services\FrexoAi\Observability\FrexoAiLogger;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Exception;
 
 class GeminiClient implements GeminiClientInterface
@@ -54,12 +54,12 @@ class GeminiClient implements GeminiClientInterface
             'temperature' => $temp,
         ];
 
-        // Add response_format for OpenAI or schema if supported
         if ($apiType !== 'gemini') {
             $payload['response_format'] = ['type' => 'json_object'];
         }
 
-        $maxRetries = 2;
+        $maxRetries = (int) config('frexo_ai.max_retries', 2);
+        $baseDelayMs = (int) config('frexo_ai.retry_backoff_ms', 500);
         $attempt = 0;
         $lastException = null;
 
@@ -70,32 +70,59 @@ class GeminiClient implements GeminiClientInterface
                     'Content-Type' => 'application/json',
                 ])->timeout($timeout)->post($baseUrl, $payload);
 
-                if ($response->status() === 429 || $response->status() >= 500) {
+                $statusCode = $response->status();
+
+                // Check for transient rate limit or server error: 429 or 5xx
+                if ($statusCode === 429 || ($statusCode >= 500 && $statusCode <= 504)) {
                     $attempt++;
                     if ($attempt <= $maxRetries) {
-                        usleep(500000 * $attempt); // backoff 500ms, 1000ms
+                        $jitter = random_int(10, 100);
+                        $delayMs = ($baseDelayMs * (2 ** ($attempt - 1))) + $jitter;
+                        FrexoAiLogger::logRetry('gemini_call', $attempt, $statusCode, "HTTP {$statusCode} transient provider status");
+                        usleep($delayMs * 1000);
                         continue;
                     }
                 }
 
+                // Permanent client errors (400, 401, 403, 404): DO NOT RETRY
                 if ($response->failed()) {
-                    throw new Exception("AI Gateway returned HTTP " . $response->status());
+                    throw new Exception("AI Gateway returned HTTP {$statusCode}");
                 }
 
                 $data = $response->json();
-                $content = $data['choices'][0]['message']['content'] ?? '';
+
+                // Check safety blocks
+                if (isset($data['promptFeedback']['blockReason'])) {
+                    throw new Exception("SAFETY_BLOCKED: Content was blocked by safety filter: " . $data['promptFeedback']['blockReason']);
+                }
+
+                $choice = $data['choices'][0] ?? null;
+                if ($choice && isset($choice['finish_reason']) && $choice['finish_reason'] === 'safety') {
+                    throw new Exception("SAFETY_BLOCKED: Content output was terminated by safety filter.");
+                }
+
+                $content = $choice['message']['content'] ?? '';
                 if (empty(trim($content))) {
-                    throw new Exception("Empty completion returned from AI service.");
+                    throw new Exception("EMPTY_RESPONSE: Empty completion returned from AI service.");
                 }
 
                 return $content;
             } catch (Exception $e) {
                 $lastException = $e;
-                $attempt++;
-                if ($attempt <= $maxRetries) {
-                    usleep(500000 * $attempt);
-                    continue;
+                $msg = $e->getMessage();
+
+                // Only retry on network timeouts or transient connection issues
+                if (str_contains($msg, 'timed out') || str_contains($msg, 'cURL error 28')) {
+                    $attempt++;
+                    if ($attempt <= $maxRetries) {
+                        $delayMs = ($baseDelayMs * $attempt) + random_int(10, 50);
+                        FrexoAiLogger::logRetry('gemini_call', $attempt, 408, "Network timeout: {$msg}");
+                        usleep($delayMs * 1000);
+                        continue;
+                    }
                 }
+
+                // If non-transient, break retry loop immediately
                 break;
             }
         }

@@ -12,7 +12,14 @@ class MockGeminiClient implements GeminiClientInterface
     public array $callHistory = [];
     protected int $callCount = 0;
 
-    public function queueResponse(string $jsonOrError): self
+    public function __construct(array $cannedResponses = [])
+    {
+        foreach ($cannedResponses as $resp) {
+            $this->queueResponse($resp);
+        }
+    }
+
+    public function queueResponse(string|callable|\Throwable $jsonOrError): self
     {
         $this->cannedResponses[] = $jsonOrError;
         return $this;

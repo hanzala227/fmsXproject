@@ -4,9 +4,11 @@ namespace App\Services\FrexoAi\Pipeline;
 
 use App\Services\FrexoAi\Client\GeminiClientInterface;
 use App\Services\FrexoAi\DTO\DocumentAnalysisDTO;
+use App\Services\FrexoAi\Observability\FrexoAiLogger;
 use App\Services\FrexoAi\Schema\SchemaBuilder;
-use Illuminate\Support\Facades\Log;
 use Exception;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class Stage2PerDocumentExtractor
 {
@@ -18,31 +20,28 @@ class Stage2PerDocumentExtractor
     }
 
     /**
-     * Run extraction on each ingested document individually.
+     * Run extraction per document with partial failure tolerance and JSON repair.
      *
      * @param string $module
      * @param array $ingestedDocs
-     * @return array [ 'document_results' => [...], 'analyses' => [DocumentAnalysisDTO, ...] ]
+     * @return array ['document_results' => array, 'analyses' => DocumentAnalysisDTO[]]
      */
     public function extractAll(string $module, array $ingestedDocs): array
     {
-        $promptA = file_get_contents(resource_path('prompts/extraction/v1/prompt_a_system.txt'));
-        $promptB = file_get_contents(resource_path('prompts/extraction/v1/prompt_b_document.txt'));
-        $moduleAddOn = str_starts_with($module, 'ocean_')
-            ? file_get_contents(resource_path('prompts/extraction/v1/module_ocean.txt'))
-            : file_get_contents(resource_path('prompts/extraction/v1/module_air.txt'));
+        $results = [];
+        $analyses = [];
 
-        $fieldRules = SchemaBuilder::buildFieldRulesText($module);
+        $schema = SchemaBuilder::buildGeminiResponseSchema($module);
         $manifest = json_encode(array_map(fn($d) => [
             'document_id' => $d['document_id'],
             'filename' => $d['filename'],
             'pages_total' => $d['pages_total'],
         ], $ingestedDocs));
+        $fieldRules = SchemaBuilder::buildFieldRulesText($module);
 
-        $schema = SchemaBuilder::buildGeminiResponseSchema($module);
-
-        $results = [];
-        $analyses = [];
+        $promptA = File::get(resource_path('prompts/extraction/v1/prompt_a_system.txt'));
+        $promptB = File::get(resource_path('prompts/extraction/v1/prompt_b_document.txt'));
+        $moduleAddOn = File::get(resource_path("prompts/extraction/v1/module_" . (str_starts_with($module, 'ocean') ? 'ocean' : 'air') . ".txt"));
 
         foreach ($ingestedDocs as $doc) {
             $docId = $doc['document_id'];
@@ -94,8 +93,21 @@ class Stage2PerDocumentExtractor
                 $rawJson = $this->client->generateStructuredContent($system, $userContents, $schema);
                 $decoded = json_decode($rawJson, true);
 
+                // Maximum one repair attempt for malformed JSON
                 if (!is_array($decoded)) {
-                    throw new Exception("Malformed JSON output from model for document $docId");
+                    FrexoAiLogger::logJsonRepairAttempt('batch_run', $docId, 1);
+                    $cleaned = trim($rawJson);
+                    // Strip markdown fences
+                    $cleaned = preg_replace('/^```(?:json)?\s*/i', '', $cleaned);
+                    $cleaned = preg_replace('/\s*```$/i', '', $cleaned);
+                    // Extract substring between first { and last }
+                    if (preg_match('/\{[\s\S]*\}/', $cleaned, $matches)) {
+                        $cleaned = $matches[0];
+                    }
+                    $decoded = json_decode($cleaned, true);
+                    if (!is_array($decoded)) {
+                        throw new Exception("MALFORMED_JSON_OUTPUT: Document output could not be parsed as valid JSON after repair attempt.");
+                    }
                 }
 
                 if (isset($decoded['document_type'])) {
@@ -104,9 +116,9 @@ class Stage2PerDocumentExtractor
 
                 $results[$docId] = $decoded;
             } catch (\Throwable $e) {
-                Log::warning("Stage 2 extraction failed for {$docId}: " . $e->getMessage());
+                FrexoAiLogger::logExtractionFailed('batch_run', 'STAGE2_DOC_ERROR', $e->getMessage(), ['doc_id' => $docId]);
                 $analysis->status = 'FAILED';
-                $analysis->limitations[] = "Extraction error: " . $e->getMessage();
+                $analysis->limitations[] = "Extraction failure: " . $e->getMessage();
                 $results[$docId] = [
                     'mbl' => [],
                     'hbls' => [],
