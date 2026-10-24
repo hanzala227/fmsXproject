@@ -4,8 +4,8 @@
 | Chunk | Status | Attempts | Report file | Commit |
 |---|---|---|---|---|
 | Chunk 1: Audit | PASSED | 1 | docs/frexo-ai/reports/chunk-1.md | frexo-ai: chunk 1 - audit and baseline |
-| Chunk 2: Schemas & Field Registry | IN_PROGRESS | 1 | docs/frexo-ai/reports/chunk-2.md | pending |
-| Chunk 3: Staged Extraction Pipeline | PENDING | 0 | docs/frexo-ai/reports/chunk-3.md | pending |
+| Chunk 2: Schemas & Field Registry | PASSED | 1 | docs/frexo-ai/reports/chunk-2.md | frexo-ai: chunk 2 - module schemas and field registry |
+| Chunk 3: Staged Extraction Pipeline | IN_PROGRESS | 1 | docs/frexo-ai/reports/chunk-3.md | pending |
 | Chunk 4: Deterministic Validation | PENDING | 0 | docs/frexo-ai/reports/chunk-4.md | pending |
 | Chunk 5: Tenant Safety, Matching, Apply, Audit | PENDING | 0 | docs/frexo-ai/reports/chunk-5.md | pending |
 | Chunk 6: Review Modal & Form Application | PENDING | 0 | docs/frexo-ai/reports/chunk-6.md | pending |
