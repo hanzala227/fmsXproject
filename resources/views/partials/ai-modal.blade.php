@@ -240,9 +240,44 @@
                             <span style="color: #cbd5e1;">|</span>
                             <button type="button" 
                                     class="frexo-link-action" 
+                                    style="color: #16a34a; font-weight: 700;"
+                                    @click="extractedData.forEach(i => {
+                                        const isVerified = (i.status === 'EXPLICIT' || i.status === 'DERIVED') && !i.hasConflict && !i.hasWarning && i.status !== 'CONFLICT' && i.status !== 'AMBIGUOUS' && i.status !== 'REVIEW_REQUIRED' && i.status !== 'UNREADABLE';
+                                        i.selected = isVerified;
+                                    })">
+                                <i class="fa fa-shield"></i> Accept All Verified
+                            </button>
+                            <span style="color: #cbd5e1;">|</span>
+                            <button type="button" 
+                                    class="frexo-link-action" 
                                     @click="extractedData.forEach(i => i.selected = false)">
                                 <i class="fa fa-square-o"></i> Deselect All
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Unmatched Documents Banner -->
+                    <div x-show="typeof unmatchedDocs !== 'undefined' && unmatchedDocs && unmatchedDocs.length > 0" 
+                         class="frexo-unmatched-banner" style="display: none;">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        <div>
+                            <strong>Unmatched Documents:</strong>
+                            <template x-for="(doc, uIdx) in unmatchedDocs" :key="uIdx">
+                                <span class="frexo-unmatched-tag" x-text="doc.filename || doc.document_id || doc"></span>
+                            </template>
+                            <span class="frexo-banner-sub" style="font-size: 11px; opacity: 0.8;">(Not linked to this shipment)</span>
+                        </div>
+                    </div>
+
+                    <!-- Failed Documents Banner -->
+                    <div x-show="typeof failedDocs !== 'undefined' && failedDocs && failedDocs.length > 0" 
+                         class="frexo-failed-banner" style="display: none;">
+                        <i class="fa fa-times-circle"></i>
+                        <div>
+                            <strong>Extraction Failures:</strong>
+                            <template x-for="(fDoc, fIdx) in failedDocs" :key="fIdx">
+                                <span class="frexo-failed-tag" x-text="(fDoc.filename || fDoc.document_id) + ': ' + (fDoc.error || 'Failed')"></span>
+                            </template>
                         </div>
                     </div>
 
@@ -278,13 +313,73 @@
                                         <tr class="frexo-row" :class="{ 'is-selected': item.selected }">
                                             <td class="frexo-cell-field">
                                                 <div class="frexo-label-text" x-text="item.label"></div>
-                                                <span class="frexo-scope-tag" x-text="item.parent ? item.parent.toUpperCase() : 'SHIPMENT'"></span>
+                                                <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
+                                                    <span class="frexo-scope-tag" x-text="item.parent ? item.parent.toUpperCase() : 'SHIPMENT'"></span>
+                                                    
+                                                    <!-- Status Badges -->
+                                                    <template x-if="item.status === 'EXPLICIT'">
+                                                        <span class="frexo-badge badge-explicit" title="Explicitly found in document"><i class="fa fa-check"></i> Verified</span>
+                                                    </template>
+                                                    <template x-if="item.status === 'DERIVED'">
+                                                        <span class="frexo-badge badge-derived" title="Derived/computed by rule"><i class="fa fa-calculator"></i> Derived</span>
+                                                    </template>
+                                                    <template x-if="item.status === 'REVIEW_REQUIRED'">
+                                                        <span class="frexo-badge badge-review" title="Review required before applying"><i class="fa fa-eye"></i> Review Req</span>
+                                                    </template>
+                                                    <template x-if="item.status === 'CONFLICT'">
+                                                        <span class="frexo-badge badge-conflict" title="Document conflict detected"><i class="fa fa-exclamation-circle"></i> Conflict</span>
+                                                    </template>
+                                                    <template x-if="item.status === 'AMBIGUOUS'">
+                                                        <span class="frexo-badge badge-ambiguous" title="Multiple readings found"><i class="fa fa-question-circle"></i> Ambiguous</span>
+                                                    </template>
+                                                    <template x-if="item.status === 'UNREADABLE'">
+                                                        <span class="frexo-badge badge-unreadable" title="Text unreadable"><i class="fa fa-ban"></i> Unreadable</span>
+                                                    </template>
+
+                                                    <!-- Jump to Document & Page Button -->
+                                                    <template x-if="item.sourceDocId">
+                                                        <button type="button" 
+                                                                class="frexo-jump-evidence-btn" 
+                                                                @click="if (typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length) {
+                                                                    let idx = uploadedDocs.findIndex(d => (d.documentId === item.sourceDocId || d.name === item.sourceDocId));
+                                                                    if (idx !== -1) { activeDocIndex = idx; documentPreviewUrl = uploadedDocs[idx].url + '#page=' + (item.sourcePage || 1); }
+                                                                    else if (documentPreviewUrl) { documentPreviewUrl = documentPreviewUrl.split('#')[0] + '#page=' + (item.sourcePage || 1); }
+                                                                } else if (documentPreviewUrl) { documentPreviewUrl = documentPreviewUrl.split('#')[0] + '#page=' + (item.sourcePage || 1); }"
+                                                                :title="'Jump to ' + item.sourceDocId + ' page ' + (item.sourcePage || 1)">
+                                                            <i class="fa fa-external-link"></i> <span x-text="'p.' + (item.sourcePage || 1)"></span>
+                                                        </button>
+                                                    </template>
+                                                </div>
                                             </td>
                                             <td class="frexo-cell-value">
-                                                <span class="frexo-val-chip" :title="item.displayValue || item.value">
-                                                    <i class="fa fa-check"></i>
-                                                    <span x-text="item.displayValue || item.value || '(Empty)'"></span>
-                                                </span>
+                                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                                        <span class="frexo-val-chip" :title="item.displayValue || item.value">
+                                                            <i class="fa fa-check"></i>
+                                                            <span x-text="item.displayValue || item.value || '(Empty)'"></span>
+                                                        </span>
+                                                        <template x-if="item.rawValue && item.rawValue !== item.value">
+                                                            <span class="frexo-raw-pill" :title="'Raw text printed in document: ' + item.rawValue">
+                                                                Raw: <strong x-text="item.rawValue"></strong>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+
+                                                    <!-- Candidate Selector for Conflicts or Entities -->
+                                                    <template x-if="item.candidates && item.candidates.length > 0">
+                                                        <div class="frexo-candidate-picker">
+                                                            <span class="frexo-candidate-label"><i class="fa fa-list"></i> Select Candidate:</span>
+                                                            <select class="frexo-candidate-select" 
+                                                                    x-model="item.value" 
+                                                                    @change="item.selected = true; if(item.nameKey && $event.target.selectedOptions[0]) { item.displayValue = $event.target.selectedOptions[0].text; }">
+                                                                <option value="">-- Choose Candidate --</option>
+                                                                <template x-for="(cand, cIdx) in item.candidates" :key="cIdx">
+                                                                    <option :value="cand.id || cand.value" x-text="(cand.name || cand.value) + (cand.code ? ' [' + cand.code + ']' : '')"></option>
+                                                                </template>
+                                                            </select>
+                                                        </div>
+                                                    </template>
+                                                </div>
                                             </td>
                                             <td style="text-align: center;">
                                                 <input type="checkbox" class="frexo-checkbox" x-model="item.selected">
@@ -336,9 +431,9 @@
                 <button type="button" 
                         class="frexo-btn-primary" 
                         @click="aiPreviewMode ? applyAiData() : {{ $triggerMethod }}" 
-                        :disabled="{{ $loadingVar }}">
-                    <i class="fa" :class="aiPreviewMode ? 'fa-check' : 'fa-cogs'"></i> 
-                    <span x-text="aiPreviewMode ? 'Apply to Shipment' : 'Extract Data'"></span>
+                        :disabled="{{ $loadingVar }} || (typeof isApplying !== 'undefined' && isApplying)">
+                    <i class="fa" :class="(typeof isApplying !== 'undefined' && isApplying) ? 'fa-spinner fa-spin' : (aiPreviewMode ? 'fa-check' : 'fa-cogs')"></i> 
+                    <span x-text="(typeof isApplying !== 'undefined' && isApplying) ? 'Applying to Shipment...' : (aiPreviewMode ? 'Apply to Shipment' : 'Extract Data')"></span>
                 </button>
             </div>
         </div>
@@ -1091,5 +1186,105 @@
     justify-content: center;
     color: #ffffff;
     font-size: 11px;
+}
+
+/* Frexo AI Verification Badges */
+.frexo-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.badge-explicit { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.badge-derived { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.badge-review { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+.badge-conflict { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.badge-ambiguous { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+.badge-unreadable { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+.frexo-jump-evidence-btn {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #2563eb;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+.frexo-jump-evidence-btn:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
+}
+
+.frexo-raw-pill {
+    font-size: 10px;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.frexo-candidate-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 11px;
+}
+.frexo-candidate-label {
+    font-weight: 600;
+    color: #b45309;
+    white-space: nowrap;
+}
+.frexo-candidate-select {
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #f59e0b;
+    background: #fffbeb;
+    font-size: 11px;
+    color: #1e293b;
+    max-width: 250px;
+}
+
+/* Banner Alerts */
+.frexo-unmatched-banner {
+    margin: 0 12px 10px 12px;
+    padding: 8px 12px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.frexo-failed-banner {
+    margin: 0 12px 10px 12px;
+    padding: 8px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #991b1b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.frexo-unmatched-tag, .frexo-failed-tag {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.15);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    margin: 0 3px;
 }
 </style>
