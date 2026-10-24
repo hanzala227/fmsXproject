@@ -11,7 +11,7 @@
 | Chunk 6: Review Modal & Form Application | PASSED | 1 | docs/frexo-ai/reports/chunk-6.md | frexo-ai: chunk 6 - review modal and form application |
 | Chunk 7: Resilience & Observability | PASSED | 1 | docs/frexo-ai/reports/chunk-7.md | frexo-ai: chunk 7 - resilience and observability |
 | Chunk 8: Testing, Eval Harness, Rollout | PASSED | 1 | docs/frexo-ai/reports/chunk-8.md | frexo-ai: chunk 8 - testing evaluation harness rollout |
-| Chunk 9: Final Verification Loop | IN_PROGRESS | 1 | docs/frexo-ai/reports/chunk-9.md | pending |
+| Chunk 9: Final Verification Loop | PASSED | 1 | docs/frexo-ai/reports/chunk-9.md | frexo-ai: chunk 9 - final verification loop and definition of done |
 
 ---
 
