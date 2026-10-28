@@ -295,6 +295,8 @@ class InvoiceController extends Controller
                     ]);
             }
 
+            self::syncInvoiceTotals($invoice);
+
             DB::commit();
 
             if ($request->ajax()) {
@@ -371,6 +373,8 @@ class InvoiceController extends Controller
                     }
                 }
             }
+
+            self::syncInvoiceTotals($invoice);
 
             DB::commit();
 
@@ -902,6 +906,52 @@ class InvoiceController extends Controller
                 imagedestroy($img);
             }
         }
+    }
+
+    /**
+     * Recalculates and synchronizes invoice header totals (subtotal, tax_total, total_amount, balance_amount)
+     * strictly from the line items to guarantee mathematical ledger consistency.
+     */
+    public static function syncInvoiceTotals(Invoice $invoice): void
+    {
+        $lines = $invoice->lines()->get();
+        if ($lines->isEmpty()) {
+            return;
+        }
+
+        $linesSum = (float) $lines->sum('amount');
+        $discountPct = (float) ($invoice->discount_pct ?? 0);
+        $discount = ($linesSum * $discountPct) / 100;
+        $afterDiscount = $linesSum - $discount;
+        $shipping = (float) ($invoice->shipping_amount ?? 0);
+        $taxPct = (float) ($invoice->tax_pct ?? 0);
+        $taxTotal = (float) ($invoice->tax_total ?? 0);
+
+        if ($taxPct > 0) {
+            $taxTotal = round(($afterDiscount + $shipping) * ($taxPct / 100), 2);
+        }
+
+        $subtotal = round($linesSum, 2);
+        $totalAmount = round($afterDiscount + $shipping + $taxTotal, 2);
+
+        $actualPayments = (float) DB::table('payments')
+            ->where('invoice_id', $invoice->id)
+            ->whereNull('deleted_at')
+            ->sum('amount');
+
+        $invoice->subtotal = $subtotal;
+        $invoice->tax_total = $taxTotal;
+        $invoice->total_amount = $totalAmount;
+        $invoice->paid_amount = $actualPayments;
+        $invoice->balance_amount = max(0, round($totalAmount - $actualPayments, 2));
+
+        if ($invoice->balance_amount <= 0 && $totalAmount > 0) {
+            $invoice->status = 'PAID';
+        } elseif ($actualPayments > 0) {
+            $invoice->status = 'PARTIAL';
+        }
+
+        $invoice->saveQuietly();
     }
 }
 

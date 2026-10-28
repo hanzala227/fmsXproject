@@ -3,8 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Operation extends Model
 {
-    protected $fillable = ['operation_number', 'title', 'description', 'status'];
+    use SoftDeletes;
+
+    protected $fillable = [
+        'company_id',
+        'operation_number',
+        'title',
+        'description',
+        'status',
+    ];
 }

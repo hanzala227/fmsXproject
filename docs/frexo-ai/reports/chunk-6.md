@@ -104,3 +104,4 @@ Tests: 42, Assertions: 1726, PHPUnit Deprecations: 2.
 1. **Frontend build succeeds:** PASS (`npm run build` completed in 4.63s).
 2. **Feature tests for apply/reject/conflict flows:** PASS (100% green).
 3. **Flag OFF regression proof:** PASS (Legacy pipeline routes and payload format preserved).
+

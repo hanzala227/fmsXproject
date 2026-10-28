@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\IataMawbRule;
 
 class StoreAirImportRequest extends FormRequest
 {
@@ -11,14 +12,21 @@ class StoreAirImportRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('referred_by_id') && !$this->has('business_referred_by_id')) {
+            $this->merge(['business_referred_by_id' => $this->referred_by_id]);
+        }
+    }
+
     public function rules()
     {
         return [
             // Required fields
             'file_no' => 'required|string|unique:air_imports,file_no',
-            'mawb_no' => 'required|string|max:255|unique:air_imports,mawb_no',
+            'mawb_no' => ['required', 'string', 'max:255', 'unique:air_imports,mawb_no', new IataMawbRule()],
             'office_id' => 'required|exists:offices,id',
-            'eta' => 'nullable|date',
+            'eta' => 'nullable|date|after_or_equal:etd',
             
             // Optional fields with validation
             'post_date' => 'nullable|date',
@@ -28,6 +36,7 @@ class StoreAirImportRequest extends FormRequest
             'carrier_id' => 'nullable|exists:trade_partners,id',
             'acct_carrier_id' => 'nullable|exists:trade_partners,id',
             'coloader_id' => 'nullable|exists:trade_partners,id',
+            'business_referred_by_id' => 'nullable|exists:trade_partners,id',
             'referred_by_id' => 'nullable|exists:trade_partners,id',
             
             'awb_type' => 'nullable|string|in:NORMAL,DIRECT',
@@ -37,7 +46,7 @@ class StoreAirImportRequest extends FormRequest
             'freight_location_id' => 'nullable|exists:ports,id',
             'etd' => 'nullable|date',
             'atd' => 'nullable|date',
-            'ata' => 'nullable|date',
+            'ata' => 'nullable|date|after_or_equal:atd',
             
             'pkg_qty' => 'nullable|numeric|min:0',
             'pkg_unit_id' => 'nullable|exists:package_units,id',

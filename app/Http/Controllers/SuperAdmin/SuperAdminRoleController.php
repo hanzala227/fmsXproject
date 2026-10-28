@@ -48,6 +48,20 @@ class SuperAdminRoleController extends Controller
         return redirect()->route('super-admin.roles.index')->with('success', 'Role created successfully.');
     }
 
+    public function show(Role $role)
+    {
+        $role->load('permissions');
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $role
+            ]);
+        }
+
+        return redirect()->route('super-admin.roles.edit', $role->id);
+    }
+
     public function edit(Role $role)
     {
         $permissions = Permission::all();

@@ -9,6 +9,10 @@ use App\Models\TradePartner;
 use App\Models\Quotation;
 use App\Models\User;
 use App\Models\ContainerType;
+use App\Models\TruckShipmentContainer;
+use App\Models\TruckShipmentCommodity;
+use App\Models\WarehouseReceipt;
+use App\Models\WarehouseReceiptItem;
 use App\Services\TruckShipmentService;
 use App\Http\Requests\StoreTruckShipmentRequest;
 use App\Http\Requests\UpdateTruckShipmentRequest;
@@ -657,5 +661,227 @@ class TruckShipmentController extends Controller
     {
         $truckShipment->load(['customer', 'containers']);
         return view('truck.cargo-manifest-status', compact('truckShipment'));
+    }
+
+    public function show($id)
+    {
+        $shipment = TruckShipment::with([
+            'office', 'operator', 'salesPerson', 'customer', 'shipper', 'consignee', 'trucker',
+            'pol', 'pod', 'finalDestination', 'billTo', 'packageUnit', 'quotation',
+            'charges', 'documents', 'memos', 'containers.containerType', 'commodities', 'warehouseReceipts'
+        ])->findOrFail($id);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $shipment
+            ]);
+        }
+
+        return redirect()->route('truck-shipments.edit', $shipment->id);
+    }
+
+    public function getContainers($id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $containers = $shipment->containers()->with('containerType')->get();
+        return response()->json($containers);
+    }
+
+    public function storeContainer(Request $request, $id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $data = $request->validate([
+            'container_no' => 'nullable|string|max:100',
+            'tp_sz' => 'nullable|string|max:50',
+            'container_type_id' => 'nullable|integer',
+            'seal_no' => 'nullable|string|max:100',
+            'pickup_no' => 'nullable|string|max:100',
+            'pkg' => 'nullable|numeric',
+            'weight' => 'nullable|numeric',
+            'measurement' => 'nullable|numeric',
+            'lfd' => 'nullable|date',
+            'appointment' => 'nullable|date',
+            'pickup_date' => 'nullable|date',
+            'empty_return_date' => 'nullable|date',
+            'pier_pass' => 'nullable|string|max:100',
+            'po_no' => 'nullable|string|max:100',
+        ]);
+
+        $container = $shipment->containers()->create($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Container added successfully',
+            'container' => $container->load('containerType')
+        ], 201);
+    }
+
+    public function updateContainer(Request $request, $id, $containerId)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $container = $shipment->containers()->findOrFail($containerId);
+
+        $data = $request->validate([
+            'container_no' => 'nullable|string|max:100',
+            'tp_sz' => 'nullable|string|max:50',
+            'container_type_id' => 'nullable|integer',
+            'seal_no' => 'nullable|string|max:100',
+            'pickup_no' => 'nullable|string|max:100',
+            'pkg' => 'nullable|numeric',
+            'weight' => 'nullable|numeric',
+            'measurement' => 'nullable|numeric',
+            'lfd' => 'nullable|date',
+            'appointment' => 'nullable|date',
+            'pickup_date' => 'nullable|date',
+            'empty_return_date' => 'nullable|date',
+            'pier_pass' => 'nullable|string|max:100',
+            'po_no' => 'nullable|string|max:100',
+        ]);
+
+        $container->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Container updated successfully',
+            'container' => $container->load('containerType')
+        ]);
+    }
+
+    public function deleteContainer($id, $containerId)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $container = $shipment->containers()->findOrFail($containerId);
+        $container->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Container deleted successfully'
+        ]);
+    }
+
+    public function getCommodities($id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $commodities = $shipment->commodities()->get();
+        return response()->json($commodities);
+    }
+
+    public function storeCommodity(Request $request, $id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $data = $request->validate([
+            'container_id' => 'nullable|integer',
+            'description' => 'nullable|string',
+            'hts_code' => 'nullable|string|max:100',
+            'po_no' => 'nullable|string|max:100',
+            'pkg_qty' => 'nullable|numeric',
+            'weight' => 'nullable|numeric',
+            'cbm' => 'nullable|numeric',
+        ]);
+
+        $commodity = $shipment->commodities()->create($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commodity added successfully',
+            'commodity' => $commodity
+        ], 201);
+    }
+
+    public function updateCommodity(Request $request, $id, $commodityId)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $commodity = $shipment->commodities()->findOrFail($commodityId);
+
+        $data = $request->validate([
+            'container_id' => 'nullable|integer',
+            'description' => 'nullable|string',
+            'hts_code' => 'nullable|string|max:100',
+            'po_no' => 'nullable|string|max:100',
+            'pkg_qty' => 'nullable|numeric',
+            'weight' => 'nullable|numeric',
+            'cbm' => 'nullable|numeric',
+        ]);
+
+        $commodity->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commodity updated successfully',
+            'commodity' => $commodity
+        ]);
+    }
+
+    public function deleteCommodity($id, $commodityId)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $commodity = $shipment->commodities()->findOrFail($commodityId);
+        $commodity->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commodity deleted successfully'
+        ]);
+    }
+
+    public function linkWarehouseReceipts(Request $request, $id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+        $receiptIds = $request->input('receipt_ids', []);
+
+        if (!empty($receiptIds)) {
+            WarehouseReceipt::whereIn('id', $receiptIds)->update(['truck_shipment_id' => $shipment->id]);
+        }
+
+        $totals = WarehouseReceiptItem::whereIn('warehouse_receipt_id', $receiptIds)
+            ->selectRaw('COALESCE(SUM(pkg_qty), 0) as total_pkg, COALESCE(SUM(weight_kg), 0) as total_weight, COALESCE(SUM(volume_cbm), 0) as total_cbm')
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => count($receiptIds) . ' warehouse receipt(s) linked successfully',
+            'totals' => [
+                'pkg' => (float) ($totals->total_pkg ?? 0),
+                'weight' => (float) ($totals->total_weight ?? 0),
+                'cbm' => (float) ($totals->total_cbm ?? 0),
+            ]
+        ]);
+    }
+
+    public function createAndLinkReceipt(Request $request, $id)
+    {
+        $shipment = TruckShipment::findOrFail($id);
+
+        $validated = $request->validate([
+            'warehouse_id' => 'required',
+            'receive_date' => 'required',
+            'customer_id' => 'nullable',
+            'shipper_id' => 'nullable',
+            'tracking_no' => 'nullable|string',
+            'carrier_name' => 'nullable|string',
+            'cargo_type' => 'nullable|string',
+            'po_no' => 'nullable|string',
+        ]);
+
+        $receiptData = array_merge($request->all(), [
+            'truck_shipment_id' => $shipment->id,
+            'receipt_no' => $request->receipt_no ?: 'WR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4)),
+            'receipt_date' => $request->receive_date ? date('Y-m-d H:i:s', strtotime($request->receive_date)) : now(),
+            'company_id' => $shipment->company_id,
+        ]);
+
+        $receipt = WarehouseReceipt::create($receiptData);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Warehouse receipt created and linked successfully',
+            'receipt' => $receipt,
+            'totals' => [
+                'pkg' => 0,
+                'weight' => 0,
+                'cbm' => 0,
+            ]
+        ], 201);
     }
 }

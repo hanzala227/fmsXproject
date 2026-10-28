@@ -47,6 +47,13 @@ class Invoice extends Model
         'group_letter',
         'document_type',
         'idempotency_key',
+        'mbl_no',
+        'remark',
+    ];
+
+    protected $appends = [
+        'master_bl_no',
+        'house_bl_no',
     ];
 
     protected $casts = [
@@ -142,6 +149,51 @@ class Invoice extends Model
     public function documents()
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function getMasterBlNoAttribute()
+    {
+        if (!empty($this->mbl_no)) {
+            return $this->mbl_no;
+        }
+
+        try {
+            $shipment = $this->invoiceable;
+            if ($shipment) {
+                return $shipment->mbl_no ?? $shipment->mawb_no ?? null;
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    public function getHouseBlNoAttribute()
+    {
+        try {
+            $shipment = $this->invoiceable;
+            if (!$shipment) return null;
+
+            if (isset($shipment->hbl_no)) return $shipment->hbl_no;
+            if (isset($shipment->hawb_no)) return $shipment->hawb_no;
+
+            if (method_exists($shipment, 'hbls') && $shipment->relationLoaded('hbls')) {
+                $hblNos = $shipment->hbls->map(fn($h) => $h->hbl_no ?? $h->hawb_no ?? null)->filter()->unique()->values();
+                if ($hblNos->isNotEmpty()) {
+                    return $hblNos->join(', ');
+                }
+            } elseif (method_exists($shipment, 'hbls')) {
+                $hblNos = $shipment->hbls()->get()->map(fn($h) => $h->hbl_no ?? $h->hawb_no ?? null)->filter()->unique()->values();
+                if ($hblNos->isNotEmpty()) {
+                    return $hblNos->join(', ');
+                }
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
     }
 
 }

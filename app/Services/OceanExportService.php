@@ -167,11 +167,36 @@ class OceanExportService
             if ($hblsAdded > 0) $changes[] = "$hblsAdded House B/L added";
             if ($hblsDeleted > 0) $changes[] = "$hblsDeleted House B/L removed";
 
-            // Sync charges
+            // Sync charges safely preserving invoiced items
             if (isset($data['charges'])) {
-                $oceanExport->charges()->delete();
-                $chargeCount = 0;
+                // Keep track of invoiced charges to protect them against deletion
+                $invoicedChargeIds = $oceanExport->charges()->where('is_invoiced', true)->pluck('id')->toArray();
+
+                // Only delete un-invoiced charges
+                $oceanExport->charges()->where('is_invoiced', false)->delete();
+
+                $chargeCount = count($invoicedChargeIds);
                 foreach ($data['charges'] as $chargeData) {
+                    $chargeId = $chargeData['id'] ?? null;
+
+                    // If this charge is already invoiced, preserve it and do not recreate/duplicate
+                    if ($chargeId && in_array($chargeId, $invoicedChargeIds)) {
+                        continue;
+                    }
+
+                    // If no explicit id was passed, check if this charge code & type is already invoiced
+                    if (!$chargeId && !empty($invoicedChargeIds)) {
+                        $mapped = $this->mapChargeData($chargeData);
+                        $matchedInvoiced = $oceanExport->charges()
+                            ->where('is_invoiced', true)
+                            ->where('charge_code', $mapped['charge_code'])
+                            ->where('type', $mapped['type'])
+                            ->first();
+                        if ($matchedInvoiced) {
+                            continue;
+                        }
+                    }
+
                     $chargeData = array_merge($this->getChargeDefaults(), $chargeData);
                     $oceanExport->charges()->create($this->mapChargeData($chargeData));
                     $chargeCount++;
@@ -330,6 +355,10 @@ class OceanExportService
         if (!empty($data['currency'])) {
             $currency = \App\Models\Currency::where('code', $data['currency'])->first();
             $mapped['currency_id'] = $currency?->id;
+        }
+
+        if (isset($data['is_invoiced'])) {
+            $mapped['is_invoiced'] = filter_var($data['is_invoiced'], FILTER_VALIDATE_BOOLEAN);
         }
 
         return $mapped;

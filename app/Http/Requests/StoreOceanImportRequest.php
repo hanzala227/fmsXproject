@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\Iso6346ContainerRule;
 
 class StoreOceanImportRequest extends FormRequest
 {
@@ -21,28 +22,41 @@ class StoreOceanImportRequest extends FormRequest
             'is_isf_3rd_party' => $this->boolean('is_isf_3rd_party'),
             'is_ror' => $this->boolean('is_ror'),
             'is_hold' => $this->boolean('is_hold'),
+            'is_do_sent' => $this->boolean('is_do_sent'),
         ];
 
         if (empty($this->bl_type)) $mergeData['bl_type'] = 'NORMAL';
         if (empty($this->cargo_type)) $mergeData['cargo_type'] = 'GENERAL CARGO';
         if (empty($this->ship_mode)) $mergeData['ship_mode'] = 'FCL';
 
+        if ($this->has('incoterm_id') && $this->input('incoterm_id') !== null) {
+            $incoVal = $this->input('incoterm_id');
+            if (is_array($incoVal)) {
+                $incoVal = $incoVal['id'] ?? $incoVal['code'] ?? null;
+            }
+            if ($incoVal !== null && $incoVal !== '') {
+                $mergeData['incoterm_id'] = (string)$incoVal;
+            }
+        }
+
         $this->merge($mergeData);
 
         if ($this->has('hbls') && is_array($this->hbls)) {
             $hbls = $this->hbls;
             foreach ($hbls as $index => $hbl) {
-                $hbls[$index]['is_express_bl'] = isset($hbl['is_express_bl']) && ($hbl['is_express_bl'] == '1' || $hbl['is_express_bl'] == 'on' || $hbl['is_express_bl'] === true);
-                $hbls[$index]['is_door_move'] = isset($hbl['is_door_move']) && ($hbl['is_door_move'] == '1' || $hbl['is_door_move'] == 'on' || $hbl['is_door_move'] === true);
                 $hbls[$index]['is_customs_clear'] = isset($hbl['is_customs_clear']) && ($hbl['is_customs_clear'] == '1' || $hbl['is_customs_clear'] == 'on' || $hbl['is_customs_clear'] === true);
                 $hbls[$index]['is_customs_hold'] = isset($hbl['is_customs_hold']) && ($hbl['is_customs_hold'] == '1' || $hbl['is_customs_hold'] == 'on' || $hbl['is_customs_hold'] === true);
-                $hbls[$index]['is_obl_received'] = isset($hbl['is_obl_received']) && ($hbl['is_obl_received'] == '1' || $hbl['is_obl_received'] == 'on' || $hbl['is_obl_received'] === true);
-                $hbls[$index]['is_fr_released'] = isset($hbl['is_fr_released']) && ($hbl['is_fr_released'] == '1' || $hbl['is_fr_released'] == 'on' || $hbl['is_fr_released'] === true);
-                $hbls[$index]['is_an_sent'] = isset($hbl['is_an_sent']) && ($hbl['is_an_sent'] == '1' || $hbl['is_an_sent'] == 'on' || $hbl['is_an_sent'] === true);
                 $hbls[$index]['is_do_sent'] = isset($hbl['is_do_sent']) && ($hbl['is_do_sent'] == '1' || $hbl['is_do_sent'] == 'on' || $hbl['is_do_sent'] === true);
-                $hbls[$index]['is_ecommerce'] = isset($hbl['is_ecommerce']) && ($hbl['is_ecommerce'] == '1' || $hbl['is_ecommerce'] == 'on' || $hbl['is_ecommerce'] === true);
-                $hbls[$index]['is_customs_doc'] = isset($hbl['is_customs_doc']) && ($hbl['is_customs_doc'] == '1' || $hbl['is_customs_doc'] == 'on' || $hbl['is_customs_doc'] === true);
                 $hbls[$index]['is_rail'] = isset($hbl['is_rail']) && ($hbl['is_rail'] == '1' || $hbl['is_rail'] == 'on' || $hbl['is_rail'] === true);
+                if (isset($hbl['incoterms_id']) && $hbl['incoterms_id'] !== null) {
+                    $hInco = $hbl['incoterms_id'];
+                    if (is_array($hInco)) {
+                        $hInco = $hInco['code'] ?? $hInco['id'] ?? null;
+                    }
+                    if ($hInco !== null && $hInco !== '') {
+                        $hbls[$index]['incoterms_id'] = (string)$hInco;
+                    }
+                }
             }
             $this->merge(['hbls' => $hbls]);
         }
@@ -66,6 +80,21 @@ class StoreOceanImportRequest extends FormRequest
                 }
             }
             $this->merge(['containers' => $containers]);
+        }
+
+        if ($this->has('hbls') && is_array($this->hbls)) {
+            $hbls = $this->hbls;
+            if ($this->boolean('is_direct_master')) {
+                $hbls = array_values(array_filter($hbls, function($h) {
+                    return !empty(trim($h['hbl_no'] ?? ''));
+                }));
+            }
+            if ($this->boolean('is_direct_master') && empty($hbls)) {
+                $this->request->remove('hbls');
+                $this->merge(['hbls' => null]);
+            } else {
+                $this->merge(['hbls' => $hbls]);
+            }
         }
     }
 
@@ -117,9 +146,9 @@ class StoreOceanImportRequest extends FormRequest
             'fdest_id' => 'nullable|exists:ports,id',
             'receipt_id' => 'nullable|exists:ports,id',
             'etd' => 'nullable|date',
-            'eta' => 'nullable|date',
+            'eta' => 'nullable|date|after_or_equal:etd',
             'atd' => 'nullable|date',
-            'ata' => 'nullable|date',
+            'ata' => 'nullable|date|after_or_equal:atd',
             'etb' => 'nullable|date',
             'final_eta' => 'nullable|date',
             'receipt_etd' => 'nullable|date',
@@ -159,10 +188,13 @@ class StoreOceanImportRequest extends FormRequest
             'is_ror' => 'sometimes|boolean',
             'is_hold' => 'sometimes|boolean',
             'door_delivery_date' => 'nullable|date',
+            'lfd' => 'nullable|date',
+            'is_do_sent' => 'sometimes|boolean',
+            'do_sent_date' => 'nullable|date',
             'trucker_id' => 'nullable|exists:trade_partners,id',
             'expiry_date' => 'nullable|date',
             'sales_type' => 'nullable|string|max:255',
-            'incoterm_id' => 'nullable|string|max:255',
+            'incoterm_id' => 'nullable|max:255',
             
             // Nested validation
             'hbls' => 'sometimes|array',
@@ -176,7 +208,6 @@ class StoreOceanImportRequest extends FormRequest
             'hbls.*.customs_broker_id' => 'nullable|exists:trade_partners,id',
             'hbls.*.delivery_location_id' => 'nullable|exists:trade_partners,id',
             'hbls.*.cfs_location_id' => 'nullable|exists:trade_partners,id',
-            'hbls.*.referred_by_id' => 'nullable|exists:trade_partners,id',
             'hbls.*.freight_released_by_id' => 'nullable|exists:users,id',
             'hbls.*.pod_id' => 'nullable|exists:ports,id',
             'hbls.*.del_id' => 'nullable|exists:ports,id',
@@ -185,33 +216,21 @@ class StoreOceanImportRequest extends FormRequest
             'hbls.*.vessel_name' => 'nullable|string',
             'hbls.*.voyage_no' => 'nullable|string',
             'hbls.*.pre_carriage_by' => 'nullable|string',
+            'hbls.*.pre_carriage_voyage' => 'nullable|string',
             'hbls.*.service_term' => 'nullable|string',
             'hbls.*.ship_mode' => 'nullable|string',
             'hbls.*.ship_type' => 'nullable|string',
             'hbls.*.cargo_type' => 'nullable|string',
-            'hbls.*.incoterms_id' => 'nullable|string',
+            'hbls.*.incoterms_id' => 'nullable|max:255',
             'hbls.*.date_of_issue' => 'nullable|date',
             'hbls.*.lc_no' => 'nullable|string',
             'hbls.*.sc_no' => 'nullable|string',
             'hbls.*.freight_payable_at' => 'nullable|string',
             'hbls.*.hbl_freight' => 'nullable|string',
-            'hbls.*.is_express_bl' => 'sometimes|boolean',
-            'hbls.*.is_door_move' => 'sometimes|boolean',
             'hbls.*.is_customs_clear' => 'sometimes|boolean',
             'hbls.*.is_customs_hold' => 'sometimes|boolean',
-            'hbls.*.is_obl_received' => 'sometimes|boolean',
-            'hbls.*.obl_received_date' => 'nullable|date',
-            'hbls.*.is_fr_released' => 'sometimes|boolean',
-            'hbls.*.fr_released_date' => 'nullable|date',
-            'hbls.*.is_an_sent' => 'sometimes|boolean',
-            'hbls.*.an_sent_date' => 'nullable|date',
             'hbls.*.is_do_sent' => 'sometimes|boolean',
             'hbls.*.do_sent_date' => 'nullable|date',
-            'hbls.*.name_account' => 'nullable|string',
-            'hbls.*.group_comm' => 'nullable|string',
-            'hbls.*.line_code' => 'nullable|string',
-            'hbls.*.is_ecommerce' => 'sometimes|boolean',
-            'hbls.*.is_customs_doc' => 'sometimes|boolean',
             'hbls.*.is_rail' => 'sometimes|boolean',
             'hbls.*.hbl_remark' => 'nullable|string',
             'hbls.*.po_no' => 'nullable|string',
@@ -317,6 +336,8 @@ class StoreOceanImportRequest extends FormRequest
             'routes.*.etd' => 'nullable|date',
             'routes.*.atd' => 'nullable|date',
             'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.vessel_name' => 'nullable|string|max:255',
+            'routes.*.voyage_no' => 'nullable|string|max:255',
             'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }

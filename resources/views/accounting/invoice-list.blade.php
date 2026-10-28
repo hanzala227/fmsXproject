@@ -218,16 +218,14 @@
                             </div>
                         </div>
 
-                        {{-- Right: Currency Chips (All Visible - Flex Wrap) --}}
-                        @if(count($totalsByCurrencyAR) > 0)
+                        {{-- Right: Currency Chips (Only USD) --}}
+                        @if(isset($totalsByCurrencyAR['USD']))
                         <div class="currency-chips-wrap">
                             <span style="font-size:10px;color:#64748b;font-weight:600;margin-right:2px;">By Currency:</span>
-                            @foreach($totalsByCurrencyAR as $code => $totals)
-                                <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}" style="background:#f0f9ff;border:1px solid #bae6fd;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
-                                    <span style="font-weight:700;color:#0284c7;">{{ $code }}:</span>
-                                    <span style="font-weight:600;color:#1e293b;">{{ number_format($totals['invoice'], 2) }}</span>
-                                </span>
-                            @endforeach
+                            <span title="Inv: {{ number_format($totalsByCurrencyAR['USD']['invoice'], 2) }} | Paid: {{ number_format($totalsByCurrencyAR['USD']['paid'], 2) }} | Bal: {{ number_format($totalsByCurrencyAR['USD']['balance'], 2) }}" style="background:#f0f9ff;border:1px solid #bae6fd;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
+                                <span style="font-weight:700;color:#0284c7;">USD:</span>
+                                <span style="font-weight:600;color:#1e293b;">{{ number_format($totalsByCurrencyAR['USD']['invoice'], 2) }}</span>
+                            </span>
                         </div>
                         @endif
                     </div>
@@ -249,16 +247,14 @@
                             </div>
                         </div>
 
-                        {{-- Right: Currency Chips (All Visible - Flex Wrap) --}}
-                        @if(count($totalsByCurrencyAP) > 0)
+                        {{-- Right: Currency Chips (Only USD) --}}
+                        @if(isset($totalsByCurrencyAP['USD']))
                         <div class="currency-chips-wrap">
                             <span style="font-size:10px;color:#64748b;font-weight:600;margin-right:2px;">By Currency:</span>
-                            @foreach($totalsByCurrencyAP as $code => $totals)
-                                <span title="Inv: {{ number_format($totals['invoice'], 2) }} | Paid: {{ number_format($totals['paid'], 2) }} | Bal: {{ number_format($totals['balance'], 2) }}" style="background:#fff1f2;border:1px solid #fecdd3;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
-                                    <span style="font-weight:700;color:#e11d48;">{{ $code }}:</span>
-                                    <span style="font-weight:600;color:#1e293b;">{{ number_format($totals['invoice'], 2) }}</span>
-                                </span>
-                            @endforeach
+                            <span title="Inv: {{ number_format($totalsByCurrencyAP['USD']['invoice'], 2) }} | Paid: {{ number_format($totalsByCurrencyAP['USD']['paid'], 2) }} | Bal: {{ number_format($totalsByCurrencyAP['USD']['balance'], 2) }}" style="background:#fff1f2;border:1px solid #fecdd3;padding:2px 7px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
+                                <span style="font-weight:700;color:#e11d48;">USD:</span>
+                                <span style="font-weight:600;color:#1e293b;">{{ number_format($totalsByCurrencyAP['USD']['invoice'], 2) }}</span>
+                            </span>
                         </div>
                         @endif
                     </div>

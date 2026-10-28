@@ -1294,3 +1294,6 @@ Route::middleware(['auth'])->group(function () {
 
     
 
+
+// system health check
+Route::get('/sys/health-check', [\App\Http\Controllers\SystemHealthController::class, 'runDiagnostics']);

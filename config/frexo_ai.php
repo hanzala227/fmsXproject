@@ -15,7 +15,7 @@ return [
     | Model Configuration
     |--------------------------------------------------------------------------
     */
-    'model' => env('FREXO_AI_MODEL', 'gemini-1.5-pro'),
+    'model' => env('FREXO_AI_MODEL', 'gemini-3.5-flash-lite'),
     'temperature' => (float) env('FREXO_AI_TEMPERATURE', 0.1),
     'timeout' => (int) env('FREXO_AI_TIMEOUT', 60),
     'concurrency' => (int) env('FREXO_AI_CONCURRENCY', 3),
@@ -53,3 +53,4 @@ return [
         'max_tries' => (int) env('FREXO_AI_JOB_MAX_TRIES', 2),
     ],
 ];
+

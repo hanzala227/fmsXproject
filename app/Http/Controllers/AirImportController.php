@@ -187,6 +187,28 @@ class AirImportController extends Controller
             ->with('success', 'Air Import Shipment created successfully.');
     }
 
+    public function show($id)
+    {
+        $airImport = $id instanceof AirImport ? $id : AirImport::findOrFail($id);
+        $airImport->load([
+            'hbls.customer', 'hbls.shipper', 'hbls.consignee',
+            'charges.currency', 'documents', 'containers',
+            'statusLogs.user', 'office', 'carrier', 'overseaAgent',
+            'depPort', 'dstPort', 'operator', 'packageUnit',
+            'forwardingAgent', 'acctCarrier',
+            'dmCustomer', 'dmShipper', 'dmConsignee', 'dmNotify', 'dmBillTo', 'dmSalesPerson',
+        ]);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $airImport
+            ]);
+        }
+
+        return redirect()->route('air-import.edit', $airImport->id);
+    }
+
     public function edit(AirImport $airImport)
     {
         $airImport->load([

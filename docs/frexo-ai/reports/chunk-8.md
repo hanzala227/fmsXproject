@@ -137,3 +137,4 @@ To add a new evaluation test case, place a `.json` file in `tests/Fixtures/Frexo
 2. **Static analysis clean:** PASS (Laravel Pint passed across 38 files).
 3. **Frontend build clean:** PASS (`npm run build` in 4.68s).
 4. **Harness runs on synthetic fixtures & prints metrics table:** PASS.
+

@@ -37,3 +37,4 @@ class FieldEvidence extends Model
         return $this->belongsTo(ExtractionRun::class, 'run_id');
     }
 }
+

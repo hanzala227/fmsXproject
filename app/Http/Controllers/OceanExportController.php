@@ -163,7 +163,7 @@ class OceanExportController extends Controller
                 return redirect()->route('ocean-export.create')->with('error', 'Source shipment not found for copy.');
             }
             $oceanExport = $source->replicate();
-            $oceanExport->file_no = 'MOE-' . now()->format('ymdHis');
+            $oceanExport->file_no = \App\Services\DocumentSequenceService::generateBookingNo('MOE', OceanExport::class);
             $oceanExport->mbl_no = null;
             $oceanExport->post_date = now();
             $oceanExport->setRelation('hbls', $source->hbls->map->replicate());
@@ -189,7 +189,7 @@ class OceanExportController extends Controller
             
             // Create new shipment based on existing one
             $oceanExport = $shipment->replicate();
-            $oceanExport->file_no = 'MOE-' . now()->format('ymdHis');
+            $oceanExport->file_no = \App\Services\DocumentSequenceService::generateBookingNo('MOE', OceanExport::class);
             $oceanExport->mbl_no = null;
             $oceanExport->post_date = now();
             $oceanExport->exists = false; // Mark as new record
@@ -352,6 +352,22 @@ class OceanExportController extends Controller
             
             return back()->withInput()->with('error', 'An unexpected error occurred. Please try again or contact support if the problem persists.');
         }
+    }
+
+    public function show($id)
+    {
+        $oceanExport = $id instanceof OceanExport ? $id : OceanExport::findOrFail($id);
+        $this->authorize('view', $oceanExport);
+        $oceanExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'containers.containerType', 'charges.currency', 'documents', 'statusLogs.user']);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $oceanExport
+            ]);
+        }
+
+        return redirect()->route('ocean-export.edit', $oceanExport->id);
     }
 
     public function edit(OceanExport $oceanExport)

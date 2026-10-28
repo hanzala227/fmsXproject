@@ -31,12 +31,14 @@ class OceanImport extends Model
         'entry_no', 'entry_doc_sent_date', 'go_date', 'available_date', 
         'c_released_date', 'released_by_id',         'is_ror', 'is_hold', 
         'door_delivery_date', 'trucker_id', 'expiry_date', 'sales_type', 'incoterm_id',
-        'color', 'is_blocked', 'routes'
+        'color', 'is_blocked', 'routes',
+        'lfd', 'is_do_sent', 'do_sent_date', 'transportation'
     ];
 
     protected $casts = [
         'routes' => 'array',
         'trans_shipments' => 'array',
+        'transportation' => 'array',
         'post_date' => 'date',
         'etd' => 'date',
         'eta' => 'date',
@@ -48,6 +50,9 @@ class OceanImport extends Model
         'obl_received_date' => 'date',
         'released_date' => 'date',
         'latest_gate_in' => 'date',
+        'lfd' => 'date',
+        'do_sent_date' => 'date',
+        'is_do_sent' => 'boolean',
         'is_direct_master' => 'boolean',
         'is_ecommerce' => 'boolean',
         'is_obl_received' => 'boolean',

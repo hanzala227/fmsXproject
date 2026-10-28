@@ -156,7 +156,7 @@ class OceanImportService
 
             if (isset($data['charges'])) {
                 $submittedChargeIds = collect($data['charges'])->pluck('id')->filter()->toArray();
-                $oceanImport->charges()->whereNotIn('id', $submittedChargeIds)->delete();
+                $oceanImport->charges()->where('is_invoiced', false)->whereNotIn('id', $submittedChargeIds)->delete();
 
                 foreach ($data['charges'] as $chargeData) {
                     $currencyId = null;
@@ -218,7 +218,7 @@ class OceanImportService
                     }
                 }
             } else {
-                $oceanImport->charges()->delete();
+                $oceanImport->charges()->where('is_invoiced', false)->delete();
             }
 
             if (isset($data['memos'])) {

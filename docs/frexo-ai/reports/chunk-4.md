@@ -110,3 +110,4 @@ grep -rn -i "gemini" app/Services/FrexoAi/Validation/
 Output:
 *(Exited with code 1; 0 matches found)*.
 Proof that all validators in `app/Services/FrexoAi/Validation/` are 100% deterministic with zero LLM dependencies.
+

@@ -100,3 +100,4 @@ return new class extends Migration
         Schema::dropIfExists('frexo_extraction_runs');
     }
 };
+

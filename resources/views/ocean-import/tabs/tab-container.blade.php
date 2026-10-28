@@ -82,7 +82,11 @@
                                 </td>
                                 <td style="width:60px;"><input type="text" :name="'containers['+idx+'][pp_ctf]'" class="form-control-gf" x-model="cont.pp_ctf"></td>
                                 <td style="width:160px;">
-                                    <input type="text" :name="'containers['+idx+'][container_no]'" class="form-control-gf" x-model="cont.container_no">
+                                    @include('partials.container-number-field', [
+                                        'name' => "'containers['+idx+'][container_no]'",
+                                        'model' => 'cont.container_no',
+                                        'placeholder' => 'Container No.'
+                                    ])
                                 </td>
                                 <td style="width:80px;"><select :name="'containers['+idx+'][container_type_id]'" class="form-control-gf" x-model="cont.container_type_id"><option value="">Select...</option>@foreach($containerTypes as $ct)<option value="{{ $ct->id }}">{{ $ct->code }}</option>@endforeach</select></td>
                                 <td style="width:100px;"><input type="text" :name="'containers['+idx+'][seal_no]'" class="form-control-gf" x-model="cont.seal_no"></td>
@@ -176,11 +180,6 @@
                 <span style="color:#333;">Total</span>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 5px; align-items: center; gap: 10px;">
-                <label class="form-label-gf">Display Unit</label>
-                <select name="display_unit" class="form-control-gf" style="width: 150px;" x-model="form.display_unit"><option value="both">Show Both</option><option value="revenue">Revenue</option><option value="cost">Cost</option></select>
-            </div>
-
             <div style="display: flex; gap: 20px; margin-top: 15px;">
                 <div style="flex: 1;">
                     <label class="caption-subject" style="font-size: 11px; margin-bottom: 5px; display: block;">Mark</label>
@@ -257,14 +256,20 @@
                                     <tr>
                                         <td style="text-align: center; font-weight: bold;" x-text="cIdx + 1"></td>
                                         <td>
-                                            <select class="form-control-gf" x-model="c.container_no" :name="c.container_no !== 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
+                                            <select class="form-control-gf" x-model="c.container_no" @change="if(c.container_no !== 'MANUAL') c.manual_container_no = ''" :name="c.container_no !== 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
                                                 <option value="">Select MBL Container...</option>
                                                 <template x-for="mblC in form.containers">
-                                                    <option :value="mblC.container_no" x-text="mblC.container_no"></option>
+                                                    <option :value="mblC.container_no" x-text="mblC.container_no" :selected="c.container_no === mblC.container_no"></option>
                                                 </template>
-                                                <option value="MANUAL">Add Manual</option>
+                                                <option value="MANUAL" :selected="c.container_no === 'MANUAL'">Add Manual</option>
                                             </select>
-                                            <input type="text" class="form-control-gf mt-1" placeholder="Enter Container No." x-show="c.container_no === 'MANUAL'" x-model="c.manual_container_no" :name="c.container_no === 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
+                                            <div x-show="c.container_no === 'MANUAL'" class="mt-1">
+                                                @include('partials.container-number-field', [
+                                                    'name' => "c.container_no === 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''",
+                                                    'model' => 'c.manual_container_no',
+                                                    'placeholder' => 'Enter Container No.'
+                                                ])
+                                            </div>
                                         </td>
                                         <td>
                                             <div class="flex gap-1">
@@ -412,12 +417,6 @@
                     <div>
                         <div class="flex justify-between items-center" style="margin-bottom: 4px;">
                             <label class="form-label-gf" style="font-weight: bold; margin-bottom: 0;">Description</label>
-                            <div class="flex gap-1">
-                                <span style="font-size:10px; color:#555; align-self: center; margin-right: 4px;">Copy:</span>
-                                <button type="button" @click="copyToDescription(hbl, 'po')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">P.O.</button>
-                                <button type="button" @click="copyToDescription(hbl, 'commodity')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">Commodity</button>
-                                <button type="button" @click="copyToDescription(hbl, 'both')" class="btn-tool" style="padding: 1px 6px; font-size: 10px;">Commodity & HTS</button>
-                            </div>
                         </div>
                         <textarea :name="'hbls['+hblIdx+'][hbl_description]'" class="form-control-gf" style="height: 140px; width:100%;" x-model="hbl.hbl_description"></textarea>
                     </div>

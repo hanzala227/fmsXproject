@@ -13,6 +13,8 @@ class HouseBillOfLading extends Model
 {
     use HasFactory, SoftDeletes, BelongsToTenant;
 
+    protected $table = 'ocean_import_hbls';
+
     protected $fillable = [
         'company_id',
         'ocean_import_id',

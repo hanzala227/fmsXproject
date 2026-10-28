@@ -20,6 +20,9 @@ class PortCodeValidator
             if (preg_match('/^[A-Z]{3}$/', $clean)) {
                 return ValidationResult::pass($fieldPath, $clean, 'VALID_IATA_AIRPORT');
             }
+            if (preg_match('/[\[\(]([A-Z]{3})[\]\)]/', $clean, $m)) {
+                return ValidationResult::pass($fieldPath, $m[1], 'VALID_IATA_EXTRACTED');
+            }
             if (preg_match('/\b([A-Z]{3})\b/', $clean, $m)) {
                 return ValidationResult::pass($fieldPath, $m[1], 'VALID_IATA_EXTRACTED');
             }
@@ -35,6 +38,11 @@ class PortCodeValidator
         // UN/LOCODE standard: 2-letter country + 3-character location (e.g. USLAX, CNNBO, PKKHI)
         if (preg_match('/^[A-Z]{2}[A-Z0-9]{3}$/', $clean)) {
             return ValidationResult::pass($fieldPath, $clean, 'VALID_UNLOCODE');
+        }
+
+        // Check for explicit bracketed or parenthesized code: e.g. [PKBQM] or (USLAX)
+        if (preg_match('/[\[\(]([A-Z]{2}[A-Z0-9]{3})[\]\)]/', $clean, $m)) {
+            return ValidationResult::pass($fieldPath, $m[1], 'VALID_UNLOCODE_EXTRACTED');
         }
 
         if (preg_match('/\b([A-Z]{2}[A-Z0-9]{3})\b/', $clean, $m)) {

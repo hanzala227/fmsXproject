@@ -1006,7 +1006,7 @@
                 html += '<td style="padding:4px;">' + (r.ata || '--') + '</td>';
                 html += '<td style="padding:4px;">' + (r.etd || '--') + '</td>';
                 html += '<td style="padding:4px;">' + (r.atd || '--') + '</td>';
-                html += '<td style="padding:4px;">' + (r.flight_no || '--') + '</td>';
+                html += '<td style="padding:4px;">' + (r.vessel_name ? (r.vessel_name + (r.voyage_no ? ' / ' + r.voyage_no : '')) : (r.flight_no || '--')) + '</td>';
                 html += '</tr>';
             }
             html += '</tbody></table></div>';

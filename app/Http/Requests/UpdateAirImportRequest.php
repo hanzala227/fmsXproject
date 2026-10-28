@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\IataMawbRule;
 
 class UpdateAirImportRequest extends FormRequest
 {
@@ -11,13 +12,20 @@ class UpdateAirImportRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('referred_by_id') && !$this->has('business_referred_by_id')) {
+            $this->merge(['business_referred_by_id' => $this->referred_by_id]);
+        }
+    }
+
     public function rules()
     {
         $id = $this->route('air_import') ? $this->route('air_import')->id : null;
         
         return [
             'file_no' => 'required|string|unique:air_imports,file_no,' . $id,
-            'mawb_no' => 'nullable|string|unique:air_imports,mawb_no,' . $id,
+            'mawb_no' => ['nullable', 'string', 'unique:air_imports,mawb_no,' . $id, new IataMawbRule()],
             'post_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
             'op_id' => 'nullable|exists:users,id',
@@ -30,9 +38,9 @@ class UpdateAirImportRequest extends FormRequest
             'dep_port_id' => 'nullable|exists:ports,id',
             'dst_port_id' => 'nullable|exists:ports,id',
             'etd' => 'nullable|date',
-            'eta' => 'nullable|date',
+            'eta' => 'nullable|date|after_or_equal:etd',
             'atd' => 'nullable|date',
-            'ata' => 'nullable|date',
+            'ata' => 'nullable|date|after_or_equal:atd',
             
             'pkg_qty' => 'nullable|numeric',
             'pkg_unit_id' => 'nullable|exists:package_units,id',
@@ -58,6 +66,7 @@ class UpdateAirImportRequest extends FormRequest
             'svc_term_to_id' => 'nullable|exists:service_terms,id',
             'service_term_from' => 'nullable|string',
             'service_term_to' => 'nullable|string',
+            'business_referred_by_id' => 'nullable|exists:trade_partners,id',
             'referred_by_id' => 'nullable|exists:trade_partners,id',
             'is_ecommerce' => 'boolean',
             'display_unit' => 'nullable|string',

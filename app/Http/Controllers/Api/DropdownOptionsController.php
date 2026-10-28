@@ -55,7 +55,9 @@ class DropdownOptionsController extends Controller
     public function ports(Request $request)
     {
         $ports = Port::orderBy('name')
-            ->select('id', 'name', 'code', 'country')->latest()->take(10)
+            ->select('id', 'name', 'code', 'country_id')
+            ->latest()
+            ->take(10)
             ->get();
 
         return response()->json(['data' => $ports]);
@@ -109,8 +111,9 @@ class DropdownOptionsController extends Controller
 
     public function warehouses(Request $request)
     {
-        $warehouses = Warehouse::orderBy('name')
-            ->select('id', 'name', 'code', 'address')
+        $warehouses = TradePartner::whereIn('type', ['WAREHOUSE', 'WH'])
+            ->orderBy('name')
+            ->select('id', 'name', 'code', 'local_address as address')
             ->get();
 
         return response()->json(['data' => $warehouses]);
@@ -196,14 +199,14 @@ class DropdownOptionsController extends Controller
 
     public function truckers(Request $request)
     {
-        $truckers = TradePartner::where('is_trucker', true)
-            ->orderBy('company_name')
-            ->select('id', 'company_name', 'name')
+        $truckers = TradePartner::whereIn('type', ['TK', 'TRUCKER', 'TR'])
+            ->orderBy('name')
+            ->select('id', 'name')
             ->get()
             ->map(function ($trucker) {
                 return [
                     'id' => $trucker->id,
-                    'name' => $trucker->company_name ?? $trucker->name,
+                    'name' => $trucker->name,
                 ];
             });
 
@@ -212,14 +215,14 @@ class DropdownOptionsController extends Controller
 
     public function vendors(Request $request)
     {
-        $vendors = TradePartner::where('is_vendor', true)
-            ->orderBy('company_name')
-            ->select('id', 'company_name', 'name')
+        $vendors = TradePartner::whereIn('type', ['VR', 'VENDOR', 'CARRIER'])
+            ->orderBy('name')
+            ->select('id', 'name')
             ->get()
             ->map(function ($vendor) {
                 return [
                     'id' => $vendor->id,
-                    'name' => $vendor->company_name ?? $vendor->name,
+                    'name' => $vendor->name,
                 ];
             });
 

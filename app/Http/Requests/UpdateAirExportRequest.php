@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\IataMawbRule;
 
 class UpdateAirExportRequest extends FormRequest
 {
@@ -13,12 +14,25 @@ class UpdateAirExportRequest extends FormRequest
 
     protected function prepareForValidation()
     {
-        $this->merge([
+        $gross = floatval($this->input('gross_weight', 0));
+        $cbm = floatval($this->input('volume') ?? $this->input('volume_cbm', 0));
+        $minVolumetric = round($cbm * 166.67, 2);
+        $minRequired = max($gross, $minVolumetric);
+        $chargeable = floatval($this->input('chargeable_weight', 0));
+
+        $merge = [
             'is_ecommerce' => filter_var($this->is_ecommerce, FILTER_VALIDATE_BOOLEAN),
             'is_blocked' => filter_var($this->is_blocked, FILTER_VALIDATE_BOOLEAN),
             'is_direct_master' => filter_var($this->is_direct_master, FILTER_VALIDATE_BOOLEAN),
             'internal_remark' => $this->internal_remark ?? $this->memo,
-        ]);
+        ];
+
+        // IATA TACT Rule: Automatically guarantee chargeable weight >= max(gross, volumetric)
+        if ($minRequired > 0 && ($chargeable < $minRequired || $chargeable == 0)) {
+            $merge['chargeable_weight'] = $minRequired;
+        }
+
+        $this->merge($merge);
     }
 
     public function rules()
@@ -27,7 +41,7 @@ class UpdateAirExportRequest extends FormRequest
 
         return [
             'file_no' => 'required|string|unique:air_exports,file_no,' . $id,
-            'mawb_no' => 'nullable|string',
+            'mawb_no' => ['nullable', 'string', new IataMawbRule()],
             'booking_no' => 'nullable|string',
             'post_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
@@ -41,14 +55,26 @@ class UpdateAirExportRequest extends FormRequest
             'dep_port_id' => 'nullable|exists:ports,id',
             'dst_port_id' => 'nullable|exists:ports,id',
             'etd' => 'nullable|date',
-            'eta' => 'nullable|date',
+            'eta' => 'nullable|date|after_or_equal:etd',
             'atd' => 'nullable|date',
-            'ata' => 'nullable|date',
+            'ata' => 'nullable|date|after_or_equal:atd',
 
             'pkg_qty' => 'nullable|numeric',
             'pkg_unit_id' => 'nullable|exists:package_units,id',
             'gross_weight' => 'nullable|numeric',
-            'chargeable_weight' => 'nullable|numeric',
+            'chargeable_weight' => [
+                'nullable',
+                'numeric',
+                function ($attribute, $value, $fail) {
+                    $gross = floatval($this->input('gross_weight', 0));
+                    $cbm = floatval($this->input('volume') ?? $this->input('volume_cbm', 0));
+                    $minVolumetric = round($cbm * 166.67, 2);
+                    $minRequired = max($gross, $minVolumetric);
+                    if ($minRequired > 0 && floatval($value) < ($minRequired - 0.05)) {
+                        $fail("Chargeable weight cannot be less than {$minRequired} kg (Gross: {$gross} kg, IATA 1:6 Volumetric: {$minVolumetric} kg).");
+                    }
+                }
+            ],
             'volume' => 'nullable|numeric',
             'buying_rate' => 'nullable|numeric',
             'selling_rate' => 'nullable|numeric',
@@ -78,7 +104,7 @@ class UpdateAirExportRequest extends FormRequest
             'actual_shipper_id' => 'nullable|exists:trade_partners,id',
 
             // Additional fields
-            'incoterm_id' => 'nullable|string',
+            'incoterm_id' => 'nullable|max:255',
             'mark_number' => 'nullable|string',
             'service_term_from' => 'nullable|string',
             'service_term_to' => 'nullable|string',

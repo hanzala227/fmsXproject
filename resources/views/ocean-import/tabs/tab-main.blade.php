@@ -2,7 +2,10 @@
 <div x-show="activeTab === 'basic'" class="main-grid">
     <div class="portlet light">
         <div @click="showMblSection = !showMblSection" class="portlet-title" style="cursor: pointer; background: #f9fafb;">
-            <span class="caption-subject"><i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MB/L</span>
+            <span class="caption-subject">
+                <i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MB/L
+                <span x-show="form.mbl_no" style="margin-left: 8px; color: #1e3a8a; font-weight: 700; background: #dbeafe; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="form.mbl_no"></span>
+            </span>
             <div class="actions">
                 <i class="fa fa-angle-down transition-transform" :class="showMblSection ? 'rotate-180' : ''"></i>
             </div>
@@ -458,15 +461,16 @@
                         <table class="table-custom" style="width: 100%;">
                             <thead>
                                 <tr>
-                                    <th style="width: 15%;"></th>
-                                    <th style="width: 15%;">Port</th>
-                                    <th style="width: 12%;">ETA</th>
-                                    <th style="width: 12%;">ATA</th>
-                                    <th style="width: 12%;">ETD</th>
-                                    <th style="width: 12%;">ATD</th>
-                                    <th style="width: 12%;">Vessel / Voyage</th>
-                                    <th style="width: 10%;">Carrier</th>
-                                    <th style="width: 5%; text-align: center;">
+                                    <th style="width: 14%;"></th>
+                                    <th style="width: 14%;">Port</th>
+                                    <th style="width: 11%;">ETA</th>
+                                    <th style="width: 11%;">ATA</th>
+                                    <th style="width: 11%;">ETD</th>
+                                    <th style="width: 11%;">ATD</th>
+                                    <th style="width: 13%;">Vessel</th>
+                                    <th style="width: 10%;">Voyage</th>
+                                    <th style="width: 11%;">Carrier</th>
+                                    <th style="width: 4%; text-align: center;">
                                         <button type="button" @click="addRoute" class="btn-tool-icon" style="color: #32c5d2;" title="Add Route Row"><i class="fa fa-plus"></i></button>
                                     </th>
                                 </tr>
@@ -477,8 +481,13 @@
                                         <td style="font-weight: 600; color: #475569;" x-text="idx === 0 ? 'Departure' : (idx === form.routes.length - 1 && form.routes.length > 1 ? 'Final Destination' : 'Trans ' + idx)"></td>
                                         <td style="padding: 2px;">
                                             <div style="display:flex;">
-                                                <select :name="'routes['+idx+'][airport_id]'" data-ajax-search="true"
-    data-search-url="{{ route('ports.search') }}" class="form-control-gf" x-model="route.airport_id" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                                <select :name="'routes['+idx+'][airport_id]'" 
+                                                        class="form-control-gf" 
+                                                        x-model="route.airport_id" 
+                                                        data-ajax-search="true"
+                                                        data-type="SEA"
+                                                        data-search-url="{{ route('ports.search') }}" 
+                                                        style="width:100%; border:none; height:24px; padding:2px 4px;">
                                                     <option value="">Select...</option>
                                                     @foreach($ports as $port)
                                                         <option value="{{ $port->id }}">{{ $port->code ? $port->code . ' - ' : '' }}{{ $port->name }}</option>
@@ -499,7 +508,10 @@
                                             <input type="date" :name="'routes['+idx+'][atd]'" class="form-control-gf" x-model="route.atd" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                         </td>
                                         <td style="padding: 2px;">
-                                            <input type="text" :name="'routes['+idx+'][flight_no]'" class="form-control-gf" x-model="route.flight_no" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                            <input type="text" :name="'routes['+idx+'][vessel_name]'" class="form-control-gf" x-model="route.vessel_name" placeholder="Vessel" @input="syncRoutesToHbl()" style="width:100%; border:none; height:24px; padding:2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px;">
+                                            <input type="text" :name="'routes['+idx+'][voyage_no]'" class="form-control-gf" x-model="route.voyage_no" placeholder="Voyage" @input="syncRoutesToHbl()" style="width:100%; border:none; height:24px; padding:2px 4px;">
                                         </td>
                                         <td style="padding: 2px;">
                                             <div style="display:flex;">
@@ -689,8 +701,15 @@
         })"
     >
             <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hbl.show = !hbl.show">
-                <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-file-text-o"></i> HB/L Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small></span>
+                <span class="caption-subject" style="color: #fff; font-size: 11px;">
+                    <i class="fa fa-file-text-o"></i> HB/L Information
+                    <span x-show="hbl.hbl_no" style="margin-left: 8px; color: #854d0e; font-weight: 700; background: #fef08a; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="hbl.hbl_no"></span>
+                    <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small>
+                </span>
                 <div class="actions" style="display: flex; gap: 6px; align-items: center;" @click.stop>
+                    <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
+                        <i class="fa fa-bolt"></i> Frexo AI
+                    </button>
                     <!-- HBL Tools Dropdown -->
                     <div style="position: relative;" x-data="{ openHblMenu: false }" @click.away="openHblMenu = false">
                         <button type="button" @click="openHblMenu = !openHblMenu"
@@ -814,7 +833,7 @@
                             <label class="form-label-gf">Rail</label>
                             <div class="form-input-container">
                                 <input type="checkbox" :name="'hbls['+index+'][is_rail]'" value="1" x-model="hbl.is_rail">
-                                <select :name="'hbls['+index+'][pre_carriage_by]'" class="form-control-gf" x-model="hbl.pre_carriage_by">
+                                <select :name="'hbls['+index+'][rail_by]'" class="form-control-gf" x-model="hbl.rail_by">
                                     <option value="">Select...</option>
                                     @foreach($agents as $agent)
                                         <option value="{{ $agent->name }}">{{ $agent->name }}</option>
@@ -868,6 +887,12 @@
                             <label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE BY</label>
                             <div class="form-input-container">
                                 <input type="text" :name="'hbls['+index+'][pre_carriage_by]'" class="form-control-gf" x-model="hbl.pre_carriage_by">
+                            </div>
+                        </div>
+                        <div class="form-group-gf">
+                            <label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE VOYAGE</label>
+                            <div class="form-input-container">
+                                <input type="text" :name="'hbls['+index+'][pre_carriage_voyage]'" class="form-control-gf" x-model="hbl.pre_carriage_voyage">
                             </div>
                         </div>
                         <div class="form-group-gf">
@@ -1113,106 +1138,6 @@
                     </div>
                 </div>
 
-                <!-- Hidden per client instruction: Express B/L, Door Move, Referred By, OB/L Recv, FR Released, AN Sent, More section -->
-                <div style="display: none;">
-                    <div class="form-grid-4">
-                        <!-- Column 1 -->
-                        <div class="flex flex-col">
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Express B/L</label>
-                                <div class="form-input-container" style="font-size:9px;">
-                                    <input type="radio" :name="'hbls['+index+'][is_express_bl]'" value="1" x-model="hbl.is_express_bl"> Yes
-                                    <input type="radio" :name="'hbls['+index+'][is_express_bl]'" value="0" x-model="hbl.is_express_bl"> No
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Door Move</label>
-                                <div class="form-input-container" style="font-size:9px;">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_door_move]'" value="1" x-model="hbl.is_door_move"> Door Move &nbsp;
-                                    <input type="checkbox" :name="'hbls['+index+'][is_customs_clear]'" value="1" x-model="hbl.is_customs_clear"> C.Clear &nbsp;
-                                    <input type="checkbox" :name="'hbls['+index+'][is_customs_hold]'" value="1" x-model="hbl.is_customs_hold"> C.Hold
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Referred By</label>
-                                <div class="form-input-container">
-                                    <x-inline-select name="" x-bind:name="'hbls['+index+'][referred_by_id]'" :options="$agents" module="trade-partner" type="customer" x-model="hbl.referred_by_id" class="form-control-gf" />
-                                    <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][referred_by_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_obl_received]'" value="1" x-model="hbl.is_obl_received"> OB/L Recv.
-                                </label>
-                                <div class="form-input-container">
-                                    <input type="date" :name="'hbls['+index+'][obl_received_date]'" class="form-control-gf" x-model="hbl.obl_received_date">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_fr_released]'" value="1" x-model="hbl.is_fr_released"> FR Released
-                                </label>
-                                <div class="form-input-container">
-                                    <input type="date" :name="'hbls['+index+'][fr_released_date]'" class="form-control-gf" x-model="hbl.fr_released_date">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_an_sent]'" value="1" x-model="hbl.is_an_sent"> AN Sent
-                                </label>
-                                <div class="form-input-container">
-                                    <input type="date" :name="'hbls['+index+'][an_sent_date]'" class="form-control-gf" x-model="hbl.an_sent_date">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col"></div>
-                        <div class="flex flex-col"></div>
-                        <div class="flex flex-col">
-                            <div style="flex-grow: 1;"></div>
-                            <div class="form-group-gf" style="justify-content: flex-end; margin-top: 10px;">
-                                <button type="button" @click="hbl.showMore = !hbl.showMore" class="btn-default-gf" style="border:none; color:#00827f; font-weight:700; height:18px; padding:0;">
-                                    More <i class="fa" :class="hbl.showMore ? 'fa-minus-square' : 'fa-plus-square'"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- More Section for HBL -->
-                    <div x-show="hbl.showMore" x-transition style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee;">
-                        <div class="form-grid-4">
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Name Account</label>
-                                <div class="form-input-container">
-                                    <input type="text" :name="'hbls['+index+'][name_account]'" class="form-control-gf" x-model="hbl.name_account">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Group Comm</label>
-                                <div class="form-input-container">
-                                    <input type="text" :name="'hbls['+index+'][group_comm]'" class="form-control-gf" x-model="hbl.group_comm">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Line Code</label>
-                                <div class="form-input-container">
-                                    <input type="text" :name="'hbls['+index+'][line_code]'" class="form-control-gf" x-model="hbl.line_code">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">E-Commerce</label>
-                                <div class="form-input-container">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_ecommerce]'" value="1" x-model="hbl.is_ecommerce">
-                                </div>
-                            </div>
-                            <div class="form-group-gf">
-                                <label class="form-label-gf">Customs Doc</label>
-                                <div class="form-input-container">
-                                    <input type="checkbox" :name="'hbls['+index+'][is_customs_doc]'" value="1" x-model="hbl.is_customs_doc">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </template>

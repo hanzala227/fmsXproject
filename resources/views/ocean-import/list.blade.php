@@ -978,7 +978,7 @@
                     <td style="padding:4px;">${r.ata || '--'}</td>
                     <td style="padding:4px;">${r.etd || '--'}</td>
                     <td style="padding:4px;">${r.atd || '--'}</td>
-                    <td style="padding:4px;">${r.flight_no || '--'}</td>
+                    <td style="padding:4px;">${r.vessel_name ? (r.vessel_name + (r.voyage_no ? ' / ' + r.voyage_no : '')) : (r.flight_no || '--')}</td>
                 </tr>`;
             });
             html += `</tbody></table></div>`;

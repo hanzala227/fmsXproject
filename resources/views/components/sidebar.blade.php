@@ -182,10 +182,14 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                             'Air Import' => 'air-import',
                             'Air Export' => 'air-export',
                             'Truck Shipment' => 'truck',
+                            'Custom Brokerage' => 'ocean-import',
                             'Warehouse & Distribution' => 'warehouse',
                             'Accounting' => 'accounting',
                             'CRM' => 'sales',
+                            'Customers' => 'trade-partners',
                             'Master Data' => 'trade-partners',
+                            'Reports' => 'reports',
+                            'Report' => 'reports',
                             'General' => 'reports',
                             'Settings' => 'settings'
                         ];

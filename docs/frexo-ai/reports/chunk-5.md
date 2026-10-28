@@ -94,3 +94,4 @@ Tests: 38, Assertions: 1702, PHPUnit Deprecations: 2.
 1. **All listed tests pass:** PASS (11 Chunk 5 tests, 38 total suite tests passing).
 2. **Migrations defined with up/down:** PASS (Verified in `Chunk5TenantApplyTest::test_migration_file_exists_and_has_up_and_down`).
 3. **No untrusted `company_id` reads:** PASS (Grep verified across all pipeline and controller files; strict server-side session enforcement only).
+

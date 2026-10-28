@@ -589,12 +589,63 @@ if (search.length > 0 && search.length < 2) {
         select.addEventListener('change', function() {
             const currentText = select.options[select.selectedIndex]?.text || '';
             const textSpan = control.querySelector('.fms-ss-text');
-            if (textSpan) textSpan.textContent = currentText;
+            if (textSpan) textSpan.textContent = currentText || 'Select...';
+            refreshDropdownItems(wrapper);
+        });
+
+        // Also listen to custom sync event for programmatic value setting
+        select.addEventListener('fms:sync', function(e) {
+            const val = e.detail && e.detail.value !== undefined ? e.detail.value : select.value;
+            const text = e.detail && e.detail.text ? e.detail.text : null;
+            if (val !== undefined && val !== null) {
+                let opt = Array.from(select.options).find(o => String(o.value) === String(val));
+                if (!opt && text) {
+                    opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = text;
+                    select.appendChild(opt);
+                }
+                if (opt) {
+                    opt.selected = true;
+                    select.value = val;
+                }
+            }
+            const currentText = (e.detail && e.detail.text) || select.options[select.selectedIndex]?.text || '';
+            const textSpan = control.querySelector('.fms-ss-text');
+            if (textSpan) textSpan.textContent = currentText || 'Select...';
             refreshDropdownItems(wrapper);
         });
 
         // Initial populate
         refreshDropdownItems(wrapper);
+    };
+
+    // Global helper to programmatically set value and text of any select (enhanced or native)
+    window.fmsSetSelectValue = function(selectEl, value, text) {
+        if (!selectEl) return;
+        let opt = Array.from(selectEl.options).find(o => String(o.value) === String(value));
+        if (!opt && text) {
+            opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = text;
+            selectEl.appendChild(opt);
+        }
+        if (opt) {
+            opt.selected = true;
+            selectEl.value = value;
+        }
+        selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const wrapper = selectEl.closest('.fms-searchable-select-wrapper');
+        if (wrapper) {
+            const control = wrapper.querySelector('.fms-ss-control');
+            const textSpan = control ? control.querySelector('.fms-ss-text') : null;
+            if (textSpan) {
+                textSpan.textContent = text || opt?.text || 'Select...';
+            }
+            refreshDropdownItems(wrapper);
+        }
     };
 
     // Scan and enhance all selects

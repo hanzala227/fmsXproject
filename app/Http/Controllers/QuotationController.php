@@ -292,6 +292,23 @@ class QuotationController extends Controller
         return redirect()->route('sales.quotations.edit', $quote->id);
     }
 
+    public function show($id)
+    {
+        $q = Quotation::with([
+            'customer', 'salesPerson', 'pol', 'pod', 'items.currency', 
+            'agent', 'carrier', 'office', 'createdBy', 'op', 'schedule', 'documents'
+        ])->findOrFail($id);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $q
+            ]);
+        }
+
+        return redirect()->route('sales.quotations.edit', $q->id);
+    }
+
     public function edit($id)
     {
         $q = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'items.currency', 'agent', 'carrier', 'office', 'createdBy', 'op', 'schedule', 'documents'])->findOrFail($id);

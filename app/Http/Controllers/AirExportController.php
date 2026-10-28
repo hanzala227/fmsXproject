@@ -185,6 +185,7 @@ class AirExportController extends Controller
                     'id' => null,
                     'selected' => false,
                     'party' => $c->party ?? 'Custom',
+                    'party_name' => $c->party_name ?: ($c->type === 'AP' ? ($c->vendor?->name ?? '') : ($c->billTo?->name ?? '')),
                     'party_name_id' => $c->type === 'AP' ? ($c->vendor_id ?? '') : ($c->bill_to_id ?? ''),
                     'sal' => $c->sal ?? 'Air',
                     'pr' => ($c->type === 'AP' || $c->type === 'origin_cost') ? 'Pay' : 'Rec',
@@ -206,7 +207,7 @@ class AirExportController extends Controller
                     'inv_no' => '',
                     'financial_date' => date('Y-m-d'),
                     'eq_bl_no' => $c->remark ?? '',
-                    'remark' => false,
+                    'remark' => ($c->remark && $c->remark !== 'false') ? $c->remark : '',
                     'mbl_no' => '',
                 ])
                 : collect();
@@ -345,9 +346,24 @@ class AirExportController extends Controller
         }
     }
 
+    public function show($id)
+    {
+        $airExport = $id instanceof AirExport ? $id : AirExport::findOrFail($id);
+        $airExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'charges.currency', 'charges.vendor', 'charges.billTo', 'documents']);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $airExport
+            ]);
+        }
+
+        return redirect()->route('air-export.edit', $airExport->id);
+    }
+
     public function edit(AirExport $airExport)
     {
-        $airExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'charges.currency', 'documents']);
+        $airExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'charges.currency', 'charges.vendor', 'charges.billTo', 'documents']);
         
         $offices = Office::where('is_active', true)->get();
         $ports = Port::all();
@@ -365,6 +381,7 @@ class AirExportController extends Controller
                 'id' => $c->id,
                 'selected' => false,
                 'party' => $c->party ?? 'Custom',
+                'party_name' => $c->party_name ?: ($c->type === 'AP' ? ($c->vendor?->name ?? '') : ($c->billTo?->name ?? '')),
                 'party_name_id' => $c->type === 'AP' ? ($c->vendor_id ?? '') : ($c->bill_to_id ?? ''),
                 'sal' => $c->sal ?? 'Air',
                 'pr' => ($c->type === 'AP' || $c->type === 'origin_cost') ? 'Pay' : 'Rec',
@@ -386,7 +403,7 @@ class AirExportController extends Controller
                 'inv_no' => $c->invoice_no ?? '',
                 'financial_date' => $c->invoice_date ? (is_string($c->invoice_date) ? $c->invoice_date : $c->invoice_date->format('Y-m-d')) : '',
                 'eq_bl_no' => $c->remark ?? '',
-                'remark' => false,
+                'remark' => ($c->remark && $c->remark !== 'false') ? $c->remark : '',
                 'mbl_no' => $airExport->file_no ?? ($airExport->mawb_no ?? ''),
                 'is_invoiced' => $c->is_invoiced,
             ])

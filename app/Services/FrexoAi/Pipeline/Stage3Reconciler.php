@@ -37,10 +37,11 @@ class Stage3Reconciler
                 'association_evidence' => ['single_document'],
             ];
 
-            $master = ! empty($rawResult['master']) ? $rawResult['master'] : ($rawResult['mbl'] ?? []);
-            $houses = ! empty($rawResult['hawbs']) ? $rawResult['hawbs'] : ($rawResult['hbls'] ?? []);
-            if (empty($houses) && isset($rawResult['hawb'])) {
-                $houses = [$rawResult['hawb']];
+            $fd = $rawResult['form_data'] ?? $rawResult;
+            $master = ! empty($fd['master']) ? $fd['master'] : ($fd['mbl'] ?? []);
+            $houses = ! empty($fd['hawbs']) ? $fd['hawbs'] : ($fd['hbls'] ?? []);
+            if (empty($houses) && isset($fd['hawb'])) {
+                $houses = [$fd['hawb']];
             }
 
             $dto->formData = [
@@ -48,8 +49,8 @@ class Stage3Reconciler
                 'master' => $master,
                 'hbls' => $houses,
                 'hawbs' => $houses,
-                'containers' => $rawResult['containers'] ?? [],
-                'routes' => $rawResult['routes'] ?? ($rawResult['flights'] ?? []),
+                'containers' => $fd['containers'] ?? [],
+                'routes' => $fd['routes'] ?? ($fd['flights'] ?? []),
             ];
 
             if (! empty($rawResult['conflicts']) && is_array($rawResult['conflicts'])) {
@@ -112,6 +113,16 @@ class Stage3Reconciler
             $rawJson = $this->client->generateStructuredContent($system, $userContents, $reconcileSchema);
             $decoded = json_decode($rawJson, true);
 
+            if (! is_array($decoded)) {
+                $cleaned = trim($rawJson);
+                $cleaned = preg_replace('/^```(?:json)?\s*/i', '', $cleaned);
+                $cleaned = preg_replace('/\s*```$/i', '', $cleaned);
+                if (preg_match('/\{[\s\S]*\}/', $cleaned, $matches)) {
+                    $cleaned = $matches[0];
+                }
+                $decoded = json_decode($cleaned, true);
+            }
+
             if (is_array($decoded)) {
                 $dto->shipmentGroups = $decoded['shipment_groups'] ?? [];
                 $dto->unmatchedDocuments = $decoded['unmatched_documents'] ?? [];
@@ -162,21 +173,25 @@ class Stage3Reconciler
                 'routes' => [],
             ];
             foreach ($documentResults as $res) {
-                $m = $res['master'] ?? ($res['mbl'] ?? []);
+                $src = $res['form_data'] ?? $res;
+                $m = $src['master'] ?? ($src['mbl'] ?? []);
                 if (! empty($m)) {
                     $merged['mbl'] = array_merge($merged['mbl'], $m);
                     $merged['master'] = array_merge($merged['master'], $m);
                 }
-                $h = $res['hawbs'] ?? ($res['hbls'] ?? []);
+                $h = $src['hawbs'] ?? ($src['hbls'] ?? []);
                 if (! empty($h)) {
                     $merged['hbls'] = array_merge($merged['hbls'], $h);
                     $merged['hawbs'] = array_merge($merged['hawbs'], $h);
                 }
-                if (! empty($res['containers'])) {
-                    $merged['containers'] = array_merge($merged['containers'], $res['containers']);
+                if (! empty($src['containers'])) {
+                    $merged['containers'] = array_merge($merged['containers'], $src['containers']);
                 }
-                if (! empty($res['routes'])) {
-                    $merged['routes'] = array_merge($merged['routes'], $res['routes']);
+                if (! empty($src['routes'])) {
+                    $merged['routes'] = array_merge($merged['routes'], $src['routes']);
+                }
+                if (! empty($src['flights'])) {
+                    $merged['routes'] = array_merge($merged['routes'], $src['flights']);
                 }
             }
             $dto->formData = $merged;
@@ -192,22 +207,40 @@ class Stage3Reconciler
 
     protected function populateEvidenceFromRaw(ExtractionResultDTO $dto, array $raw, string $docId): void
     {
-        if (isset($raw['field_evidence']) && is_array($raw['field_evidence'])) {
-            foreach ($raw['field_evidence'] as $ev) {
+        $evidenceMap = $raw['field_evidence'] ?? ($raw['form_data']['field_evidence'] ?? null);
+        if (is_array($evidenceMap)) {
+            foreach ($evidenceMap as $fKey => $ev) {
+                if (! is_array($ev)) {
+                    continue;
+                }
+                $fieldPath = $ev['field_path'] ?? (is_string($fKey) ? $fKey : 'unknown');
+                $scope = $ev['scope'] ?? (str_starts_with($fieldPath, 'mbl.') || str_starts_with($fieldPath, 'master.') ? 'master' : 'house');
+                $evidenceText = $ev['evidence_text'] ?? ($ev['source']['evidence_text'] ?? null);
+
+                $source = array_merge(
+                    is_array($ev['source'] ?? null) ? $ev['source'] : [],
+                    [
+                        'document_id' => $docId,
+                        'page' => $ev['page_number'] ?? ($ev['page'] ?? ($ev['source']['page'] ?? 1)),
+                        'evidence_text' => $evidenceText,
+                    ]
+                );
+
                 $dto->addFieldEvidence(new FieldEvidenceDTO(
-                    $ev['field_path'] ?? 'unknown',
-                    $ev['scope'] ?? 'master',
+                    $fieldPath,
+                    $scope,
                     $ev['raw_value'] ?? null,
-                    $ev['normalized_value'] ?? null,
+                    $ev['normalized_value'] ?? ($ev['raw_value'] ?? null),
                     $ev['unit'] ?? null,
                     $ev['status'] ?? FieldEvidenceDTO::STATUS_EXPLICIT,
-                    array_merge($ev['source'] ?? [], ['document_id' => $docId]),
+                    $source,
                     $ev['derivation'] ?? null
                 ));
             }
         } else {
             // Auto-create explicit evidence for top-level master/mbl values
-            $master = $raw['master'] ?? ($raw['mbl'] ?? []);
+            $src = $raw['form_data'] ?? $raw;
+            $master = $src['master'] ?? ($src['mbl'] ?? []);
             if (is_array($master)) {
                 foreach ($master as $k => $v) {
                     if (is_null($v) || is_array($v)) {

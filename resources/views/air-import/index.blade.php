@@ -83,11 +83,7 @@
     </style>
     @endpush
 
-    @if(session('success'))
-        <div class="alert alert-success" style="background:#e8f5e9;border:1px solid #66bb6a;color:#2e7d32;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
-            <i class="fa fa-check-circle"></i> {{ session('success') }}
-        </div>
-    @endif
+    @include('partials.shipment-success-popup')
     @if(session('error'))
         <div class="alert alert-danger" style="background:#fce4e4;border:1px solid #e57373;color:#c62828;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
             <i class="fa fa-exclamation-circle"></i> {{ session('error') }}
@@ -119,6 +115,8 @@
                 documentPreviewUrl: null,
                 uploadedDocs: [],
                 activeDocIndex: 0,
+                unmatchedDocs: [],
+                failedDocs: [],
                 extractedData: [],
                 activeTab: 'basic',
                 showConnectingFlight: false,
@@ -971,21 +969,21 @@
 
                                     const fields = [
                                         { label: `${legLabel} - Flight No.`, key: 'flight_no', val: r.flight_no },
-                                        { label: `${legLabel} - Carrier`, key: 'carrier_name', val: carrierVal, nameKey: 'carrier_id', idVal: carrierId },
-                                        { label: `${legLabel} - POL`, key: 'pol_name', val: polVal, nameKey: 'pol_id', idVal: polId },
-                                        { label: `${legLabel} - POD`, key: 'pod_name', val: podVal, nameKey: 'pod_id', idVal: podId },
+                                        { label: `${legLabel} - Carrier`, key: 'carrier_id', val: carrierId, display: carrierVal, nameKey: 'carrier_name' },
+                                        { label: `${legLabel} - POL`, key: 'pol_id', val: polId, display: polVal, nameKey: 'pol_name' },
+                                        { label: `${legLabel} - POD`, key: 'pod_id', val: podId, display: podVal, nameKey: 'pod_name' },
                                         { label: `${legLabel} - ETD`, key: 'etd', val: r.etd },
                                         { label: `${legLabel} - ETA`, key: 'eta', val: r.eta }
                                     ];
                                     fields.forEach(f => {
-                                        if (f.val) {
+                                        if (f.val || f.display) {
                                             this.extractedData.push({
                                                 label: f.label,
                                                 parent: 'routes',
                                                 index: idx,
                                                 key: f.key,
-                                                value: f.idVal !== undefined ? f.idVal : f.val,
-                                                displayValue: f.val,
+                                                value: f.val,
+                                                displayValue: f.display || f.val,
                                                 nameKey: f.nameKey || null,
                                                 selected: true
                                             });
@@ -1009,18 +1007,20 @@
                         if (!id) return;
                         const selector = nameOrSelector.includes('[') || nameOrSelector.includes('.') 
                             ? nameOrSelector 
-                            : `[name="${nameOrSelector}"]`;
+                            : `select[name="${nameOrSelector}"], [name="${nameOrSelector}"]`;
                         const elements = document.querySelectorAll(selector);
                         elements.forEach(el => {
-                            let exists = false;
-                            for (let i = 0; i < el.options.length; i++) {
-                                if (el.options[i].value == id) { exists = true; break; }
-                            }
-                            if (!exists) {
-                                const opt = document.createElement('option');
-                                opt.value = id;
-                                opt.text = text || ('ID: ' + id);
-                                el.appendChild(opt);
+                            if (el && el.tagName === 'SELECT' && el.options) {
+                                let exists = false;
+                                for (let i = 0; i < el.options.length; i++) {
+                                    if (el.options[i].value == id) { exists = true; break; }
+                                }
+                                if (!exists) {
+                                    const opt = document.createElement('option');
+                                    opt.value = id;
+                                    opt.text = text || ('ID: ' + id);
+                                    el.appendChild(opt);
+                                }
                             }
                         });
                     };
@@ -1566,7 +1566,8 @@
                 },
                 form: {
                     id: @json(isset($airImport) ? $airImport->id : null),
-                    file_no: '{{ old('file_no', $airImport->file_no ?? 'MAI-'.date('ymd').'-'.str_pad((\App\Models\AirImport::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT)) }}',
+                    file_no: '{{ old('file_no', $airImport->file_no ?? \App\Services\DocumentSequenceService::generateBookingNo('MAI', \App\Models\AirImport::class)) }}',
+                    mawb_no: '{{ old('mawb_no', $airImport->mawb_no ?? '') }}',
                     oversea_agent_id: '{{ old('oversea_agent_id', $airImport->oversea_agent_id ?? '') }}',
                     freight_term: '{{ old('freight_term', $airImport->freight_term ?? '') }}',
                     incoterm_id: '{{ old('incoterm_id', $airImport->incoterm_id ?? '') }}',
@@ -2027,7 +2028,10 @@
             <div x-show="activeTab === 'basic'" class="main-grid" x-cloak>
                 <div class="portlet light">
                     <div @click="showMblSection = !showMblSection" class="portlet-title" style="cursor: pointer; background: #f9fafb;">
-                        <span class="caption-subject"><i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MAWB</span>
+                        <span class="caption-subject">
+                            <i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MAWB
+                            <span x-show="form.mawb_no" style="margin-left: 8px; color: #1e3a8a; font-weight: 700; background: #dbeafe; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="form.mawb_no"></span>
+                        </span>
                         <div class="actions">
                             <i class="fa fa-angle-down transition-transform" :class="showMblSection ? 'rotate-180' : ''"></i>
                         </div>
@@ -2070,8 +2074,8 @@
                         </div>
                         <div class="form-grid-4">
                             <!-- Row 1: Core Identifiers -->
-                            <div class="form-group-gf"><label class="form-label-gf">Booking no</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" value="{{ $airImport->file_no ?? 'MAI-'.date('ymd').'-'.str_pad((\App\Models\AirImport::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT) }}" readonly style="background:#f5f5f5;"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" value="{{ $airImport->mawb_no ?? '' }}" required></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Booking no</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" value="{{ $airImport->file_no ?? \App\Services\DocumentSequenceService::generateBookingNo('MAI', \App\Models\AirImport::class) }}" readonly style="background:#f5f5f5;"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" value="{{ $airImport->mawb_no ?? '' }}" x-model="form.mawb_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container"><select name="office_id" class="form-control-gf" required><option value="">Select Office...</option>@foreach($offices as $office)<option value="{{ $office->id }}" {{ (isset($airImport) && $airImport->office_id == $office->id) ? 'selected' : '' }}>{{ $office->code }}</option>@endforeach</select></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">AWB Type</label><div class="form-input-container"><select name="awb_type" class="form-control-gf"><option value="NORMAL" {{ (isset($airImport) && $airImport->awb_type == 'NORMAL') ? 'selected' : 'selected' }}>NORMAL</option><option value="DIRECT" {{ (isset($airImport) && $airImport->awb_type == 'DIRECT') ? 'selected' : '' }}>DIRECT</option></select></div></div>
 
@@ -2319,7 +2323,7 @@
                             <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><select name="svc_term_from_id" class="form-control-gf" style="width:45%;"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}" {{ old('svc_term_from_id', $airImport->svc_term_from_id ?? '') == $term->id ? 'selected' : '' }}>{{ $term->code }}</option>@endforeach</select><span class="mx-1">~</span><select name="svc_term_to_id" class="form-control-gf" style="width:45%;"><option value="">Select...</option>@foreach($serviceTerms as $term)<option value="{{ $term->id }}" {{ old('svc_term_to_id', $airImport->svc_term_to_id ?? '') == $term->id ? 'selected' : '' }}>{{ $term->code }}</option>@endforeach</select></div></div>
 
                             <!-- Row 3: Business & Cargo -->
-                            <div class="form-group-gf"><label class="form-label-gf">Business Referred By</label><div class="form-input-container"><select name="referred_by_id" class="form-control-gf"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}" {{ old('referred_by_id', $airImport->referred_by_id ?? '') == $agent->id ? 'selected' : '' }}>{{ $agent->name }}</option>@endforeach</select></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Business Referred By</label><div class="form-input-container"><select name="business_referred_by_id" class="form-control-gf"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}" {{ old('business_referred_by_id', $airImport->business_referred_by_id ?? $airImport->referred_by_id ?? '') == $agent->id ? 'selected' : '' }}>{{ $agent->name }}</option>@endforeach</select></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Cargo Type</label><div class="form-input-container"><select name="cargo_type" class="form-control-gf" x-model="form.cargo_type"><option value="">Select...</option><option value="GENERAL CARGO" {{ old('cargo_type', $airImport->cargo_type ?? '') == 'GENERAL CARGO' ? 'selected' : '' }}>GENERAL CARGO</option><option value="DANGEROUS GOODS" {{ old('cargo_type', $airImport->cargo_type ?? '') == 'DANGEROUS GOODS' ? 'selected' : '' }}>DANGEROUS GOODS</option><option value="PERISHABLE" {{ old('cargo_type', $airImport->cargo_type ?? '') == 'PERISHABLE' ? 'selected' : '' }}>PERISHABLE</option></select></div></div>
                             <div></div>
                             <div></div>
@@ -2354,8 +2358,15 @@
                 <template x-for="(hawb, index) in hawbs" :key="index">
                     <div class="portlet light" style="margin-top: 5px;">
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hawb.show = !hawb.show">
-                            <span class="caption-subject" style="color: #fff; font-size: 11px;"><i class="fa fa-user"></i> HAWB Information <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small></span>
+                            <span class="caption-subject" style="color: #fff; font-size: 11px;">
+                                <i class="fa fa-user"></i> HAWB Information
+                                <span x-show="hawb.hawb_no || hawb.hbl_no" style="margin-left: 8px; color: #854d0e; font-weight: 700; background: #fef08a; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="hawb.hawb_no || hawb.hbl_no"></span>
+                                <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small>
+                            </span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
+                                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
+                                    <i class="fa fa-bolt"></i> Frexo AI
+                                </button>
                                 <!-- HAWB Tools Dropdown -->
                                 <div style="position: relative;" x-data="{ openHawbMenu: false }" @click.away="openHawbMenu = false">
                                     <button type="button" @click="openHawbMenu = !openHawbMenu"
@@ -3748,9 +3759,6 @@
         setTimeout(() => t.remove(), 7000);
     }
 
-    @if(session('success'))
-        showToast('success', '{{ session('success') }}');
-    @endif
     @if(session('error'))
         showToast('error', '{!! addslashes(session('error')) !!}');
     @endif

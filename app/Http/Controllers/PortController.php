@@ -52,13 +52,12 @@ public function search(Request $request)
     $q = trim($request->query('q', ''));
     $type = strtoupper(trim($request->query('type', '')));
 
-    // Sirf AIR aur SEA types allow hain
-    if (!in_array($type, ['AIR', 'SEA'], true)) {
-        return response()->json([]);
-    }
+    $query = Port::query();
 
-    $query = Port::query()
-        ->where('type', $type);
+    // Agar type AIR ya SEA specify ki ho to filter karo, warna fallback to SEA default ya all
+    if (in_array($type, ['AIR', 'SEA'], true)) {
+        $query->where('type', $type);
+    }
 
     // Port name se search
     if ($q !== '') {
@@ -77,5 +76,43 @@ public function search(Request $request)
 
     return response()->json($ports);
 }
-   
+
+    public function show($id)
+    {
+        $port = Port::with('country')->findOrFail($id);
+        return response()->json([
+            'success' => true,
+            'data' => $port
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $port = Port::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'code' => 'nullable|string|max:10|unique:ports,code,' . $port->id,
+            'country_id' => 'nullable|integer',
+            'type' => 'nullable|string|in:AIR,SEA,LAND',
+        ]);
+
+        $port->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Port updated successfully.',
+            'data' => $port
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $port = Port::findOrFail($id);
+        $port->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Port deleted successfully.'
+        ]);
+    }
 }

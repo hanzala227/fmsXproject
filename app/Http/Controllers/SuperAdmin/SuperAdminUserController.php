@@ -229,4 +229,25 @@ class SuperAdminUserController extends Controller
 
         return redirect()->route('dashboard'); // Assuming main app dashboard
     }
+
+    /**
+     * Delete User.
+     */
+    public function destroy(User $user)
+    {
+        if ($user->id === Auth::id()) {
+            if (request()->wantsJson() || request()->is('api/*')) {
+                return response()->json(['success' => false, 'message' => 'Cannot delete your own account.'], 403);
+            }
+            return redirect()->back()->with('error', 'Cannot delete your own account.');
+        }
+
+        $user->delete();
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
+        }
+
+        return redirect()->route('super-admin.users.index')->with('success', 'User deleted successfully.');
+    }
 }

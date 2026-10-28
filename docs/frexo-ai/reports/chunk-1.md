@@ -148,3 +148,4 @@ php artisan test
 2. Failure-mode table exists and covers every specified issue: **PASSED**.
 3. Baseline test command and real output recorded: **PASSED**.
 4. No application source files modified (only `docs/frexo-ai/PROGRESS.md` and `docs/frexo-ai/reports/chunk-1.md` created): **PASSED**.
+

@@ -103,3 +103,4 @@ php vendor/bin/phpunit tests/Unit/ExampleTest.php
 ```text
 OK (1 test, 1 assertion)
 ```
+

@@ -38,13 +38,13 @@
            onclick="toggleLock(this)"></i>
     </td>
 
-    {{-- Booking No. --}}
+    {{-- HB/L --}}
     <td class="sticky-col"
-        style="width:110px;left:30px;"
+        style="width:40px;left:50px;"
         onclick="event.stopPropagation()">
         <a href="{{ route('ocean-import.edit', $shipment->id) }}"
            class="col-link">
-            {{ $shipment->file_no }}
+            {{ $shipment->hbls->count() }} HBLs
         </a>
     </td>
     {{-- Booking no --}}
@@ -110,9 +110,6 @@
 
     {{-- Office --}}
     <td>{{ $shipment->office->code ?? '--' }}</td>
-
-    {{-- HBLs --}}
-    <td>{{ $shipment->hbls->count() }} HBLs</td>
 
     {{-- Container Count --}}
     <td style="text-align:right;">

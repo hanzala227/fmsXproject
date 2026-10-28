@@ -19,11 +19,7 @@
         @csrf
         @if(isset($oceanImport)) @method('PUT') @endif
 
-        @if(session('success'))
-            <div class="alert alert-success" style="background:#e8f5e9;border:1px solid #66bb6a;color:#2e7d32;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
-                <i class="fa fa-check-circle"></i> {{ session('success') }}
-            </div>
-        @endif
+        @include('partials.shipment-success-popup')
         @if(session('error'))
             <div class="alert alert-danger" style="background:#fce4e4;border:1px solid #e57373;color:#c62828;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
                 <i class="fa fa-exclamation-circle"></i> {{ session('error') }}
@@ -50,6 +46,8 @@
                 documentPreviewUrl: '',
                 uploadedDocs: [],
                 activeDocIndex: 0,
+                unmatchedDocs: [],
+                failedDocs: [],
                 extractedData: [],
                 aiError: '',
                 showCopyModal: false,
@@ -584,7 +582,7 @@
                 documents: @json(isset($oceanImport) && $oceanImport->documents ? $oceanImport->documents : []),
                 form: {
                     id: @json(isset($oceanImport) ? $oceanImport->id : null),
-                    file_no: @json(isset($oceanImport) ? $oceanImport->file_no : 'MOI-' . date('ymdHis') . '-' . strtoupper(substr(uniqid(), -4))),
+                    file_no: @json(isset($oceanImport) ? $oceanImport->file_no : \App\Services\DocumentSequenceService::generateBookingNo('MOI', \App\Models\OceanImport::class)),
                     mbl_no: @json(isset($oceanImport) ? $oceanImport->mbl_no : ''),
                     office_id: @json(isset($oceanImport) ? $oceanImport->office_id : ''),
                     post_date: @json(isset($oceanImport) && $oceanImport->post_date ? $oceanImport->post_date->format('Y-m-d') : date('Y-m-d')),
@@ -735,16 +733,22 @@
                         h.remark_tab = 'arrival_notice';
                         
                         // Map eager-loaded containers with pivot columns
-                        h.containers = (h.containers || []).map(c => ({
-                            container_no: c.container_no,
-                            pkg_qty: c.pivot ? c.pivot.pkg_qty : (c.pkg_qty || ''),
-                            pkg_unit: c.pivot ? c.pivot.pkg_unit : (c.pkg_unit || 'CARTON(S)'),
-                            weight_kg: c.pivot ? c.pivot.weight_kg : (c.weight_kg || ''),
-                            weight_unit: c.pivot ? c.pivot.weight_unit : (c.weight_unit || 'KG'),
-                            measure_cbm: c.pivot ? c.pivot.measure_cbm : (c.measure_cbm || ''),
-                            measure_unit: c.pivot ? c.pivot.measure_unit : (c.measure_unit || 'CBM'),
-                            po_no: c.pivot ? c.pivot.po_no : (c.po_no || '')
-                        }));
+                        const mblContainerNos = (this.form.containers || []).map(mc => mc.container_no).filter(Boolean);
+                        h.containers = (h.containers || []).map(c => {
+                            const cNo = c.container_no || '';
+                            const isKnownMbl = mblContainerNos.includes(cNo);
+                            return {
+                                container_no: isKnownMbl || !cNo ? cNo : 'MANUAL',
+                                manual_container_no: isKnownMbl || !cNo ? '' : cNo,
+                                pkg_qty: c.pivot ? c.pivot.pkg_qty : (c.pkg_qty || ''),
+                                pkg_unit: c.pivot ? c.pivot.pkg_unit : (c.pkg_unit || 'CARTON(S)'),
+                                weight_kg: c.pivot ? c.pivot.weight_kg : (c.weight_kg || ''),
+                                weight_unit: c.pivot ? c.pivot.weight_unit : (c.weight_unit || 'KG'),
+                                measure_cbm: c.pivot ? c.pivot.measure_cbm : (c.measure_cbm || ''),
+                                measure_unit: c.pivot ? c.pivot.measure_unit : (c.measure_unit || 'CBM'),
+                                po_no: c.pivot ? c.pivot.po_no : (c.po_no || '')
+                            };
+                        });
                         
                         h.commodities = (h.commodities || []).map(comm => ({
                             selected: false,
@@ -799,6 +803,59 @@
                         if (c.empty_ret_date) c.empty_ret_date = c.empty_ret_date.substring(0, 10);
                     });
                     // Removed sessionStorage persistence - always start on Main tab
+                    this.$watch('form.routes', () => {
+                        this.syncRoutesToHbl();
+                    }, { deep: true });
+
+                    const syncPortSelectUI = (selector, val, text) => {
+                        this.$nextTick(() => {
+                            const elements = document.querySelectorAll(selector);
+                            elements.forEach(sel => {
+                                if (window.fmsSetSelectValue) {
+                                    window.fmsSetSelectValue(sel, val, text);
+                                } else {
+                                    sel.value = val;
+                                    sel.dispatchEvent(new Event('input', { bubbles: true }));
+                                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            });
+                        });
+                    };
+
+                    this.$watch('form.pol_id', val => {
+                        if (val) {
+                            const polEl = document.querySelector('select[name="pol_id"]');
+                            const polText = polEl ? (polEl.options[polEl.selectedIndex]?.text || '') : '';
+
+                            this.form.pod_id = val;
+                            syncPortSelectUI('select[name="pod_id"]', val, polText);
+
+                            this.hbls.forEach((h, idx) => {
+                                h.pol_id = val;
+                                h.pod_id = val;
+                                syncPortSelectUI(`select[x-model*="pol_id"], select[name="hbls[${idx}][pol_id]"]`, val, polText);
+                                syncPortSelectUI(`select[x-model*="pod_id"], select[name="hbls[${idx}][pod_id]"]`, val, polText);
+                            });
+                        }
+                    });
+
+                    this.$watch('form.del_id', val => {
+                        if (val) {
+                            const delEl = document.querySelector('select[name="del_id"]');
+                            const delText = delEl ? (delEl.options[delEl.selectedIndex]?.text || '') : '';
+
+                            this.form.fdest_id = val;
+                            syncPortSelectUI('select[name="fdest_id"]', val, delText);
+
+                            this.hbls.forEach((h, idx) => {
+                                h.del_id = val;
+                                h.fdest_id = val;
+                                syncPortSelectUI(`select[x-model*="del_id"], select[name="hbls[${idx}][del_id]"]`, val, delText);
+                                syncPortSelectUI(`select[x-model*="fdest_id"], select[name="hbls[${idx}][fdest_id]"]`, val, delText);
+                            });
+                        }
+                    });
+
                     this.$watch('inputTotalMode', val => {
                         if (val && this.form.containers.length > 0) {
                             let pkg = prompt('Enter total package quantity:', this.calculateTotal('pkg_qty'));
@@ -960,20 +1017,20 @@
                                 const fields = [
                                     { label: `${legLabel} - Vessel`, key: 'vessel_name', val: r.vessel_name },
                                     { label: `${legLabel} - Voyage`, key: 'voyage', val: r.voyage },
-                                    { label: `${legLabel} - POL`, key: 'pol_name', val: r.pol_name, nameKey: 'pol_id', idVal: r.pol_id },
-                                    { label: `${legLabel} - POD`, key: 'pod_name', val: r.pod_name, nameKey: 'pod_id', idVal: r.pod_id },
+                                    { label: `${legLabel} - POL`, key: 'pol_id', val: r.pol_id, display: r.pol_name, nameKey: 'pol_name' },
+                                    { label: `${legLabel} - POD`, key: 'pod_id', val: r.pod_id, display: r.pod_name, nameKey: 'pod_name' },
                                     { label: `${legLabel} - ETD`, key: 'etd', val: r.etd },
                                     { label: `${legLabel} - ETA`, key: 'eta', val: r.eta }
                                 ];
                                 fields.forEach(f => {
-                                    if (f.val) {
+                                    if (f.val || f.display) {
                                         this.extractedData.push({
                                             label: f.label,
                                             parent: 'routes',
                                             index: idx,
                                             key: f.key,
-                                            value: f.idVal !== undefined ? f.idVal : f.val,
-                                            displayValue: f.val,
+                                            value: f.val,
+                                            displayValue: f.display || f.val,
                                             nameKey: f.nameKey || null,
                                             selected: true
                                         });
@@ -1050,8 +1107,8 @@
                     // Helper function to inject missing options into dropdowns dynamically
                     const ensureOptionExists = (selectName, id, text) => {
                         if (!id) return;
-                        const el = document.querySelector(`[name="${selectName}"]`);
-                        if (el) {
+                        const el = document.querySelector(`select[name="${selectName}"]`) || document.querySelector(`[name="${selectName}"]`);
+                        if (el && el.tagName === 'SELECT' && el.options) {
                             let exists = false;
                             for (let i = 0; i < el.options.length; i++) {
                                 if (el.options[i].value == id) { exists = true; break; }
@@ -1059,7 +1116,7 @@
                             if (!exists) {
                                 const opt = document.createElement('option');
                                 opt.value = id;
-                                opt.text = text;
+                                opt.text = text || ('ID: ' + id);
                                 el.appendChild(opt);
                             }
                         }
@@ -1147,7 +1204,10 @@
                                 }
                                 
                                 if (route.vessel_name) {
-                                    r.flight_no = route.vessel_name + (route.voyage ? ' / ' + route.voyage : '');
+                                    r.vessel_name = route.vessel_name;
+                                }
+                                if (route.voyage || route.voyage_no) {
+                                    r.voyage_no = route.voyage || route.voyage_no;
                                 }
                             });
                             this.form.routes = [...this.form.routes];
@@ -1167,7 +1227,10 @@
                             }
                             
                             if (data.mbl.vessel_name) {
-                                r.flight_no = data.mbl.vessel_name + (data.mbl.voyage ? ' / ' + data.mbl.voyage : '');
+                                r.vessel_name = data.mbl.vessel_name;
+                            }
+                            if (data.mbl.voyage || data.mbl.voyage_no) {
+                                r.voyage_no = data.mbl.voyage || data.mbl.voyage_no;
                             }
                             
                             if (data.mbl.carrier_id) {
@@ -1178,6 +1241,8 @@
                             // Force Alpine reactivity
                             this.form.routes = [...this.form.routes];
                         }
+
+                        this.syncRoutesToHbl();
                     }
 
                     // HBL Mapping (Fill the first HBL tab if it's empty, or create one)
@@ -1387,9 +1452,22 @@
                     try {
                         const form = document.querySelector('form[action*="ocean-import"]');
                         
+                        const processedHbls = JSON.parse(JSON.stringify(this.hbls)).map(h => {
+                            if (h.containers && Array.isArray(h.containers)) {
+                                h.containers = h.containers.map(c => {
+                                    const resolvedNo = (c.container_no === 'MANUAL') ? (c.manual_container_no || '') : (c.container_no || '');
+                                    return {
+                                        ...c,
+                                        container_no: resolvedNo
+                                    };
+                                });
+                            }
+                            return h;
+                        });
+
                         const payload = {
                             ...this.form,
-                            hbls: this.hbls,
+                            hbls: processedHbls,
                             charges: this.chargesList,
                             _token: document.querySelector('input[name="_token"]').value
                         };
@@ -1413,6 +1491,7 @@
                             throw new Error(firstError);
                         }
                         if (data.success) {
+                            sessionStorage.setItem('shipment_success_pending', data.message || 'Shipment created successfully.');
                             window.location.href = '/ocean-import/' + data.id + '/edit';
                         } else {
                             throw new Error(data.message || 'Save failed');
@@ -1861,14 +1940,37 @@
                         ata: '',
                         etd: '',
                         atd: '',
-                        flight_no: '',
+                        vessel_name: '',
+                        voyage_no: '',
                         carrier_id: ''
                     });
+                    this.syncRoutesToHbl();
                 },
                 removeRoute(index) {
                     if (this.form.routes && this.form.routes[index] !== undefined) {
                         this.form.routes.splice(index, 1);
+                        this.syncRoutesToHbl();
                     }
+                },
+                syncRoutesToHbl() {
+                    if (!this.form.routes || !Array.isArray(this.form.routes) || this.form.routes.length === 0) return;
+                    if (!this.hbls || !Array.isArray(this.hbls) || this.hbls.length === 0) return;
+
+                    const firstRoute = this.form.routes[0];
+                    const lastRoute = this.form.routes[this.form.routes.length - 1];
+
+                    this.hbls.forEach(hbl => {
+                        if (this.form.routes.length === 1) {
+                            hbl.vessel_name = firstRoute.vessel_name || '';
+                            hbl.voyage_no = firstRoute.voyage_no || '';
+                        } else {
+                            hbl.pre_carriage_by = firstRoute.vessel_name || '';
+                            hbl.pre_carriage_voyage = firstRoute.voyage_no || '';
+
+                            hbl.vessel_name = lastRoute.vessel_name || '';
+                            hbl.voyage_no = lastRoute.voyage_no || '';
+                        }
+                    });
                 },
                 addHbl() {
                     this.hbls.push({
@@ -1884,10 +1986,12 @@
                         del_id: '',
                         delivery_location_id: '',
                         is_rail: false,
+                        rail_by: '',
                         shipper_id: '',
                         date_of_issue: '',
                         pod_id: '',
                         pre_carriage_by: '',
+                        pre_carriage_voyage: '',
                         vessel_name: '',
                         service_term: '',
                         ship_type: '',
@@ -1908,22 +2012,8 @@
                         sc_no: '',
                         ship_mode: '',
                         cfs_location_id: '',
-                        is_express_bl: '0',
-                        is_door_move: false,
                         is_customs_clear: false,
                         is_customs_hold: false,
-                        referred_by_id: '',
-                        is_obl_received: false,
-                        obl_received_date: '',
-                        is_fr_released: false,
-                        fr_released_date: '',
-                        is_an_sent: false,
-                        an_sent_date: '',
-                        name_account: '',
-                        group_comm: '',
-                        line_code: '',
-                        is_ecommerce: false,
-                        is_customs_doc: false,
                         hbl_remark: '',
                         po_no: '',
                         po_mapping_type: 'container',
@@ -1937,6 +2027,7 @@
                         receipts: []
                     });
                     this.showMblSection = false;
+                    this.syncRoutesToHbl();
                 },
                 removeHbl(idx) {
                     if(confirm('Are you sure you want to remove this HBL?')) {

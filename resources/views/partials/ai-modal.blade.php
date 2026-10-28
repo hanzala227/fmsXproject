@@ -33,9 +33,9 @@
                 <div class="frexo-brand-info">
                     <div class="frexo-brand-title-row">
                         <span class="frexo-brand-name">Frexo AI</span>
-                        <span class="frexo-brand-badge">Document Extraction</span>
+                        <span class="frexo-brand-badge">Copilot & Verification Engine</span>
                     </div>
-                    <p class="frexo-brand-tagline">Automated shipping document parsing and form field mapping</p>
+                    <p class="frexo-brand-tagline">AI-assisted document parsing &bull; Verified review before form population</p>
                 </div>
             </div>
 
@@ -78,7 +78,7 @@
                 <!-- Info Notice -->
                 <div class="frexo-info-banner">
                     <i class="fa fa-info-circle"></i>
-                    <span>Upload a Bill of Lading, Air Waybill, Commercial Invoice, or Packing List. Frexo AI will analyze the document and automatically populate shipment fields.</span>
+                    <span>Upload a Bill of Lading, Air Waybill, Commercial Invoice, or Packing List. Frexo AI Copilot extracts ~90% of data in seconds for your verification review.</span>
                 </div>
 
                 <!-- Dropzone Box -->
@@ -158,32 +158,89 @@
                             <i class="fa fa-file-text-o"></i>
                             <span>Document Preview</span>
                             <span x-show="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length > 1" 
-                                  style="font-size: 11px; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 12px; margin-left: 6px; font-weight: 600;"
-                                  x-text="(uploadedDocs ? uploadedDocs.length : 1) + ' documents loaded'"></span>
+                                  class="frexo-doc-count-badge"
+                                  x-text="(uploadedDocs ? uploadedDocs.length : 1) + ' files loaded'"></span>
                         </div>
-                        <button type="button" 
-                                class="frexo-btn-subtle" 
-                                @click="aiPreviewMode = false; documentPreviewUrl = null; if(typeof uploadedDocs !== 'undefined' && uploadedDocs) uploadedDocs.forEach(d => URL.revokeObjectURL(d.url)); uploadedDocs = [];" 
-                                :disabled="{{ $loadingVar }}"
-                                title="Select different documents">
-                            <i class="fa fa-repeat"></i> Change Documents
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Prev / Next file quick navigation -->
+                            <div x-show="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length > 1" 
+                                 class="frexo-doc-nav-arrows">
+                                <button type="button" 
+                                        class="frexo-nav-arrow-btn" 
+                                        @click="if (activeDocIndex > 0) { activeDocIndex--; documentPreviewUrl = uploadedDocs[activeDocIndex].url; }"
+                                        :disabled="activeDocIndex === 0"
+                                        title="Previous Document">
+                                    <i class="fa fa-chevron-left"></i>
+                                </button>
+                                <span class="frexo-nav-counter" x-text="(activeDocIndex + 1) + ' / ' + (uploadedDocs ? uploadedDocs.length : 1)"></span>
+                                <button type="button" 
+                                        class="frexo-nav-arrow-btn" 
+                                        @click="if (activeDocIndex < uploadedDocs.length - 1) { activeDocIndex++; documentPreviewUrl = uploadedDocs[activeDocIndex].url; }"
+                                        :disabled="!uploadedDocs || activeDocIndex >= uploadedDocs.length - 1"
+                                        title="Next Document">
+                                    <i class="fa fa-chevron-right"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" 
+                                    class="frexo-btn-subtle" 
+                                    @click="aiPreviewMode = false; documentPreviewUrl = null; if(typeof uploadedDocs !== 'undefined' && uploadedDocs) uploadedDocs.forEach(d => URL.revokeObjectURL(d.url)); uploadedDocs = [];" 
+                                    :disabled="{{ $loadingVar }}"
+                                    title="Select different documents">
+                                <i class="fa fa-repeat"></i> Change Files
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Multi-document Switcher Tabs -->
+                    <!-- Multi-document Overlapping Deck (Overlap UI/UX) -->
                     <div x-show="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs.length > 1" 
-                         style="display: flex; gap: 6px; padding: 6px 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; overflow-x: auto;">
-                        <template x-for="(doc, idx) in (uploadedDocs || [])" :key="idx">
-                            <button type="button" 
-                                    @click="activeDocIndex = idx; documentPreviewUrl = doc.url;"
-                                    :style="activeDocIndex === idx ? 'background: #2563eb; color: #ffffff; border-color: #2563eb;' : 'background: #ffffff; color: #475569; border-color: #cbd5e1;'"
-                                    style="padding: 4px 10px; border-radius: 4px; font-size: 11px; border: 1px solid; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; transition: all 0.15s ease;">
-                                <i :class="doc.isPdf ? 'fa fa-file-pdf-o' : 'fa fa-file-image-o'"></i>
-                                <span x-text="doc.name"></span>
-                                <span style="opacity: 0.7; font-size: 10px;" x-text="'(' + doc.size + ')'"></span>
-                            </button>
-                        </template>
+                         class="frexo-overlapping-deck-container">
+                        <div class="frexo-deck-track">
+                            <template x-for="(doc, idx) in (uploadedDocs || [])" :key="idx">
+                                <div class="frexo-deck-card"
+                                     :class="{ 'is-active': activeDocIndex === idx }"
+                                     :style="'z-index: ' + (activeDocIndex === idx ? 45 : (10 + idx)) + ';'"
+                                     @click="activeDocIndex = idx; documentPreviewUrl = doc.url;"
+                                     :title="doc.name + ' (' + doc.size + ') - Click to view'">
+                                    
+                                    <div class="frexo-card-tab-accent"></div>
+
+                                    <div class="frexo-card-inner">
+                                        <span class="frexo-card-num" x-text="idx + 1"></span>
+
+                                        <i class="frexo-card-icon fa" 
+                                           :class="doc.isPdf ? 'fa-file-pdf-o is-pdf' : 'fa-file-image-o is-img'"></i>
+
+                                        <div class="frexo-card-meta">
+                                            <div class="frexo-card-filename" x-text="doc.name"></div>
+                                            <div class="frexo-card-filesize" x-text="doc.size"></div>
+                                        </div>
+
+                                        <div x-show="activeDocIndex === idx" class="frexo-card-active-dot" title="Currently viewing">
+                                            <i class="fa fa-eye"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
+
+                    <!-- Active Document Info Strip -->
+                    <template x-if="typeof uploadedDocs !== 'undefined' && uploadedDocs && uploadedDocs[activeDocIndex]">
+                        <div class="frexo-active-doc-bar">
+                            <div class="frexo-active-doc-left">
+                                <i class="fa" :class="uploadedDocs[activeDocIndex]?.isPdf ? 'fa-file-pdf-o' : 'fa-file-image-o'" 
+                                   :style="uploadedDocs[activeDocIndex]?.isPdf ? 'color: #dc2626;' : 'color: #0284c7;'"></i>
+                                <span class="frexo-active-doc-name" x-text="uploadedDocs[activeDocIndex]?.name || ''"></span>
+                                <span class="frexo-active-doc-size" x-text="uploadedDocs[activeDocIndex]?.size ? '(' + uploadedDocs[activeDocIndex].size + ')' : ''"></span>
+                            </div>
+                            <template x-if="documentPreviewUrl">
+                                <a :href="documentPreviewUrl" target="_blank" class="frexo-open-external-btn" title="Open document in new window">
+                                    <i class="fa fa-external-link"></i> Open Full
+                                </a>
+                            </template>
+                        </div>
+                    </template>
 
                     <div class="frexo-preview-box">
                         <template x-if="documentPreviewUrl">
@@ -233,36 +290,36 @@
                         <!-- Bulk Selection Shortcuts -->
                         <div class="frexo-bulk-buttons" x-show="extractedData.length > 0">
                             <button type="button" 
-                                    class="frexo-link-action" 
-                                    @click="extractedData.forEach(i => i.selected = true)">
+                                    class="frexo-btn-pill" 
+                                    @click="extractedData.forEach(i => i.selected = true)"
+                                    title="Select all fields">
                                 <i class="fa fa-check-square-o"></i> Select All
                             </button>
-                            <span style="color: #cbd5e1;">|</span>
                             <button type="button" 
-                                    class="frexo-link-action" 
-                                    style="color: #16a34a; font-weight: 700;"
+                                    class="frexo-btn-pill is-verified" 
                                     @click="extractedData.forEach(i => {
                                         const isVerified = (i.status === 'EXPLICIT' || i.status === 'DERIVED') && !i.hasConflict && !i.hasWarning && i.status !== 'CONFLICT' && i.status !== 'AMBIGUOUS' && i.status !== 'REVIEW_REQUIRED' && i.status !== 'UNREADABLE';
                                         i.selected = isVerified;
-                                    })">
+                                    })"
+                                    title="Accept only verified and calculated fields with 0 warnings">
                                 <i class="fa fa-shield"></i> Accept All Verified
                             </button>
-                            <span style="color: #cbd5e1;">|</span>
                             <button type="button" 
-                                    class="frexo-link-action" 
-                                    @click="extractedData.forEach(i => i.selected = false)">
-                                <i class="fa fa-square-o"></i> Deselect All
+                                    class="frexo-btn-pill" 
+                                    @click="extractedData.forEach(i => i.selected = false)"
+                                    title="Deselect all fields">
+                                <i class="fa fa-square-o"></i> Clear
                             </button>
                         </div>
                     </div>
 
                     <!-- Unmatched Documents Banner -->
-                    <div x-show="typeof unmatchedDocs !== 'undefined' && unmatchedDocs && unmatchedDocs.length > 0" 
+                    <div x-show="($data.unmatchedDocs || []).length > 0" 
                          class="frexo-unmatched-banner" style="display: none;">
                         <i class="fa fa-exclamation-triangle"></i>
                         <div>
                             <strong>Unmatched Documents:</strong>
-                            <template x-for="(doc, uIdx) in unmatchedDocs" :key="uIdx">
+                            <template x-for="(doc, uIdx) in ($data.unmatchedDocs || [])" :key="uIdx">
                                 <span class="frexo-unmatched-tag" x-text="doc.filename || doc.document_id || doc"></span>
                             </template>
                             <span class="frexo-banner-sub" style="font-size: 11px; opacity: 0.8;">(Not linked to this shipment)</span>
@@ -270,12 +327,12 @@
                     </div>
 
                     <!-- Failed Documents Banner -->
-                    <div x-show="typeof failedDocs !== 'undefined' && failedDocs && failedDocs.length > 0" 
+                    <div x-show="($data.failedDocs || []).length > 0" 
                          class="frexo-failed-banner" style="display: none;">
                         <i class="fa fa-times-circle"></i>
                         <div>
                             <strong>Extraction Failures:</strong>
-                            <template x-for="(fDoc, fIdx) in failedDocs" :key="fIdx">
+                            <template x-for="(fDoc, fIdx) in ($data.failedDocs || [])" :key="fIdx">
                                 <span class="frexo-failed-tag" x-text="(fDoc.filename || fDoc.document_id) + ': ' + (fDoc.error || 'Failed')"></span>
                             </template>
                         </div>
@@ -918,12 +975,14 @@
 }
 
 .frexo-review-toolbar {
-    padding: 10px 14px;
+    padding: 8px 12px;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .frexo-review-title {
@@ -933,6 +992,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
 }
 
 .frexo-count-pill {
@@ -943,12 +1003,49 @@
     padding: 1px 7px;
     border-radius: 10px;
     border: 1px solid #bfdbfe;
+    white-space: nowrap;
 }
 
 .frexo-bulk-buttons {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.frexo-btn-pill {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.frexo-btn-pill:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.frexo-btn-pill.is-verified {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #15803d;
+    font-weight: 700;
+}
+
+.frexo-btn-pill.is-verified:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+    color: #166534;
 }
 
 .frexo-link-action {
@@ -1286,5 +1383,261 @@
     border-radius: 3px;
     font-weight: 600;
     margin: 0 3px;
+}
+
+/* ==========================================================================
+   Multi-Document Overlapping Deck Styles (Modern Paper Stack UI/UX)
+   ========================================================================== */
+.frexo-doc-count-badge {
+    font-size: 11px;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 6px;
+    font-weight: 700;
+    border: 1px solid #bfdbfe;
+}
+
+.frexo-overlapping-deck-container {
+    padding: 8px 14px 10px 14px;
+    background: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+    border-bottom: 1px solid #cbd5e1;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: thin;
+}
+
+.frexo-deck-track {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px 6px 4px;
+    min-width: 100%;
+}
+
+/* Overlapping Document Card */
+.frexo-deck-card {
+    position: relative;
+    width: 175px;
+    min-width: 155px;
+    max-width: 195px;
+    height: 48px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: -26px; /* Elegant overlapping stack */
+    box-shadow: -4px 3px 9px rgba(15, 23, 42, 0.10);
+    transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    user-select: none;
+}
+
+.frexo-deck-card:first-child {
+    margin-left: 0;
+}
+
+/* Hover: Lift card upwards with elevated shadow */
+.frexo-deck-card:hover {
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.20), -4px 4px 10px rgba(15, 23, 42, 0.12);
+    z-index: 50 !important;
+    border-color: #93c5fd;
+    background: #ffffff;
+}
+
+/* Active card: highlighted, in front */
+.frexo-deck-card.is-active {
+    background: #ffffff;
+    border: 2px solid #2563eb;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.24), -4px 4px 10px rgba(15, 23, 42, 0.12);
+    transform: translateY(-2px);
+}
+
+.frexo-card-tab-accent {
+    position: absolute;
+    top: 0;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    background: transparent;
+    border-radius: 3px 3px 0 0;
+}
+
+.frexo-deck-card.is-active .frexo-card-tab-accent {
+    background: #2563eb;
+}
+
+.frexo-card-inner {
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow: hidden;
+}
+
+.frexo-card-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.frexo-deck-card.is-active .frexo-card-num {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.frexo-card-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.frexo-card-icon.is-pdf {
+    color: #dc2626;
+}
+
+.frexo-card-icon.is-img {
+    color: #0284c7;
+}
+
+.frexo-card-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.frexo-card-filename {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.frexo-deck-card.is-active .frexo-card-filename {
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.frexo-card-filesize {
+    font-size: 9px;
+    color: #64748b;
+    margin-top: 1px;
+}
+
+.frexo-card-active-dot {
+    font-size: 10px;
+    color: #2563eb;
+    flex-shrink: 0;
+}
+
+/* Active Document Info Strip */
+.frexo-active-doc-bar {
+    padding: 6px 14px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+}
+
+.frexo-active-doc-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.frexo-active-doc-name {
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.frexo-active-doc-size {
+    color: #64748b;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.frexo-open-external-btn {
+    font-size: 10px;
+    color: #2563eb;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.frexo-open-external-btn:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+/* Quick Navigation Arrows */
+.frexo-doc-nav-arrows {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 2px 5px;
+}
+
+.frexo-nav-arrow-btn {
+    background: transparent;
+    border: none;
+    color: #475569;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.frexo-nav-arrow-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.frexo-nav-arrow-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.frexo-nav-counter {
+    font-size: 10px;
+    font-weight: 700;
+    color: #334155;
+    padding: 0 4px;
 }
 </style>

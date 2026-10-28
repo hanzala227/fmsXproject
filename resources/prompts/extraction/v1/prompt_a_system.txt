@@ -86,3 +86,4 @@ RULES
     e) conflicts are reported, not resolved;
     f) no INTERNAL_WORKFLOW field was filled.
     If a check fails, fix the output or downgrade the field to a flagged state.
+

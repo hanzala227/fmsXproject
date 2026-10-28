@@ -291,6 +291,7 @@
     --}}
     
     <x-searchable-select-global />
+    <script src="{{ asset('js/iso6346-validator.js') }}"></script>
     
     @stack('scripts')
 </body>

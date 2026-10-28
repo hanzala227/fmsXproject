@@ -16,6 +16,7 @@ class WarehouseReceipt extends Model
 
     protected $fillable = [
         'company_id',
+        'truck_shipment_id',
         'receipt_no',
         'receipt_date',
         'warehouse_id',
@@ -50,6 +51,11 @@ class WarehouseReceipt extends Model
         'charges_data' => 'array',
         'memos_data' => 'array',
     ];
+
+    public function truckShipment()
+    {
+        return $this->belongsTo(TruckShipment::class, 'truck_shipment_id');
+    }
 
     public function warehouse()
     {

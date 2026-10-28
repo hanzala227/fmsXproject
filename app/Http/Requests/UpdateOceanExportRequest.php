@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
+use App\Rules\Iso6346ContainerRule;
 
 class UpdateOceanExportRequest extends FormRequest
 {
@@ -15,12 +16,12 @@ class UpdateOceanExportRequest extends FormRequest
 
     protected function failedValidation(Validator $validator)
     {
-        // Ensure old input is flashed to session
-        $this->flash();
+        // Ensure old input is flashed to session if session exists
+        if ($this->hasSession()) {
+            $this->flash();
+        }
         
-        throw (new ValidationException($validator))
-            ->errorBag($this->errorBag)
-            ->redirectTo($this->getRedirectUrl());
+        parent::failedValidation($validator);
     }
 
     protected function prepareForValidation()
@@ -41,9 +42,27 @@ class UpdateOceanExportRequest extends FormRequest
             }
         }
         
+        if ($this->has('consignee_id') && !$this->has('dm_consignee_id')) {
+            $mergeData['dm_consignee_id'] = $this->input('consignee_id');
+        }
+
         if (empty($this->bl_type)) $mergeData['bl_type'] = 'NORMAL';
         if (empty($this->cargo_type)) $mergeData['cargo_type'] = 'GENERAL CARGO';
         if (empty($this->ship_mode)) $mergeData['ship_mode'] = 'FCL';
+
+        if ($this->has('incoterm_id') && $this->input('incoterm_id') !== null) {
+            $incoVal = $this->input('incoterm_id');
+            if (is_array($incoVal)) {
+                $incoVal = $incoVal['code'] ?? $incoVal['id'] ?? null;
+            }
+            if ($incoVal !== null && $incoVal !== '') {
+                if (is_numeric($incoVal)) {
+                    $found = \App\Models\Incoterm::find($incoVal);
+                    $incoVal = $found ? $found->code : $incoVal;
+                }
+                $mergeData['incoterm_id'] = (string)$incoVal;
+            }
+        }
         
         if (!empty($mergeData)) {
             $this->merge($mergeData);
@@ -72,6 +91,11 @@ class UpdateOceanExportRequest extends FormRequest
 
         if ($this->has('hbls') && is_array($this->hbls)) {
             $hbls = $this->hbls;
+            if ($this->boolean('is_direct_master')) {
+                $hbls = array_values(array_filter($hbls, function($h) {
+                    return !empty(trim($h['hbl_no'] ?? ''));
+                }));
+            }
             foreach ($hbls as $index => $hbl) {
                 foreach (['is_rail', 'is_express_bl', 'is_door_move', 'is_customs_clear', 'is_customs_hold', 'is_obl_received', 'is_fr_released', 'is_an_sent', 'is_do_sent', 'is_ecommerce', 'is_customs_doc'] as $boolField) {
                     if (isset($hbl[$boolField])) {
@@ -96,7 +120,12 @@ class UpdateOceanExportRequest extends FormRequest
                     }
                 }
             }
-            $this->merge(['hbls' => $hbls]);
+            if ($this->boolean('is_direct_master') && empty($hbls)) {
+                $this->request->remove('hbls');
+                $this->merge(['hbls' => null]);
+            } else {
+                $this->merge(['hbls' => $hbls]);
+            }
         }
     }
 
@@ -142,9 +171,9 @@ class UpdateOceanExportRequest extends FormRequest
             'receipt_id' => 'nullable|exists:ports,id',
             
             'etd' => 'nullable|date',
-            'eta' => 'nullable|date',
+            'eta' => 'nullable|date|after_or_equal:etd',
             'atd' => 'nullable|date',
-            'ata' => 'nullable|date',
+            'ata' => 'nullable|date|after_or_equal:atd',
             'etb' => 'nullable|date',
             'final_eta' => 'nullable|date',
             'receipt_etd' => 'nullable|date',
@@ -265,6 +294,7 @@ class UpdateOceanExportRequest extends FormRequest
             'hbls.*.vessel_name' => 'nullable|string',
             'hbls.*.voyage_no' => 'nullable|string',
             'hbls.*.pre_carriage_by' => 'nullable|string',
+            'hbls.*.pre_carriage_voyage' => 'nullable|string',
             'hbls.*.service_term' => 'nullable|string',
             'hbls.*.ship_mode' => 'nullable|string',
             'hbls.*.ship_type' => 'nullable|string',
@@ -325,6 +355,8 @@ class UpdateOceanExportRequest extends FormRequest
             'routes.*.etd' => 'nullable|date',
             'routes.*.atd' => 'nullable|date',
             'routes.*.flight_no' => 'nullable|string|max:255',
+            'routes.*.vessel_name' => 'nullable|string|max:255',
+            'routes.*.voyage_no' => 'nullable|string|max:255',
             'routes.*.carrier_id' => 'nullable|exists:trade_partners,id',
         ];
     }

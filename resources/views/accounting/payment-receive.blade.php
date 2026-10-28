@@ -251,12 +251,22 @@
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Invoice</label>
                                     <div class="form-input-container">
-                                        <select name="invoice_id" class="form-control-gf">
+                                        <select name="invoice_id" class="form-control-gf" x-model="form.invoice_id" @change="onInvoiceSelected($event.target.value)">
                                             <option value="">Select invoice (optional)</option>
                                             @foreach($invoices as $inv)
                                             <option value="{{ $inv->id }}" {{ old('invoice_id', $payment?->invoice_id ?? $selectedInvoiceId ?? '') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }} — {{ $inv->billTo->name ?? 'N/A' }} — ${{ number_format($inv->balance_amount ?? $inv->total_amount, 2) }}</option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf"><label class="form-label-gf">MBL No.</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" style="background:#f8fafc;font-weight:600;" :value="currentInvoiceMbl" placeholder="MBL No." readonly>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf"><label class="form-label-gf">HBL No.</label>
+                                    <div class="form-input-container">
+                                        <input type="text" class="form-control-gf" style="background:#f8fafc;font-weight:600;color:#0369a1;" :value="currentInvoiceHbl" placeholder="HBL No." readonly>
                                     </div>
                                 </div>
                             </div>
@@ -376,7 +386,8 @@
                                         <th data-col="payment_rmb" style="width:110px;text-align:right;background:#4a5568;">Payment (RMB)</th>
                                         <th data-col="description" style="width:150px;background:#4a5568;">Invoice Description</th>
                                         <th data-col="file_no" style="width:100px;background:#4a5568;">Booking No.</th>
-                                        <th data-col="bl_no" style="width:120px;background:#4a5568;">B/L No.</th>
+                                        <th data-col="mbl_no" style="width:110px;background:#4a5568;">MBL No.</th>
+                                        <th data-col="hbl_no" style="width:110px;background:#4a5568;">HBL No.</th>
                                         <th data-col="po_no" style="width:100px;background:#4a5568;">P.O. No.</th>
                                         <th data-col="op" style="width:80px;background:#4a5568;">OP</th>
                                         <th data-col="sales" style="width:100px;background:#4a5568;">Sales</th>
@@ -384,7 +395,9 @@
                                 </thead>
                                 <tbody>
                                     @foreach($invoices as $inv)
-                                    <tr x-data="{ get isRowSelected() { return selectedInvoices.some(i => Number(i.id) === {{ $inv->id }}); } }" :class="isRowSelected ? 'selected-row' : ''">
+                                    <tr x-show="!form.trade_partner_id || form.trade_partner_id == '{{ $inv->bill_to_id }}'"
+                                        x-data="{ get isRowSelected() { return selectedInvoices.some(i => Number(i.id) === {{ $inv->id }}); } }" 
+                                        :class="isRowSelected ? 'selected-row' : ''">
                                         <td data-col="check" style="text-align:center;position:sticky;left:0;z-index:12;background:inherit;border-right:1px solid #e2e8f0;"><input type="checkbox" class="inline-checkbox" :checked="isRowSelected" @change="$event.target.checked ? selectInvoice({{ $inv->id }}, '{{ $inv->invoice_no }}') : deselectInvoice({{ $inv->id }})"></td>
                                         <td data-col="post_date">{{ $inv->invoice_date ? $inv->invoice_date->format('Y-m-d') : '' }}</td>
                                         <td data-col="invoice_date">{{ $inv->invoice_date ? $inv->invoice_date->format('Y-m-d') : '' }}</td>
@@ -410,8 +423,9 @@
                                                 x-model="allocationRMB[{{ $inv->id }}]">
                                         </td>
                                         <td data-col="description" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">{{ $inv->internal_remark ?? '' }}</td>
-                                        <td data-col="file_no">{{ $inv->invoice_no }}</td>
-                                        <td data-col="bl_no"></td>
+                                        <td data-col="file_no">{{ optional($inv->invoiceable)->file_no ?? '--' }}</td>
+                                        <td data-col="mbl_no" style="font-weight:600;color:#0f172a;">{{ $inv->master_bl_no ?? '--' }}</td>
+                                        <td data-col="hbl_no" style="font-weight:600;color:#0369a1;">{{ $inv->house_bl_no ?? '--' }}</td>
                                         <td data-col="po_no"></td>
                                         <td data-col="op">{{ $inv->issuer?->name ?? '' }}</td>
                                         <td data-col="sales">{{ $inv->billTo->name ?? '' }}</td>
@@ -665,7 +679,11 @@
                     amount: '{{ old("amount", $payment?->amount ?? "0.00") }}',
                     payment_method: '{{ old("payment_method", $payment?->payment_method ?? "BANK_TRANSFER") }}',
                     currency_id: '{{ old("currency_id", $payment?->currency_id ?? "") }}',
+                    invoice_id: '{{ old("invoice_id", $payment?->invoice_id ?? $selectedInvoiceId ?? "") }}',
                 },
+
+                currentInvoiceMbl: '',
+                currentInvoiceHbl: '',
 
                 allocationAmounts: {},
                 allocationRMB: {},
@@ -693,13 +711,25 @@
                     { key: 'payment_rmb', label: 'Payment (RMB)', visible: true },
                     { key: 'description', label: 'Invoice Description', visible: true },
                     { key: 'file_no', label: 'Booking No.', visible: true },
-                    { key: 'bl_no', label: 'B/L No.', visible: true },
+                    { key: 'mbl_no', label: 'MBL No.', visible: true },
+                    { key: 'hbl_no', label: 'HBL No.', visible: true },
                     { key: 'po_no', label: 'P.O. No.', visible: true },
                     { key: 'op', label: 'OP', visible: true },
                     { key: 'sales', label: 'Sales', visible: true },
                 ],
 
                 init() {
+                    const allInvoices = @json($invoices);
+
+                    // Set initial MBL and HBL from initial invoice_id if available
+                    if (this.form.invoice_id) {
+                        const initInv = allInvoices.find(i => String(i.id) === String(this.form.invoice_id));
+                        if (initInv) {
+                            this.currentInvoiceMbl = initInv.master_bl_no || '';
+                            this.currentInvoiceHbl = initInv.house_bl_no || '';
+                        }
+                    }
+
                     // If editing existing payment, populate invoice
                     @if($payment && $payment->invoice_id)
                     this.allocationAmounts[{{ $payment->invoice_id }}] = {{ $payment->amount ?? 0 }};
@@ -710,7 +740,6 @@
                     // If creating new payment from invoice list, auto-select and populate
                     @if(!$payment && isset($selectedInvoiceIds) && !empty($selectedInvoiceIds))
                     const targetIds = @json(array_map('intval', $selectedInvoiceIds));
-                    const allInvoices = @json($invoices);
                     let firstInvoice = null;
 
                     targetIds.forEach(id => {
@@ -726,10 +755,35 @@
                     if (firstInvoice) {
                         this.form.trade_partner_id = String(firstInvoice.bill_to_id || '');
                         this.form.currency_id = String(firstInvoice.currency_id || '');
+                        if (!this.form.invoice_id) {
+                            this.form.invoice_id = String(firstInvoice.id);
+                            this.currentInvoiceMbl = firstInvoice.master_bl_no || '';
+                            this.currentInvoiceHbl = firstInvoice.house_bl_no || '';
+                        }
                     }
 
                     this.recalcTotal();
                     @endif
+                },
+
+                onInvoiceSelected(invoiceId) {
+                    const allInvoices = @json($invoices);
+                    const inv = allInvoices.find(i => String(i.id) === String(invoiceId));
+                    if (inv) {
+                        this.currentInvoiceMbl = inv.master_bl_no || '';
+                        this.currentInvoiceHbl = inv.house_bl_no || '';
+                        if (inv.bill_to_id) this.form.trade_partner_id = String(inv.bill_to_id);
+                        if (inv.currency_id) this.form.currency_id = String(inv.currency_id);
+                        if (!this.selectedInvoices.some(i => Number(i.id) === Number(inv.id))) {
+                            this.selectInvoice(inv.id, inv.invoice_no);
+                            const balance = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined ? inv.balance_amount : inv.total_amount) || 0;
+                            this.allocationAmounts[inv.id] = balance.toFixed(2);
+                            this.recalcTotal();
+                        }
+                    } else {
+                        this.currentInvoiceMbl = '';
+                        this.currentInvoiceHbl = '';
+                    }
                 },
 
                 getCurrencyCode(id) {
@@ -743,6 +797,15 @@
                     if (!this.selectedInvoices.some(i => i.id === id)) {
                         this.selectedInvoices.push({ id, inv_no: invNo });
                         this.allocationAmounts[id] = this.allocationAmounts[id] || 0;
+                    }
+                    if (!this.form.invoice_id) {
+                        this.form.invoice_id = String(id);
+                    }
+                    const allInvoices = @json($invoices);
+                    const inv = allInvoices.find(i => Number(i.id) === Number(id));
+                    if (inv) {
+                        this.currentInvoiceMbl = inv.master_bl_no || '';
+                        this.currentInvoiceHbl = inv.house_bl_no || '';
                     }
                     this.recalcTotal();
                 },
@@ -761,6 +824,7 @@
                 toggleAllInvoices(e) {
                     const checked = e.target.checked;
                     document.querySelectorAll('#invoices-table tbody tr').forEach(row => {
+                        if (row.offsetParent === null) return; // skip hidden rows
                         const checkbox = row.querySelector('input[type="checkbox"]');
                         if (checkbox) { checkbox.checked = checked; checkbox.dispatchEvent(new Event('change')); }
                     });

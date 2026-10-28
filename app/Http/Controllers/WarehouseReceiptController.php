@@ -174,6 +174,20 @@ class WarehouseReceiptController extends Controller
         }
     }
 
+    public function show($id)
+    {
+        $receipt = WarehouseReceipt::with(['customer', 'shipper', 'consignee', 'office', 'operator', 'items', 'documents'])->findOrFail($id);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $receipt
+            ]);
+        }
+
+        return redirect()->route('warehouse.receipts.edit', $receipt->id);
+    }
+
     public function edit($id)
     {
         $receipt = WarehouseReceipt::with(['items', 'documents.uploader'])->findOrFail($id);

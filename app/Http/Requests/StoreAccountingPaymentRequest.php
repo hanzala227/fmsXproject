@@ -27,7 +27,23 @@ class StoreAccountingPaymentRequest extends FormRequest
             'payment_date' => 'required|date',
             'trade_partner_id' => 'required|exists:trade_partners,id',
             'currency_id' => 'required|exists:currencies,id',
-            'amount' => 'required|numeric|min:0',
+            'amount' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function ($attribute, $value, $fail) {
+                    $invoiceId = $this->input('invoice_id');
+                    if ($invoiceId) {
+                        $invoice = \App\Models\Invoice::find($invoiceId);
+                        if ($invoice) {
+                            $remaining = max(0, round((float) $invoice->balance_amount, 2));
+                            if ((float) $value > $remaining + 0.001) {
+                                $fail("Payment amount (\${$value}) exceeds remaining invoice balance (\${$remaining}). Overpayments must be logged as Customer Advance.");
+                            }
+                        }
+                    }
+                }
+            ],
             'payment_method' => 'required|string|max:50',
             'reference_no' => 'nullable|string|max:255',
             'remark' => 'nullable|string',

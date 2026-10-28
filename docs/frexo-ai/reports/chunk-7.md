@@ -91,3 +91,4 @@ Tests: 50, Assertions: 1748, PHPUnit Deprecations: 2.
 1. **Retry-count assertions pass:** PASS (429 retries exactly 2 times; 401 retried 0 times).
 2. **Grep/test proves logs contain no API key or full document text:** PASS (100% centralized through `FrexoAiLogger::sanitize`).
 3. **Config reference and log catalogue written to report:** PASS.
+

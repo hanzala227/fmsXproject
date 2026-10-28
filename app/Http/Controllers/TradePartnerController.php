@@ -411,6 +411,20 @@ class TradePartnerController extends Controller
         }
     }
 
+    public function show($id)
+    {
+        $tradePartner = $id instanceof TradePartner ? $id : TradePartner::with(['city', 'state', 'country', 'salesPerson'])->findOrFail($id);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $tradePartner
+            ]);
+        }
+
+        return redirect()->route('trade-partners.edit', $tradePartner->id);
+    }
+
     public function edit(TradePartner $tradePartner)
     {
         $tradePartner->load(['contacts', 'memos.user', 'defaultFreights', 'commodities', 'filingSettings', 'relatedParties', 'documents.uploader']);

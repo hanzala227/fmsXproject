@@ -102,4 +102,32 @@ class DocumentSequenceService
         if (empty($letter)) return 'A';
         return ++$letter; // PHP automatically handles alphabetical incrementing Z -> AA
     }
+
+    /**
+     * Generate standard short Booking No. (File No.) for shipments.
+     * Format: PREFIX-YYMM#### (e.g. MOE-26100001, MOI-26100001, MAE-26100001, MAI-26100001)
+     */
+    public static function generateBookingNo(string $prefix, string $modelClass): string
+    {
+        $ym = date('ym');
+        $pattern = $prefix . '-' . $ym . '%';
+        $records = $modelClass::where('file_no', 'like', $pattern)->pluck('file_no');
+        $maxSeq = 0;
+        foreach ($records as $fileNo) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '-' . $ym . '(\d{4})$/', $fileNo, $matches)) {
+                $seq = (int) $matches[1];
+                if ($seq > $maxSeq) {
+                    $maxSeq = $seq;
+                }
+            }
+        }
+
+        $nextSeq = $maxSeq + 1;
+        do {
+            $proposed = sprintf('%s-%s%04d', $prefix, $ym, $nextSeq);
+            $nextSeq++;
+        } while ($modelClass::where('file_no', $proposed)->exists());
+
+        return $proposed;
+    }
 }

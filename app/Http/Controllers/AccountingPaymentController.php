@@ -13,6 +13,7 @@ use App\Http\Requests\StoreAccountingPaymentRequest;
 use App\Http\Requests\UpdateAccountingPaymentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class AccountingPaymentController extends Controller
 {
@@ -20,6 +21,38 @@ class AccountingPaymentController extends Controller
     {
         $payments = AccountingPayment::with(['tradePartner', 'currency', 'invoice'])->latest()->paginate(15);
         return response()->json($payments);
+    }
+
+    public function show($id)
+    {
+        $payment = AccountingPayment::with(['tradePartner', 'currency', 'invoice', 'office', 'bankCurrency'])->findOrFail($id);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $payment
+            ]);
+        }
+
+        return redirect()->route('accounting.payment.edit', $payment->id);
+    }
+
+    public function destroy($id)
+    {
+        $payment = AccountingPayment::findOrFail($id);
+        $invoiceId = $payment->invoice_id;
+        
+        $payment->delete();
+        self::syncInvoiceBalance($invoiceId);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment deleted and invoice ledger synchronized successfully.'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Payment deleted successfully.');
     }
 
     public function receivedList(Request $request)
@@ -155,7 +188,13 @@ class AccountingPaymentController extends Controller
             return response()->json(['success' => false, 'message' => 'No items selected.']);
         }
 
+        $affectedInvoiceIds = AccountingPayment::whereIn('id', $ids)->pluck('invoice_id')->filter()->unique()->toArray();
         $count = AccountingPayment::whereIn('id', $ids)->where('type', 'RECEIVED')->delete();
+
+        foreach ($affectedInvoiceIds as $invId) {
+            self::syncInvoiceBalance($invId);
+        }
+
         return response()->json(['success' => true, 'message' => "{$count} payment(s) deleted successfully."]);
     }
 
@@ -281,7 +320,13 @@ class AccountingPaymentController extends Controller
             return response()->json(['success' => false, 'message' => 'No items selected.']);
         }
 
+        $affectedInvoiceIds = AccountingPayment::whereIn('id', $ids)->pluck('invoice_id')->filter()->unique()->toArray();
         $count = AccountingPayment::whereIn('id', $ids)->where('type', 'MADE')->delete();
+
+        foreach ($affectedInvoiceIds as $invId) {
+            self::syncInvoiceBalance($invId);
+        }
+
         return response()->json(['success' => true, 'message' => "{$count} payment(s) deleted successfully."]);
     }
 
@@ -294,7 +339,7 @@ class AccountingPaymentController extends Controller
         
         // Filter invoices based on payment type and status
         $invoiceType = $type === 'RECEIVED' ? 'AR' : 'AP';
-        $invoiceQuery = Invoice::with(['billTo', 'currency', 'office'])
+        $invoiceQuery = Invoice::with(['billTo', 'currency', 'office', 'invoiceable'])
             ->where('type', $invoiceType)
             ->where('status', '!=', 'PAID');
         
@@ -333,20 +378,25 @@ class AccountingPaymentController extends Controller
         if (!$request->filled('clear_date')) $data['clear_date'] = null;
         if (!$request->filled('void_date')) $data['void_date'] = null;
 
+        // Guard against overpayments exceeding remaining invoice balance
+        if (!empty($data['invoice_id'])) {
+            $invoice = Invoice::find($data['invoice_id']);
+            if ($invoice) {
+                $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
+                if ((float) $data['amount'] > $remainingBalance + 0.001) {
+                    $msg = "Payment amount (\${$data['amount']}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
+                    if ($request->ajax()) {
+                        return response()->json(['success' => false, 'message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
+                    }
+                    return back()->withInput()->withErrors(['amount' => $msg]);
+                }
+            }
+        }
+
         $payment = AccountingPayment::create($data);
 
         if ($payment->invoice_id) {
-            $invoice = Invoice::find($payment->invoice_id);
-            if ($invoice) {
-                $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $payment->amount;
-                $invoice->balance_amount = $invoice->total_amount - $invoice->paid_amount;
-                if ($invoice->balance_amount <= 0) {
-                    $invoice->status = 'PAID';
-                } elseif ($invoice->paid_amount > 0) {
-                    $invoice->status = 'PARTIAL';
-                }
-                $invoice->save();
-            }
+            self::syncInvoiceBalance($payment->invoice_id);
         }
 
         if ($request->ajax()) {
@@ -376,7 +426,7 @@ class AccountingPaymentController extends Controller
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->orderBy('name')->get();
-        $invoices = Invoice::with(['billTo', 'currency'])->where('status', '!=', 'PAID')
+        $invoices = Invoice::with(['billTo', 'currency', 'office', 'invoiceable'])->where('status', '!=', 'PAID')
             ->orWhere('id', $payment->invoice_id)
             ->orderBy('invoice_date', 'desc')->get();
 
@@ -418,7 +468,19 @@ class AccountingPaymentController extends Controller
         if (!$request->boolean('has_clear')) $data['clear_date'] = null;
         if (!$request->boolean('has_void')) $data['void_date'] = null;
 
-        $payment->update($data);
+        $oldInvoiceId = $payment->invoice_id;
+
+        DB::transaction(function() use ($payment, $data, $oldInvoiceId) {
+            $payment->update($data);
+
+            if ($payment->invoice_id) {
+                self::syncInvoiceBalance($payment->invoice_id);
+            }
+
+            if ($oldInvoiceId && $oldInvoiceId != $payment->invoice_id) {
+                self::syncInvoiceBalance($oldInvoiceId);
+            }
+        });
 
         if ($request->ajax()) {
             return response()->json([
@@ -522,5 +584,35 @@ class AccountingPaymentController extends Controller
         $memo->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Recalculates and synchronizes invoice paid_amount, balance_amount, and status
+     * based on the exact sum of active payments in the database.
+     */
+    public static function syncInvoiceBalance(?int $invoiceId): void
+    {
+        if (!$invoiceId) return;
+
+        $invoice = Invoice::find($invoiceId);
+        if (!$invoice) return;
+
+        $totalPaid = (float) DB::table('payments')
+            ->where('invoice_id', $invoice->id)
+            ->whereNull('deleted_at')
+            ->sum('amount');
+
+        $invoice->paid_amount = $totalPaid;
+        $invoice->balance_amount = max(0, round($invoice->total_amount - $totalPaid, 2));
+
+        if ($invoice->balance_amount <= 0) {
+            $invoice->status = 'PAID';
+        } elseif ($totalPaid > 0) {
+            $invoice->status = 'PARTIAL';
+        } else {
+            $invoice->status = 'POSTED';
+        }
+
+        $invoice->save();
     }
 }

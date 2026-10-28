@@ -171,14 +171,8 @@ $ports = Port::where('type', 'SEA')
 
             $oceanImport = $source->replicate();
             
-            // Generate unique file_no with timestamp + random string to prevent duplicates
-            $fileAttempt = 0;
-            do {
-                $proposedFileNo = 'MOI-' . now()->format('ymdHis') . ($fileAttempt > 0 ? ('-' . rand(100, 999)) : ('-' . strtoupper(substr(uniqid(), -4))));
-                $fileAttempt++;
-            } while (OceanImport::where('file_no', $proposedFileNo)->exists());
-            
-            $oceanImport->file_no = $proposedFileNo;
+            // Generate standard short file_no (e.g. MOI-26100001)
+            $oceanImport->file_no = \App\Services\DocumentSequenceService::generateBookingNo('MOI', OceanImport::class);
             $oceanImport->mbl_no = null;
             $oceanImport->save();
 
@@ -472,6 +466,22 @@ $ports = Port::where('type', 'SEA')
             
             return back()->withInput()->with('error', $errorMessage);
         }
+    }
+
+    public function show($id)
+    {
+        $oceanImport = $id instanceof OceanImport ? $id : OceanImport::findOrFail($id);
+        $this->authorize('view', $oceanImport);
+        $oceanImport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'hbls.containers', 'hbls.commodities', 'hbls.receipts', 'containers.containerType', 'charges.currency', 'documents', 'memos']);
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'data' => $oceanImport
+            ]);
+        }
+
+        return redirect()->route('ocean-import.edit', $oceanImport->id);
     }
 
     public function edit(OceanImport $oceanImport)
@@ -1212,14 +1222,8 @@ $ports = Port::where('type', 'SEA')
 
         $clone = $source->replicate();
 
-        // Generate unique file_no
-        $attempt = 0;
-        do {
-            $proposed = 'MOI-' . now()->format('ymdHis') . ($attempt > 0 ? ('-' . rand(100,999)) : ('-' . strtoupper(substr(uniqid(), -4))));
-            $attempt++;
-        } while (OceanImport::where('file_no', $proposed)->exists());
-
-        $clone->file_no = $proposed;
+        // Generate standard short file_no (e.g. MOI-26100001)
+        $clone->file_no = \App\Services\DocumentSequenceService::generateBookingNo('MOI', OceanImport::class);
         $clone->mbl_no  = null;
 
         // Optionally strip vessel / schedule fields
@@ -2420,9 +2424,9 @@ $ports = Port::where('type', 'SEA')
 
             foreach ($containers as $c) {
                 fputcsv($file, [
-                    $c->oceanImport->file_no ?? '',
+                    $c->oceanImport?->file_no ?? '',
                     $c->container_no ?? '',
-                    $c->containerType->code ?? '',
+                    $c->containerType?->code ?? '',
                     $c->pp_ctf ?? '',
                     $c->seal_no ?? '',
                     $c->seal_no2 ?? '',
@@ -2436,16 +2440,16 @@ $ports = Port::where('type', 'SEA')
                     $c->remarks ?? '',
                     $c->is_dg ? 'Yes' : 'No',
                     $c->is_complete ? 'Yes' : 'No',
-                    $c->oceanImport->cfsLocation->name ?? ($c->oceanImport->cyLocation->name ?? ''),
-                    $c->oceanImport->dmConsignee->name ?? '',
-                    $c->oceanImport->hbls->count() ? $c->oceanImport->hbls->pluck('hbl_no')->join(', ') : '',
-                    $c->oceanImport->mbl_no ?? '',
-                    $c->oceanImport->carrier->name ?? '',
-                    $c->oceanImport->vessel->name ?? '',
-                    $c->oceanImport->portOfLoading->name ?? '',
-                    $c->oceanImport->portOfDischarge->name ?? '',
-                    $c->oceanImport->voyage ?? '',
-                    $c->oceanImport->dmCustomer->name ?? '',
+                    $c->oceanImport?->cfsLocation?->name ?? ($c->oceanImport?->cyLocation?->name ?? ''),
+                    $c->oceanImport?->dmConsignee?->name ?? '',
+                    ($c->oceanImport && $c->oceanImport->hbls && $c->oceanImport->hbls->count()) ? $c->oceanImport->hbls->pluck('hbl_no')->filter()->join(', ') : '',
+                    $c->oceanImport?->mbl_no ?? '',
+                    $c->oceanImport?->carrier?->name ?? '',
+                    $c->oceanImport?->vessel?->name ?? '',
+                    $c->oceanImport?->portOfLoading?->name ?? '',
+                    $c->oceanImport?->portOfDischarge?->name ?? '',
+                    $c->oceanImport?->voyage ?? '',
+                    $c->oceanImport?->dmCustomer?->name ?? '',
                     $c->gate_in_date ? $c->gate_in_date->format('Y-m-d') : '',
                     $c->gate_out_date ? $c->gate_out_date->format('Y-m-d') : '',
                     $c->pickup_date ? $c->pickup_date->format('Y-m-d') : '',
@@ -2463,7 +2467,7 @@ $ports = Port::where('type', 'SEA')
                     $c->cnru_no ?? '',
                     $c->yard_location ?? '',
                     $c->is_avail_pickup ? 'Yes' : 'No',
-                    $c->trucker->name ?? '',
+                    $c->trucker?->name ?? '',
                     $c->chassis_days ?? '',
                     $c->is_customs_hold ? 'Yes' : 'No',
                     $c->is_an_sent ? 'Yes' : 'No',

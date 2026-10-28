@@ -22,7 +22,7 @@
                     $modules = [
                         'Ocean Import', 'Ocean Export', 'Air Import', 'Air Export',
                         'Truck Shipment', 'Warehouse & Distribution', 'Accounting',
-                        'CRM', 'Master Data', 'Settings', 'General'
+                        'CRM', 'Customers', 'Master Data', 'Reports', 'Settings', 'General'
                     ];
                 @endphp
                 @foreach($modules as $mod)

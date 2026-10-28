@@ -90,3 +90,4 @@ OK (1 test, 1 assertion)
 - [x] Overwritten File Number prevented? `mbl.file_no` explicitly stripped by `FormDataMapper` and excluded from `SchemaBuilder`.
 - [x] Null to 0 coercion? None in DTOs or registry.
 - [x] Exit gate passed? All 4 checks green.
+

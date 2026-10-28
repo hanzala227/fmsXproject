@@ -62,6 +62,9 @@ class AirExportService
         return DB::transaction(function () use ($data) {
             $data = $this->coerceNumericDefaults($data);
             $data = $this->syncRouteDefaults($data);
+            if (empty($data['file_no'])) {
+                $data['file_no'] = \App\Services\DocumentSequenceService::generateBookingNo('MAE', AirExport::class);
+            }
             $airExport = AirExport::create($data);
 
             if (isset($data['hbls']) && is_array($data['hbls'])) {
@@ -122,7 +125,7 @@ class AirExportService
 
             if (isset($data['charges'])) {
                 $submittedChargeIds = collect($data['charges'])->pluck('id')->filter()->toArray();
-                $airExport->charges()->whereNotIn('id', $submittedChargeIds)->delete();
+                $airExport->charges()->where('is_invoiced', false)->whereNotIn('id', $submittedChargeIds)->delete();
 
                 foreach ($data['charges'] as $chargeData) {
                     if (!empty($chargeData['id'])) {
@@ -135,7 +138,7 @@ class AirExportService
                     }
                 }
             } else {
-                $airExport->charges()->delete();
+                $airExport->charges()->where('is_invoiced', false)->delete();
             }
 
             $airExport->statusLogs()->create([

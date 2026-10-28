@@ -195,4 +195,14 @@ class TruckShipment extends Model
     {
         return $this->hasMany(TruckShipmentContainer::class);
     }
+
+    public function commodities()
+    {
+        return $this->hasMany(TruckShipmentCommodity::class);
+    }
+
+    public function warehouseReceipts()
+    {
+        return $this->hasMany(WarehouseReceipt::class, 'truck_shipment_id');
+    }
 }

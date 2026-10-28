@@ -257,7 +257,7 @@ class AirImportService
             // Handle charges - delete removed ones, update existing, add new
             if (isset($data['charges'])) {
                 $submittedChargeIds = collect($data['charges'])->pluck('id')->filter()->toArray();
-                $airImport->charges()->whereNotIn('id', $submittedChargeIds)->delete();
+                $airImport->charges()->where('is_invoiced', false)->whereNotIn('id', $submittedChargeIds)->delete();
 
                 foreach ($data['charges'] as $chargeData) {
                     if (!empty($chargeData['id'])) {
@@ -270,7 +270,7 @@ class AirImportService
                     }
                 }
             } else {
-                $airImport->charges()->delete();
+                $airImport->charges()->where('is_invoiced', false)->delete();
             }
 
             // Log history
