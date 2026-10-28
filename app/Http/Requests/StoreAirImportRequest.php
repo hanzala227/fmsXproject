@@ -24,7 +24,7 @@ class StoreAirImportRequest extends FormRequest
         return [
             // Required fields
             'file_no' => 'required|string|unique:air_imports,file_no',
-            'mawb_no' => ['required', 'string', 'max:255', 'unique:air_imports,mawb_no', new IataMawbRule()],
+            'mawb_no' => 'required|string|max:255|unique:air_imports,mawb_no',
             'office_id' => 'required|exists:offices,id',
             'eta' => 'nullable|date|after_or_equal:etd',
             

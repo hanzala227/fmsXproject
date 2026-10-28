@@ -45,7 +45,7 @@ class AirExportController extends Controller
         $offices = Office::where('is_active', true)->get();
         $users = \App\Models\User::all();
         $agents = TradePartner::whereNotNull('name')->where(function($q) { $q->where('type', 'carrier')->orWhereNull('type'); })->orderBy('name')->get();
-        $ports = Port::all();
+        $ports = Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(10)->get();
 
         return view('air-export.list', compact('shipments', 'offices', 'users', 'agents', 'ports'));
     }
@@ -130,13 +130,17 @@ class AirExportController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(15)->get();
         $agents = TradePartner::all();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
         if ($carriers->isEmpty()) $carriers = $agents;
+        if (isset($airExport) && $airExport->carrier_id && !$carriers->contains('id', $airExport->carrier_id)) {
+            $c = TradePartner::find($airExport->carrier_id);
+            if ($c) $carriers->push($c);
+        }
 
         $page = $request->segment(2);
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
@@ -366,13 +370,45 @@ class AirExportController extends Controller
         $airExport->load(['hbls.customer', 'hbls.shipper', 'hbls.consignee', 'charges.currency', 'charges.vendor', 'charges.billTo', 'documents']);
         
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::all();
+
+        $selectedPortIds = array_filter([
+            $airExport->dep_port_id,
+            $airExport->dst_port_id,
+            $airExport->delivery_port_id,
+            $airExport->trans_port_id,
+            $airExport->trans_port1_id,
+            $airExport->trans_port2_id,
+            $airExport->trans_port3_id,
+        ]);
+        if (!empty($airExport->routes) && is_array($airExport->routes)) {
+            foreach ($airExport->routes as $r) {
+                if (!empty($r['airport_id'])) $selectedPortIds[] = (int) $r['airport_id'];
+            }
+        }
+        if ($airExport->hbls) {
+            foreach ($airExport->hbls as $hbl) {
+                if (!empty($hbl->departure)) $selectedPortIds[] = (int) $hbl->departure;
+                if (!empty($hbl->destination)) $selectedPortIds[] = (int) $hbl->destination;
+            }
+        }
+        $selectedPortIds = array_unique(array_filter($selectedPortIds));
+
+        $recentAirportPortIds = Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(15)->pluck('id')->toArray();
+        $allPortIds = array_unique(array_merge($selectedPortIds, $recentAirportPortIds));
+
+        $ports = Port::whereIn('id', $allPortIds)
+            ->orderBy('name')
+            ->get();
         $agents = TradePartner::all();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
         if ($carriers->isEmpty()) $carriers = $agents;
+        if (isset($airExport) && $airExport->carrier_id && !$carriers->contains('id', $airExport->carrier_id)) {
+            $c = TradePartner::find($airExport->carrier_id);
+            if ($c) $carriers->push($c);
+        }
 
         $quotations = \App\Models\Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Air Export')->latest()->get();
         
@@ -483,25 +519,7 @@ class AirExportController extends Controller
             'percentage_filled' => round((count($filled) / count($allFields)) * 100, 2),
         ];
 
-        \Log::info('=== AIR EXPORT UPDATE - FIELD DIAGNOSTIC ===');
-        \Log::info('Shipment ID: ' . $airExport->id . ' | File No: ' . $airExport->file_no);
-        \Log::info('Total Fields: ' . $report['total_fields']);
-        \Log::info('Filled: ' . $report['filled_count'] . ' (' . $report['percentage_filled'] . '%)');
-        \Log::info('Empty: ' . $report['empty_count']);
-        \Log::info('');
-        \Log::info('FILLED FIELDS:');
-        foreach ($filled as $f) {
-            $value = $requestData[$f];
-            if (is_bool($value)) $value = $value ? 'true' : 'false';
-            if (is_array($value)) $value = json_encode($value);
-            \Log::info('  ✓ ' . $f . ' = ' . $value);
-        }
-        \Log::info('');
-        \Log::info('EMPTY FIELDS:');
-        foreach ($empty as $f) {
-            \Log::info('  ✗ ' . $f);
-        }
-        \Log::info('=========================================');
+        \Log::info('AirExport Update: ID ' . $airExport->id . ' | File: ' . $airExport->file_no . ' | Filled: ' . $report['filled_count'] . '/' . $report['total_fields'] . ' (' . $report['percentage_filled'] . '%)');
 
         $this->airExportService->update($airExport, $requestData);
 
@@ -598,7 +616,7 @@ class AirExportController extends Controller
         $offices = Office::where('is_active', true)->get();
         $operators = \App\Models\User::orderBy('name')->get();
         $carriers = TradePartner::whereNotNull('name')->where(function($q) { $q->where('type', 'carrier')->orWhereNull('type'); })->orderBy('name')->get();
-        $ports = \App\Models\Port::all();
+        $ports = \App\Models\Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(10)->get();
         $users = \App\Models\User::all();
 
         return view('air-export.mbl-list', compact('shipments', 'users', 'offices', 'operators', 'carriers', 'ports'));

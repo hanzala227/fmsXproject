@@ -581,6 +581,12 @@ if (search.length > 0 && search.length < 2) {
         select.style.border = 'none';
         select.tabIndex = -1;
 
+        // Prevent HTML5 "An invalid form control is not focusable" when hidden select has required
+        if (select.hasAttribute('required')) {
+            select.removeAttribute('required');
+            select.setAttribute('data-fms-required', 'true');
+        }
+
         // Insert wrapper before select, then place select inside wrapper
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(select);

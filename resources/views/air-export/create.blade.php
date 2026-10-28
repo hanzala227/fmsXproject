@@ -196,8 +196,8 @@
                     mawb_no: '{{ isset($airExport) ? $airExport->mawb_no : "" }}',
                     office: '{{ isset($airExport) ? $airExport->office_id : "" }}',
                     carrier: '{{ isset($airExport) ? $airExport->carrier_id : "" }}',
-                    issuing_carrier: '{{ isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX" }}',
-                    awb_type: '{{ isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL" }}',
+                    issuing_carrier: @json(isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX"),
+                    awb_type: @json(isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL"),
                     awb_date: '{{ isset($airExport) && $airExport->awb_date ? \Carbon\Carbon::parse($airExport->awb_date)->format("Y-m-d") : "" }}',
                     shipper: '{{ isset($airExport) ? $airExport->shipper_id : "" }}',
                     consignee: '{{ isset($airExport) ? $airExport->consignee_id : "" }}',
@@ -207,21 +207,21 @@
                     co_loader: '{{ isset($airExport) ? $airExport->forwarding_agent_id : "" }}',
                     actual_shipper: '{{ isset($airExport) ? $airExport->actual_shipper_id : "" }}',
                     op: '{{ isset($airExport) ? $airExport->op_id : auth()->id() }}',
-                    itn_no: '{{ isset($airExport) ? $airExport->itn_no : "" }}',
-                    cers_no: '{{ isset($airExport) ? $airExport->cers_no : "" }}',
-                    reference_no: '{{ isset($airExport) ? $airExport->reference_no : "" }}',
+                    itn_no: @json(isset($airExport) ? ($airExport->itn_no ?? "") : ""),
+                    cers_no: @json(isset($airExport) ? ($airExport->cers_no ?? "") : ""),
+                    reference_no: @json(isset($airExport) ? ($airExport->reference_no ?? "") : ""),
                     display_unit: '{{ isset($airExport) && $airExport->display_unit ? $airExport->display_unit : "BOTH" }}',
                     departure: '{{ isset($airExport) ? $airExport->dep_port_id : "" }}',
                     destination: '{{ isset($airExport) ? $airExport->dst_port_id : "" }}',
-                    flight_no: '{{ isset($airExport) ? $airExport->flight_no : "" }}',
+                    flight_no: @json(isset($airExport) ? ($airExport->flight_no ?? "") : ""),
                     cargo_ready_date: '{{ isset($airExport) && $airExport->cargo_ready_date ? \Carbon\Carbon::parse($airExport->cargo_ready_date)->format("Y-m-d") : "" }}',
                     etd: '{{ isset($airExport) && $airExport->etd ? \Carbon\Carbon::parse($airExport->etd)->format("Y-m-d") : "" }}',
                     atd: '{{ isset($airExport) && $airExport->atd ? \Carbon\Carbon::parse($airExport->atd)->format("Y-m-d") : "" }}',
                     eta: '{{ isset($airExport) && $airExport->eta ? \Carbon\Carbon::parse($airExport->eta)->format("Y-m-d") : "" }}',
                     ata: '{{ isset($airExport) && $airExport->ata ? \Carbon\Carbon::parse($airExport->ata)->format("Y-m-d") : "" }}',
-                    dv_carriage: '{{ isset($airExport) && $airExport->dv_carriage ? $airExport->dv_carriage : "N.V.D." }}',
-                    dv_customs: '{{ isset($airExport) && $airExport->dv_customs ? $airExport->dv_customs : "N.C.V." }}',
-                    insurance: '{{ isset($airExport) && $airExport->insurance ? $airExport->insurance : "N.I.L." }}',
+                    dv_carriage: @json(isset($airExport) && $airExport->dv_carriage ? $airExport->dv_carriage : "N.V.D."),
+                    dv_customs: @json(isset($airExport) && $airExport->dv_customs ? $airExport->dv_customs : "N.C.V."),
+                    insurance: @json(isset($airExport) && $airExport->insurance ? $airExport->insurance : "N.I.L."),
                     wt_val: '{{ isset($airExport) && $airExport->wt_val ? $airExport->wt_val : "P" }}',
                     other_term: '{{ isset($airExport) && $airExport->other_term ? $airExport->other_term : "P" }}',
                     pkg_qty: '{{ isset($airExport) ? $airExport->pkg_qty : "" }}',
@@ -232,20 +232,20 @@
                     buying_rate: '{{ isset($airExport) ? $airExport->buying_rate : "" }}',
                     selling_rate: '{{ isset($airExport) ? $airExport->selling_rate : "" }}',
                     sales_type: '{{ isset($airExport) ? $airExport->sales_type : "" }}',
-                    internal_remark: '{{ isset($airExport) ? $airExport->internal_remark : "" }}',
+                    internal_remark: @json(isset($airExport) ? ($airExport->internal_remark ?? "") : ""),
                     dm_customer_id: '{{ isset($airExport) ? $airExport->dm_customer_id : "" }}',
                     dm_sales_person_id: '{{ isset($airExport) ? $airExport->dm_sales_person_id : "" }}',
                     dm_shipper_id: '{{ isset($airExport) ? $airExport->dm_shipper_id : "" }}',
                     dm_bill_to_id: '{{ isset($airExport) ? $airExport->dm_bill_to_id : "" }}',
                     dm_consignee_id: '{{ isset($airExport) ? $airExport->dm_consignee_id : "" }}',
                     dm_notify_id: '{{ isset($airExport) ? $airExport->dm_notify_id : "" }}',
-                    cargo_type: '{{ isset($airExport) && $airExport->cargo_type ? $airExport->cargo_type : "GENERAL CARGO" }}',
+                    cargo_type: @json(isset($airExport) && $airExport->cargo_type ? $airExport->cargo_type : "GENERAL CARGO"),
                     routes: @json(isset($airExport) && !empty($airExport->routes) ? (is_array($airExport->routes) ? $airExport->routes : json_decode($airExport->routes, true)) : []),
                     other_charges: @json(isset($airExport) && !empty($airExport->other_charges) ? (is_array($airExport->other_charges) ? $airExport->other_charges : json_decode($airExport->other_charges, true)) : []),
                     charges: @json($chargesData ?? []),
                     accounting_info: @json(isset($airExport) && !empty($airExport->accounting_info) ? (is_array($airExport->accounting_info) ? $airExport->accounting_info : json_decode($airExport->accounting_info, true)) : []),
                     commodities: @json(isset($airExport) && !empty($airExport->commodities) ? (is_array($airExport->commodities) ? $airExport->commodities : json_decode($airExport->commodities, true)) : []),
-                    memo: '{{ isset($airExport) ? $airExport->internal_remark : "" }}'
+                    memo: @json(isset($airExport) ? ($airExport->internal_remark ?? "") : "")
                 },
                 addRoute() {
                     if (!this.form.routes || !Array.isArray(this.form.routes)) {
@@ -1733,21 +1733,31 @@
                     agent_type: 'master'
                 },
                 get masterAgentName() {
-                    return '{{ isset($airExport) && $airExport->overseaAgent ? addslashes($airExport->overseaAgent->name) : "SHAWON LOGISTICS CO., LTD" }}';
+                    return @json(isset($airExport) && $airExport->overseaAgent ? $airExport->overseaAgent->name : "SHAWON LOGISTICS CO., LTD");
                 },
                 get subAgentName() {
-                    return '{{ isset($airExport) && $airExport->forwardingAgent ? addslashes($airExport->forwardingAgent->name) : "SUB AGENT LOGISTICS INC." }}';
+                    return @json(isset($airExport) && $airExport->forwardingAgent ? $airExport->forwardingAgent->name : "SUB AGENT LOGISTICS INC.");
                 },
                 portsMap: {
                     @foreach($ports as $port)
-                    "{{ $port->id }}": "{!! addslashes($port->name) !!}",
+                    "{{ $port->id }}": @json($port->name),
                     @endforeach
                 },
                 get depPortName() {
-                    return this.portsMap[this.form.departure] || '{{ isset($airExport) && $airExport->depPort ? addslashes($airExport->depPort->name) : "LOS ANGELES INT\'L" }}';
+                    if (this.portsMap[this.form.departure]) return this.portsMap[this.form.departure];
+                    const sel = document.querySelector('select[name="dep_port_id"]');
+                    if (sel && sel.selectedOptions && sel.selectedOptions[0] && sel.selectedOptions[0].value) {
+                        return sel.selectedOptions[0].textContent.trim();
+                    }
+                    return @json(isset($airExport) && $airExport->depPort ? $airExport->depPort->name : "LOS ANGELES INT'L");
                 },
                 get dstPortName() {
-                    return this.portsMap[this.form.destination] || '{{ isset($airExport) && $airExport->dstPort ? addslashes($airExport->dstPort->name) : "AMSTERDAM AIRPORT" }}';
+                    if (this.portsMap[this.form.destination]) return this.portsMap[this.form.destination];
+                    const sel = document.querySelector('select[name="dst_port_id"]');
+                    if (sel && sel.selectedOptions && sel.selectedOptions[0] && sel.selectedOptions[0].value) {
+                        return sel.selectedOptions[0].textContent.trim();
+                    }
+                    return @json(isset($airExport) && $airExport->dstPort ? $airExport->dstPort->name : "AMSTERDAM AIRPORT");
                 },
                 get etdDisplay() {
                     if (this.form.etd) {
@@ -2036,7 +2046,7 @@
     </script>
 <div x-data="window.airExportModule()" x-init="init()" x-cloak>
         <div class="page-content">
-        <form id="airExportForm" action="{{ isset($airExport) && $airExport->id ? route('air-export.update', $airExport->id) : route('air-export.store') }}" method="POST">
+        <form id="airExportForm" action="{{ isset($airExport) && $airExport->id ? route('air-export.update', $airExport->id) : route('air-export.store') }}" method="POST" novalidate>
             @csrf
             @if(isset($airExport) && $airExport->id) @method('PUT') @endif
             @include('partials.shipment-success-popup')
@@ -2153,7 +2163,7 @@
                             <!-- Row 3 -->
                             <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><x-inline-select name="shipper_id" :options="$agents" module="trade-partner" x-model="form.shipper" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container">
-                                <select name="office_id" class="form-control-gf" required x-model="form.office">
+                                <select name="office_id" class="form-control-gf" x-model="form.office">
                                     <option value="">Select Office...</option>
                                     @foreach($offices as $office)
                                         <option value="{{ $office->id }}">{{ $office->name }}</option>

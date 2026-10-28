@@ -25,7 +25,7 @@ class UpdateAirImportRequest extends FormRequest
         
         return [
             'file_no' => 'required|string|unique:air_imports,file_no,' . $id,
-            'mawb_no' => ['nullable', 'string', 'unique:air_imports,mawb_no,' . $id, new IataMawbRule()],
+            'mawb_no' => 'nullable|string|unique:air_imports,mawb_no,' . $id,
             'post_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
             'op_id' => 'nullable|exists:users,id',

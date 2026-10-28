@@ -197,10 +197,10 @@
                             <div>
                                 <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Received From</label>
                                     <div class="form-input-container">
-                                        <select name="trade_partner_id" class="form-control-gf" x-model="form.trade_partner_id" required>
+                                        <select name="trade_partner_id" class="form-control-gf" x-model="form.trade_partner_id" @change="onTradePartnerChanged($event.target.value)" required>
                                             <option value="">Select...</option>
                                             @foreach($tradePartners as $tp)
-                                            <option value="{{ $tp->id }}">{{ $tp->name }}</option>
+                                            <option value="{{ $tp->id }}" {{ old('trade_partner_id', $payment?->trade_partner_id ?? $selectedInvoice?->bill_to_id ?? '') == $tp->id ? 'selected' : '' }}>{{ $tp->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -217,7 +217,7 @@
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Amount</label>
                                     <div class="form-input-container">
-                                        <input type="number" step="0.01" min="0" name="amount" class="form-control-gf input-number" x-model="form.amount" required>
+                                        <input type="number" step="0.01" min="0" name="amount" class="form-control-gf input-number" x-model="form.amount" @input="onAmountInput()" required>
                                     </div>
                                 </div>
                             </div>
@@ -244,7 +244,7 @@
                                         <select name="currency_id" class="form-control-gf" x-model="form.currency_id" required>
                                             <option value="">Select...</option>
                                             @foreach($currencies as $currency)
-                                            <option value="{{ $currency->id }}">{{ $currency->code }}</option>
+                                            <option value="{{ $currency->id }}" {{ old('currency_id', $payment?->currency_id ?? $selectedInvoice?->currency_id ?? '') == $currency->id ? 'selected' : '' }}>{{ $currency->code }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -254,7 +254,9 @@
                                         <select name="invoice_id" class="form-control-gf" x-model="form.invoice_id" @change="onInvoiceSelected($event.target.value)">
                                             <option value="">Select invoice (optional)</option>
                                             @foreach($invoices as $inv)
-                                            <option value="{{ $inv->id }}" {{ old('invoice_id', $payment?->invoice_id ?? $selectedInvoiceId ?? '') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }} — {{ $inv->billTo->name ?? 'N/A' }} — ${{ number_format($inv->balance_amount ?? $inv->total_amount, 2) }}</option>
+                                            <option value="{{ $inv->id }}" 
+                                                x-show="!form.trade_partner_id || form.trade_partner_id == '{{ $inv->bill_to_id }}'"
+                                                {{ old('invoice_id', $payment?->invoice_id ?? $selectedInvoiceId ?? '') == $inv->id ? 'selected' : '' }}>{{ $inv->invoice_no }} — {{ $inv->billTo->name ?? 'N/A' }} — ${{ number_format($inv->balance_amount ?? $inv->total_amount, 2) }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -344,12 +346,12 @@
                         <div style="display:flex;align-items:center;gap:8px;">
                             <a href="{{ route('accounting.invoices.create') }}" class="btn-tool-icon" style="background:#22c55e;color:#fff;border:none;width:22px;height:22px;font-size:10px;cursor:pointer;border-radius:3px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;" title="Create New Invoice" target="_blank"><i class="fa fa-plus"></i></a>
                             <span style="font-size:12px;font-weight:700;color:#1e293b;"><i class="fa fa-list" style="color:#3b82f6;margin-right:4px;"></i> Invoice List</span>
-                            <span style="font-size:9px;color:#94a3b8;margin-left:4px;">({{ $invoices->count() }} rows)</span>
+                            <span style="font-size:9px;color:#94a3b8;margin-left:4px;">(<span x-text="visibleInvoiceCount"></span> rows)</span>
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:10px;color:#64748b;">Filtered By:</span>
                             <span style="font-size:9px;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:3px;font-weight:600;">Type: {{ $type === 'RECEIVED' ? 'AR Invoice' : 'AP Invoice' }}</span>
-                            <span style="font-size:9px;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:3px;font-weight:600;">Status: Outstanding</span>
+                            <span style="font-size:9px;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:3px;font-weight:600;" x-text="form.trade_partner_id ? 'Partner Invoices' : 'Status: Outstanding'"></span>
                             <select class="form-control-gf" style="height:20px;font-size:9px;padding:0 4px;width:auto;display:inline-block;" onchange="filterByOffice(this.value)">
                                 <option value="">Office: All</option>
                                 @foreach($offices as $office)
@@ -673,17 +675,23 @@
                 voidDate: editPayment && editPayment.void_date ? editPayment.void_date.substring(0, 10) : '',
 
                 form: {
-                    trade_partner_id: '{{ old("trade_partner_id", $payment?->trade_partner_id ?? "") }}',
-                    payment_no: '{{ old("payment_no", $paymentNo) }}',
+                    trade_partner_id: '{{ old("trade_partner_id", $payment?->trade_partner_id ?? $selectedInvoice?->bill_to_id ?? "") }}',
+                    payment_no: '{{ old("payment_no", $payment?->payment_no ?? $paymentNo) }}',
                     payment_date: '{{ old("payment_date", $payment?->payment_date?->format("Y-m-d") ?? date("Y-m-d")) }}',
-                    amount: '{{ old("amount", $payment?->amount ?? "0.00") }}',
+                    amount: '{{ old("amount", $payment?->amount ?? ($selectedInvoice ? number_format($selectedInvoice->balance_amount > 0 ? $selectedInvoice->balance_amount : $selectedInvoice->total_amount, 2, ".", "") : "0.00")) }}',
                     payment_method: '{{ old("payment_method", $payment?->payment_method ?? "BANK_TRANSFER") }}',
-                    currency_id: '{{ old("currency_id", $payment?->currency_id ?? "") }}',
+                    currency_id: '{{ old("currency_id", $payment?->currency_id ?? $selectedInvoice?->currency_id ?? "") }}',
                     invoice_id: '{{ old("invoice_id", $payment?->invoice_id ?? $selectedInvoiceId ?? "") }}',
                 },
 
-                currentInvoiceMbl: '',
-                currentInvoiceHbl: '',
+                currentInvoiceMbl: '{{ addslashes($payment?->invoice?->master_bl_no ?? $selectedInvoice?->master_bl_no ?? "") }}',
+                currentInvoiceHbl: '{{ addslashes($payment?->invoice?->house_bl_no ?? $selectedInvoice?->house_bl_no ?? "") }}',
+
+                get visibleInvoiceCount() {
+                    const allInvoices = @json($invoices);
+                    if (!this.form.trade_partner_id) return allInvoices.length;
+                    return allInvoices.filter(i => String(i.bill_to_id) === String(this.form.trade_partner_id)).length;
+                },
 
                 allocationAmounts: {},
                 allocationRMB: {},
@@ -725,15 +733,19 @@
                     if (this.form.invoice_id) {
                         const initInv = allInvoices.find(i => String(i.id) === String(this.form.invoice_id));
                         if (initInv) {
-                            this.currentInvoiceMbl = initInv.master_bl_no || '';
-                            this.currentInvoiceHbl = initInv.house_bl_no || '';
+                            if (!this.currentInvoiceMbl) this.currentInvoiceMbl = initInv.master_bl_no || '';
+                            if (!this.currentInvoiceHbl) this.currentInvoiceHbl = initInv.house_bl_no || '';
+                            if (!this.form.trade_partner_id && initInv.bill_to_id) this.form.trade_partner_id = String(initInv.bill_to_id);
+                            if (!this.form.currency_id && initInv.currency_id) this.form.currency_id = String(initInv.currency_id);
                         }
                     }
 
                     // If editing existing payment, populate invoice
                     @if($payment && $payment->invoice_id)
-                    this.allocationAmounts[{{ $payment->invoice_id }}] = {{ $payment->amount ?? 0 }};
-                    this.selectedInvoices.push({ id: {{ $payment->invoice_id }}, inv_no: '{{ $payment->invoice->invoice_no ?? "" }}' });
+                    this.allocationAmounts[{{ $payment->invoice_id }}] = '{{ number_format($payment->amount ?? 0, 2, ".", "") }}';
+                    if (!this.selectedInvoices.some(i => Number(i.id) === {{ $payment->invoice_id }})) {
+                        this.selectedInvoices.push({ id: {{ $payment->invoice_id }}, inv_no: '{{ $payment->invoice->invoice_no ?? "" }}' });
+                    }
                     this.recalcTotal();
                     @endif
 
@@ -746,24 +758,55 @@
                         const inv = allInvoices.find(i => Number(i.id) === Number(id));
                         if (inv) {
                             if (!firstInvoice) firstInvoice = inv;
-                            this.selectedInvoices.push({ id: inv.id, inv_no: inv.invoice_no });
-                            const balanceAmount = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined ? inv.balance_amount : inv.total_amount) || 0;
+                            if (!this.selectedInvoices.some(i => Number(i.id) === Number(inv.id))) {
+                                this.selectedInvoices.push({ id: inv.id, inv_no: inv.invoice_no });
+                            }
+                            const balanceAmount = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined && Number(inv.balance_amount) > 0 ? inv.balance_amount : inv.total_amount) || 0;
                             this.allocationAmounts[inv.id] = balanceAmount.toFixed(2);
                         }
                     });
 
                     if (firstInvoice) {
-                        this.form.trade_partner_id = String(firstInvoice.bill_to_id || '');
-                        this.form.currency_id = String(firstInvoice.currency_id || '');
-                        if (!this.form.invoice_id) {
-                            this.form.invoice_id = String(firstInvoice.id);
-                            this.currentInvoiceMbl = firstInvoice.master_bl_no || '';
-                            this.currentInvoiceHbl = firstInvoice.house_bl_no || '';
-                        }
+                        if (!this.form.trade_partner_id) this.form.trade_partner_id = String(firstInvoice.bill_to_id || '');
+                        if (!this.form.currency_id) this.form.currency_id = String(firstInvoice.currency_id || '');
+                        if (!this.form.invoice_id) this.form.invoice_id = String(firstInvoice.id);
+                        this.currentInvoiceMbl = firstInvoice.master_bl_no || '';
+                        this.currentInvoiceHbl = firstInvoice.house_bl_no || '';
                     }
 
                     this.recalcTotal();
                     @endif
+                },
+
+                onTradePartnerChanged(partnerId) {
+                    if (partnerId) {
+                        const allInvoices = @json($invoices);
+                        const currentInv = allInvoices.find(i => String(i.id) === String(this.form.invoice_id));
+                        if (currentInv && String(currentInv.bill_to_id) !== String(partnerId)) {
+                            this.form.invoice_id = '';
+                            this.currentInvoiceMbl = '';
+                            this.currentInvoiceHbl = '';
+                        }
+                        this.selectedInvoices = this.selectedInvoices.filter(i => {
+                            const inv = allInvoices.find(ai => Number(ai.id) === Number(i.id));
+                            if (inv && String(inv.bill_to_id) !== String(partnerId)) {
+                                delete this.allocationAmounts[i.id];
+                                return false;
+                            }
+                            return true;
+                        });
+                        this.recalcTotal();
+                    }
+                },
+
+                onAmountInput() {
+                    if (this.selectedInvoices.length === 1) {
+                        const invId = this.selectedInvoices[0].id;
+                        this.allocationAmounts[invId] = this.form.amount;
+                        let total = 0;
+                        Object.values(this.allocationAmounts).forEach(val => { total += parseFloat(val) || 0; });
+                        this.totalAllocated = total;
+                    }
                 },
 
                 onInvoiceSelected(invoiceId) {
@@ -776,7 +819,7 @@
                         if (inv.currency_id) this.form.currency_id = String(inv.currency_id);
                         if (!this.selectedInvoices.some(i => Number(i.id) === Number(inv.id))) {
                             this.selectInvoice(inv.id, inv.invoice_no);
-                            const balance = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined ? inv.balance_amount : inv.total_amount) || 0;
+                            const balance = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined && Number(inv.balance_amount) > 0 ? inv.balance_amount : inv.total_amount) || 0;
                             this.allocationAmounts[inv.id] = balance.toFixed(2);
                             this.recalcTotal();
                         }
@@ -796,7 +839,10 @@
                 selectInvoice(id, invNo) {
                     if (!this.selectedInvoices.some(i => i.id === id)) {
                         this.selectedInvoices.push({ id, inv_no: invNo });
-                        this.allocationAmounts[id] = this.allocationAmounts[id] || 0;
+                        const allInvoices = @json($invoices);
+                        const inv = allInvoices.find(i => Number(i.id) === Number(id));
+                        const balance = inv ? (parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined && Number(inv.balance_amount) > 0 ? inv.balance_amount : inv.total_amount) || 0) : 0;
+                        this.allocationAmounts[id] = this.allocationAmounts[id] || balance.toFixed(2);
                     }
                     if (!this.form.invoice_id) {
                         this.form.invoice_id = String(id);
@@ -806,12 +852,29 @@
                     if (inv) {
                         this.currentInvoiceMbl = inv.master_bl_no || '';
                         this.currentInvoiceHbl = inv.house_bl_no || '';
+                        if (!this.form.trade_partner_id && inv.bill_to_id) this.form.trade_partner_id = String(inv.bill_to_id);
+                        if (!this.form.currency_id && inv.currency_id) this.form.currency_id = String(inv.currency_id);
                     }
                     this.recalcTotal();
                 },
                 deselectInvoice(id) {
                     this.selectedInvoices = this.selectedInvoices.filter(i => i.id !== id);
                     delete this.allocationAmounts[id];
+                    if (String(this.form.invoice_id) === String(id)) {
+                        if (this.selectedInvoices.length > 0) {
+                            this.form.invoice_id = String(this.selectedInvoices[0].id);
+                            const allInvoices = @json($invoices);
+                            const nextInv = allInvoices.find(i => Number(i.id) === Number(this.form.invoice_id));
+                            if (nextInv) {
+                                this.currentInvoiceMbl = nextInv.master_bl_no || '';
+                                this.currentInvoiceHbl = nextInv.house_bl_no || '';
+                            }
+                        } else {
+                            this.form.invoice_id = '';
+                            this.currentInvoiceMbl = '';
+                            this.currentInvoiceHbl = '';
+                        }
+                    }
                     this.recalcTotal();
                 },
                 updateAllocation(id) { this.recalcTotal(); },

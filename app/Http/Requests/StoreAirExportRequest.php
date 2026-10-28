@@ -50,7 +50,7 @@ class StoreAirExportRequest extends FormRequest
     {
         return [
             'file_no' => 'required|string|unique:air_exports,file_no',
-            'mawb_no' => ['nullable', 'string', new IataMawbRule()],
+            'mawb_no' => 'nullable|string',
             'booking_no' => 'nullable|string',
             'post_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',

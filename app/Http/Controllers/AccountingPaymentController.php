@@ -339,9 +339,42 @@ class AccountingPaymentController extends Controller
         
         // Filter invoices based on payment type and status
         $invoiceType = $type === 'RECEIVED' ? 'AR' : 'AP';
-        $invoiceQuery = Invoice::with(['billTo', 'currency', 'office', 'invoiceable'])
-            ->where('type', $invoiceType)
-            ->where('status', '!=', 'PAID');
+        $selectedInvoiceId = $request->input('invoice_id');
+        $selectedInvoiceIds = [];
+        if ($request->filled('invoice_ids')) {
+            $selectedInvoiceIds = array_filter(array_map('trim', explode(',', $request->input('invoice_ids'))));
+        } elseif ($selectedInvoiceId) {
+            $selectedInvoiceIds = [(string) $selectedInvoiceId];
+        }
+
+        $selectedInvoice = null;
+        if ($selectedInvoiceId) {
+            $selectedInvoice = Invoice::with(['billTo', 'currency', 'office', 'invoiceable'])->find($selectedInvoiceId);
+        }
+        
+        $targetPartnerId = $selectedInvoice?->bill_to_id ?? $request->input('trade_partner_id');
+
+        $invoiceQuery = Invoice::with(['billTo', 'currency', 'office', 'invoiceable']);
+
+        if ($targetPartnerId) {
+            $invoiceQuery->where(function($q) use ($targetPartnerId, $invoiceType, $selectedInvoiceIds) {
+                $q->where('bill_to_id', $targetPartnerId);
+                if (!empty($selectedInvoiceIds)) {
+                    $q->orWhereIn('id', $selectedInvoiceIds);
+                }
+                $q->orWhere(function($sub) use ($invoiceType) {
+                    $sub->where('type', $invoiceType)
+                        ->where('status', '!=', 'PAID');
+                });
+            });
+        } else {
+            $invoiceQuery->where(function($q) use ($invoiceType, $selectedInvoiceIds) {
+                $q->where('type', $invoiceType);
+                if (!empty($selectedInvoiceIds)) {
+                    $q->orWhereIn('id', $selectedInvoiceIds);
+                }
+            });
+        }
         
         // Apply office filter if provided
         if ($request->filled('office_id')) {
@@ -355,16 +388,13 @@ class AccountingPaymentController extends Controller
 
         $viewName = $type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
         $payment = null;
-        $selectedInvoiceId = $request->input('invoice_id');
-        $selectedInvoiceIds = [];
-        if ($request->filled('invoice_ids')) {
-            $selectedInvoiceIds = array_filter(array_map('trim', explode(',', $request->input('invoice_ids'))));
-        } elseif ($selectedInvoiceId) {
-            $selectedInvoiceIds = [(string) $selectedInvoiceId];
-        }
         $selectedOfficeId = $request->input('office_id');
         
-        return view($viewName, compact('payment', 'type', 'tradePartners', 'currencies', 'offices', 'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds', 'selectedOfficeId'));
+        return view($viewName, compact(
+            'payment', 'type', 'tradePartners', 'currencies', 'offices',
+            'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds',
+            'selectedInvoice', 'selectedOfficeId'
+        ));
     }
 
     public function store(StoreAccountingPaymentRequest $request)
@@ -381,7 +411,7 @@ class AccountingPaymentController extends Controller
         // Guard against overpayments exceeding remaining invoice balance
         if (!empty($data['invoice_id'])) {
             $invoice = Invoice::find($data['invoice_id']);
-            if ($invoice) {
+            if ($invoice && (float) $invoice->total_amount > 0) {
                 $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
                 if ((float) $data['amount'] > $remainingBalance + 0.001) {
                     $msg = "Payment amount (\${$data['amount']}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
@@ -421,20 +451,45 @@ class AccountingPaymentController extends Controller
 
     public function edit(AccountingPayment $payment)
     {
-        $payment->load(['tradePartner', 'currency', 'invoice', 'documents', 'memos.user', 'office', 'bankCurrency']);
+        $payment->load(['tradePartner', 'currency', 'invoice.invoiceable', 'documents', 'memos.user', 'office', 'bankCurrency']);
 
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->orderBy('name')->get();
-        $invoices = Invoice::with(['billTo', 'currency', 'office', 'invoiceable'])->where('status', '!=', 'PAID')
-            ->orWhere('id', $payment->invoice_id)
-            ->orderBy('invoice_date', 'desc')->get();
+
+        $invoiceType = $payment->type === 'MADE' ? 'AP' : 'AR';
+        $selectedInvoiceId = $payment->invoice_id;
+        $selectedInvoiceIds = $selectedInvoiceId ? [(string) $selectedInvoiceId] : [];
+        $selectedInvoice = $payment->invoice;
+        $targetPartnerId = $payment->trade_partner_id ?? $selectedInvoice?->bill_to_id;
+
+        $invoiceQuery = Invoice::with(['billTo', 'currency', 'office', 'invoiceable']);
+
+        if ($targetPartnerId) {
+            $invoiceQuery->where(function($q) use ($targetPartnerId, $invoiceType, $selectedInvoiceIds) {
+                $q->where('bill_to_id', $targetPartnerId);
+                if (!empty($selectedInvoiceIds)) {
+                    $q->orWhereIn('id', $selectedInvoiceIds);
+                }
+                $q->orWhere(function($sub) use ($invoiceType) {
+                    $sub->where('type', $invoiceType)
+                        ->where('status', '!=', 'PAID');
+                });
+            });
+        } else {
+            $invoiceQuery->where('type', $invoiceType);
+        }
+
+        $invoices = $invoiceQuery->orderBy('invoice_date', 'desc')->get();
 
         $paymentNo = $payment->payment_no;
         $type = $payment->type;
 
         $viewName = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
-        return view($viewName, compact('payment', 'type', 'tradePartners', 'currencies', 'offices', 'invoices', 'paymentNo'));
+        return view($viewName, compact(
+            'payment', 'type', 'tradePartners', 'currencies', 'offices',
+            'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds', 'selectedInvoice'
+        ));
     }
 
     public function update(Request $request, AccountingPayment $payment)
