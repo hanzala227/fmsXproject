@@ -208,8 +208,12 @@ class JournalEntryController extends Controller
         return response()->json($data);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        if (!$request->wantsJson() && !$request->ajax()) {
+            return redirect()->route('accounting.journal.entry', ['id' => $id]);
+        }
+
         $entry = AccountingJournal::with(['lines.glAccount', 'lines.tradePartner', 'lines.office', 'lines.currency', 'office', 'creator'])
             ->findOrFail($id);
 

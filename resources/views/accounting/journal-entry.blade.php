@@ -62,6 +62,9 @@
                 <button type="button" class="btn-default-gf" @click="resetForm()">
                     <i class="fa fa-refresh"></i> NEW ENTRY
                 </button>
+                <a href="{{ route('accounting.general-journal') }}" class="btn-default-gf" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                    <i class="fa fa-list"></i> GENERAL JOURNAL
+                </a>
                 <button type="button" class="btn-default-gf" @click="exportExcel()">
                     <i class="fa fa-file-excel-o"></i> EXCEL
                 </button>
@@ -434,7 +437,11 @@
             },
 
             init() {
-                if (this.lines.length === 0) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const editId = urlParams.get('id') || urlParams.get('entry_id');
+                if (editId) {
+                    this.editEntry(editId);
+                } else if (this.lines.length === 0) {
                     this.addBalancedPair();
                 }
             },

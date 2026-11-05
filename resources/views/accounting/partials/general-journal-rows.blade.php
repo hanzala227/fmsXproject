@@ -22,12 +22,16 @@
             @endif
         </td>
         <td>
-            <a href="{{ route('accounting.journal.show', $entry->id) }}" onclick="event.stopPropagation()" class="col-link" style="color:#2563eb;font-weight:600;text-decoration:none;">
+            <a href="{{ route('accounting.journal.entry', ['id' => $entry->id]) }}" onclick="event.stopPropagation()" class="col-link" style="color:#2563eb;font-weight:600;text-decoration:none;" title="Open in Journal Entry Form">
                 {{ $entry->entry_date?->format('Y-m-d') }}
             </a>
         </td>
         <td style="text-align:center;color:#64748b;font-size:10px;">{{ $entry->id }}</td>
-        <td style="font-weight:600;color:#3b82f6;">{{ $entry->entry_no }}</td>
+        <td style="font-weight:600;color:#3b82f6;">
+            <a href="{{ route('accounting.journal.entry', ['id' => $entry->id]) }}" onclick="event.stopPropagation()" class="col-link" style="color:#2563eb;font-weight:600;text-decoration:none;" title="Open in Journal Entry Form">
+                {{ $entry->entry_no }}
+            </a>
+        </td>
         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $entry->remark ?? $entry->description ?? '' }}">
             {{ Str::limit($entry->remark ?? $entry->description ?? '', 60) }}
         </td>
