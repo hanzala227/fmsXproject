@@ -28,15 +28,24 @@
         .btn-action-round:hover{background:#2563eb;color:#fff}
         .btn-action-round.secondary{background:#64748b;border-color:#475569}
         .btn-action-round.secondary:hover{background:#475569}
-        .btn-action-round.green{background:#22c55e;border-color:#16a34a}
-        .btn-action-round.green:hover{background:#16a34a}
-        .loading-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.7);z-index:9999;justify-content:center;align-items:center}
+        .table-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px}
+        .table-toolbar .left{display:flex;align-items:center;gap:8px}
+        .table-toolbar .right{display:flex;align-items:center;gap:6px}
+        .input-search{height:22px;border:1px solid #c2cad8;padding:1px 6px;font-size:11px;border-radius:2px;color:#333;background:#fff;width:180px}
+        .grid-container{width:100%;overflow-x:auto;background:#fff;margin-top:0}
+        .grid-table{border-collapse:collapse;width:100%;font-size:11px}
+        .grid-table th{background:#4a5568;color:#fff;font-weight:600;border:1px solid #2d3748;padding:4px 6px;white-space:nowrap;text-align:left;font-size:10px}
+        .grid-table td{padding:3px 6px;border:1px solid #e2e8f0;white-space:nowrap;color:#334155}
+        .grid-table td.num{text-align:right;font-family:'Courier New',monospace}
+        .grid-table tbody tr:hover{background:#f1f5f9}
+        .grid-table .total-row{background:#f8fafc!important;font-weight:700}
+        .grid-table .total-row td{border-top:2px solid #475569;color:#0f172a}
         .toast-container{position:fixed;top:16px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:8px}
         .toast{padding:10px 16px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.15);animation:slideIn .3s ease}
         .toast.success{background:#22c55e}
         .toast.error{background:#e73d4a}
         @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-        .info-box{margin-top:12px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;font-size:10px;color:#1e40af;line-height:1.5}
+        .partner-card{background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#1e40af}
     </style>
     @endpush
 
@@ -52,7 +61,7 @@
 
         <div class="portlet light">
             <div class="portlet-title">
-                <span class="caption-subject">Freight Statement</span>
+                <span class="caption-subject">Freight Statement Filters</span>
             </div>
             <div class="portlet-body">
                 <table class="form-table">
@@ -63,12 +72,12 @@
                                 <label><input type="radio" name="partner_type" value="agent_customer" checked id="partnerTypeAC"> Agent/Customer</label>
                                 <label><input type="radio" name="partner_type" value="account_group" id="partnerTypeAG"> Account Group</label>
                             </div>
-                            <select id="billToId" class="gf-select" style="width:220px;">
-                                <option value="">Select...</option>
+                            <select id="billToId" class="gf-select" style="width:240px;">
+                                <option value="">-- All Partners --</option>
                                 @foreach($tradePartners as $tp)<option value="{{ $tp->id }}">{{ $tp->name }}</option>@endforeach
                             </select>
-                            <select id="accountGroupId" class="gf-select" style="width:220px;display:none;">
-                                <option value="">Select...</option>
+                            <select id="accountGroupId" class="gf-select" style="width:240px;display:none;">
+                                <option value="">-- All Account Groups --</option>
                                 @foreach($accountGroups as $ag)<option value="{{ $ag }}">{{ $ag }}</option>@endforeach
                             </select>
                         </td>
@@ -90,14 +99,14 @@
                                 <select id="periodType" class="gf-select" style="width:100px;">
                                     <option value="post_date">Post Date</option>
                                 </select>
-                                <input type="date" id="asOfDate" value="{{ date('Y-m-d') }}" style="width:150px;height:22px;border:1px solid #c2cad8;padding:1px 4px;font-size:11px;border-radius:2px;">
+                                <input type="date" id="asOfDate" value="{{ date('Y-m-d') }}" style="width:130px;height:22px;border:1px solid #c2cad8;padding:1px 4px;font-size:11px;border-radius:2px;">
                                 <label><input type="radio" name="period_mode" value="as_of_today" checked> As of Today</label>
                             </div>
                         </td>
                         <td class="flabel">Office</td>
                         <td class="finput" colspan="2">
                             <select id="officeId" class="gf-select" style="width:220px;">
-                                <option value="">Select...</option>
+                                <option value="">-- All Offices --</option>
                                 @foreach($offices as $office)<option value="{{ $office->id }}">{{ $office->name }}</option>@endforeach
                             </select>
                         </td>
@@ -116,18 +125,86 @@
                             <div class="check-row" style="flex-wrap:wrap;">
                                 <label><input type="checkbox" id="hideOverpaid"> Do Not Show Overpaid Invoice(s)</label>
                                 <label><input type="checkbox" id="invoiceLocalReceived"> Invoice(Local A/R) Received Only</label>
-                                <label><input type="checkbox" id="showBookingNumber"> Show Booking Number</label>
+                                <label><input type="checkbox" id="showBookingNumber" checked> Show Booking Number</label>
                             </div>
                         </td>
                     </tr>
                 </table>
                 <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;">
-                    <button type="button" class="btn-search-gf" id="btnSearch"><i class="fa fa-search"></i> View</button>
+                    <button type="button" class="btn-search-gf" id="btnSearch"><i class="fa fa-search"></i> View Statement</button>
                 </div>
             </div>
         </div>
 
+        {{-- Results Section --}}
+        <div id="resultsSection" style="display:none;">
+            <div id="partnerInfoBox" class="partner-card" style="display:none;">
+                <div style="font-weight:700;font-size:12px;" id="piName"></div>
+                <div id="piDetails" style="font-size:10px;color:#475569;margin-top:2px;"></div>
+            </div>
 
+            <div class="table-toolbar">
+                <div class="left">
+                    <span style="font-size:11px;font-weight:700;color:#1e293b;">Statement Details:</span>
+                    <span id="recordCount" style="font-size:11px;color:#64748b;font-weight:600;"></span>
+                </div>
+                <div class="right">
+                    <input type="text" class="input-search" id="quickSearch" placeholder="Quick search statement...">
+                    <button class="btn-action-round secondary" type="button" id="btnPrint" title="Print Statement"><i class="fa fa-print"></i> Print</button>
+                    <button class="btn-action-round secondary" type="button" id="btnExport" title="Export Excel"><i class="fa fa-file-excel-o"></i> Excel</button>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <table class="grid-table" id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th style="width:8%;">Post Date</th>
+                            <th style="width:8%;">ETD</th>
+                            <th style="width:11%;">Invoice No.</th>
+                            <th style="width:11%;" class="col-booking-no">Booking No.</th>
+                            <th style="width:11%;">MB/L No.</th>
+                            <th style="width:10%;">HB/L No.</th>
+                            <th style="width:14%;">Partner</th>
+                            <th style="width:5%;">Cur.</th>
+                            <th style="width:8%;text-align:right;">DRI/AR (+)</th>
+                            <th style="width:8%;text-align:right;">CRI/AP (-)</th>
+                            <th style="width:8%;text-align:right;">Paid</th>
+                            <th style="width:8%;text-align:right;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3" style="text-align:right;font-weight:700;">TOTAL (BALANCE)</td>
+                            <td class="col-booking-no"></td>
+                            <td colspan="4"></td>
+                            <td id="totalDR" class="num" style="font-weight:700;">0.00</td>
+                            <td id="totalCR" class="num" style="font-weight:700;">0.00</td>
+                            <td id="totalPaid" class="num" style="font-weight:700;">0.00</td>
+                            <td id="totalBalance" class="num" style="font-weight:700;">0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            {{-- Per-Currency Summary Breakdown --}}
+            <div id="currencySummaryBox" style="margin-top:14px;background:#fff;border:1px solid #cbd5e1;padding:10px;border-radius:2px;">
+                <div style="font-size:11px;font-weight:700;color:#1e293b;text-transform:uppercase;margin-bottom:6px;">Currency Summary</div>
+                <table class="grid-table" style="width:auto;min-width:480px;">
+                    <thead>
+                        <tr>
+                            <th>Currency</th>
+                            <th style="text-align:right;">DRI/AR (+)</th>
+                            <th style="text-align:right;">CRI/AP (-)</th>
+                            <th style="text-align:right;">Paid</th>
+                            <th style="text-align:right;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="currencySummaryBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
@@ -140,6 +217,7 @@
         var partnerTypeAG = document.getElementById('partnerTypeAG');
         var billToIdSel = document.getElementById('billToId');
         var accountGroupIdSel = document.getElementById('accountGroupId');
+        var showBookingNumberCb = document.getElementById('showBookingNumber');
 
         function togglePartnerType() {
             if (partnerTypeAG.checked) {
@@ -184,6 +262,10 @@
             setTimeout(function() { toast.remove(); }, 4000);
         }
 
+        function formatNumber(num) {
+            return (parseFloat(num) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function buildParams() {
             var params = new URLSearchParams();
             params.set('as_of_date', document.getElementById('asOfDate').value);
@@ -195,7 +277,7 @@
             params.set('payment_status', ps ? ps.value : 'all');
             params.set('hide_overpaid', document.getElementById('hideOverpaid').checked ? '1' : '0');
             params.set('invoice_local_received', document.getElementById('invoiceLocalReceived').checked ? '1' : '0');
-            params.set('show_booking_number', document.getElementById('showBookingNumber').checked ? '1' : '0');
+            params.set('show_booking_number', showBookingNumberCb.checked ? '1' : '0');
             var oe = document.getElementById('officeId');
             if (oe.value) params.set('office_id', oe.value);
             var st = [];
@@ -204,13 +286,145 @@
             return params;
         }
 
-        document.getElementById('btnSearch').addEventListener('click', function() {
-            var billTo = billToIdSel.value;
-            var accGroup = accountGroupIdSel.value;
-            if (!billTo && !accGroup) {
-                showToast('error', 'Please select a Partner or Account Group.');
+        var statementRows = [];
+
+        function renderRows(data) {
+            var tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+            var showBkg = showBookingNumberCb.checked;
+
+            // Toggle booking column visibility in table header and total
+            var bkgCols = document.querySelectorAll('.col-booking-no');
+            bkgCols.forEach(function(el) { el.style.display = showBkg ? '' : 'none'; });
+
+            if (!data || data.length === 0) {
+                var colspan = showBkg ? 12 : 11;
+                tbody.innerHTML = '<tr><td colspan="' + colspan + '" style="text-align:center;padding:25px;color:#94a3b8;">No statement records found for the selected criteria.</td></tr>';
                 return;
             }
+
+            data.forEach(function(row) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = 
+                    '<td>' + (row.invoice_date || '') + '</td>' +
+                    '<td>' + (row.etd || '') + '</td>' +
+                    '<td><strong>' + (row.invoice_no || '') + '</strong></td>' +
+                    '<td class="col-booking-no" style="' + (showBkg ? '' : 'display:none;') + '">' + (row.booking_no || '') + '</td>' +
+                    '<td>' + (row.mbl_no || '') + '</td>' +
+                    '<td>' + (row.hbl_no || '') + '</td>' +
+                    '<td>' + (row.partner_name || '') + '</td>' +
+                    '<td>' + (row.currency || 'USD') + '</td>' +
+                    '<td class="num">' + (row.dr_amount > 0 ? formatNumber(row.dr_amount) : '-') + '</td>' +
+                    '<td class="num">' + (row.cr_amount > 0 ? formatNumber(row.cr_amount) : '-') + '</td>' +
+                    '<td class="num">' + (row.paid_amount > 0 ? formatNumber(row.paid_amount) : '-') + '</td>' +
+                    '<td class="num" style="font-weight:700;' + (row.balance < 0 ? 'color:#ef4444;' : '') + '">' + formatNumber(row.balance) + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderCurrencySummary(totals) {
+            var tbody = document.getElementById('currencySummaryBody');
+            tbody.innerHTML = '';
+            if (!totals || totals.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">No currency breakdown.</td></tr>';
+                return;
+            }
+            totals.forEach(function(c) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = 
+                    '<td><strong>' + c.currency + '</strong></td>' +
+                    '<td class="num">' + formatNumber(c.dr) + '</td>' +
+                    '<td class="num">' + formatNumber(c.cr) + '</td>' +
+                    '<td class="num">' + formatNumber(c.paid) + '</td>' +
+                    '<td class="num" style="font-weight:700;">' + formatNumber(c.balance) + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('btnSearch').addEventListener('click', function() {
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Loading...';
+
+            fetch('{{ route("accounting.report.freight-statement.view") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: buildParams().toString()
+            })
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(json) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-search"></i> View Statement';
+
+                if (!json.success) {
+                    showToast('error', json.message || 'Error generating statement.');
+                    return;
+                }
+
+                document.getElementById('resultsSection').style.display = 'block';
+
+                // Partner info card
+                var piBox = document.getElementById('partnerInfoBox');
+                if (json.partner_info && json.partner_info.name) {
+                    piBox.style.display = 'block';
+                    document.getElementById('piName').textContent = 'Partner: ' + json.partner_info.name;
+                    var parts = [json.partner_info.address, json.partner_info.city, json.partner_info.country].filter(Boolean);
+                    document.getElementById('piDetails').textContent = parts.join(', ');
+                } else {
+                    piBox.style.display = 'none';
+                }
+
+                statementRows = json.results || [];
+                document.getElementById('recordCount').textContent = '(' + statementRows.length + ' records)';
+                renderRows(statementRows);
+
+                // Update summary footer
+                if (json.summary) {
+                    document.getElementById('totalDR').textContent = formatNumber(json.summary.total_dr);
+                    document.getElementById('totalCR').textContent = formatNumber(json.summary.total_cr);
+                    document.getElementById('totalPaid').textContent = formatNumber(json.summary.total_paid);
+                    document.getElementById('totalBalance').textContent = formatNumber(json.summary.total_balance);
+                }
+
+                renderCurrencySummary(json.currency_totals || []);
+
+                // Smooth scroll to results
+                document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                showToast('success', 'Freight statement generated successfully.');
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-search"></i> View Statement';
+                showToast('error', 'Error: ' + err.message);
+            });
+        });
+
+        // Live Quick Search
+        document.getElementById('quickSearch').addEventListener('input', function() {
+            var term = this.value.toLowerCase().trim();
+            if (!term) {
+                renderRows(statementRows);
+                return;
+            }
+            var filtered = statementRows.filter(function(r) {
+                return (r.invoice_no && r.invoice_no.toLowerCase().includes(term)) ||
+                       (r.booking_no && r.booking_no.toLowerCase().includes(term)) ||
+                       (r.mbl_no && r.mbl_no.toLowerCase().includes(term)) ||
+                       (r.hbl_no && r.hbl_no.toLowerCase().includes(term)) ||
+                       (r.partner_name && r.partner_name.toLowerCase().includes(term));
+            });
+            renderRows(filtered);
+        });
+
+        // Print & Export
+        document.getElementById('btnPrint').addEventListener('click', function() {
             window.open('{{ route("accounting.report.freight-statement.print") }}?' + buildParams().toString(), '_blank');
         });
 

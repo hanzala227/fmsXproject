@@ -30,6 +30,10 @@ class FreightStatementController extends Controller
 
     public function view(Request $request)
     {
+        if (!$request->has('as_of_date') || empty($request->input('as_of_date'))) {
+            $request->merge(['as_of_date' => date('Y-m-d')]);
+        }
+
         $validator = Validator::make($request->all(), [
             'as_of_date'       => 'required|date',
             'office_id'        => 'nullable|exists:offices,id',
@@ -57,12 +61,16 @@ class FreightStatementController extends Controller
         $hideOverpaid    = $request->input('hide_overpaid', '0');
         $invoiceLocalReceived = $request->input('invoice_local_received', '0');
         $showBookingNumber    = $request->input('show_booking_number', '0');
+        $companyId       = auth()->user()->company_id ?? 1;
 
         $asOfCarbon = Carbon::parse($asOfDate);
 
-        $query = Invoice::where('invoice_date', '<=', $asOfDate)
+        $query = Invoice::where('company_id', $companyId)
+            ->where('invoice_date', '<=', $asOfDate)
+            ->where('status', '!=', 'VOID')
+            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->with(['billTo', 'currency', 'office', 'payments', 'invoiceable']);
+            ->with(['billTo', 'currency', 'office', 'payments' => fn($p) => $p->whereNull('void_date'), 'invoiceable']);
 
         if ($partnerType === 'account_group') {
             if ($accountGroup) {
@@ -99,20 +107,46 @@ class FreightStatementController extends Controller
             $query->whereIn('type', $allowedTypes);
         }
 
-        $invoices = $query->get();
+        $invoices = $query->orderBy('invoice_date')->get();
 
         $results = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->sum('amount');
-            $balance   = (float) $invoice->total_amount - $totalPaid;
+            $totalPaid = (float) $invoice->payments->whereNull('void_date')->sum('amount');
+            $invType   = strtoupper($invoice->type ?? '');
+            $docType   = strtoupper($invoice->document_type ?? '');
+            $isCN      = $docType === 'CN';
+            $isDN      = $docType === 'DN';
+            $rawTotal  = (float) $invoice->total_amount;
+
+            // DR/CR and Balance logic
+            if ($invType === 'AR') {
+                if ($isCN) {
+                    $drAmount = 0.0;
+                    $crAmount = $rawTotal;
+                    $balance  = -$rawTotal - $totalPaid;
+                } else {
+                    $drAmount = $rawTotal;
+                    $crAmount = 0.0;
+                    $balance  = $rawTotal - $totalPaid;
+                }
+            } else { // AP
+                if ($isDN) {
+                    $drAmount = $rawTotal;
+                    $crAmount = 0.0;
+                    $balance  = -$rawTotal - $totalPaid;
+                } else {
+                    $drAmount = 0.0;
+                    $crAmount = $rawTotal;
+                    $balance  = $rawTotal - $totalPaid;
+                }
+            }
 
             $skip = false;
             if ($paymentStatus === 'paid' && abs($balance) > 0.01) $skip = true;
             if ($paymentStatus === 'open' && abs($balance) < 0.01) $skip = true;
-            if ($hideOverpaid === '1' && $balance < 0) $skip = true;
+            if ($hideOverpaid === '1' && $balance < -0.01) $skip = true;
             if ($skip) continue;
 
-            $invType     = strtoupper($invoice->type ?? '');
             $partnerName = $invoice->billTo?->name ?? 'N/A';
             $officeName  = $invoice->office?->name ?? 'N/A';
             $currCode    = $invoice->currency?->code ?? $invoice->currency?->name ?? 'USD';
@@ -123,14 +157,24 @@ class FreightStatementController extends Controller
             $bookingNo = '';
 
             if ($invoice->invoiceable) {
-                $mblNo = $invoice->invoiceable->mbl_no ?? $invoice->invoiceable->booking_no ?? '';
-                $hblNo = $invoice->invoiceable->hbl_no ?? '';
-                $etd   = isset($invoice->invoiceable->etd) ? Carbon::parse($invoice->invoiceable->etd)->format('Y-m-d') : '';
-                $bookingNo = $invoice->invoiceable->booking_no ?? '';
-            }
+                $inv = $invoice->invoiceable;
+                $mblNo = $inv->mbl_no ?? $inv->mawb_no ?? $invoice->mbl_no ?? '';
+                $hblNo = $inv->hbl_no ?? $inv->hawb_no ?? '';
+                if (empty($hblNo) && isset($inv->hbls) && $inv->hbls->isNotEmpty()) {
+                    $hblNo = $inv->hbls->pluck('hbl_no')->filter()->implode(', ');
+                }
+                $bookingNo = $inv->booking_no ?? $inv->file_no ?? '';
 
-            $drAmount = $invType === 'AR' ? (float) $invoice->total_amount : 0;
-            $crAmount = $invType === 'AP' ? (float) $invoice->total_amount : 0;
+                if (isset($inv->etd) && $inv->etd) {
+                    $etd = Carbon::parse($inv->etd)->format('Y-m-d');
+                } elseif (isset($inv->departure_date) && $inv->departure_date) {
+                    $etd = Carbon::parse($inv->departure_date)->format('Y-m-d');
+                } elseif (isset($inv->flight_date) && $inv->flight_date) {
+                    $etd = Carbon::parse($inv->flight_date)->format('Y-m-d');
+                }
+            } else {
+                $mblNo = $invoice->mbl_no ?? '';
+            }
 
             $results[] = [
                 'invoice_no'   => $invoice->invoice_no ?? '',
@@ -144,31 +188,31 @@ class FreightStatementController extends Controller
                 'hbl_no'       => $hblNo,
                 'etd'          => $etd,
                 'booking_no'   => $bookingNo,
-                'total_amount' => (float) $invoice->total_amount,
-                'dr_amount'    => $drAmount,
-                'cr_amount'    => $crAmount,
-                'paid_amount'  => $totalPaid,
-                'balance'      => $balance,
+                'total_amount' => $rawTotal,
+                'dr_amount'    => round($drAmount, 2),
+                'cr_amount'    => round($crAmount, 2),
+                'paid_amount'  => round($totalPaid, 2),
+                'balance'      => round($balance, 2),
             ];
         }
 
         usort($results, fn($a, $b) => strcasecmp($a['partner_name'], $b['partner_name']) ?: strcasecmp($a['invoice_date'], $b['invoice_date']));
 
-        $totalDR      = array_sum(array_column($results, 'dr_amount'));
-        $totalCR      = array_sum(array_column($results, 'cr_amount'));
-        $totalPaid    = array_sum(array_column($results, 'paid_amount'));
-        $totalBalance = array_sum(array_column($results, 'balance'));
+        $totalDR      = round(array_sum(array_column($results, 'dr_amount')), 2);
+        $totalCR      = round(array_sum(array_column($results, 'cr_amount')), 2);
+        $totalPaid    = round(array_sum(array_column($results, 'paid_amount')), 2);
+        $totalBalance = round(array_sum(array_column($results, 'balance')), 2);
 
         $currencyTotals = [];
         foreach ($results as $r) {
-            $cur = $r['currency'];
+            $cur = $r['currency'] ?: 'USD';
             if (!isset($currencyTotals[$cur])) {
                 $currencyTotals[$cur] = ['currency' => $cur, 'dr' => 0, 'cr' => 0, 'paid' => 0, 'balance' => 0];
             }
-            $currencyTotals[$cur]['dr']      += $r['dr_amount'];
-            $currencyTotals[$cur]['cr']      += $r['cr_amount'];
-            $currencyTotals[$cur]['paid']    += $r['paid_amount'];
-            $currencyTotals[$cur]['balance'] += $r['balance'];
+            $currencyTotals[$cur]['dr']      = round($currencyTotals[$cur]['dr'] + $r['dr_amount'], 2);
+            $currencyTotals[$cur]['cr']      = round($currencyTotals[$cur]['cr'] + $r['cr_amount'], 2);
+            $currencyTotals[$cur]['paid']    = round($currencyTotals[$cur]['paid'] + $r['paid_amount'], 2);
+            $currencyTotals[$cur]['balance'] = round($currencyTotals[$cur]['balance'] + $r['balance'], 2);
         }
 
         $partnerInfo = null;
@@ -243,29 +287,45 @@ class FreightStatementController extends Controller
             fputcsv($handle, ['As of Date', $request->as_of_date ?? '']);
             fputcsv($handle, []);
 
-            fputcsv($handle, [
-                'Post Date', 'ETD', 'Invoice No.', 'MB/L No.', 'HB/L No.', 'Cur.',
-                'DRI/AR (+)', 'CRI/AP (-)', 'Paid', 'Balance',
-            ]);
+            $showBkg = ($request->input('show_booking_number') === '1');
+            $headerCols = ['Post Date', 'ETD', 'Invoice No.'];
+            if ($showBkg) {
+                $headerCols[] = 'Booking No.';
+            }
+            $headerCols = array_merge($headerCols, ['MB/L No.', 'HB/L No.', 'Partner', 'Cur.', 'DRI/AR (+)', 'CRI/AP (-)', 'Paid', 'Balance']);
+            fputcsv($handle, $headerCols);
 
             foreach ($results as $row) {
-                fputcsv($handle, [
-                    $row['invoice_date'], $row['etd'], $row['invoice_no'], $row['mbl_no'], $row['hbl_no'], $row['currency'],
+                $rowCols = [$row['invoice_date'], $row['etd'], $row['invoice_no']];
+                if ($showBkg) {
+                    $rowCols[] = $row['booking_no'];
+                }
+                $rowCols = array_merge($rowCols, [
+                    $row['mbl_no'],
+                    $row['hbl_no'],
+                    $row['partner_name'],
+                    $row['currency'],
                     number_format($row['dr_amount'], 2),
                     number_format($row['cr_amount'], 2),
                     number_format($row['paid_amount'], 2),
                     number_format($row['balance'], 2),
                 ]);
+                fputcsv($handle, $rowCols);
             }
 
             fputcsv($handle, []);
-            fputcsv($handle, [
-                'TOTAL (BALANCE)', '', '', '', '',
+            $totalCols = ['TOTAL (BALANCE)', ''];
+            if ($showBkg) {
+                $totalCols[] = '';
+            }
+            $totalCols = array_merge($totalCols, [
+                '', '', '', '',
                 number_format($summary['total_dr'] ?? 0, 2),
                 number_format($summary['total_cr'] ?? 0, 2),
                 number_format($summary['total_paid'] ?? 0, 2),
                 number_format($summary['total_balance'] ?? 0, 2),
             ]);
+            fputcsv($handle, $totalCols);
 
             fclose($handle);
         }, 200, $headers);

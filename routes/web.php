@@ -1029,6 +1029,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('generic.index', ['title' => 'Data Import: ' . ucfirst($page), 'api_endpoint' => '/api/Tools']);
     });
     Route::get('/operations/{page?}', function ($page = 'list') {
+        if ($page === 'freight-statement') {
+            return redirect()->route('accounting.report.freight-statement');
+        }
         return view('generic.index', ['title' => 'Miscellaneous Operations: ' . ucfirst($page), 'api_endpoint' => '/api/operations']);
     });
 
