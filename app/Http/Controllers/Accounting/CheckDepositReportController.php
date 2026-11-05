@@ -7,13 +7,22 @@ use App\Models\AccountingPayment;
 use App\Models\Office;
 use App\Models\TradePartner;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CheckDepositReportController extends Controller
 {
     public function index()
     {
-        $bankNames = AccountingPayment::whereNotNull('bank_name')
-            ->distinct()->pluck('bank_name')->sort()->values();
+        $companyId = auth()->user()?->company_id ?? 1;
+        $bankNames = DB::table('banks')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->pluck('bank_name')
+            ->merge(AccountingPayment::whereNotNull('bank_name')->where('bank_name', '!=', '')->distinct()->pluck('bank_name'))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
 
         $offices = Office::where('is_active', true)->orderBy('code')->get();
         $vendors = TradePartner::orderBy('name')->get();

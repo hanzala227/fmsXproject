@@ -7,13 +7,22 @@ use App\Models\BankAccount;
 use App\Models\AccountingPayment;
 use App\Models\Office;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BankReconciliationController extends Controller
 {
     public function index()
     {
-        $bankNames = AccountingPayment::whereNotNull('bank_name')
-            ->distinct()->pluck('bank_name')->sort()->values();
+        $companyId = auth()->user()?->company_id ?? 1;
+        $bankNames = DB::table('banks')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->pluck('bank_name')
+            ->merge(AccountingPayment::whereNotNull('bank_name')->where('bank_name', '!=', '')->distinct()->pluck('bank_name'))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
 
         $offices = Office::where('is_active', true)->orderBy('code')->get();
 

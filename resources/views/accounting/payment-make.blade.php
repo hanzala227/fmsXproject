@@ -329,9 +329,17 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="form-group-gf"><label class="form-label-gf">Bank</label>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf"><span x-show="isBankRequired()" style="color:red;">* </span>Bank</label>
                                     <div class="form-input-container">
-                                        <input type="text" class="form-control-gf" x-model="bankName" placeholder="Bank name...">
+                                        <select class="form-control-gf" x-model="bankName" @change="onBankChange($event.target.value)" :required="isBankRequired()">
+                                            <option value="">-- Select Bank from Settings --</option>
+                                            @foreach($banks as $b)
+                                            <option value="{{ $b->bank_name }}" {{ (old('bank_name', $payment?->bank_name ?? ($defaultBankName ?? '')) == $b->bank_name) ? 'selected' : '' }}>
+                                                {{ $b->bank_name }} @if(!empty($b->currency))({{ $b->currency }})@endif
+                                            </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Bank Currency</label>
@@ -696,8 +704,10 @@
                 saveAction: 'save_close',
                 isSaved: editPayment ? true : false,
                 paymentLevel: (editPayment && editPayment.payment_level) ? editPayment.payment_level : 'Level 1',
-                bankName: (editPayment && editPayment.bank_name) ? editPayment.bank_name : '',
-                bankCurrencyCode: (editPayment && editPayment.bank_currency_id) ? String(editPayment.bank_currency_id) : '',
+                banks: @json($banks ?? []),
+                currencies: @json($currencies ?? []),
+                bankName: (editPayment && editPayment.bank_name) ? editPayment.bank_name : '{{ old("bank_name", $defaultBankName ?? "") }}',
+                bankCurrencyCode: (editPayment && editPayment.bank_currency_id) ? String(editPayment.bank_currency_id) : '{{ old("bank_currency_id", "") }}',
                 officeId: (editPayment && editPayment.office_id) ? String(editPayment.office_id) : '',
                 showPartyOnCheck: editPayment && editPayment.show_party_on_check ? true : false,
                 checkNo: (editPayment && editPayment.check_no) ? editPayment.check_no : '',
@@ -705,6 +715,23 @@
                 clearDate: editPayment && editPayment.clear_date ? editPayment.clear_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
                 voidChecked: editPayment && editPayment.void_date ? true : false,
                 voidDate: editPayment && editPayment.void_date ? editPayment.void_date.substring(0, 10) : '',
+
+                isBankRequired() {
+                    const method = (this.form.payment_method || '').toUpperCase().trim();
+                    return method !== 'CASH';
+                },
+
+                onBankChange(selectedBankName) {
+                    this.bankName = selectedBankName;
+                    if (!selectedBankName) return;
+                    const found = (this.banks || []).find(b => b.bank_name === selectedBankName);
+                    if (found && found.currency) {
+                        const cur = (this.currencies || []).find(c => c.code === found.currency);
+                        if (cur) {
+                            this.bankCurrencyCode = String(cur.id);
+                        }
+                    }
+                },
 
                 form: {
                     trade_partner_id: '{{ old("trade_partner_id", $payment?->trade_partner_id ?? $selectedInvoice?->bill_to_id ?? "") }}',
@@ -764,6 +791,11 @@
 
                 init() {
                     const allInvoices = @json($invoices);
+
+                    // Sync bank currency from bank if bankName is set
+                    if (this.bankName && !this.bankCurrencyCode) {
+                        this.onBankChange(this.bankName);
+                    }
 
                     // Set initial MBL and HBL from initial invoice_id if available
                     if (this.form.invoice_id) {
@@ -1025,6 +1057,10 @@
                     if (!this.form.amount || parseFloat(this.form.amount) <= 0) { missing.push('Amount'); valid = false; }
                     if (!this.form.payment_method) { missing.push('Payment Method'); valid = false; }
                     if (!this.form.currency_id) { missing.push('Currency'); valid = false; }
+                    if (this.isBankRequired() && (!this.bankName || !this.bankName.trim())) {
+                        missing.push('Bank (Mandatory from Settings)');
+                        valid = false;
+                    }
                     if (!valid) { showToast('error', 'Please fill in required fields: ' + missing.join(', ') + '.'); }
                     return valid;
                 },

@@ -14,6 +14,7 @@ use App\Http\Requests\UpdateAccountingPaymentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use App\Models\ActivityLog;
 
 class AccountingPaymentController extends Controller
@@ -441,6 +442,18 @@ class AccountingPaymentController extends Controller
         $prefix = $type === 'MADE' ? 'PAY' : 'RCV';
         $paymentNo = $prefix . '-' . date('ymdHis');
 
+        $companyId = auth()->user()?->company_id ?? 1;
+        $banks = DB::table('banks')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('bank_name')
+            ->get();
+
+        $defaultBank = $type === 'MADE'
+            ? $banks->firstWhere('cost_default', 1)
+            : $banks->firstWhere('revenue_default', 1);
+        $defaultBankName = $defaultBank?->bank_name ?? '';
+
         $viewName = $type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
         $payment = null;
         $selectedOfficeId = $request->input('office_id');
@@ -448,7 +461,7 @@ class AccountingPaymentController extends Controller
         return view($viewName, compact(
             'payment', 'type', 'tradePartners', 'currencies', 'offices',
             'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds',
-            'selectedInvoice', 'selectedOfficeId'
+            'selectedInvoice', 'selectedOfficeId', 'banks', 'defaultBankName'
         ));
     }
 
@@ -578,15 +591,57 @@ class AccountingPaymentController extends Controller
         $paymentNo = $payment->payment_no;
         $type = $payment->type;
 
+        $companyId = auth()->user()?->company_id ?? 1;
+        $banks = DB::table('banks')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('bank_name')
+            ->get();
+
+        if ($payment->bank_name && !$banks->contains('bank_name', $payment->bank_name)) {
+            $existingBank = DB::table('banks')
+                ->where('company_id', $companyId)
+                ->where('bank_name', $payment->bank_name)
+                ->first();
+            if ($existingBank) {
+                $banks->push($existingBank);
+            } else {
+                $banks->push((object)[
+                    'id' => null,
+                    'bank_name' => $payment->bank_name,
+                    'currency' => $payment->bankCurrency?->code ?? 'USD',
+                    'gl_no' => '',
+                    'is_active' => true,
+                ]);
+            }
+        }
+
+        $defaultBank = $payment->type === 'MADE'
+            ? $banks->firstWhere('cost_default', 1)
+            : $banks->firstWhere('revenue_default', 1);
+        $defaultBankName = $payment->bank_name ?: ($defaultBank?->bank_name ?? '');
+
         $viewName = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
         return view($viewName, compact(
             'payment', 'type', 'tradePartners', 'currencies', 'offices',
-            'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds', 'selectedInvoice'
+            'invoices', 'paymentNo', 'selectedInvoiceId', 'selectedInvoiceIds', 'selectedInvoice',
+            'banks', 'defaultBankName'
         ));
     }
 
     public function update(Request $request, AccountingPayment $payment)
     {
+        $companyId = auth()->user()?->company_id ?? 1;
+        $cleanMethod = strtoupper(str_replace([' ', '_', '-'], '', (string)$request->input('payment_method')));
+        $isCash = $cleanMethod === 'CASH';
+
+        $bankRule = [$isCash ? 'nullable' : 'required', 'string', 'max:200'];
+        if ($request->filled('bank_name')) {
+            $bankRule[] = Rule::exists('banks', 'bank_name')->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+        }
+
         $data = $request->validate([
             'payment_no' => 'required|string|max:255|unique:payments,payment_no,' . $payment->id,
             'payment_date' => 'required|date',
@@ -603,8 +658,11 @@ class AccountingPaymentController extends Controller
             'clear_date' => 'nullable|date',
             'void_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
-            'bank_name' => 'nullable|string|max:200',
+            'bank_name' => $bankRule,
             'bank_currency_id' => 'nullable|exists:currencies,id',
+        ], [
+            'bank_name.required' => 'Bank selection is mandatory from Settings for this payment method.',
+            'bank_name.exists' => 'The selected Bank is invalid or not registered in Settings. Please select a valid bank.',
         ]);
 
         $data['reference_no'] = $data['reference_no'] ?? '';

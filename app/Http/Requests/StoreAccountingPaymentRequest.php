@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAccountingPaymentRequest extends FormRequest
 {
@@ -22,6 +23,10 @@ class StoreAccountingPaymentRequest extends FormRequest
      */
     public function rules(): array
     {
+        $companyId = auth()->user()?->company_id ?? 1;
+        $cleanMethod = strtoupper(str_replace([' ', '_', '-'], '', (string)$this->input('payment_method')));
+        $isCash = $cleanMethod === 'CASH';
+
         return [
             'payment_no' => 'required|string|max:255|unique:payments,payment_no',
             'payment_date' => 'required|date',
@@ -61,8 +66,24 @@ class StoreAccountingPaymentRequest extends FormRequest
             'clear_date' => 'nullable|date',
             'void_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
-            'bank_name' => 'nullable|string|max:200',
+            'bank_name' => [
+                $isCash ? 'nullable' : 'required',
+                'string',
+                'max:200',
+                Rule::exists('banks', 'bank_name')->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId);
+                }),
+            ],
             'bank_currency_id' => 'nullable|exists:currencies,id',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'bank_name.required' => 'Bank selection is mandatory from Settings for this payment method.',
+            'bank_name.exists' => 'The selected Bank is invalid or not registered in Settings. Please select a valid bank.',
+        ];
+    }
 }
+
