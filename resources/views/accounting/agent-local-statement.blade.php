@@ -319,7 +319,7 @@
                     <thead>
                         <tr><th>Currency</th><th>Amount</th><th>Paid Amount</th><th>Balance</th></tr>
                     </thead>
-                    <tbody>
+                    <tbody id="selTotalTbody">
                         <tr>
                             <td id="selTotalCur"></td>
                             <td id="selTotalAmount" class="num" style="text-align:right;">0.00</td>
@@ -563,11 +563,15 @@
             var targetPartner = '';
             var targetOffice = '';
             if (selectedRows.length > 0) {
-                var firstIdx = parseInt(selectedRows[0].value);
-                var row = allResults[firstIdx];
-                if (row) {
-                    targetPartner = row.partner_name;
-                    targetOffice = row.office;
+                targetPartner = selectedRows[0].getAttribute('data-partner') || '';
+                targetOffice = selectedRows[0].getAttribute('data-office') || '';
+                if (!targetPartner) {
+                    var firstIdx = parseInt(selectedRows[0].value);
+                    var row = allResults[firstIdx];
+                    if (row) {
+                        targetPartner = row.partner_name;
+                        targetOffice = row.office;
+                    }
                 }
             } else if (allResults.length > 0) {
                 targetPartner = allResults[0].partner_name;
@@ -701,6 +705,11 @@
         function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.appendChild(document.createTextNode(String(s))); return d.innerHTML; }
 
         function renderTable() {
+            var selectAllEl = document.getElementById('selectAll');
+            if (selectAllEl) {
+                selectAllEl.checked = false;
+                selectAllEl.indeterminate = false;
+            }
             var rows = allResults.slice();
             if (quickSearchTerm) {
                 rows = rows.filter(function(r) {
@@ -717,8 +726,12 @@
             var html = '';
             for (var i = 0; i < rows.length; i++) {
                 var r = rows[i];
+                var rowAmt = Number(r.dr_amount || r.cr_amount || 0);
+                var rowPaid = Number(r.paid_amount || 0);
+                var rowBal = Number(r.balance || 0);
+                var rowCur = (r.currency || 'USD').trim();
                 html += '<tr>';
-                html += '<td style="text-align:center;"><input type="checkbox" class="row-select" value="' + i + '"></td>';
+                html += '<td style="text-align:center;"><input type="checkbox" class="row-select" value="' + i + '" data-currency="' + esc(rowCur) + '" data-amount="' + rowAmt + '" data-paid="' + rowPaid + '" data-balance="' + rowBal + '" data-partner="' + esc(r.partner_name || '') + '" data-office="' + esc(r.office || '') + '"></td>';
                 html += '<td>' + esc(r.office) + '</td>';
                 html += '<td class="col-shipment-mode" style="display:none;"><span style="font-weight:600;color:#2563eb;">' + esc(r.shipment_mode || '--') + '</span></td>';
                 html += '<td>' + esc(r.invoice_date) + '</td>';
@@ -775,20 +788,54 @@
         }
 
         function updateSelectedTotal() {
-            var sel = document.querySelectorAll('.row-select:checked');
-            var tA=0, tP=0, tB=0, cur='';
+            var sel = document.querySelectorAll('#resultsTable tbody .row-select:checked');
+            var byCurrency = {};
             sel.forEach(function(cb) {
-                var r = allResults[parseInt(cb.value)];
-                if (r) { tA+=r.dr_amount||r.cr_amount||0; tP+=r.paid_amount||0; tB+=r.balance||0; if (!cur) cur=r.currency; }
+                var cur = (cb.getAttribute('data-currency') || 'USD').trim();
+                var amt = parseFloat(cb.getAttribute('data-amount')) || 0;
+                var paid = parseFloat(cb.getAttribute('data-paid')) || 0;
+                var bal = parseFloat(cb.getAttribute('data-balance')) || 0;
+                if (!byCurrency[cur]) {
+                    byCurrency[cur] = { amount: 0, paid: 0, balance: 0 };
+                }
+                byCurrency[cur].amount += amt;
+                byCurrency[cur].paid += paid;
+                byCurrency[cur].balance += bal;
             });
-            document.getElementById('selTotalCur').textContent = cur;
-            document.getElementById('selTotalAmount').textContent = fmt(tA);
-            document.getElementById('selTotalPaid').textContent = fmt(tP);
-            document.getElementById('selTotalBalance').textContent = fmt(tB);
+
+            var tbody = document.getElementById('selTotalTbody');
+            if (!tbody) return;
+            var curKeys = Object.keys(byCurrency);
+            if (curKeys.length === 0) {
+                tbody.innerHTML = '<tr><td id="selTotalCur"></td><td id="selTotalAmount" class="num" style="text-align:right;">0.00</td><td id="selTotalPaid" class="num" style="text-align:right;">0.00</td><td id="selTotalBalance" class="num" style="text-align:right;">0.00</td></tr>';
+            } else {
+                var html = '';
+                curKeys.forEach(function(cur, idx) {
+                    var cData = byCurrency[cur];
+                    var isFirst = (idx === 0);
+                    html += '<tr>' +
+                        '<td' + (isFirst ? ' id="selTotalCur"' : '') + '><strong>' + esc(cur) + '</strong></td>' +
+                        '<td' + (isFirst ? ' id="selTotalAmount"' : '') + ' class="num" style="text-align:right;">' + fmt(cData.amount) + '</td>' +
+                        '<td' + (isFirst ? ' id="selTotalPaid"' : '') + ' class="num" style="text-align:right;">' + fmt(cData.paid) + '</td>' +
+                        '<td' + (isFirst ? ' id="selTotalBalance"' : '') + ' class="num" style="text-align:right;font-weight:600;">' + fmt(cData.balance) + '</td>' +
+                        '</tr>';
+                });
+                tbody.innerHTML = html;
+            }
         }
 
         document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('row-select')) updateSelectedTotal();
+            if (e.target.classList.contains('row-select')) {
+                var allCbs = document.querySelectorAll('#resultsTable tbody .row-select');
+                var allChecked = allCbs.length > 0 && Array.from(allCbs).every(function(c) { return c.checked; });
+                var someChecked = Array.from(allCbs).some(function(c) { return c.checked; });
+                var selectAllEl = document.getElementById('selectAll');
+                if (selectAllEl) {
+                    selectAllEl.checked = allChecked;
+                    selectAllEl.indeterminate = !allChecked && someChecked;
+                }
+                updateSelectedTotal();
+            }
         });
 
         function renderGeneratedTable() {
@@ -923,8 +970,9 @@
         };
 
         document.getElementById('selectAll').addEventListener('change', function() {
-            var cbs = document.querySelectorAll('.row-select');
+            var cbs = document.querySelectorAll('#resultsTable tbody .row-select');
             for (var i = 0; i < cbs.length; i++) cbs[i].checked = this.checked;
+            this.indeterminate = false;
             updateSelectedTotal();
         });
         document.getElementById('selectAllGenerated').addEventListener('change', function() {
