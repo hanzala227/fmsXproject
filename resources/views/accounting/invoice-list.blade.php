@@ -316,6 +316,9 @@
                         <button class="btn-tool" id="btn-copy"   disabled title="Copy Selected (select 1 row)" onclick="copySelected()">
                             <i class="fa fa-files-o"></i>
                         </button>
+                        <button class="btn-tool" id="btn-print-payable" disabled title="Select a payable (AP) invoice to print" onclick="printSelectedPayable()" style="color:#0284c7;">
+                            <i class="fa fa-print"></i> Print AP
+                        </button>
                         <button class="btn-tool" id="btn-delete" disabled title="Delete Selected" onclick="confirmDelete()">
                             <i class="fa fa-trash"></i>
                         </button>
@@ -431,6 +434,7 @@
                                     <tr id="inv-row-{{ $invoice->id }}"
                                         data-id="{{ $invoice->id }}"
                                         data-inv-no="{{ $invoice->invoice_no }}"
+                                        data-type="{{ $invoice->type }}"
                                         data-status="{{ $invoice->status }}"
                                         data-approved="{{ $isApproved ? '1' : '0' }}"
                                         data-cancelled="{{ $isCancelled ? '1' : '0' }}"
@@ -609,6 +613,15 @@
             btnCancel.disabled = !(n === 1 && selectedCancelCandidate && !selectedCancelCandidate.isCancelled);
         }
 
+        const isPayableSelected = (n === 1 && checked[0]?.closest('tr')?.dataset?.type === 'AP');
+        const btnPrintPayable = document.getElementById('btn-print-payable');
+        if (btnPrintPayable) {
+            btnPrintPayable.disabled = !isPayableSelected;
+            btnPrintPayable.title = isPayableSelected 
+                ? 'Print Selected Payable Invoice (' + (checked[0]?.closest('tr')?.dataset?.invNo || '') + ')' 
+                : 'Select a payable (AP) invoice to print';
+        }
+
         const badge = document.getElementById('sel-badge');
         if (badge) {
             badge.style.display = n > 0 ? 'inline' : 'none';
@@ -634,6 +647,24 @@
         if (skip.includes(e.target.tagName)) return;
         const cb = row.querySelector('.row-check');
         if (cb) { cb.checked = !cb.checked; updateToolbar(); }
+    }
+
+    /* ================================================================
+       PRINT PAYABLE INVOICE (CR-008)
+    ================================================================ */
+    function printSelectedPayable() {
+        const checked = [...document.querySelectorAll('.row-check:checked')];
+        if (checked.length !== 1) {
+            showToast('warning', 'Please select exactly one payable invoice to print.');
+            return;
+        }
+        const row = checked[0].closest('tr');
+        if (!row || row.dataset.type !== 'AP') {
+            showToast('warning', 'Please select a payable (AP) invoice to print.');
+            return;
+        }
+        const invId = row.dataset.id;
+        window.open('/accounting/invoice/' + invId + '?print=1', '_blank');
     }
 
     /* ================================================================

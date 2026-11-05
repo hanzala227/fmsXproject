@@ -79,6 +79,14 @@
 
         /* Scrollable table */
         .table-scroll { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 3px; }
+
+        @media print {
+            .page-bar, .action-bar, .actions, .btn-tool, .btn-default-gf, .btn-freightx, .sidebar, .navbar, header, nav, footer, #cancelModal, [class*="sidebar"], [class*="navbar"] { display: none !important; }
+            .page-content { padding: 0 !important; background: #fff !important; min-height: auto !important; }
+            .portlet.light { border: none !important; box-shadow: none !important; margin: 0 !important; }
+            .portlet-title { background: #f8fafc !important; }
+            body { background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
     </style>
     @endpush
 
@@ -506,6 +514,11 @@
             var modal = document.getElementById('cancelModal');
             if (modal) modal.style.display = 'none';
         }
+        @if(request('print'))
+        window.addEventListener('load', function() {
+            setTimeout(function() { window.print(); }, 250);
+        });
+        @endif
     </script>
     @endpush
 </x-layout>
