@@ -260,6 +260,7 @@
                         <tr>
                             <th style="width:25px;text-align:center;background:#374151;"><input type="checkbox" id="selectAll"></th>
                             <th data-col="office">Shipment Office <i class="fa fa-sort sort-icon"></i></th>
+                            <th data-col="shipment_mode" class="col-shipment-mode" style="display:none;">Shipment Mode <i class="fa fa-sort sort-icon"></i></th>
                             <th data-col="invoice_date">Post Date <i class="fa fa-sort sort-icon"></i></th>
                             <th data-col="invoice_no">Invoice No. <i class="fa fa-sort sort-icon"></i></th>
                             <th data-col="mbl_no">MB/L No. <i class="fa fa-sort sort-icon"></i></th>
@@ -288,6 +289,7 @@
                     <tfoot>
                         <tr class="total-row">
                             <td></td>
+                            <td class="col-shipment-mode" style="display:none;"></td>
                             <td colspan="5" style="text-align:right;font-weight:700;">Total</td>
                             <td colspan="3"></td>
                             <td class="col-etd" style="display:none;"></td>
@@ -649,11 +651,13 @@
             var showEtd = currentOptions.show_etd === '1';
             var showEta = currentOptions.show_eta === '1';
             var dcFormat = currentOptions.dc_format || 'combined';
+            var acctMode = currentOptions.acct_mode || (document.querySelector('input[name="acct_mode"]:checked')?.value || 'invoice');
 
             document.querySelectorAll('.col-aging').forEach(function(el) { el.style.display = showAging ? '' : 'none'; });
             document.querySelectorAll('.col-etd').forEach(function(el) { el.style.display = showEtd ? '' : 'none'; });
             document.querySelectorAll('.col-eta').forEach(function(el) { el.style.display = showEta ? '' : 'none'; });
             document.querySelectorAll('.col-cr').forEach(function(el) { el.style.display = dcFormat === 'separated' ? '' : 'none'; });
+            document.querySelectorAll('.col-shipment-mode').forEach(function(el) { el.style.display = acctMode === 'shipment' ? '' : 'none'; });
         }
 
         function fmt(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -663,7 +667,7 @@
             var rows = allResults.slice();
             if (quickSearchTerm) {
                 rows = rows.filter(function(r) {
-                    return [r.office, r.invoice_date, r.mbl_no, r.hbl_no, r.pol, r.pod, r.etd, r.eta, r.currency, r.dr_amount, r.cr_amount, r.paid_amount, r.balance, r.last_paid_date, r.invoice_no, r.partner_name, r.type, r.sales_person].join(' ').toLowerCase().indexOf(quickSearchTerm) !== -1;
+                    return [r.office, r.shipment_mode, r.invoice_date, r.mbl_no, r.hbl_no, r.pol, r.pod, r.etd, r.eta, r.currency, r.dr_amount, r.cr_amount, r.paid_amount, r.balance, r.last_paid_date, r.invoice_no, r.partner_name, r.type, r.sales_person].join(' ').toLowerCase().indexOf(quickSearchTerm) !== -1;
                 });
             }
             if (sortCol) {
@@ -679,6 +683,7 @@
                 html += '<tr>';
                 html += '<td style="text-align:center;"><input type="checkbox" class="row-select" value="' + i + '"></td>';
                 html += '<td>' + esc(r.office) + '</td>';
+                html += '<td class="col-shipment-mode" style="display:none;"><span style="font-weight:600;color:#2563eb;">' + esc(r.shipment_mode || '--') + '</span></td>';
                 html += '<td>' + esc(r.invoice_date) + '</td>';
                 html += '<td>' + esc(r.invoice_no) + '</td>';
                 html += '<td>' + esc(r.mbl_no) + '</td>';

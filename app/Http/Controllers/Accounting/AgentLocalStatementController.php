@@ -198,6 +198,7 @@ class AgentLocalStatementController extends Controller
             $etd   = '';
             $eta   = '';
             $shipmentOffice = $officeName;
+            $shipmentMode   = '';
 
             if ($invoice->invoiceable) {
                 $mblNo = $invoice->invoiceable->mbl_no ?? $invoice->invoiceable->booking_no ?? '';
@@ -206,6 +207,9 @@ class AgentLocalStatementController extends Controller
                 $pod   = $invoice->invoiceable->pod?->name ?? ($invoice->invoiceable->port_of_discharge ?? '');
                 $etd   = isset($invoice->invoiceable->etd) ? Carbon::parse($invoice->invoiceable->etd)->format('Y-m-d') : '';
                 $eta   = isset($invoice->invoiceable->eta) ? Carbon::parse($invoice->invoiceable->eta)->format('Y-m-d') : '';
+                $shipmentMode = $invoice->invoiceable->ship_mode 
+                    ?? ($invoice->invoiceable->shipment_mode 
+                    ?? (class_basename($invoice->invoiceable_type) ? preg_replace('/(?<!^)[A-Z]/', ' $0', class_basename($invoice->invoiceable_type)) : ''));
             }
 
             $daysOverdue = 0;
@@ -244,6 +248,7 @@ class AgentLocalStatementController extends Controller
                 'due_date'       => $invoice->due_date?->format('Y-m-d') ?? '',
                 'partner_name'   => $partnerName,
                 'office'         => $officeName,
+                'shipment_mode'  => $shipmentMode ?: '--',
                 'currency'       => $currCode,
                 'type'           => $invType,
                 'sales_person'   => $salesPerson,
@@ -411,7 +416,7 @@ class AgentLocalStatementController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, [
-                'Invoice No', 'Invoice Date', 'Due Date', 'Partner', 'Office',
+                'Invoice No', 'Invoice Date', 'Due Date', 'Partner', 'Office', 'Shipment Mode',
                 'Cur.', 'Type', 'MB/L No.', 'HB/L No.', 'POL', 'POD',
                 'DR/AR (+)', 'CR/AP (-)', 'Paid Amount', 'Balance', 'Last Paid Date',
             ]);
@@ -419,7 +424,7 @@ class AgentLocalStatementController extends Controller
             foreach ($results as $row) {
                 fputcsv($handle, [
                     $row['invoice_no'], $row['invoice_date'], $row['due_date'],
-                    $row['partner_name'], $row['office'], $row['currency'], $row['type'],
+                    $row['partner_name'], $row['office'], $row['shipment_mode'] ?? '--', $row['currency'], $row['type'],
                     $row['mbl_no'], $row['hbl_no'], $row['pol'], $row['pod'],
                     number_format($row['dr_amount'], 2),
                     number_format($row['cr_amount'], 2),
