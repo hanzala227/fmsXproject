@@ -171,7 +171,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                                     ['url' => '/accounting/report/revenue-cost', 'label' => 'Revenue / Cost Report'],
                                     ['url' => '/accounting/report/agent-local-statement', 'label' => 'Agent / Local Statement'],
                                     ['url' => '/accounting/report/freight-statement', 'label' => 'Freight Statement'],
-                                    ['url' => '/accounting/report/1099-report', 'label' => '1099 Report'],
                                     ['url' => '/accounting/report/journal-report', 'label' => 'Journal Report'],
                                 ]],
                             ]],
