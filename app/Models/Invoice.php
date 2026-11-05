@@ -166,6 +166,13 @@ class Invoice extends Model
         return $this->hasMany(AccountingPayment::class, 'invoice_id');
     }
 
+    public function hasActiveSettlements(): bool
+    {
+        return (float)($this->paid_amount ?? 0) > 0 
+            || in_array(strtoupper($this->status ?? ''), ['PAID', 'PARTIAL'])
+            || $this->payments()->whereNull('void_date')->exists();
+    }
+
     public function documents()
     {
         return $this->morphMany(Document::class, 'documentable');

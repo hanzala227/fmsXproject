@@ -420,6 +420,7 @@
                                 <tbody id="grid-body">
                                 @forelse($invoices as $invoice)
                                     @php
+                                        $hasSettlements = $invoice->hasActiveSettlements();
                                         $isApproved = method_exists($invoice, 'isApproved') 
                                             ? $invoice->isApproved() 
                                             : (in_array(strtoupper($invoice->status ?? ''), ['POSTED', 'PAID', 'PARTIAL', 'VOID']) || in_array($invoice->verification_status ?? '', ['Verified', 'Cancelled']));
@@ -441,7 +442,13 @@
                                         </td>
                                         {{-- Lock --}}
                                         <td class="sticky-col" style="width:25px;left:25px;text-align:center;" onclick="event.stopPropagation()">
-                                            <i class="fa {{ $invoice->status === 'POSTED' || $invoice->status === 'PAID' ? 'fa-lock' : 'fa-unlock' }}" style="color:#94a3b8;cursor:pointer;font-size:10px;" title="Lock status" onclick="toggleLock(this)"></i>
+                                            @if($hasSettlements)
+                                                <i class="fa fa-lock" style="color:#ef4444;font-size:11px;" title="Locked: Money Receipt / Settlement active. Editing is disabled."></i>
+                                            @elseif($isApproved)
+                                                <i class="fa fa-lock" style="color:#64748b;font-size:11px;" title="Locked: Approved Document"></i>
+                                            @else
+                                                <i class="fa fa-unlock" style="color:#cbd5e1;cursor:pointer;font-size:10px;" title="Draft / Unlocked"></i>
+                                            @endif
                                         </td>
                                         {{-- Party --}}
                                         <td class="sticky-col" style="width:130px;left:50px;">{{ $invoice->billTo ? Str::limit($invoice->billTo->name, 18) : '' }}</td>
@@ -483,7 +490,7 @@
                                                 if ($isCancelled) {
                                                     $statusBadge = 'badge-void';
                                                 }
-                                                $displayStatus = $isCancelled ? 'CANCELLED' : $invoice->status;
+                                                $displayStatus = $isCancelled ? 'CANCELLED' : ($hasSettlements ? ($invoice->status === 'PAID' ? 'PAID (LOCKED)' : 'PARTIAL (LOCKED)') : $invoice->status);
                                             @endphp
                                             <span class="badge-status {{ $statusBadge }}">{{ $displayStatus }}</span>
                                         </td>

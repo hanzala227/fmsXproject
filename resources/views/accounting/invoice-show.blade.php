@@ -105,13 +105,20 @@
                 </span>
             </div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-freightx" target="_blank"><i class="fa fa-pencil"></i> EDIT</a>
-                <a href="javascript:window.print()" class="btn-default-gf"><i class="fa fa-print"></i> PRINT</a>
                 @php
+                    $hasSettlements = $invoice->hasActiveSettlements();
                     $isApproved = in_array(strtoupper($invoice->status ?? ''), ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || $invoice->verification_status === 'Verified' || $invoice->verification_status === 'Cancelled';
                     $isCancelled = strtoupper($invoice->status ?? '') === 'VOID' || $invoice->verification_status === 'Cancelled';
                     $isAdmin = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin());
                 @endphp
+                @if($hasSettlements)
+                    <button type="button" class="btn-default-gf" disabled style="opacity:0.6;cursor:not-allowed;background:#f8fafc;color:#64748b;" title="Locked: Money Receipt / Settlement active. Editing is disabled.">
+                        <i class="fa fa-lock" style="color:#ef4444;"></i> LOCKED
+                    </button>
+                @else
+                    <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-freightx" target="_blank"><i class="fa fa-pencil"></i> EDIT</a>
+                @endif
+                <a href="javascript:window.print()" class="btn-default-gf"><i class="fa fa-print"></i> PRINT</a>
                 @if(!$isApproved)
                 <form action="{{ route('accounting.invoices.destroy', $invoice) }}" method="POST" onsubmit="return confirmDelete()" style="display:inline;">
                     @csrf
@@ -433,7 +440,13 @@
 
         {{-- ═══════════════════ ACTION BAR ═══════════════════ --}}
         <div class="action-bar">
-            <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-tool green" target="_blank"><i class="fa fa-pencil"></i> Edit Invoice</a>
+            @if($hasSettlements)
+                <button type="button" class="btn-tool" disabled style="opacity:0.6;cursor:not-allowed;" title="Locked: Money Receipt / Settlement active. Editing is disabled.">
+                    <i class="fa fa-lock" style="color:#ef4444;"></i> Locked (Receipt Active)
+                </button>
+            @else
+                <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-tool green" target="_blank"><i class="fa fa-pencil"></i> Edit Invoice</a>
+            @endif
             @if(!$isApproved)
             <form action="{{ route('accounting.invoices.destroy', $invoice) }}" method="POST" onsubmit="return confirmDelete()" style="display:inline;">
                 @csrf

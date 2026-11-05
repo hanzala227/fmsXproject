@@ -375,6 +375,14 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        if ($invoice->hasActiveSettlements()) {
+            $msg = 'This invoice is locked because active settlements (Money Receipts / Payments) are recorded against it. Editing is strictly disabled.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            abort(403, $msg);
+        }
+
         if ($invoice->verification_status === 'Verified') {
             $user = auth()->user();
             if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
@@ -613,6 +621,10 @@ class InvoiceController extends Controller
 
     public function edit(Invoice $invoice)
     {
+        if ($invoice->hasActiveSettlements()) {
+            abort(403, 'This invoice is locked because active settlements (Money Receipts / Payments) are recorded against it. Editing is strictly disabled.');
+        }
+
         if ($invoice->verification_status === 'Verified') {
             $user = auth()->user();
             if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
@@ -679,6 +691,21 @@ class InvoiceController extends Controller
 
         $ids = $request->input('ids');
         $status = $request->input('status');
+
+        if ($status === 'DRAFT') {
+            $hasSettlements = Invoice::whereIn('id', $ids)
+                ->where(function($q) {
+                    $q->where('paid_amount', '>', 0)
+                      ->orWhereIn('status', ['PAID', 'PARTIAL'])
+                      ->orWhereHas('payments', fn($p) => $p->whereNull('void_date'));
+                })->exists();
+            if ($hasSettlements) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Prohibited: Cannot revert invoice(s) with active Money Receipts or payments to Draft.'
+                ], 422);
+            }
+        }
 
         $updated = Invoice::whereIn('id', $ids)->update(['status' => $status]);
 
