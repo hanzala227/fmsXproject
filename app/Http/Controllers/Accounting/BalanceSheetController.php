@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\BalanceSheetRequest;
-use App\Models\BankAccount;
 use App\Models\Invoice;
 use App\Models\AccountingPayment;
 use App\Models\Office;
+use App\Models\Currency;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class BalanceSheetController extends Controller
@@ -26,17 +26,20 @@ class BalanceSheetController extends Controller
     /**
      * Generate the Balance Sheet report data via AJAX.
      *
-     * Balance Sheet equation: Assets = Liabilities + Equity
+     * GAAP Balance Sheet equation: Assets = Liabilities + Equity
      *
      * Assets:
-     *   - Cash & Cash Equivalents (bank opening balances + net receipts/payments)
-     *   - Accounts Receivable (AR invoices outstanding)
+     *   - Cash & Cash Equivalents (Bank accounts closing balances as of date)
+     *   - Accounts Receivable (AR invoices outstanding as of date)
+     *   - Advances to Vendors / Prepayments (when disbursements exceed billed AP)
      *
      * Liabilities:
-     *   - Accounts Payable (AP invoices outstanding)
+     *   - Accounts Payable (AP invoices outstanding as of date)
+     *   - Customer Advances / Unearned Revenue (when receipts exceed billed AR)
      *
      * Equity:
-     *   - Retained Earnings (Revenue - Expenses)
+     *   - Owner's Capital (Initial Equity from Settings / Bank initial balances)
+     *   - Retained Earnings (Cumulative Net Income: Revenue - Expenses)
      */
     public function view(Request $request)
     {
@@ -50,138 +53,146 @@ class BalanceSheetController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $asOfDate = $request->input('as_of_date', date('Y-m-d'));
-        $officeId = $request->input('office_id');
+        $companyId = auth()->user()?->company_id ?? 1;
+        $asOfDate  = $request->input('as_of_date', date('Y-m-d'));
+        $officeId  = $request->input('office_id');
 
-        // ── Total receipts and payments up to as-of date (computed in functional base currency) ──
-        $payments = AccountingPayment::with('currency')
+        $currencies = Currency::all()->keyBy('code');
+
+        // ── 1. Cash & Cash Equivalents (Bank Accounts) ──
+        $banks = DB::table('banks')->where(function($q) use ($companyId) {
+            $q->where('company_id', $companyId)->orWhere('company_id', 1);
+        })->where('is_active', 1)->orderBy('bank_name')->get();
+
+        $cashLines = [];
+        $totalCashUSD = 0.0;
+        $initialCapitalUSD = 0.0;
+
+        foreach ($banks as $bank) {
+            $code = $bank->currency ?: 'USD';
+            $currObj = $currencies->get($code);
+            $rate = (float)($currObj?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+
+            $initUSD = round(((float)$bank->initial_amount) / $rate, 2);
+            $initialCapitalUSD += $initUSD;
+
+            // Bank payments query
+            $bankPayQuery = AccountingPayment::where(function($q) use ($bank) {
+                $q->where('bank_name', trim($bank->bank_name));
+                if (!empty($bank->gl_no)) {
+                    $q->orWhere('bank_name', trim($bank->gl_no));
+                }
+            })
             ->where('payment_date', '<=', $asOfDate)
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get();
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId));
 
-        $totalReceipts = 0.0;
-        $totalPaymentsMade = 0.0;
+            $rec = (float)(clone $bankPayQuery)->where('type', 'RECEIVED')->sum('amount');
+            $pay = (float)(clone $bankPayQuery)->where('type', 'MADE')->sum('amount');
 
-        foreach ($payments as $p) {
-            $rate = (float) ($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
-            if ($rate <= 0) $rate = 1.0;
-            $baseAmount = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
-            if ($p->type === 'RECEIVED') {
-                $totalReceipts += $baseAmount;
-            } elseif ($p->type === 'MADE') {
-                $totalPaymentsMade += $baseAmount;
-            }
-        }
+            $bankClose = (float)$bank->initial_amount + $rec - $pay;
+            $bankCloseUSD = round($bankClose / $rate, 2);
+            $totalCashUSD += $bankCloseUSD;
 
-        // ── Cash & Cash Equivalents ──
-        $bankAccounts = BankAccount::with('currency')->orderBy('name')->get();
-
-        $cashItems = [];
-        $totalBankOpeningBalances = 0;
-
-        foreach ($bankAccounts as $account) {
-            $rate = (float) ($account->currency?->exchange_rate ?? 1.0);
-            if ($rate <= 0) $rate = 1.0;
-            $openingBalance = ($rate != 1.0) ? round(((float)$account->opening_balance) / $rate, 2) : (float)$account->opening_balance;
-            $totalBankOpeningBalances += $openingBalance;
-
-            $cashItems[] = [
-                'name'     => $account->name . ($account->account_no ? ' (' . $account->account_no . ')' : ''),
-                'bank_name' => $account->bank_name ?? '',
-                'currency' => $account->currency?->code ?? 'USD',
-                'balance'  => $openingBalance,
+            $cashLines[] = [
+                'label'  => $bank->bank_name,
+                'detail' => $code . ' (' . ($bank->gl_no ?: 'Cash in Bank') . ')',
+                'amount' => $bankCloseUSD,
+                'is_sub' => true,
             ];
         }
 
-        $netCashMovement = $totalReceipts - $totalPaymentsMade;
-        $totalCash = $totalBankOpeningBalances + $netCashMovement;
+        $cashLines[] = [
+            'label'    => 'Total Cash & Cash Equivalents',
+            'detail'   => '',
+            'amount'   => $totalCashUSD,
+            'is_total' => true,
+        ];
 
-        // ── Accounts Receivable & Accounts Payable (in functional base currency) ──
+        // ── 2. Invoices (AR & AP) ──
         $invoices = Invoice::with('currency')
             ->where('invoice_date', '<=', $asOfDate)
+            ->where('status', '!=', 'VOID')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get();
 
-        $totalAR = 0.0;
-        $totalAP = 0.0;
+        $totalARRevenue = 0.0;
+        $totalAPExpenses = 0.0;
 
         foreach ($invoices as $inv) {
-            $rate = (float) ($inv->exchange_rate ?? $inv->currency?->exchange_rate ?? 1.0);
+            $rate = (float)($inv->exchange_rate ?? $inv->currency?->exchange_rate ?? 1.0);
             if ($rate <= 0) $rate = 1.0;
             $baseAmount = ($rate != 1.0) ? round(((float)$inv->total_amount) / $rate, 2) : (float)$inv->total_amount;
             $isCN = strtoupper($inv->document_type ?? '') === 'CN';
             $isDN = strtoupper($inv->document_type ?? '') === 'DN';
 
             if ($inv->type === 'AR') {
-                $totalAR += ($isCN ? -$baseAmount : $baseAmount);
+                $totalARRevenue += ($isCN ? -$baseAmount : $baseAmount);
             } elseif ($inv->type === 'AP') {
-                $totalAP += ($isDN ? -$baseAmount : $baseAmount);
+                $totalAPExpenses += ($isDN ? -$baseAmount : $baseAmount);
             }
         }
 
-        // Payments received reduce AR
-        $netAR = max(0.0, $totalAR - $totalReceipts);
+        // ── 3. Total Payments / Receipts as of date ──
+        $allPayments = AccountingPayment::with('currency')
+            ->where('payment_date', '<=', $asOfDate)
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->get();
 
-        // Payments made reduce AP
-        $netAP = max(0.0, $totalAP - $totalPaymentsMade);
+        $totalRecUSD = 0.0;
+        $totalPayUSD = 0.0;
 
-        // ── Equity (Retained Earnings) ──
-        $totalRevenue = $totalAR;
-        $totalExpenses = $totalAP;
-        $retainedEarnings = $totalRevenue - $totalExpenses;
+        foreach ($allPayments as $p) {
+            $rate = (float)($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $baseAmount = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
+            if ($p->type === 'RECEIVED') {
+                $totalRecUSD += $baseAmount;
+            } elseif ($p->type === 'MADE') {
+                $totalPayUSD += $baseAmount;
+            }
+        }
 
-        // ── Build Report Sections ──
+        // ── 4. AR and AP Position & Prepayments ──
+        $arOutstanding = $totalARRevenue - $totalRecUSD;
+        $netAR = max(0.0, $arOutstanding);
+        $customerAdvances = max(0.0, -$arOutstanding);
+
+        $apOutstanding = $totalAPExpenses - $totalPayUSD;
+        $netAP = max(0.0, $apOutstanding);
+        $vendorAdvances = max(0.0, -$apOutstanding);
+
+        // ── 5. Build Report Sections ──
         $sections = [];
 
         // ASSETS
-        $assetLines = [];
-
-        // Cash & Cash Equivalents group
-        foreach ($cashItems as $item) {
-            $assetLines[] = [
-                'label'  => $item['name'],
-                'detail' => $item['bank_name'],
-                'amount' => $item['balance'],
-            ];
-        }
-
-        // Add opening balance subtotal if multiple banks
-        if (count($cashItems) > 1) {
-            $assetLines[] = [
-                'label'  => 'Total Bank Opening Balances',
-                'detail' => '',
-                'amount' => $totalBankOpeningBalances,
-                'is_sub' => true,
-            ];
-        }
-
-        $assetLines[] = [
-            'label'  => 'Net Cash Movement (Receipts - Payments)',
-            'detail' => number_format($totalReceipts, 2) . ' received - ' . number_format($totalPaymentsMade, 2) . ' paid',
-            'amount' => $netCashMovement,
-        ];
-
-        $assetLines[] = [
-            'label'  => 'Total Cash & Cash Equivalents',
-            'detail' => '',
-            'amount' => $totalCash,
-            'is_total' => true,
-        ];
-
-        $assetLines[] = [
+        $currentAssetLines = $cashLines;
+        $currentAssetLines[] = [
             'label'  => 'Accounts Receivable',
-            'detail' => 'AR invoices outstanding',
+            'detail' => 'Billed AR Invoices Outstanding',
             'amount' => $netAR,
         ];
 
-        $totalAssets = $totalCash + $netAR;
+        if ($vendorAdvances > 0) {
+            $currentAssetLines[] = [
+                'label'  => 'Advances to Vendors / Prepayments',
+                'detail' => 'Disbursements in excess of billed AP invoices',
+                'amount' => $vendorAdvances,
+            ];
+        }
+
+        $totalAssets = round($totalCashUSD + $netAR + $vendorAdvances, 2);
 
         $sections[] = [
             'title'  => 'Assets',
             'groups' => [
                 [
                     'name'  => 'Current Assets',
-                    'lines' => $assetLines,
+                    'lines' => $currentAssetLines,
                     'total' => $totalAssets,
                 ],
             ],
@@ -189,22 +200,30 @@ class BalanceSheetController extends Controller
         ];
 
         // LIABILITIES
-        $liabilityLines = [
+        $currentLiabLines = [
             [
                 'label'  => 'Accounts Payable',
-                'detail' => 'AP invoices outstanding',
+                'detail' => 'Billed AP Invoices Outstanding',
                 'amount' => $netAP,
             ],
         ];
 
-        $totalLiabilities = $netAP;
+        if ($customerAdvances > 0) {
+            $currentLiabLines[] = [
+                'label'  => 'Customer Advances / Unearned Revenue',
+                'detail' => 'Receipts in excess of billed AR invoices',
+                'amount' => $customerAdvances,
+            ];
+        }
+
+        $totalLiabilities = round($netAP + $customerAdvances, 2);
 
         $sections[] = [
             'title'  => 'Liabilities',
             'groups' => [
                 [
                     'name'  => 'Current Liabilities',
-                    'lines' => $liabilityLines,
+                    'lines' => $currentLiabLines,
                     'total' => $totalLiabilities,
                 ],
             ],
@@ -212,15 +231,21 @@ class BalanceSheetController extends Controller
         ];
 
         // EQUITY
+        $retainedEarnings = round($totalARRevenue - $totalAPExpenses, 2);
+        $totalEquity = round($initialCapitalUSD + $retainedEarnings, 2);
+
         $equityLines = [
             [
-                'label'  => 'Retained Earnings',
-                'detail' => 'Revenue (' . number_format($totalRevenue, 2) . ') - Expenses (' . number_format($totalExpenses, 2) . ')',
+                'label'  => "Owner's Capital / Opening Equity",
+                'detail' => 'Initial capital investment and bank balances',
+                'amount' => $initialCapitalUSD,
+            ],
+            [
+                'label'  => 'Retained Earnings (Cumulative Net Income)',
+                'detail' => 'Revenue (' . number_format($totalARRevenue, 2) . ') - Expenses (' . number_format($totalAPExpenses, 2) . ')',
                 'amount' => $retainedEarnings,
             ],
         ];
-
-        $totalEquity = $retainedEarnings;
 
         $sections[] = [
             'title'  => 'Equity',
@@ -234,7 +259,8 @@ class BalanceSheetController extends Controller
             'total' => $totalEquity,
         ];
 
-        $totalLiabilitiesAndEquity = $totalLiabilities + $totalEquity;
+        $totalLiabilitiesAndEquity = round($totalLiabilities + $totalEquity, 2);
+        $isBalanced = abs($totalAssets - $totalLiabilitiesAndEquity) < 0.01;
 
         return response()->json([
             'success'    => true,
@@ -246,7 +272,7 @@ class BalanceSheetController extends Controller
                 'total_liabilities'            => $totalLiabilities,
                 'total_equity'                 => $totalEquity,
                 'total_liabilities_and_equity' => $totalLiabilitiesAndEquity,
-                'is_balanced'                  => abs($totalAssets - $totalLiabilitiesAndEquity) < 0.01,
+                'is_balanced'                  => $isBalanced,
             ],
         ]);
     }
