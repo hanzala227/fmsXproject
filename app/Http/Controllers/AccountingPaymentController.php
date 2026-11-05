@@ -631,6 +631,14 @@ class AccountingPaymentController extends Controller
 
     public function update(Request $request, AccountingPayment $payment)
     {
+        if ($payment->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($payment->payment_date, $payment->office_id)) {
+            $msg = 'Access Control: This payment cannot be modified because the record or accounting period is blocked.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            abort(403, $msg);
+        }
+
         $companyId = auth()->user()?->company_id ?? 1;
         $cleanMethod = strtoupper(str_replace([' ', '_', '-'], '', (string)$request->input('payment_method')));
         $isCash = $cleanMethod === 'CASH';

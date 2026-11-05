@@ -53,6 +53,22 @@ class JournalEntryController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
+        if ($request->filled('entry_id')) {
+            $existing = AccountingJournal::find($request->entry_id);
+            if ($existing && ($existing->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($existing->entry_date, $existing->office_id))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access Control: This journal entry cannot be updated because the record or accounting period is blocked.'
+                ], 403);
+            }
+        }
+        if (\App\Models\AccountingBlockDate::isDateBlocked($request->entry_date, $request->office_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access Control: Cannot post journal transactions to a blocked accounting period.'
+            ], 403);
+        }
+
         $totalDebit  = collect($request->lines)->sum('local_debit');
         $totalCredit = collect($request->lines)->sum('local_credit');
 
@@ -128,12 +144,17 @@ class JournalEntryController extends Controller
     public function destroy($id)
     {
         try {
-            DB::beginTransaction();
-
             $entry = AccountingJournal::findOrFail($id);
+            if ($entry->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($entry->entry_date, $entry->office_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access Control: This journal entry cannot be deleted because the record or accounting period is blocked.'
+                ], 403);
+            }
+
+            DB::beginTransaction();
             $entry->lines()->delete();
             $entry->delete();
-
             DB::commit();
 
             return response()->json([

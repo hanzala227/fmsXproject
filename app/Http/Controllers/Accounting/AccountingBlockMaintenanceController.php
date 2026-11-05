@@ -9,8 +9,12 @@ use App\Models\AirImport;
 use App\Models\AirExport;
 use App\Models\TruckShipment;
 use App\Models\Invoice;
+use App\Models\AccountingPayment;
+use App\Models\AccountingJournal;
+use App\Models\AccountingBlockHistory;
 use App\Models\Office;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AccountingBlockMaintenanceController extends Controller
 {
@@ -24,18 +28,17 @@ class AccountingBlockMaintenanceController extends Controller
     public function search(Request $request)
     {
         $request->validate([
-            'record_type' => 'required|in:shipment,ar_ap_dc,deposit_payment,general_journal',
-            'office_id' => 'nullable|exists:offices,id',
-            'is_blocked' => 'nullable|in:yes,no',
-            'post_date_from' => 'nullable|date',
-            'post_date_to' => 'nullable|date',
-            'file_no' => 'nullable|string|max:255',
-            'bl_no' => 'nullable|string|max:255',
-            'shipment_types' => 'nullable|array',
+            'record_type'      => 'required|in:shipment,ar_ap_dc,deposit_payment,general_journal',
+            'office_id'        => 'nullable|exists:offices,id',
+            'is_blocked'       => 'nullable|in:yes,no',
+            'post_date_from'   => 'nullable|date',
+            'post_date_to'     => 'nullable|date',
+            'file_no'          => 'nullable|string|max:255',
+            'bl_no'            => 'nullable|string|max:255',
+            'shipment_types'   => 'nullable|array',
             'shipment_types.*' => 'string|in:ocean_import,ocean_export,air_import,air_export,truck,misc,warehouse',
         ]);
 
-        $results = collect();
         $recordType = $request->record_type;
 
         if ($recordType === 'shipment') {
@@ -46,12 +49,14 @@ class AccountingBlockMaintenanceController extends Controller
             $results = $this->searchDepositPayment($request);
         } elseif ($recordType === 'general_journal') {
             $results = $this->searchGeneralJournal($request);
+        } else {
+            $results = collect();
         }
 
         return response()->json([
             'success' => true,
-            'data' => $results->values(),
-            'total' => $results->count(),
+            'data'    => $results->values(),
+            'total'   => $results->count(),
         ]);
     }
 
@@ -61,54 +66,39 @@ class AccountingBlockMaintenanceController extends Controller
         $results = collect();
 
         if (in_array('ocean_import', $types)) {
-            $query = OceanImport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'portOfLoading', 'portOfDischarge', 'vessel'])
+            $q = OceanImport::with(['office', 'overseaAgent', 'carrier', 'customer', 'pol', 'pod', 'vessel'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'pol_id', 'pod_id', 'vessel_id', 'is_blocked');
-
-            $this->applyShipmentFilters($query, $request, 'mbl_no');
-            $items = $query->get()->map(fn($r) => $this->formatShipmentResult($r, 'OCEAN IMPORT'));
-            $results = $results->concat($items);
+            $results = $results->merge($this->applyShipmentFilters($q, $request, 'ocean_imports', 'OCEAN IMPORT'));
         }
 
         if (in_array('ocean_export', $types)) {
-            $query = OceanExport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'portOfLoading', 'portOfDischarge', 'vessel'])
+            $q = OceanExport::with(['office', 'overseaAgent', 'carrier', 'customer', 'pol', 'pod', 'vessel'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'pol_id', 'pod_id', 'vessel_id', 'is_blocked');
-
-            $this->applyShipmentFilters($query, $request, 'mbl_no');
-            $items = $query->get()->map(fn($r) => $this->formatShipmentResult($r, 'OCEAN EXPORT'));
-            $results = $results->concat($items);
+            $results = $results->merge($this->applyShipmentFilters($q, $request, 'ocean_exports', 'OCEAN EXPORT'));
         }
 
         if (in_array('air_import', $types)) {
-            $query = AirImport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'depPort', 'dstPort'])
+            $q = AirImport::with(['office', 'overseaAgent', 'carrier', 'customer', 'departurePort', 'destinationPort'])
                 ->select('id', 'file_no', 'mawb_no as mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'dep_port_id as pol_id', 'dst_port_id as pod_id', 'is_blocked');
-
-            $this->applyShipmentFilters($query, $request, 'mawb_no');
-            $items = $query->get()->map(fn($r) => $this->formatShipmentResult($r, 'AIR IMPORT'));
-            $results = $results->concat($items);
+            $results = $results->merge($this->applyShipmentFilters($q, $request, 'air_imports', 'AIR IMPORT'));
         }
 
         if (in_array('air_export', $types)) {
-            $query = AirExport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'depPort', 'dstPort'])
+            $q = AirExport::with(['office', 'overseaAgent', 'carrier', 'customer', 'departurePort', 'destinationPort'])
                 ->select('id', 'file_no', 'mawb_no as mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'dep_port_id as pol_id', 'dst_port_id as pod_id', 'is_blocked');
-
-            $this->applyShipmentFilters($query, $request, 'mawb_no');
-            $items = $query->get()->map(fn($r) => $this->formatShipmentResult($r, 'AIR EXPORT'));
-            $results = $results->concat($items);
+            $results = $results->merge($this->applyShipmentFilters($q, $request, 'air_exports', 'AIR EXPORT'));
         }
 
         if (in_array('truck', $types)) {
-            $query = TruckShipment::with(['office', 'customer', 'pol', 'pod'])
+            $q = TruckShipment::with(['office', 'customer', 'originPort', 'destinationPort'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'customer_id', 'pol_id', 'pod_id', 'is_blocked');
-
-            $this->applyShipmentFilters($query, $request, 'mbl_no');
-            $items = $query->get()->map(fn($r) => $this->formatTruckResult($r));
-            $results = $results->concat($items);
+            $results = $results->merge($this->applyShipmentFilters($q, $request, 'truck_shipments', 'TRUCK'));
         }
 
-        return $results->sortBy('post_date')->values();
+        return $results;
     }
 
-    private function applyShipmentFilters($query, Request $request, $blColumn)
+    private function applyShipmentFilters($query, Request $request, string $table, string $typeLabel)
     {
         if ($request->office_id) {
             $query->where('office_id', $request->office_id);
@@ -117,7 +107,9 @@ class AccountingBlockMaintenanceController extends Controller
         if ($request->is_blocked === 'yes') {
             $query->where('is_blocked', true);
         } elseif ($request->is_blocked === 'no') {
-            $query->where('is_blocked', false);
+            $query->where(function($q) {
+                $q->where('is_blocked', false)->orWhereNull('is_blocked');
+            });
         }
 
         if ($request->post_date_from) {
@@ -132,60 +124,51 @@ class AccountingBlockMaintenanceController extends Controller
             $query->where('file_no', 'like', '%' . $request->file_no . '%');
         }
 
-        if ($request->bl_no && $blColumn) {
-            $query->where($blColumn, 'like', '%' . $request->bl_no . '%');
+        if ($request->bl_no) {
+            $query->where(function ($q) use ($request) {
+                $q->where('mbl_no', 'like', '%' . $request->bl_no . '%');
+                if (\Schema::hasColumn($q->getModel()->getTable(), 'mawb_no')) {
+                    $q->orWhere('mawb_no', 'like', '%' . $request->bl_no . '%');
+                }
+            });
         }
-    }
 
-    private function formatShipmentResult($record, $type)
-    {
-        return [
-            'id' => $record->id,
-            'type' => $type,
-            'office' => $record->office?->code ?? '',
-            'post_date' => $record->post_date?->format('m-d-Y') ?? '',
-            'file_no' => $record->file_no ?? '',
-            'bl_no' => $record->mbl_no ?? '',
-            'oversea_agent' => $record->overseaAgent?->name ?? '',
-            'carrier' => $record->carrier?->name ?? '',
-            'customer' => $record->dmCustomer?->name ?? '',
-            'pol' => $record->portOfLoading?->name ?? $record->depPort?->name ?? '',
-            'pod' => $record->portOfDischarge?->name ?? $record->dstPort?->name ?? '',
-            'vessel_flt_no' => $record->vessel?->name ?? '',
-            'is_blocked' => $record->is_blocked ?? false,
-            'model_type' => $type === 'OCEAN IMPORT' ? 'ocean_import' : ($type === 'OCEAN EXPORT' ? 'ocean_export' : ($type === 'AIR IMPORT' ? 'air_import' : 'air_export')),
-            'record_table' => $type === 'OCEAN IMPORT' ? 'ocean_imports' : ($type === 'OCEAN EXPORT' ? 'ocean_exports' : ($type === 'AIR IMPORT' ? 'air_imports' : 'air_exports')),
-        ];
-    }
-
-    private function formatTruckResult($record)
-    {
-        return [
-            'id' => $record->id,
-            'type' => 'TRUCK',
-            'office' => $record->office?->code ?? '',
-            'post_date' => $record->post_date?->format('m-d-Y') ?? '',
-            'file_no' => $record->file_no ?? '',
-            'bl_no' => $record->mbl_no ?? '',
-            'oversea_agent' => '',
-            'carrier' => '',
-            'customer' => $record->customer?->name ?? '',
-            'pol' => $record->pol?->name ?? '',
-            'pod' => $record->pod?->name ?? '',
-            'vessel_flt_no' => $record->vessel_flight_no ?? '',
-            'is_blocked' => $record->is_blocked ?? false,
-            'model_type' => 'truck',
-            'record_table' => 'truck_shipments',
-        ];
+        return $query->get()->map(function ($r) use ($table, $typeLabel) {
+            return [
+                'id'            => $r->id,
+                'type'          => $typeLabel,
+                'office'        => $r->office?->code ?? '',
+                'post_date'     => $r->post_date ? \Carbon\Carbon::parse($r->post_date)->format('m-d-Y') : '',
+                'file_no'       => $r->file_no ?? '',
+                'bl_no'         => $r->mbl_no ?? '',
+                'oversea_agent' => $r->overseaAgent?->name ?? '',
+                'carrier'       => $r->carrier?->name ?? '',
+                'customer'      => $r->customer?->name ?? '',
+                'pol'           => $r->pol?->name ?? ($r->departurePort?->name ?? ($r->originPort?->name ?? '')),
+                'pod'           => $r->pod?->name ?? ($r->destinationPort?->name ?? ''),
+                'vessel_flt_no' => $r->vessel?->name ?? ($r->voyage ?? ''),
+                'is_blocked'    => (bool)($r->is_blocked ?? false),
+                'model_type'    => $typeLabel,
+                'record_table'  => $table,
+            ];
+        });
     }
 
     private function searchArApDc(Request $request)
     {
-        $query = Invoice::with(['office', 'billTo'])
-            ->select('id', 'invoice_no', 'invoice_date as post_date', 'office_id', 'bill_to_id', 'total_amount', 'balance_amount', 'status', 'type');
+        $query = Invoice::with(['billTo', 'office'])
+            ->select('id', 'invoice_no', 'type', 'document_type', 'invoice_date as post_date', 'office_id', 'bill_to_id', 'is_blocked');
 
         if ($request->office_id) {
             $query->where('office_id', $request->office_id);
+        }
+
+        if ($request->is_blocked === 'yes') {
+            $query->where('is_blocked', true);
+        } elseif ($request->is_blocked === 'no') {
+            $query->where(function($q) {
+                $q->where('is_blocked', false)->orWhereNull('is_blocked');
+            });
         }
 
         if ($request->post_date_from) {
@@ -200,41 +183,99 @@ class AccountingBlockMaintenanceController extends Controller
             $query->where('invoice_no', 'like', '%' . $request->file_no . '%');
         }
 
-        $items = $query->get()->map(function ($r) {
+        return $query->get()->map(function ($r) {
+            $typeStr = $r->type === 'AR' ? 'A/R' : ($r->type === 'AP' ? 'A/P' : 'DC');
+            if ($r->document_type === 'DN') $typeStr = 'DEBIT NOTE';
+            if ($r->document_type === 'CN') $typeStr = 'CREDIT NOTE';
+
             return [
-                'id' => $r->id,
-                'type' => $r->type === 'AR' ? 'A/R' : ($r->type === 'AP' ? 'A/P' : 'DC'),
-                'office' => $r->office?->code ?? '',
-                'post_date' => $r->post_date?->format('m-d-Y') ?? '',
-                'file_no' => $r->invoice_no ?? '',
-                'bl_no' => '',
+                'id'            => $r->id,
+                'type'          => $typeStr,
+                'office'        => $r->office?->code ?? '',
+                'post_date'     => $r->post_date ? \Carbon\Carbon::parse($r->post_date)->format('m-d-Y') : '',
+                'file_no'       => $r->invoice_no ?? '',
+                'bl_no'         => '',
                 'oversea_agent' => '',
-                'carrier' => '',
-                'customer' => $r->billTo?->name ?? '',
-                'pol' => '',
-                'pod' => '',
+                'carrier'       => '',
+                'customer'      => $r->billTo?->name ?? '',
+                'pol'           => '',
+                'pod'           => '',
                 'vessel_flt_no' => '',
-                'is_blocked' => false,
-                'model_type' => 'invoice',
-                'record_table' => 'invoices',
+                'is_blocked'    => (bool)($r->is_blocked ?? false),
+                'model_type'    => 'invoice',
+                'record_table'  => 'invoices',
             ];
         });
-
-        return $items;
     }
 
     private function searchDepositPayment(Request $request)
     {
-        return collect();
+        $query = AccountingPayment::with(['tradePartner', 'office'])
+            ->select('id', 'payment_no', 'type', 'payment_date as post_date', 'office_id', 'trade_partner_id', 'check_no', 'is_blocked');
+
+        if ($request->office_id) {
+            $query->where('office_id', $request->office_id);
+        }
+
+        if ($request->is_blocked === 'yes') {
+            $query->where('is_blocked', true);
+        } elseif ($request->is_blocked === 'no') {
+            $query->where(function($q) {
+                $q->where('is_blocked', false)->orWhereNull('is_blocked');
+            });
+        }
+
+        if ($request->post_date_from) {
+            $query->where('payment_date', '>=', $request->post_date_from);
+        }
+
+        if ($request->post_date_to) {
+            $query->where('payment_date', '<=', $request->post_date_to);
+        }
+
+        if ($request->file_no) {
+            $query->where(function($q) use ($request) {
+                $q->where('payment_no', 'like', '%' . $request->file_no . '%')
+                  ->orWhere('check_no', 'like', '%' . $request->file_no . '%');
+            });
+        }
+
+        return $query->get()->map(function ($r) {
+            return [
+                'id'            => $r->id,
+                'type'          => $r->type === 'RECEIVED' ? 'RECEIPT' : 'PAYMENT',
+                'office'        => $r->office?->code ?? '',
+                'post_date'     => $r->post_date ? \Carbon\Carbon::parse($r->post_date)->format('m-d-Y') : '',
+                'file_no'       => $r->payment_no ?? '',
+                'bl_no'         => $r->check_no ?? '',
+                'oversea_agent' => '',
+                'carrier'       => '',
+                'customer'      => $r->tradePartner?->name ?? '',
+                'pol'           => '',
+                'pod'           => '',
+                'vessel_flt_no' => '',
+                'is_blocked'    => (bool)($r->is_blocked ?? false),
+                'model_type'    => 'payment',
+                'record_table'  => 'payments',
+            ];
+        });
     }
 
     private function searchGeneralJournal(Request $request)
     {
-        $query = \App\Models\AccountingJournal::with(['office', 'creator'])
-            ->select('id', 'entry_no', 'entry_date as post_date', 'office_id', 'description', 'status', 'created_by');
+        $query = AccountingJournal::with(['office', 'creator'])
+            ->select('id', 'entry_no', 'entry_date as post_date', 'office_id', 'description', 'status', 'created_by', 'is_blocked');
 
         if ($request->office_id) {
             $query->where('office_id', $request->office_id);
+        }
+
+        if ($request->is_blocked === 'yes') {
+            $query->where('is_blocked', true);
+        } elseif ($request->is_blocked === 'no') {
+            $query->where(function($q) {
+                $q->where('is_blocked', false)->orWhereNull('is_blocked');
+            });
         }
 
         if ($request->post_date_from) {
@@ -249,71 +290,86 @@ class AccountingBlockMaintenanceController extends Controller
             $query->where('entry_no', 'like', '%' . $request->file_no . '%');
         }
 
-        $items = $query->get()->map(function ($r) {
+        return $query->get()->map(function ($r) {
             return [
-                'id' => $r->id,
-                'type' => 'GENERAL JOURNAL',
-                'office' => $r->office?->code ?? '',
-                'post_date' => $r->post_date?->format('m-d-Y') ?? '',
-                'file_no' => $r->entry_no ?? '',
-                'bl_no' => '',
+                'id'            => $r->id,
+                'type'          => 'GENERAL JOURNAL',
+                'office'        => $r->office?->code ?? '',
+                'post_date'     => $r->post_date ? \Carbon\Carbon::parse($r->post_date)->format('m-d-Y') : '',
+                'file_no'       => $r->entry_no ?? '',
+                'bl_no'         => '',
                 'oversea_agent' => '',
-                'carrier' => '',
-                'customer' => '',
-                'pol' => '',
-                'pod' => '',
+                'carrier'       => '',
+                'customer'      => '',
+                'pol'           => '',
+                'pod'           => '',
                 'vessel_flt_no' => '',
-                'is_blocked' => false,
-                'model_type' => 'general_journal',
-                'record_table' => 'journal_entries',
-                'description' => $r->description ?? '',
+                'is_blocked'    => (bool)($r->is_blocked ?? false),
+                'model_type'    => 'general_journal',
+                'record_table'  => 'journal_entries',
+                'description'   => $r->description ?? '',
             ];
         });
-
-        return $items;
     }
 
     public function apply(Request $request)
     {
+        // Access Control: Only administrators can modify block status
+        if (!auth()->check() || (!auth()->user()->isAdmin() && !auth()->user()->isSuperAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Administrator privileges required to change block status.'
+            ], 403);
+        }
+
         $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'required|integer',
-            'action' => 'required|in:block,unblock',
+            'ids'          => 'required|array',
+            'ids.*'        => 'required|integer',
+            'action'       => 'required|in:block,unblock',
             'record_table' => 'required|string',
         ]);
 
-        $table = $request->record_table;
-        $blocked = $request->action === 'block';
-        $ids = $request->ids;
+        $table   = $request->record_table;
+        $blocked = ($request->action === 'block');
+        $ids     = $request->ids;
 
-        $allowedTables = ['ocean_imports', 'ocean_exports', 'air_imports', 'air_exports', 'truck_shipments'];
+        $allowedTables = [
+            'ocean_imports', 'ocean_exports', 'air_imports', 'air_exports', 'truck_shipments',
+            'invoices', 'payments', 'journal_entries'
+        ];
 
         if (!in_array($table, $allowedTables)) {
             return response()->json(['success' => false, 'message' => 'Invalid record type.'], 422);
         }
 
-        $affected = \DB::table($table)->whereIn('id', $ids)->update(['is_blocked' => $blocked]);
+        $affected = DB::table($table)->whereIn('id', $ids)->update(['is_blocked' => $blocked]);
 
         $typeMap = [
-            'ocean_imports' => 'OCEAN IMPORT',
-            'ocean_exports' => 'OCEAN EXPORT',
-            'air_imports' => 'AIR IMPORT',
-            'air_exports' => 'AIR EXPORT',
+            'ocean_imports'   => 'OCEAN IMPORT',
+            'ocean_exports'   => 'OCEAN EXPORT',
+            'air_imports'     => 'AIR IMPORT',
+            'air_exports'     => 'AIR EXPORT',
             'truck_shipments' => 'TRUCK',
+            'invoices'        => 'INVOICE',
+            'payments'        => 'PAYMENT',
+            'journal_entries' => 'GENERAL JOURNAL',
         ];
 
         foreach ($ids as $id) {
-            $record = \DB::table($table)->where('id', $id)->first();
+            $record = DB::table($table)->where('id', $id)->first();
+            $refNo = $record->file_no ?? $record->invoice_no ?? $record->payment_no ?? $record->entry_no ?? ('#' . $id);
+            $postDate = $record->post_date ?? $record->invoice_date ?? $record->payment_date ?? $record->entry_date ?? now()->toDateString();
+
             AccountingBlockHistory::create([
-                'program' => 'Block Maintenance',
-                'is_blocked' => $blocked,
-                'block_type' => $typeMap[$table] ?? strtoupper($table),
-                'ref_no' => $record->file_no ?? null,
-                'block_date' => $record->post_date ?? now()->toDateString(),
-                'office_id' => $record->office_id ?? null,
-                'execute_by' => auth()->id(),
-                'executed_at' => now(),
-                'record_id' => $id,
+                'program'      => 'Block Maintenance',
+                'is_blocked'   => $blocked,
+                'block_type'   => $typeMap[$table] ?? strtoupper($table),
+                'ref_no'       => $refNo,
+                'block_date'   => $postDate,
+                'office_id'    => $record->office_id ?? null,
+                'execute_by'   => auth()->id(),
+                'executed_at'  => now(),
+                'record_id'    => $id,
                 'record_table' => $table,
             ]);
         }
@@ -321,26 +377,36 @@ class AccountingBlockMaintenanceController extends Controller
         $label = $blocked ? 'blocked' : 'unblocked';
 
         return response()->json([
-            'success' => true,
-            'message' => "{$affected} record(s) {$label} successfully.",
+            'success'  => true,
+            'message'  => "{$affected} record(s) {$label} successfully.",
             'affected' => $affected,
         ]);
     }
 
     public function exportExcel(Request $request)
     {
-        $response = $this->search($request);
-        $data = json_decode($response->getContent(), true);
+        $searchResponse = $this->search($request);
+        $data = $searchResponse->getData(true);
+        $rows = $data['data'] ?? [];
+
+        $filename = 'accounting-block-maintenance-' . now()->format('Y-m-d-His') . '.csv';
 
         $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="accounting_block_maintenance.csv"',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($data) {
+        return response()->stream(function () use ($rows) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Type', 'Office', 'Post Date', 'Booking no', 'BL No.', 'Oversea Agent', 'Carrier', 'Customer', 'POL', 'POD', 'Vessel/FLT No.', 'Blocked']);
-            foreach ($data['data'] ?? [] as $row) {
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            fputcsv($handle, [
+                'Type', 'Office', 'Post Date', 'File No. / Ref No.',
+                'BL No.', 'Oversea Agent', 'Carrier', 'Customer',
+                'POL', 'POD', 'Vessel / Flight', 'Blocked'
+            ]);
+
+            foreach ($rows as $row) {
                 fputcsv($handle, [
                     $row['type'] ?? '',
                     $row['office'] ?? '',
@@ -356,9 +422,8 @@ class AccountingBlockMaintenanceController extends Controller
                     ($row['is_blocked'] ?? false) ? 'Yes' : 'No',
                 ]);
             }
-            fclose($handle);
-        };
 
-        return response()->stream($callback, 200, $headers);
+            fclose($handle);
+        }, 200, $headers);
     }
 }

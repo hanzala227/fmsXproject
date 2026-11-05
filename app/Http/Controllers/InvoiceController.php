@@ -375,6 +375,14 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+            $msg = 'Access Control: This invoice cannot be modified because the record or accounting period is blocked.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            abort(403, $msg);
+        }
+
         if ($invoice->hasActiveSettlements()) {
             $msg = 'This invoice is locked because active settlements (Money Receipts / Payments) are recorded against it. Editing is strictly disabled.';
             if ($request->ajax() || $request->wantsJson()) {

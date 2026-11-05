@@ -92,19 +92,29 @@
                 <table class="block-table">
                     <thead>
                         <tr>
-                            <th style="width:50%;">Office</th>
-                            <th>Date</th>
+                            <th style="width:35%;">Office</th>
+                            <th>Block Date</th>
+                            <th>Status</th>
+                            <th>Updated By</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($lastBlockDates as $record)
+                        @forelse(($latestRecords ?? $lastBlockDates ?? []) as $record)
                             <tr>
-                                <td>{{ $record->office?->code ?? 'All Offices' }}</td>
+                                <td><strong>{{ $record->office?->code ?? 'All Offices' }}</strong></td>
                                 <td>{{ $record->block_date?->format('m-d-Y') }}</td>
+                                <td>
+                                    @if(($record->action ?? 'BLOCK') === 'BLOCK')
+                                        <span style="color:#ef4444;font-weight:700;"><i class="fa fa-lock"></i> BLOCKED</span>
+                                    @else
+                                        <span style="color:#16a34a;font-weight:700;"><i class="fa fa-unlock"></i> UNBLOCKED</span>
+                                    @endif
+                                </td>
+                                <td style="color:#64748b;font-size:10px;">{{ $record->creator?->name ?? 'Admin' }} ({{ $record->created_at?->format('m-d-Y H:i') }})</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="2" style="text-align:center;color:#94a3b8;padding:16px;">No block records found.</td>
+                                <td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">No block records found.</td>
                             </tr>
                         @endforelse
                     </tbody>
