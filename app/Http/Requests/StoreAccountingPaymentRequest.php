@@ -37,13 +37,18 @@ class StoreAccountingPaymentRequest extends FormRequest
                         $invoice = \App\Models\Invoice::find($invoiceId);
                         if ($invoice && (float) $invoice->total_amount > 0) {
                             $remaining = max(0, round((float) $invoice->balance_amount, 2));
-                            if ((float) $value > $remaining + 0.001) {
-                                $fail("Payment amount (\${$value}) exceeds remaining invoice balance (\${$remaining}). Overpayments must be logged as Customer Advance.");
+                            $tds = (float) $this->input('tds_tax', 0);
+                            $discount = (float) $this->input('discount', 0);
+                            $totalSettlement = (float) $value + $tds + $discount;
+                            if ($totalSettlement > $remaining + 0.001) {
+                                $fail("Total settlement (Payment \${$value} + TDS \${$tds} + Discount \${$discount} = \${$totalSettlement}) exceeds remaining invoice balance (\${$remaining}). Overpayments must be logged as Customer Advance.");
                             }
                         }
                     }
                 }
             ],
+            'tds_tax' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|string|max:50',
             'reference_no' => 'nullable|string|max:255',
             'remark' => 'nullable|string',

@@ -459,6 +459,8 @@ class AccountingPaymentController extends Controller
         $data['reference_no'] = $data['reference_no'] ?? '';
         $data['remark'] = $data['remark'] ?? '';
         $data['amount'] = $data['amount'] ?? 0;
+        $data['tds_tax'] = (float) ($request->input('tds_tax', 0));
+        $data['discount'] = (float) ($request->input('discount', 0));
         $data['show_party_on_check'] = $request->boolean('show_party_on_check');
         if (!$request->filled('clear_date')) $data['clear_date'] = null;
         if (!$request->filled('void_date')) $data['void_date'] = null;
@@ -498,8 +500,9 @@ class AccountingPaymentController extends Controller
                     // Test 2: Guard against overpayments exceeding remaining invoice balance
                     if ((float) $invoice->total_amount > 0) {
                         $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
-                        if ((float) $data['amount'] > $remainingBalance + 0.001) {
-                            $msg = "Payment amount (\${$data['amount']}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
+                        $totalSettlement = (float) $data['amount'] + (float) ($data['tds_tax'] ?? 0) + (float) ($data['discount'] ?? 0);
+                        if ($totalSettlement > $remainingBalance + 0.001) {
+                            $msg = "Total settlement (\${$totalSettlement}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
                             if ($request->ajax()) {
                                 return response()->json(['success' => false, 'message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
                             }
@@ -607,6 +610,8 @@ class AccountingPaymentController extends Controller
         $data['reference_no'] = $data['reference_no'] ?? '';
         $data['remark'] = $data['remark'] ?? '';
         $data['amount'] = $data['amount'] ?? 0;
+        $data['tds_tax'] = (float) ($request->input('tds_tax', 0));
+        $data['discount'] = (float) ($request->input('discount', 0));
         $data['show_party_on_check'] = $request->boolean('show_party_on_check');
 
         // If clear/void checkboxes are unchecked, null the dates
@@ -742,23 +747,27 @@ class AccountingPaymentController extends Controller
         $invoice = Invoice::find($invoiceId);
         if (!$invoice) return;
 
-        $totalPaid = (float) DB::table('payments')
+        $paymentsQuery = DB::table('payments')
             ->where('invoice_id', $invoice->id)
             ->whereNull('deleted_at')
-            ->whereNull('void_date')
-            ->sum('amount');
+            ->whereNull('void_date');
+
+        $totalPaid = (float) (clone $paymentsQuery)->sum('amount');
+        $totalTds = (float) (clone $paymentsQuery)->sum('tds_tax');
+        $totalDiscount = (float) (clone $paymentsQuery)->sum('discount');
+        $totalSettled = $totalPaid + $totalTds + $totalDiscount;
 
         $invoice->paid_amount = $totalPaid;
-        $invoice->balance_amount = max(0, round($invoice->total_amount - $totalPaid, 2));
+        $invoice->balance_amount = max(0, round($invoice->total_amount - $totalSettled, 2));
 
-        if ($invoice->balance_amount <= 0) {
+        if ($invoice->balance_amount <= 0 && $invoice->total_amount > 0) {
             $invoice->status = 'PAID';
-        } elseif ($totalPaid > 0) {
+        } elseif ($totalSettled > 0) {
             $invoice->status = 'PARTIAL';
         } else {
             $invoice->status = 'POSTED';
         }
 
-        $invoice->save();
+        $invoice->saveQuietly();
     }
 }

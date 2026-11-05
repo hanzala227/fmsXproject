@@ -385,6 +385,8 @@
                                         <th data-col="balance_amt" style="width:110px;text-align:right;background:#4a5568;cursor:pointer;" @click="sortBy('balance_amount')">Balance AMT <i class="fa" :class="sortCol === 'balance_amount' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="select" style="width:30px;text-align:center;background:#4a5568;"><i class="fa fa-check-square-o" style="font-size:9px;opacity:0.6;"></i></th>
                                         <th data-col="payment" style="width:110px;text-align:right;background:#4a5568;">Payment (USD)</th>
+                                        <th data-col="tds_tax" style="width:85px;text-align:right;background:#4a5568;">TDS Tax</th>
+                                        <th data-col="discount" style="width:85px;text-align:right;background:#4a5568;">Discount</th>
                                         <th data-col="description" style="width:150px;background:#4a5568;">Invoice Description</th>
                                         <th data-col="file_no" style="width:100px;background:#4a5568;">Booking No.</th>
                                         <th data-col="mbl_no" style="width:110px;background:#4a5568;">MBL No.</th>
@@ -418,6 +420,20 @@
                                                 x-model="allocationAmounts[{{ $inv->id }}]"
                                                 @input="updateAllocation({{ $inv->id }})">
                                         </td>
+                                        <td data-col="tds_tax" style="text-align:right;padding-right:6px;">
+                                            <input type="number" step="0.01" min="0" class="form-control-gf input-number"
+                                                style="height:20px;font-size:9px;width:70px;min-width:60px;max-width:90px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
+                                                placeholder="0.00"
+                                                x-model="allocationTds[{{ $inv->id }}]"
+                                                @input="updateAllocation({{ $inv->id }})">
+                                        </td>
+                                        <td data-col="discount" style="text-align:right;padding-right:6px;">
+                                            <input type="number" step="0.01" min="0" class="form-control-gf input-number"
+                                                style="height:20px;font-size:9px;width:70px;min-width:60px;max-width:90px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
+                                                placeholder="0.00"
+                                                x-model="allocationDiscount[{{ $inv->id }}]"
+                                                @input="updateAllocation({{ $inv->id }})">
+                                        </td>
                                         <td data-col="description" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">{{ $inv->internal_remark ?? '' }}</td>
                                         <td data-col="file_no">
                                             @if($inv->shipment_url && optional($inv->invoiceable)->file_no)
@@ -443,26 +459,28 @@
                         <!-- Summary Bar -->
                         <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:2px solid #e2e8f0;background:#f8fafc;">
                             <div style="padding:8px 12px;border-right:1px solid #e2e8f0;">
-                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Total Paid Amount</div>
+                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Payment (USD)</div>
                                 <div style="font-size:12px;font-weight:700;color:#3b82f6;" x-text="totalAllocated.toFixed(2)"></div>
                             </div>
                             <div style="padding:8px 12px;border-right:1px solid #e2e8f0;">
-                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Local Amount (<span x-text="getCurrencyCode(form.currency_id)"></span>)</div>
-                                <div style="font-size:12px;font-weight:700;color:#3b82f6;" x-text="totalAllocated.toFixed(2)"></div>
+                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Total TDS Tax</div>
+                                <div style="font-size:12px;font-weight:700;color:#dc2626;" x-text="totalTds.toFixed(2)"></div>
                             </div>
                             <div style="padding:8px 12px;border-right:1px solid #e2e8f0;">
-                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Master Currency (<span x-text="getCurrencyCode(form.currency_id)"></span>)</div>
-                                <div style="font-size:12px;font-weight:700;color:#3b82f6;" x-text="totalAllocated.toFixed(2)"></div>
+                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Total Discount</div>
+                                <div style="font-size:12px;font-weight:700;color:#f59e0b;" x-text="totalDiscount.toFixed(2)"></div>
                             </div>
                             <div style="padding:8px 12px;border-right:1px solid #e2e8f0;">
-                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Exchange Gain/Loss (<span x-text="getCurrencyCode(form.currency_id)"></span>)</div>
-                                <div style="font-size:12px;font-weight:700;color:#3b82f6;">0.00</div>
+                                <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Total Settlement</div>
+                                <div style="font-size:12px;font-weight:700;color:#16a34a;" x-text="(totalAllocated + totalTds + totalDiscount).toFixed(2)"></div>
                             </div>
                             <div style="padding:8px 12px;">
                                 <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Bank Currency (<span x-text="getCurrencyCode(bankCurrencyCode)"></span>)</div>
                                 <div style="font-size:12px;font-weight:700;color:#3b82f6;" x-text="totalAllocated.toFixed(2)"></div>
                             </div>
                         </div>
+                        <input type="hidden" name="tds_tax" :value="totalTds">
+                        <input type="hidden" name="discount" :value="totalDiscount">
                         @else
                         <div style="text-align:center;padding:40px 20px;color:#94a3b8;">
                             <i class="fa fa-inbox" style="font-size:36px;display:block;margin-bottom:8px;color:#cbd5e1;"></i>
@@ -694,11 +712,14 @@
                 },
 
                 allocationAmounts: {},
-                allocationRMB: {},
+                allocationTds: {},
+                allocationDiscount: {},
                 selectedInvoices: [],
                 totalInvoiceAmount: {{ $invoices->sum('total_amount') }},
                 totalBalanceAmount: {{ $invoices->sum(fn($i) => $i->balance_amount ?? $i->total_amount) }},
                 totalAllocated: 0,
+                totalTds: 0,
+                totalDiscount: 0,
                 sortCol: '',
                 sortDir: 'asc',
                 showConfigModal: false,
@@ -716,6 +737,8 @@
                     { key: 'balance_amt', label: 'Balance AMT', visible: true },
                     { key: 'select', label: 'Select', visible: true },
                     { key: 'payment', label: 'Payment (USD)', visible: true },
+                    { key: 'tds_tax', label: 'TDS Tax', visible: true },
+                    { key: 'discount', label: 'Discount', visible: true },
                     { key: 'description', label: 'Invoice Description', visible: true },
                     { key: 'file_no', label: 'Booking No.', visible: true },
                     { key: 'mbl_no', label: 'MBL No.', visible: true },
@@ -859,6 +882,8 @@
                 deselectInvoice(id) {
                     this.selectedInvoices = this.selectedInvoices.filter(i => i.id !== id);
                     delete this.allocationAmounts[id];
+                    delete this.allocationTds[id];
+                    delete this.allocationDiscount[id];
                     if (String(this.form.invoice_id) === String(id)) {
                         if (this.selectedInvoices.length > 0) {
                             this.form.invoice_id = String(this.selectedInvoices[0].id);
@@ -878,10 +903,16 @@
                 },
                 updateAllocation(id) { this.recalcTotal(); },
                 recalcTotal() {
-                    let total = 0;
-                    Object.values(this.allocationAmounts).forEach(val => { total += parseFloat(val) || 0; });
-                    this.totalAllocated = total;
-                    if (total > 0) this.form.amount = total.toFixed(2);
+                    let totalPaid = 0;
+                    let totalTds = 0;
+                    let totalDisc = 0;
+                    Object.values(this.allocationAmounts).forEach(val => { totalPaid += parseFloat(val) || 0; });
+                    Object.values(this.allocationTds).forEach(val => { totalTds += parseFloat(val) || 0; });
+                    Object.values(this.allocationDiscount).forEach(val => { totalDisc += parseFloat(val) || 0; });
+                    this.totalAllocated = totalPaid;
+                    this.totalTds = totalTds;
+                    this.totalDiscount = totalDisc;
+                    if (totalPaid > 0) this.form.amount = totalPaid.toFixed(2);
                 },
                 toggleAllInvoices(e) {
                     const checked = e.target.checked;

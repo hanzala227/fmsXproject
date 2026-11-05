@@ -23,6 +23,8 @@ class AccountingPayment extends Model
         'currency_id',
         'exchange_rate',
         'amount',
+        'tds_tax',
+        'discount',
         'payment_method',
         'reference_no',
         'remark',
@@ -48,6 +50,8 @@ class AccountingPayment extends Model
         'void_date' => 'date',
         'cancelled_at' => 'datetime',
         'show_party_on_check' => 'boolean',
+        'tds_tax' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     public function tradePartner()
