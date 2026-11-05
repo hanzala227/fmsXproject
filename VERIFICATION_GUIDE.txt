@@ -1,0 +1,243 @@
+================================================================================
+              FREITX (FMS 2.0) - COMPLETE TESTING & VERIFICATION GUIDE
+================================================================================
+Branch: cr-bug-fixes-audit
+All Change Requests (CR-001 to CR-030, CR-018 skipped) verified error-free.
+
+--------------------------------------------------------------------------------
+CR-001 | Critical | AI / Booking Data Extraction
+--------------------------------------------------------------------------------
+- URL / Screen: /ocean-export/list or /air-export/create -> Click "AI Document Import"
+- Scenario: Upload any source document (e.g. Booking confirmation, AWB, B/L).
+- Expected Result: "Booking No." is populated in its own dedicated field without 
+  overwriting File No. Blank/placeholder values like "N/A" or "null" are stripped.
+
+--------------------------------------------------------------------------------
+CR-002 | High | Accounts - Booking Access
+--------------------------------------------------------------------------------
+- URL / Screen: Top Navbar Global Search OR /accounting/invoices/booking/{booking_no}
+- Scenario: Type a known booking number (e.g. MOI-261008144525) in the top search bar.
+- Expected Result: Direct link appears to open the related Invoice (INV/DN/CN) 
+  associated with that booking.
+
+--------------------------------------------------------------------------------
+CR-003 | Critical | Document Control (Admin Cancel Only)
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/invoice
+- Scenario: Select a verified/approved invoice and attempt to delete or cancel it.
+- Expected Result: Hard delete is blocked. Only an Admin can click "Cancel", which
+  opens a popup requiring a cancellation reason and keeps an audit log.
+
+--------------------------------------------------------------------------------
+CR-004 | High | Payment Column Currency (USD not RMB)
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/invoice, /accounting/payment/received-list, /accounting/payment/made-list
+- Scenario: Open any of the Receivable, Payable, or Invoice lists.
+- Expected Result: The payment column header reads "Payment (USD)" (never RMB),
+  and amounts are consistently labeled and formatted in USD.
+
+--------------------------------------------------------------------------------
+CR-005 | Medium | Exchange Rate Entry (USD Only)
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/currency-table
+- Scenario: Check the target currency dropdown when adding/editing exchange rates.
+- Expected Result: Target conversion currency is locked strictly to "USD".
+
+--------------------------------------------------------------------------------
+CR-006 | High | Settings - Mandatory Bank Dropdown
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/payment/make and /accounting/payment/receive
+- Scenario: Try entering a payment without selecting a bank, or inspect the Bank field.
+- Expected Result: Bank must be selected from the dropdown populated from Settings.
+  Free-text bank names are rejected.
+
+--------------------------------------------------------------------------------
+CR-007 | Critical | Money Receipt Settlement Lock
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/invoice
+- Scenario: Open an invoice that has an active payment or Money Receipt settlement.
+- Expected Result: The invoice shows a "PAID (LOCKED)" badge; Edit/Update actions
+  are disabled and return 403 Forbidden.
+
+--------------------------------------------------------------------------------
+CR-008 | Medium | Compact AP Invoice Printing
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/invoice/{id} (e.g. /accounting/invoice/2 for AP)
+- Scenario: Click the "Print AP" button on an Accounts Payable invoice.
+- Expected Result: Opens a compact, print-optimized invoice view with all sidebar
+  and navbar chrome hidden.
+
+--------------------------------------------------------------------------------
+CR-009 | High | Invoice / Payment (TDS Tax & Discount Columns)
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/payment/receive and /accounting/payment/make
+- Scenario: Select an invoice to settle, enter TDS Tax and Discount amounts.
+- Expected Result: Net payment amount reactive calculation updates automatically
+  and saves TDS Tax and Discount alongside the payment.
+
+--------------------------------------------------------------------------------
+CR-010 | Medium | Receivable - Invoice Creation Submenu
+--------------------------------------------------------------------------------
+- URL / Screen: Left sidebar navigation
+- Scenario: Expand the "Accounting" menu in the sidebar.
+- Expected Result: "New Invoice" / "Invoice Creation" is neatly placed directly
+  inside the Accounts Receivable submenu group.
+
+--------------------------------------------------------------------------------
+CR-011 | High | G&A Expense - Payable To Dropdown
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/ga-expense/create
+- Scenario: Open the G&A Expense creation form.
+- Expected Result: "Payable To" is a dropdown with options: Person, Company,
+  and Towards Current Liability, saving and displaying correctly.
+
+--------------------------------------------------------------------------------
+CR-012 | Medium | Naming - Rename Vendor to Payable To
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/payment/made-list, /accounting/ga-expense-list
+- Scenario: Check the labels on forms, lists, and filter dropdowns.
+- Expected Result: The label "Vendor" has been renamed to "Payable To" everywhere.
+
+--------------------------------------------------------------------------------
+CR-013 | High | Agent / Local Statement Partner Filter
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/agent-local-statement
+- Scenario: Type a partial partner name into the Partner search box and click Search.
+- Expected Result: Dropdown and statement table filter properly to show records
+  only for the matching partner.
+
+--------------------------------------------------------------------------------
+CR-014 | Medium | Statement Post Date Display
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/agent-local-statement/print
+- Scenario: Generate and print or export an Agent / Local Statement.
+- Expected Result: "Post Date" column is clearly displayed with the saved posting
+  date in both print view and CSV export.
+
+--------------------------------------------------------------------------------
+CR-015 | High | Shipment Mode Visibility in Accounts Mode
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/agent-local-statement
+- Scenario: Switch Accounting Mode to "Shipment mode" and run Search.
+- Expected Result: "Shipment Mode" column is visible in the table and shows the
+  mode populated from the booking (e.g. FCL, LCL, Air).
+
+--------------------------------------------------------------------------------
+CR-016 | High | Generate Docs Action Button
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/agent-local-statement
+- Scenario: Check one or more statement rows and click the "Generate Docs" button.
+- Expected Result: Generates a sequential document ID (DOC-YYMMDD-XXXX) and makes
+  the document available for download.
+
+--------------------------------------------------------------------------------
+CR-017 | High | Selected Total Multi-Currency Calculation
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/agent-local-statement
+- Scenario: Check multiple rows with different currencies (e.g. USD, EUR).
+- Expected Result: The "Selected Total" box dynamically updates to show separate
+  breakdowns for each currency with exact amounts, paid, and balances.
+
+--------------------------------------------------------------------------------
+CR-018 | Skipped by instruction (Client PDF design)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+CR-019 | High | Reports - Bank Book Report
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/bank/book-balance
+- Scenario: Select a Bank Account and set the date period. Click View.
+- Expected Result: Displays Opening Balance (initial + prior receipts - disbursements),
+  lists daily transactions, and matches the ledger Closing Balance.
+
+--------------------------------------------------------------------------------
+CR-020 | Medium | Accounts - Journals Review & Alignment
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/general-journal vs /accounting/journal/entry
+- Scenario: Compare General Journal (read-only posted audit register) and 
+  Journal Entry (manual draft/posting form).
+- Expected Result: Menus and links clearly separate the two workflows with no 
+  duplicate routes or broken redirects.
+
+--------------------------------------------------------------------------------
+CR-021 | High | Accounts - Access Control (Block/Unblock)
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/journal/block/maintenance
+- Scenario: As Admin, toggle Block on a date or record. As non-admin, attempt edits.
+- Expected Result: Blocked items prevent new postings/modifications with 403 Forbidden;
+  status changes are logged to the audit trail.
+
+--------------------------------------------------------------------------------
+CR-022 | Critical | Reports - Balance Sheet
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/balance-sheet
+- Scenario: Set As of Date (e.g. today) and click View.
+- Expected Result: Assets = Liabilities + Equity balances to the cent with zero
+  discrepancy; incorporates Settings banks and advances.
+
+--------------------------------------------------------------------------------
+CR-023 | Critical | Reports - Trial Balance
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/trial-balance
+- Scenario: Run Trial Balance for 2026.
+- Expected Result: Total Debits equal Total Credits (variance = 0.00); Opening
+  balances and manual journal entries reconcile with the ledger.
+
+--------------------------------------------------------------------------------
+CR-024 | Critical | Reports - General Ledger
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/general-ledger
+- Scenario: Select Account 1200 (AR), 2000 (AP), or 1000 (Cash). Click View.
+- Expected Result: Debits and credits follow standard GAAP (AR invoices are Debits,
+  Receipts are Credits; AP invoices are Credits, Payments are Debits); Running
+  balance starts from opening balance.
+
+--------------------------------------------------------------------------------
+CR-025 | High | Reports - Aging Report
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/aging-report
+- Scenario: Filter by Partner Type "Customer" and type a customer name in the search box;
+  then filter by "Ocean Carrier".
+- Expected Result: Correct matching records display for both filters (excluding airlines 
+  from ocean carriers).
+
+--------------------------------------------------------------------------------
+CR-026 | Critical | Reports - Income Statement
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/income-statement
+- Scenario: Run Income Statement for 2026.
+- Expected Result: Voided/cancelled invoices are excluded (eliminating false billions);
+  Revenue matches GL Account 4000 ($1,017,999.42) and Net Income reconciles.
+
+--------------------------------------------------------------------------------
+CR-027 | High | Reports - Revenue / Cost Report
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/revenue-cost
+- Scenario: Select Type "Revenue", choose "Detail", and click View.
+- Expected Result: Grand total matches $1,017,999.42; Credit Notes are subtracted;
+  foreign currencies convert accurately to USD.
+
+--------------------------------------------------------------------------------
+CR-028 | High | Operations - Freight Statement
+--------------------------------------------------------------------------------
+- URL / Screen: /operations/freight-statement or /accounting/report/freight-statement
+- Scenario: Check "Show Booking Number" and click "View Statement".
+- Expected Result: Interactive statement view loads below the filters with Booking No.,
+  MB/L No., HB/L No., DR/CR, Paid, Balance, Grand Total, and Currency Summary.
+
+--------------------------------------------------------------------------------
+CR-029 | Low | Reports - Remove 1099 Report
+--------------------------------------------------------------------------------
+- URL / Screen: Left sidebar navigation under "Accounting > Reports"
+- Scenario: Inspect the Reports submenu.
+- Expected Result: "1099 Report" has been removed and is no longer visible in 
+  the navigation list.
+
+--------------------------------------------------------------------------------
+CR-030 | High | Reports - Journal Report
+--------------------------------------------------------------------------------
+- URL / Screen: /accounting/report/journal-report
+- Scenario: Set period for 2026 and click "Preview". Try typing "CASH" in Quick Search.
+- Expected Result: Debits equal Credits with green balanced indicator; search filters
+  by GL code/name, Ref No, and partner; Print and Download Excel work cleanly.
+================================================================================
