@@ -147,12 +147,12 @@
                         </select>
                     </div>
 
-                    {{-- Vendor --}}
+                    {{-- Payable To --}}
                     <div class="filter-group">
-                        <div class="group-label">Vendor</div>
+                        <div class="group-label">Payable To</div>
                         <div class="vendor-select-wrapper">
                             <select id="vendor_id" class="form-control-gf" style="max-width:180px;">
-                                <option value="">All Vendors</option>
+                                <option value="">All Payable To</option>
                                 @foreach($vendors as $vendor)
                                     <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                 @endforeach
@@ -202,7 +202,7 @@
                         <div class="sort-by-group">
                             <span class="sort-by-label">Summary</span>
                             <label class="radio-item"><input type="radio" name="summary_sort" value="bank" checked> Bank</label>
-                            <label class="radio-item"><input type="radio" name="summary_sort" value="vendor_customer"> Vendor/Customer</label>
+                            <label class="radio-item"><input type="radio" name="summary_sort" value="vendor_customer"> Payable To / Customer</label>
                             <label class="radio-item"><input type="radio" name="summary_sort" value="date"> Date</label>
                         </div>
                     </div>
@@ -264,7 +264,7 @@
     function editVendor() {
         var vendorId = document.getElementById('vendor_id').value;
         if (!vendorId) {
-            showToast('error', 'Please select a vendor first.');
+            showToast('error', 'Please select a Payable To partner first.');
             return;
         }
         window.open('/trade-partner/' + vendorId + '/edit', '_blank');

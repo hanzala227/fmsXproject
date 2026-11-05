@@ -161,7 +161,7 @@
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:25px;left:25px;text-align:center;"><i class="fa fa-lock"></i></th>
                                     <th class="sticky-col sticky-col-header" data-col="date" style="width:80px;left:50px;">Date</th>
-                                    <th class="sticky-col sticky-col-header" data-col="paid_to" style="width:140px;left:130px;">Paid To</th>
+                                    <th class="sticky-col sticky-col-header" data-col="paid_to" style="width:140px;left:130px;">Payable To</th>
                                     <th data-col="type" style="width:90px;">Type</th>
                                     <th data-col="ref_no" style="width:100px;">Ref No.</th>
                                     <th data-col="bank" style="width:100px;">Bank</th>

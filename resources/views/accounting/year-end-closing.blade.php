@@ -109,7 +109,7 @@
                             <tr>
                                 <th>Type</th>
                                 <th>Post Date</th>
-                                <th>Vendor</th>
+                                <th>Payable To</th>
                                 <th>Check No.</th>
                                 <th>Bank</th>
                                 <th>Paid Amount</th>

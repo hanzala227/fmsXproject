@@ -109,7 +109,7 @@
                     <div class="form-grid-4">
                         <!-- Column 1 -->
                         <div>
-                            <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Payable To</label>
+                            <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Payable To (Type)</label>
                                 <div class="form-input-container">
                                     <select name="payable_to" class="form-control-gf" x-model="form.payable_to" required>
                                         <option value="">Select...</option>
@@ -119,7 +119,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Vendor</label>
+                            <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Payable To</label>
                                 <div class="form-input-container">
                                     <select name="bill_to_id" class="form-control-gf" x-model="form.bill_to_id" required>
                                         <option value="">Select...</option>
@@ -134,7 +134,7 @@
                                     <input type="text" name="invoice_no" class="form-control-gf" x-model="form.invoice_no" required>
                                 </div>
                             </div>
-                            <div class="form-group-gf"><label class="form-label-gf">Vendor Invoice No.</label>
+                            <div class="form-group-gf"><label class="form-label-gf">Payable To Invoice No.</label>
                                 <div class="form-input-container">
                                     <input type="text" name="vendor_invoice_no" class="form-control-gf" value="{{ old('vendor_invoice_no', $ga_expense->vendor_invoice_no ?? '') }}">
                                 </div>
@@ -477,8 +477,8 @@
                 validateForm() {
                     let valid = true;
                     let missing = [];
-                    if (!this.form.payable_to) { missing.push('Payable To'); valid = false; }
-                    if (!this.form.bill_to_id) { missing.push('Vendor'); valid = false; }
+                    if (!this.form.payable_to) { missing.push('Payable To (Type)'); valid = false; }
+                    if (!this.form.bill_to_id) { missing.push('Payable To'); valid = false; }
                     if (!this.form.invoice_no || !this.form.invoice_no.trim()) { missing.push('Invoice No.'); valid = false; }
                     if (!this.form.invoice_date) { missing.push('Post Date'); valid = false; }
                     if (!this.form.total_amount || parseFloat(this.form.total_amount) <= 0) { missing.push('Amount'); valid = false; }

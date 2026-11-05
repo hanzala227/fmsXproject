@@ -197,9 +197,9 @@
                     </div>
                     <div class="portlet-body">
                         <div class="form-grid-4">
-                            <!-- Column 1: Paid To & Payment Info -->
+                            <!-- Column 1: Payable To & Payment Info -->
                             <div>
-                                <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Paid To</label>
+                                <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Payable To</label>
                                     <div class="form-input-container">
                                         <select name="trade_partner_id" class="form-control-gf" x-model="form.trade_partner_id" @change="onTradePartnerChanged($event.target.value)" required>
                                             <option value="">Select...</option>
@@ -397,7 +397,7 @@
                                         <th data-col="due_date" style="width:90px;background:#4a5568;cursor:pointer;" @click="sortBy('due_date')">Due Date <i class="fa" :class="sortCol === 'due_date' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="type" style="width:70px;background:#4a5568;">Type</th>
                                         <th data-col="office" style="width:80px;background:#4a5568;">Office</th>
-                                        <th data-col="paid_to" style="width:160px;background:#4a5568;cursor:pointer;" @click="sortBy('paid_to')">Paid To <i class="fa" :class="sortCol === 'paid_to' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
+                                        <th data-col="paid_to" style="width:160px;background:#4a5568;cursor:pointer;" @click="sortBy('paid_to')">Payable To <i class="fa" :class="sortCol === 'paid_to' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="invoice_no" style="width:140px;background:#4a5568;cursor:pointer;" @click="sortBy('invoice_no')">Invoice No. <i class="fa" :class="sortCol === 'invoice_no' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="gl" style="width:80px;background:#4a5568;">G/L</th>
                                         <th data-col="currency" style="width:60px;background:#4a5568;">Currency</th>
@@ -770,7 +770,7 @@
                     { key: 'due_date', label: 'Due Date', visible: true },
                     { key: 'type', label: 'Type', visible: true },
                     { key: 'office', label: 'Office', visible: true },
-                    { key: 'paid_to', label: 'Paid To', visible: true },
+                    { key: 'paid_to', label: 'Payable To', visible: true },
                     { key: 'invoice_no', label: 'Invoice No.', visible: true },
                     { key: 'gl', label: 'G/L', visible: true },
                     { key: 'currency', label: 'Currency', visible: true },
@@ -1022,7 +1022,7 @@
                         <td><input type="date" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;"></td>
                         <td><input type="text" value="AP" readonly class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;background:#f0fdf4;"></td>
                         <td><input type="text" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;" placeholder="Office..."></td>
-                        <td><input type="text" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;" placeholder="Paid To..."></td>
+                        <td><input type="text" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;" placeholder="Payable To..."></td>
                         <td><input type="text" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;" placeholder="INV-..."></td>
                         <td><input type="text" class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;" placeholder="G/L..."></td>
                         <td><select class="form-control-gf" style="height:20px;font-size:9px;width:100%;border:1px solid #86efac;border-radius:3px;padding:2px;"><option>USD</option></select></td>
@@ -1051,7 +1051,7 @@
                 validateForm() {
                     let valid = true;
                     let missing = [];
-                    if (!this.form.trade_partner_id) { missing.push('Paid To'); valid = false; }
+                    if (!this.form.trade_partner_id) { missing.push('Payable To'); valid = false; }
                     if (!this.form.payment_no || !this.form.payment_no.trim()) { missing.push('Payment No.'); valid = false; }
                     if (!this.form.payment_date) { missing.push('Post Date'); valid = false; }
                     if (!this.form.amount || parseFloat(this.form.amount) <= 0) { missing.push('Amount'); valid = false; }
