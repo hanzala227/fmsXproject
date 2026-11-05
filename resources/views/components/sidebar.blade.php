@@ -112,6 +112,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
                                 ['url' => '/accounting/invoice', 'label' => 'INV/DN/CN'],
                                 ['label' => 'Receivable', 'type' => 'group', 'items' => [
+                                    ['url' => '/accounting/invoice/create', 'label' => 'Invoice Creation'],
                                     ['url' => '/accounting/payment/receive', 'label' => 'Receive Payment'],
                                     ['url' => '/accounting/payment/received-list', 'label' => 'Payment Received List (A/R)'],
                                 ]],

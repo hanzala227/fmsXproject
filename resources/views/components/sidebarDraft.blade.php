@@ -135,6 +135,7 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                             ['id' => 'accounting', 'label' => 'Accounting', 'icon' => 'fa-calculator', 'sub' => [
                                 ['label' => 'Invoice/Cost', 'type' => 'group', 'items' => [
                                     ['url' => '/accounting/invoice', 'label' => 'Invoice / Cost List'],
+                                    ['url' => '/accounting/invoice/create', 'label' => 'Invoice Creation'],
                                     ['url' => '/accounting/ga-expense-list', 'label' => 'G&A Invoice / Expense List'],
                                     ['url' => '/accounting/ga-expense/create', 'label' => 'Create G&A Expense'],
                                     ['url' => '/accounting/ga-invoice/create', 'label' => 'Create G&A Invoice'],
