@@ -28,6 +28,8 @@ class UserManagementController extends Controller
 
     public function index()
     {
+        $currentUser = auth()->user();
+
         // Backfill missing user_ids for existing users
         $usersWithoutId = User::whereNull('user_id')->orWhere('user_id', '')->orderBy('id', 'asc')->get();
         foreach ($usersWithoutId as $u) {
@@ -35,13 +37,51 @@ class UserManagementController extends Controller
             $u->save();
         }
 
-        $users = User::orderBy('created_at', 'desc')->get();
-        return view('settings.user-management', compact('users'));
+        if ($currentUser->isSuperAdmin()) {
+            $users = User::orderBy('created_at', 'desc')->get();
+        } else {
+            // Freight multi-tenancy & security: strictly show only users of current admin's company
+            // Admin 1's employees will NEVER show to Admin 2
+            $users = User::where('company_id', $currentUser->company_id)
+                ->where('id', '!=', $currentUser->id)
+                ->where(function ($q) use ($currentUser) {
+                    $q->where('created_by_id', $currentUser->id)
+                      ->orWhereNull('created_by_id');
+                })
+                ->whereNotIn('role', ['SuperAdmin', 'client', 'Customer'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        // Available modules for this company
+        $allModules = config('modules', [
+            'ocean-import'   => ['label' => 'Ocean Import',   'icon' => 'fa-ship'],
+            'ocean-export'   => ['label' => 'Ocean Export',   'icon' => 'fa-anchor'],
+            'air-import'     => ['label' => 'Air Import',     'icon' => 'fa-plane'],
+            'air-export'     => ['label' => 'Air Export',     'icon' => 'fa-plane'],
+            'truck'          => ['label' => 'Truck Shipment', 'icon' => 'fa-truck'],
+            'warehouse'      => ['label' => 'Warehouse',      'icon' => 'fa-building'],
+            'accounting'     => ['label' => 'Accounting',     'icon' => 'fa-calculator'],
+            'sales'          => ['label' => 'Sales',          'icon' => 'fa-briefcase'],
+            'trade-partners' => ['label' => 'Customers',      'icon' => 'fa-handshake-o'],
+            'reports'        => ['label' => 'Reports',        'icon' => 'fa-bar-chart'],
+            'settings'       => ['label' => 'Settings',       'icon' => 'fa-cogs'],
+        ]);
+
+        $availableModules = [];
+        foreach ($allModules as $key => $mod) {
+            if ($currentUser->isSuperAdmin() || ($currentUser->company && $currentUser->company->hasModule($key))) {
+                $availableModules[$key] = $mod;
+            }
+        }
+
+        return view('settings.user-management', compact('users', 'availableModules'));
     }
 
     public function store(Request $request)
     {
         try {
+            $currentUser = auth()->user();
             $userId = !empty($request->user_id) ? trim($request->user_id) : self::generateUserId();
             
             $validated = $request->validate([
@@ -63,11 +103,26 @@ class UserManagementController extends Controller
             $validated['last_name'] = $validated['last_name'] ?? '';
             $validated['name'] = trim($validated['first_name'] . ' ' . $validated['last_name']);
             
+            if (!empty($validated['office_code']) || !empty($validated['office_name'])) {
+                $matchedOffice = $this->syncOfficeRecord($validated['office_code'] ?? '', $validated['office_name'] ?? '');
+                if ($matchedOffice) {
+                    $validated['office_code'] = $matchedOffice->code;
+                    $validated['office_name'] = $matchedOffice->name;
+                    if (empty($validated['branch'])) {
+                        $validated['branch'] = $matchedOffice->name;
+                    }
+                }
+            }
+
             $rawPassword = !empty($validated['password']) ? $validated['password'] : 'Password123!';
             $validated['password'] = Hash::make($rawPassword);
-            $validated['role'] = $validated['role'] ?? 'Operation';
+            $validated['role'] = !empty($validated['role']) ? trim($validated['role']) : 'Operation';
             $validated['status'] = $validated['status'] ?? 'Enable';
             $validated['create_date'] = now();
+
+            // Link employee to current admin and company
+            $validated['company_id'] = $currentUser->company_id;
+            $validated['created_by_id'] = $currentUser->id;
 
             $user = User::create($validated);
 
@@ -92,7 +147,16 @@ class UserManagementController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            $currentUser = auth()->user();
             $user = User::findOrFail($id);
+
+            // Tenant security check
+            if (!$currentUser->isSuperAdmin() && $user->company_id !== $currentUser->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: User belongs to another company.'
+                ], 403);
+            }
 
             $validated = $request->validate([
                 'user_id' => 'nullable|string|max:50|unique:users,user_id,' . $id,
@@ -114,6 +178,17 @@ class UserManagementController extends Controller
 
             $validated['last_name'] = $validated['last_name'] ?? '';
             $validated['name'] = trim($validated['first_name'] . ' ' . $validated['last_name']);
+
+            if (!empty($validated['office_code']) || !empty($validated['office_name'])) {
+                $matchedOffice = $this->syncOfficeRecord($validated['office_code'] ?? '', $validated['office_name'] ?? '');
+                if ($matchedOffice) {
+                    $validated['office_code'] = $matchedOffice->code;
+                    $validated['office_name'] = $matchedOffice->name;
+                    if (empty($validated['branch'])) {
+                        $validated['branch'] = $matchedOffice->name;
+                    }
+                }
+            }
 
             $user->update($validated);
 
@@ -138,6 +213,7 @@ class UserManagementController extends Controller
     public function bulkSave(Request $request)
     {
         try {
+            $currentUser = auth()->user();
             $usersData = $request->input('users', []);
             $savedUsers = [];
 
@@ -160,6 +236,14 @@ class UserManagementController extends Controller
                 $departmentCode = trim($userData['department_code'] ?? '');
                 $departmentName = trim($userData['department_name'] ?? '');
 
+                if (!empty($officeCode) || !empty($officeName)) {
+                    $matchedOffice = $this->syncOfficeRecord($officeCode, $officeName);
+                    if ($matchedOffice) {
+                        $officeCode = $matchedOffice->code;
+                        $officeName = $matchedOffice->name;
+                    }
+                }
+
                 $payload = [
                     'first_name' => $firstName,
                     'last_name' => $lastName,
@@ -169,14 +253,19 @@ class UserManagementController extends Controller
                     'office_name' => $officeName,
                     'department_code' => $departmentCode,
                     'department_name' => $departmentName,
-                    'branch' => trim($userData['branch'] ?? ''),
-                    'role' => $userData['role'] ?? 'Operation',
+                    'branch' => !empty($officeName) ? $officeName : trim($userData['branch'] ?? ''),
+                    'role' => !empty($userData['role']) ? trim($userData['role']) : 'Operation',
                     'status' => $userData['status'] ?? 'Enable',
                 ];
 
                 if ($id && is_numeric($id) && intval($id) > 0) {
                     $user = User::find($id);
                     if ($user) {
+                        // Tenant security check
+                        if (!$currentUser->isSuperAdmin() && $user->company_id !== $currentUser->company_id) {
+                            continue;
+                        }
+
                         if (!empty($userData['user_id'])) {
                             $payload['user_id'] = trim($userData['user_id']);
                         }
@@ -191,6 +280,10 @@ class UserManagementController extends Controller
                     $password = !empty($userData['password']) ? $userData['password'] : 'Password123!';
                     $payload['password'] = Hash::make($password);
                     $payload['create_date'] = now();
+
+                    // Multi-tenancy link to current admin and company
+                    $payload['company_id'] = $currentUser->company_id;
+                    $payload['created_by_id'] = $currentUser->id;
 
                     $user = User::create($payload);
                     $savedUsers[] = $user;
@@ -213,7 +306,17 @@ class UserManagementController extends Controller
     public function destroy($id)
     {
         try {
+            $currentUser = auth()->user();
             $user = User::findOrFail($id);
+
+            // Tenant security check
+            if (!$currentUser->isSuperAdmin() && $user->company_id !== $currentUser->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized action.'
+                ], 403);
+            }
+
             $user->delete();
 
             return response()->json([
@@ -231,7 +334,16 @@ class UserManagementController extends Controller
     public function resetPassword(Request $request, $id)
     {
         try {
+            $currentUser = auth()->user();
             $user = User::findOrFail($id);
+
+            // Tenant security check
+            if (!$currentUser->isSuperAdmin() && $user->company_id !== $currentUser->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized action.'
+                ], 403);
+            }
 
             $validated = $request->validate([
                 'new_password' => ['required', 'confirmed', Password::min(6)],
@@ -257,9 +369,91 @@ class UserManagementController extends Controller
         }
     }
 
+    public function updateModuleAccess(Request $request, $id)
+    {
+        try {
+            $currentUser = auth()->user();
+            $user = User::findOrFail($id);
+
+            // Tenant security check: Admin 1 cannot touch Admin 2's employees
+            if (!$currentUser->isSuperAdmin() && $user->company_id !== $currentUser->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: This user belongs to another company.'
+                ], 403);
+            }
+
+            $modules = $request->input('modules', []);
+            if (!is_array($modules)) {
+                $modules = [];
+            }
+
+            // Freight standard security: Only modules subscribed by the company can be assigned
+            if ($currentUser->company) {
+                $modules = array_filter($modules, function ($mod) use ($currentUser) {
+                    return $currentUser->company->hasModule($mod);
+                });
+            }
+
+            $user->accessible_modules = array_values($modules);
+            $user->save();
+
+            // Synchronize with Spatie permissions
+            $moduleToName = [
+                'ocean-import'   => 'Ocean Import',
+                'ocean-export'   => 'Ocean Export',
+                'air-import'     => 'Air Import',
+                'air-export'     => 'Air Export',
+                'truck'          => 'Truck Shipment',
+                'warehouse'      => 'Warehouse & Distribution',
+                'accounting'     => 'Accounting',
+                'sales'          => 'CRM',
+                'trade-partners' => 'Customers',
+                'reports'        => 'Reports',
+                'settings'       => 'Settings',
+            ];
+
+            $permNames = [];
+            foreach ($modules as $mKey) {
+                $displayName = $moduleToName[$mKey] ?? ucfirst($mKey);
+                $perm = \Spatie\Permission\Models\Permission::firstOrCreate(
+                    ['name' => 'Module: ' . $displayName, 'guard_name' => 'web'],
+                    ['module_name' => $displayName]
+                );
+                $permNames[] = $perm->name;
+            }
+            $user->syncPermissions($permNames);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Module access updated successfully.',
+                'count' => count($user->accessible_modules),
+                'modules' => $user->accessible_modules
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update module access: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function exportCsv(Request $request)
     {
-        $users = User::orderBy('created_at', 'desc')->get();
+        $currentUser = auth()->user();
+        if ($currentUser->isSuperAdmin()) {
+            $users = User::orderBy('created_at', 'desc')->get();
+        } else {
+            $users = User::where('company_id', $currentUser->company_id)
+                ->where('id', '!=', $currentUser->id)
+                ->where(function ($q) use ($currentUser) {
+                    $q->where('created_by_id', $currentUser->id)
+                      ->orWhereNull('created_by_id');
+                })
+                ->whereNotIn('role', ['SuperAdmin', 'client', 'Customer'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
 
         $filename = 'users-' . date('Y-m-d') . '.csv';
         $headers = [
@@ -299,6 +493,47 @@ class UserManagementController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Helper to find or automatically create an Office record when configured in settings
+     */
+    protected function syncOfficeRecord(string $officeCode, string $officeName = ''): ?\App\Models\Office
+    {
+        $officeCode = trim($officeCode);
+        $officeName = trim($officeName);
+
+        if (empty($officeCode) && empty($officeName)) {
+            return null;
+        }
+
+        // Try finding existing office by code or name
+        $office = \App\Models\Office::where('code', $officeCode)
+            ->orWhere('name', 'like', '%' . $officeCode . '%')
+            ->first();
+
+        if (!$office && !empty($officeName)) {
+            $office = \App\Models\Office::where('name', 'like', '%' . $officeName . '%')->first();
+        }
+
+        if (!$office) {
+            $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $officeCode));
+            if (strlen($code) > 6) {
+                $code = strtoupper(substr($code, 0, 3));
+            }
+            if (empty($code)) {
+                $code = 'OFF';
+            }
+            $name = !empty($officeName) ? $officeName : ucfirst($officeCode) . ' Office';
+
+            $office = \App\Models\Office::create([
+                'code' => $code,
+                'name' => $name,
+                'is_active' => true,
+            ]);
+        }
+
+        return $office;
     }
 }
 

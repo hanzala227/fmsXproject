@@ -11,12 +11,6 @@
                style="color:{{ $isBlocked ? '#ef4444' : '#22c55e' }};cursor:pointer;font-size:11px;"
                title="{{ $isBlocked ? 'Blocked' : 'Unlocked' }}"></i>
         </td>
-        <td style="text-align:center;" onclick="event.stopPropagation()">
-            <span class="color-mark"
-                  onclick="openColorPicker({{ $hbl->id }}, '{{ $hbl->color ?? '' }}')"
-                  style="display:inline-block;width:14px;height:14px;border-radius:2px;background:{{ $hbl->color ?: '#cbd5e1' }};cursor:pointer;border:1px solid #94a3b8;vertical-align:middle;"
-                  title="Status Color (Click to change)"></span>
-        </td>
         <td>
             <a href="/air-import/{{ $hbl->air_import_id }}/edit" class="col-link">{{ optional($hbl->airImport)->file_no ?? '--' }}</a>
         </td>

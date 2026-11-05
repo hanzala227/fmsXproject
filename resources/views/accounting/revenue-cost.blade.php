@@ -181,7 +181,7 @@
                         <td class="flabel"></td>
                         <td class="finput" colspan="5">
                             <label style="font-size:11px;color:#334155;cursor:pointer;">
-                                <input type="checkbox" id="include_local_tp" style="accent-color:#3b82f6;"> Include local trade partner data
+                                <input type="checkbox" id="include_local_tp" style="accent-color:#3b82f6;"> Include local customer data
                             </label>
                         </td>
                     </tr>

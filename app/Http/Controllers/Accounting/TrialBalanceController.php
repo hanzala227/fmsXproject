@@ -61,56 +61,89 @@ class TrialBalanceController extends Controller
         // ── 1. Cash & Cash Equivalents (Bank Accounts) ──
         $bankAccounts = BankAccount::with('currency')->orderBy('name')->get();
 
-        foreach ($bankAccounts as $bank) {
-            $openingBalance = (float) $bank->opening_balance;
-
-            // Net activity in period
-            $receipts = (float) AccountingPayment::where('type', 'RECEIVED')
-                ->where('payment_date', '>=', $periodFrom)
-                ->where('payment_date', '<=', $periodTo)
-                ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                ->sum('amount');
-
-            $payments = (float) AccountingPayment::where('type', 'MADE')
-                ->where('payment_date', '>=', $periodFrom)
-                ->where('payment_date', '<=', $periodTo)
-                ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                ->sum('amount');
-
-            $debitTotal  = $receipts;
-            $creditTotal = $payments;
-            $closingBalance = $openingBalance + $debitTotal - $creditTotal;
-
-            $accounts[] = [
-                'code'            => '1000',
-                'sub_code'        => $bank->account_no ?? $bank->name,
-                'name'            => $bank->name,
-                'group'           => 'Assets',
-                'sub_group'       => 'Cash & Cash Equivalents',
-                'currency'        => $bank->currency?->code ?? 'USD',
-                'opening_balance' => $openingBalance,
-                'debit'           => $debitTotal,
-                'credit'          => $creditTotal,
-                'closing_balance' => $closingBalance,
-                'type'            => 'debit',
-            ];
-        }
-
-        // ── 2. Accounts Receivable ──
-        $arTotal = (float) Invoice::where('type', 'AR')
-            ->where('invoice_date', '<=', $periodTo)
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('total_amount');
-
-        $arPaymentsReceived = (float) AccountingPayment::where('type', 'RECEIVED')
+        $paymentsQuery = AccountingPayment::with('currency')
             ->where('payment_date', '>=', $periodFrom)
             ->where('payment_date', '<=', $periodTo)
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('amount');
+            ->get();
 
-        $netAR = $arTotal - $arPaymentsReceived;
+        $receipts = 0.0;
+        $payments = 0.0;
+        foreach ($paymentsQuery as $p) {
+            $rate = (float) ($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $amt = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
+            if ($p->type === 'RECEIVED') {
+                $receipts += $amt;
+            } elseif ($p->type === 'MADE') {
+                $payments += $amt;
+            }
+        }
 
-        if (!$hideZero || abs($netAR) > 0.01) {
+        if ($bankAccounts->isEmpty()) {
+            $closingBalance = $receipts - $payments;
+            if (!$hideZero || abs($closingBalance) > 0.01) {
+                $accounts[] = [
+                    'code'            => '1000',
+                    'sub_code'        => 'CASH',
+                    'name'            => 'Cash & Bank',
+                    'group'           => 'Assets',
+                    'sub_group'       => 'Cash & Cash Equivalents',
+                    'currency'        => 'USD',
+                    'opening_balance' => 0,
+                    'debit'           => $receipts,
+                    'credit'          => $payments,
+                    'closing_balance' => $closingBalance,
+                    'type'            => 'debit',
+                ];
+            }
+        } else {
+            foreach ($bankAccounts as $bank) {
+                $rate = (float) ($bank->currency?->exchange_rate ?? 1.0);
+                if ($rate <= 0) $rate = 1.0;
+                $openingBalance = ($rate != 1.0) ? round(((float)$bank->opening_balance) / $rate, 2) : (float)$bank->opening_balance;
+
+                $debitTotal  = $receipts;
+                $creditTotal = $payments;
+                $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+                $accounts[] = [
+                    'code'            => '1000',
+                    'sub_code'        => $bank->account_no ?? $bank->name,
+                    'name'            => $bank->name,
+                    'group'           => 'Assets',
+                    'sub_group'       => 'Cash & Cash Equivalents',
+                    'currency'        => $bank->currency?->code ?? 'USD',
+                    'opening_balance' => $openingBalance,
+                    'debit'           => $debitTotal,
+                    'credit'          => $creditTotal,
+                    'closing_balance' => $closingBalance,
+                    'type'            => 'debit',
+                ];
+            }
+        }
+
+        // ── 2. Accounts Receivable ──
+        $arOpening = 0.0;
+        $arBilledInvoices = Invoice::with('currency')->where('type', 'AR')
+            ->where('invoice_date', '>=', $periodFrom)
+            ->where('invoice_date', '<=', $periodTo)
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->get();
+
+        $arBilled = 0.0;
+        foreach ($arBilledInvoices as $inv) {
+            $rate = (float) ($inv->exchange_rate ?? $inv->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $amt = ($rate != 1.0) ? round(((float)$inv->total_amount) / $rate, 2) : (float)$inv->total_amount;
+            $isCN = strtoupper($inv->document_type ?? '') === 'CN';
+            $arBilled += ($isCN ? -$amt : $amt);
+        }
+
+        $arPaymentsReceived = $receipts;
+        $netAR = max(0.0, ($arOpening + $arBilled) - $arPaymentsReceived);
+
+        if (!$hideZero || abs($netAR) > 0.01 || abs($arBilled) > 0.01) {
             $accounts[] = [
                 'code'            => '1200',
                 'sub_code'        => 'AR',
@@ -118,8 +151,8 @@ class TrialBalanceController extends Controller
                 'group'           => 'Assets',
                 'sub_group'       => 'Current Assets',
                 'currency'        => 'USD',
-                'opening_balance' => $arTotal,
-                'debit'           => 0,
+                'opening_balance' => $arOpening,
+                'debit'           => $arBilled,
                 'credit'          => $arPaymentsReceived,
                 'closing_balance' => $netAR,
                 'type'            => 'debit',
@@ -127,20 +160,26 @@ class TrialBalanceController extends Controller
         }
 
         // ── 3. Accounts Payable ──
-        $apTotal = (float) Invoice::where('type', 'AP')
+        $apOpening = 0.0;
+        $apBilledInvoices = Invoice::with('currency')->where('type', 'AP')
+            ->where('invoice_date', '>=', $periodFrom)
             ->where('invoice_date', '<=', $periodTo)
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('total_amount');
+            ->get();
 
-        $apPaymentsMade = (float) AccountingPayment::where('type', 'MADE')
-            ->where('payment_date', '>=', $periodFrom)
-            ->where('payment_date', '<=', $periodTo)
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('amount');
+        $apBilled = 0.0;
+        foreach ($apBilledInvoices as $inv) {
+            $rate = (float) ($inv->exchange_rate ?? $inv->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $amt = ($rate != 1.0) ? round(((float)$inv->total_amount) / $rate, 2) : (float)$inv->total_amount;
+            $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+            $apBilled += ($isDN ? -$amt : $amt);
+        }
 
-        $netAP = $apTotal - $apPaymentsMade;
+        $apPaymentsMade = $payments;
+        $netAP = max(0.0, ($apOpening + $apBilled) - $apPaymentsMade);
 
-        if (!$hideZero || abs($netAP) > 0.01) {
+        if (!$hideZero || abs($netAP) > 0.01 || abs($apBilled) > 0.01) {
             $accounts[] = [
                 'code'            => '2000',
                 'sub_code'        => 'AP',
@@ -148,16 +187,16 @@ class TrialBalanceController extends Controller
                 'group'           => 'Liabilities',
                 'sub_group'       => 'Current Liabilities',
                 'currency'        => 'USD',
-                'opening_balance' => $apTotal,
+                'opening_balance' => $apOpening,
                 'debit'           => $apPaymentsMade,
-                'credit'          => 0,
+                'credit'          => $apBilled,
                 'closing_balance' => $netAP,
                 'type'            => 'credit',
             ];
         }
 
         // ── 4. Revenue (from AR invoices) ──
-        $totalRevenue = $arTotal;
+        $totalRevenue = $arBilled;
         if (!$hideZero || abs($totalRevenue) > 0.01) {
             $accounts[] = [
                 'code'            => '4000',
@@ -175,7 +214,7 @@ class TrialBalanceController extends Controller
         }
 
         // ── 5. Expenses (from AP invoices) ──
-        $totalExpenses = $apTotal;
+        $totalExpenses = $apBilled;
         if (!$hideZero || abs($totalExpenses) > 0.01) {
             $accounts[] = [
                 'code'            => '5000',

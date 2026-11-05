@@ -3,6 +3,11 @@ import * as Turbo from "@hotwired/turbo";
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 
+// Disable Turbo progress bar completely
+if (Turbo && Turbo.setProgressBarDelay) {
+    Turbo.setProgressBarDelay(999999999);
+}
+
 // Global registry to store listeners registered by inline/body scripts for cleanup
 const pageListeners = [];
 const originalAddEventListener = EventTarget.prototype.addEventListener;
@@ -54,6 +59,13 @@ window.cleanupPageListeners = function() {
 document.addEventListener('turbo:before-render', () => {
     if (typeof window.cleanupPageListeners === 'function') {
         window.cleanupPageListeners();
+    }
+    if (window.Alpine && document.body) {
+        try {
+            window.Alpine.destroyTree(document.body);
+        } catch (e) {
+            console.warn("Error destroying Alpine tree before Turbo render:", e);
+        }
     }
 });
 

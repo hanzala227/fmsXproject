@@ -12,7 +12,7 @@
         <form @submit.prevent="submitForm">
             <div class="modal-body" style="padding: 15px; background: #fff;">
                 
-                <!-- Trade Partner Fields -->
+                <!-- Customer Fields -->
                 <template x-if="module === 'trade-partner'">
                     <div>
                         <div class="form-group-gf" style="margin-bottom: 10px;">
@@ -96,7 +96,7 @@ function addNewModal() {
                 this.module = e.detail.module;
                 this.targetModel = e.detail.targetModel;
                 this.targetSelect = e.detail.targetSelect;
-                this.title = 'Add New ' + this.module.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                this.title = 'Add New ' + (this.module === 'trade-partner' ? 'Customer' : this.module.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()));
                 this.formData = {};
                 this.errorMessage = '';
                 this.isOpen = true;

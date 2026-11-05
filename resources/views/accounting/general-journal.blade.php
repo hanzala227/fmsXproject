@@ -233,8 +233,18 @@
             sa.checked       = n === all.length && all.length > 0;
             sa.indeterminate = n > 0 && n < all.length;
         }
+        var hasPosted = false;
+        checked.forEach(function(cb) {
+            var row = cb.closest('tr');
+            if (row && (row.dataset.status === 'POSTED' || row.dataset.status === 'APPROVED')) {
+                hasPosted = true;
+            }
+        });
         var delBtn = document.getElementById('btn-delete');
-        if (delBtn) delBtn.disabled = n === 0;
+        if (delBtn) {
+            delBtn.disabled = (n === 0 || hasPosted);
+            delBtn.title = hasPosted ? 'Document Control: Posted journal entries cannot be deleted.' : 'Delete Selected';
+        }
 
         var badge = document.getElementById('sel-badge');
         if (badge) {
@@ -360,8 +370,17 @@
     /* ── DELETE ── */
     var _deleteIds = [];
     function confirmDelete() {
-        _deleteIds = [...document.querySelectorAll('.row-check:checked')].map(function(cb) { return cb.value; });
-        if (!_deleteIds.length) { showToast('error', 'Please select row(s) to delete.'); return; }
+        var checked = [...document.querySelectorAll('.row-check:checked')];
+        if (!checked.length) { showToast('error', 'Please select row(s) to delete.'); return; }
+        var hasPosted = checked.some(function(cb) {
+            var row = cb.closest('tr');
+            return row && (row.dataset.status === 'POSTED' || row.dataset.status === 'APPROVED');
+        });
+        if (hasPosted) {
+            showToast('error', 'Document Control: Posted journal entries cannot be deleted. Reversal or cancellation is required.');
+            return;
+        }
+        _deleteIds = checked.map(function(cb) { return cb.value; });
         document.getElementById('confirm-msg').textContent = 'Delete ' + _deleteIds.length + ' entry(ies)? This action cannot be undone.';
         document.getElementById('confirm-overlay').classList.add('open');
     }

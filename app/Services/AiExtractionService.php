@@ -207,45 +207,81 @@ CRITICAL INSTRUCTIONS FOR MULTI-DOCUMENT / SINGLE-DOCUMENT EXTRACTION:
             ]
         ];
 
-        try {
-            // Gemini requires response_format string if using older versions, but gpt-4o uses object.
-            // Let's omit response_format for max compatibility, and just prompt strongly for JSON.
-            $payload = [
-                'model' => $settings->model_name ?? 'gpt-4o',
-                'messages' => $messages,
-                'temperature' => 0.1,
-            ];
-            
-            // Only add response_format object for non-Gemini to prevent crashes on some Gemini models
-            if ($apiType !== 'gemini') {
-                $payload['response_format'] = ['type' => 'json_object'];
+        $configuredModel = $settings->model_name ?: ($apiType === 'gemini' ? 'gemini-3.5-flash-lite' : 'gpt-4o');
+        
+        // Define fallback models order based on provider to prevent single-point-of-failure 503s
+        $modelCandidates = array_unique(array_filter([
+            $configuredModel,
+            $apiType === 'gemini' ? 'gemini-3.5-flash' : 'gpt-4o-mini',
+            $apiType === 'gemini' ? 'gemini-3.5-flash-lite' : 'gpt-4o',
+        ]));
+
+        $lastException = null;
+
+        foreach ($modelCandidates as $attemptModel) {
+            for ($retry = 0; $retry < 2; $retry++) {
+                try {
+                    $payload = [
+                        'model' => $attemptModel,
+                        'messages' => $messages,
+                        'temperature' => 0.1,
+                    ];
+                    
+                    if ($apiType !== 'gemini') {
+                        $payload['response_format'] = ['type' => 'json_object'];
+                    }
+
+                    $response = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . $settings->api_key,
+                        'Content-Type' => 'application/json',
+                    ])->timeout(60)->post($baseUrl, $payload);
+
+                    if ($response->successful()) {
+                        $result = $response->json();
+                        $content = $result['choices'][0]['message']['content'] ?? '';
+                        if (!empty($content)) {
+                            return $content;
+                        }
+                    }
+
+                    // If 503, 429 or 500, log warning and retry or fallback
+                    $statusCode = $response->status();
+                    Log::warning("AI API call attempt failed for model {$attemptModel} (HTTP {$statusCode}), retrying/falling back...");
+                    
+                    if ($retry === 0 && in_array($statusCode, [503, 429])) {
+                        usleep(800000); // Wait 800ms before retry
+                        continue;
+                    }
+
+                    $lastException = new Exception("AI API request failed with status: {$statusCode}");
+                    break; // Move to next fallback candidate
+                } catch (Exception $e) {
+                    $lastException = $e;
+                    Log::warning("AI connection attempt error for model {$attemptModel}: " . $e->getMessage());
+                    if ($retry === 0) {
+                        usleep(800000);
+                        continue;
+                    }
+                    break;
+                }
             }
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $settings->api_key,
-                'Content-Type' => 'application/json',
-            ])->timeout(60)->post($baseUrl, $payload);
-
-            if ($response->failed()) {
-                Log::error("AI API Error: " . $response->body());
-                throw new Exception("AI API request failed: " . $response->status());
-            }
-
-            $result = $response->json();
-            return $result['choices'][0]['message']['content'] ?? '';
-
-        } catch (Exception $e) {
-            Log::error("AI Connection Error: " . $e->getMessage());
-            throw new Exception("Failed to connect to AI service: " . $e->getMessage());
         }
+
+        Log::error("All AI model fallback attempts exhausted: " . ($lastException ? $lastException->getMessage() : 'Unknown error'));
+        throw new Exception("AI Service temporarily busy. Please retry in a few moments: " . ($lastException ? $lastException->getMessage() : 'Server Error'));
     }
 
     private function parseJsonFromResponse(string $response): ?array
     {
         // Strip markdown code blocks if the AI includes them despite instructions
-        $response = preg_replace('/```json/i', '', $response);
-        $response = preg_replace('/```/i', '', $response);
+        $response = preg_replace('/^```(?:json)?/im', '', $response);
+        $response = preg_replace('/```$/im', '', $response);
         $response = trim($response);
+
+        // Extract JSON object boundary if surrounded by conversational text
+        if (preg_match('/\{[\s\S]*\}/', $response, $matches)) {
+            $response = $matches[0];
+        }
 
         $decoded = json_decode($response, true);
         if (json_last_error() !== JSON_ERROR_NONE) {

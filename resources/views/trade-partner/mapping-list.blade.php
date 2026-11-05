@@ -69,9 +69,9 @@
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom:10px;">
-                    <label style="display:block;font-size:10px;font-weight:600;color:#475569;margin-bottom:3px;">Init Target (Trade Partner)</label>
+                    <label style="display:block;font-size:10px;font-weight:600;color:#475569;margin-bottom:3px;">Init Target (Customer)</label>
                     <select id="mapping-tp" class="input-inline" style="width:100%;height:26px;">
-                        <option value="">— Select Trade Partner —</option>
+                        <option value="">— Select Customer —</option>
                         @foreach($tradePartners as $tp)
                             <option value="{{ $tp->id }}">{{ $tp->name }} ({{ $tp->code ?? 'N/A' }})</option>
                         @endforeach
@@ -93,8 +93,8 @@
         <div class="page-bar">
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
-                <li><a href="/trade-partner/list">Trade Partner</a> <i class="fa fa-angle-right"></i></li>
-                <li><span style="color: #1e293b; font-weight: 700;">Trade Partner Mapping List</span></li>
+                <li><a href="/trade-partner/list">Customers</a> <i class="fa fa-angle-right"></i></li>
+                <li><span style="color: #1e293b; font-weight: 700;">Customer Mapping List</span></li>
             </ul>
         </div>
 
@@ -103,7 +103,7 @@
             {{-- PORTLET TITLE --}}
             <div class="portlet-title">
                 <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">Trade Partner Mapping List</span>
+                    <span class="caption-subject">Customer Mapping List</span>
                     <span id="sel-badge" style="display:none;font-size:10px;color:#3b82f6;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:10px;border:1px solid #bfdbfe;"></span>
                 </div>
                 <div class="actions" style="display:flex;gap:4px;position:relative;align-items:center;">

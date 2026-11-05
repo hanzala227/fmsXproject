@@ -117,7 +117,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="flabel">Trade Partner Type</td>
+                        <td class="flabel">Customer Type</td>
                         <td class="finput" colspan="5">
                             <div style="display:flex;flex-direction:column;gap:3px;">
                                 <div class="radio-row">
@@ -202,7 +202,7 @@
                         <td class="flabel">Group by</td>
                         <td class="finput">
                             <div class="radio-row">
-                                <label><input type="radio" name="group_by" value="trade_partner" checked> Trade Partner</label>
+                                <label><input type="radio" name="group_by" value="trade_partner" checked> Customer</label>
                                 <label><input type="radio" name="group_by" value="sales_invoice"> Sales (Invoice)</label>
                                 <label><input type="radio" name="group_by" value="account_group"> Account Group</label>
                             </div>
@@ -250,8 +250,8 @@
                         <td class="flabel">View Option</td>
                         <td class="finput">
                             <div class="check-row">
-                                <label><input type="checkbox" id="opt_show_alias"> Show Trade Partner Alias</label>
-                                <label><input type="checkbox" id="opt_show_name_print"> Show Trade Partner Name instead of Print Name</label>
+                                <label><input type="checkbox" id="opt_show_alias"> Show Customer Alias</label>
+                                <label><input type="checkbox" id="opt_show_name_print"> Show Customer Name instead of Print Name</label>
                             </div>
                         </td>
                     </tr>

@@ -594,7 +594,7 @@
                 form: {
                     shipping_no: '{{ old("shipping_no", isset($shipping) ? $shipping->shipping_no : "WS-" . now()->format("YmdHis")) }}',
                     shipping_date: '{{ old("shipping_date", isset($shipping) && $shipping->shipping_date ? $shipping->shipping_date->format("Y-m-d") : date("Y-m-d")) }}',
-                    office_id: '{{ old("office_id", $shipping->office_id ?? "") }}',
+                    office_id: '{{ old("office_id", isset($shipping) && !empty($shipping->office_id) ? $shipping->office_id : (auth()->user()->assigned_office_id ?? "")) }}',
                     warehouse_id: '{{ old("warehouse_id", $shipping->warehouse_id ?? "") }}',
                     customer_id: '{{ old("customer_id", $shipping->customer_id ?? "") }}',
                     bill_to_id: '{{ old("bill_to_id", $shipping->bill_to_id ?? "") }}',

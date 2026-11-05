@@ -6,7 +6,35 @@
                 <i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MB/L
                 <span x-show="form.mbl_no" style="margin-left: 8px; color: #1e3a8a; font-weight: 700; background: #dbeafe; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="form.mbl_no"></span>
             </span>
-            <div class="actions">
+            <div class="actions" style="display: flex; align-items: center; gap: 8px;" @click.stop>
+                <!-- MBL Docs Dropdown -->
+                <div style="position: relative;" x-data="{ showMblDocsMenu: false }" @click.away="showMblDocsMenu = false" x-show="saved">
+                    <button type="button" @click.stop.prevent="showMblDocsMenu = !showMblDocsMenu"
+                            class="btn-default-gf"
+                            :class="!saved ? 'disabled-tab' : ''"
+                            :disabled="!saved"
+                            style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.15); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                        <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Docs <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                    </button>
+                    <div x-show="showMblDocsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
+                        <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                            <li><button type="button" @click="saved ? ToolsAction('block') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('unblock') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock" style="width:14px; text-align:center; margin-right:4px;"></i> Unblock</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('copy') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('apply_all_hbl') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-check-square-o" style="width:14px; text-align:center; margin-right:4px;"></i> Apply to all HB/Ls</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('delete') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#ef4444; cursor:pointer;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('batch_email') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-envelope-o" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Email</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('batch_print') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-print" style="width:14px; text-align:center; margin-right:4px;"></i> Batch Print</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('manifest') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('dev_seg') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-th-large" style="width:14px; text-align:center; margin-right:4px;"></i> DEV/SEG</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('delivery_order') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('profit_summary') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('profit_detail') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Detail</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('cargo_manifest_status') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-ship" style="width:14px; text-align:center; margin-right:4px;"></i> Cargo Manifest</button></li>
+                            <li><button type="button" @click="saved ? ToolsAction('track_trace') : null; showMblDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-map-marker" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                        </ul>
+                    </div>
+                </div>
                 <i class="fa fa-angle-down transition-transform" :class="showMblSection ? 'rotate-180' : ''"></i>
             </div>
         </div>
@@ -135,14 +163,14 @@
                     <label class="form-label-gf">Oversea Agent</label>
                     <div class="form-input-container">
                         <x-inline-select name="oversea_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.oversea_agent_id" class="form-control-gf" />
-                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'oversea_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'oversea_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                     </div>
                 </div>
                 <div class="form-group-gf">
                     <label class="form-label-gf">Co-loader</label>
                     <div class="form-input-container">
                         <x-inline-select name="co_loader_id" :options="$agents" module="trade-partner" type="agent" x-model="form.co_loader_id" class="form-control-gf" />
-                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'co_loader_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'co_loader_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                     </div>
                 </div>
 
@@ -151,7 +179,7 @@
                     <label class="form-label-gf">Forwarding Agent</label>
                     <div class="form-input-container">
                         <x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" type="agent" x-model="form.forwarding_agent_id" class="form-control-gf" />
-                        <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'forwarding_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                        <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'forwarding_agent_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                     </div>
                 </div>
                 <div class="form-group-gf">
@@ -160,7 +188,7 @@
                         <select name="op_id" class="form-control-gf" x-model="form.op_id">
                             <option value="">Select Operator...</option>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                <option value="{{ $user->id }}" {{ (isset($oceanImport) && !empty($oceanImport->op_id) ? $oceanImport->op_id : auth()->id()) == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -181,28 +209,28 @@
                         <label class="form-label-gf">Customer</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_customer_id" :options="$agents" module="trade-partner" type="customer" x-model="form.dm_customer_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_customer_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_customer_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
                         <label class="form-label-gf">Shipper</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_shipper_id" :options="$agents" module="trade-partner" type="shipper" x-model="form.dm_shipper_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
                         <label class="form-label-gf">Consignee</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_consignee_id" :options="$agents" module="trade-partner" type="consignee" x-model="form.dm_consignee_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_consignee_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
                         <label class="form-label-gf">Notify</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_notify_id" :options="$agents" module="trade-partner" type="notify" x-model="form.dm_notify_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
 
@@ -227,7 +255,7 @@
                         <label class="form-label-gf">Bill To</label>
                         <div class="form-input-container">
                             <x-inline-select name="dm_bill_to_id" :options="$agents" module="trade-partner" type="customer" x-model="form.dm_bill_to_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_bill_to_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'dm_bill_to_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
@@ -273,7 +301,7 @@
                                     <option value="{{ $vessel->id }}">{{ $vessel->name ?? '' }}</option>
                                 @endforeach
                             </select>
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px; margin-left:4px;" @click="openAddNewModal('vessel', 'vessel_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px; margin-left:4px;" @click="openAddNewModal('vessel', 'vessel_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                    <div class="form-group-gf">
@@ -365,7 +393,7 @@
                         <label class="form-label-gf">CY Location</label>
                         <div class="form-input-container">
                             <x-inline-select name="cy_location_id" :options="$agents" module="trade-partner" type="location" x-model="form.cy_location_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'cy_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'cy_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
@@ -431,7 +459,7 @@
                         <label class="form-label-gf">CFS Location</label>
                         <div class="form-input-container">
                             <x-inline-select name="cfs_location_id" :options="$agents" module="trade-partner" type="location" x-model="form.cfs_location_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'cfs_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'cfs_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf" style="height: 19px;"></div>
@@ -669,7 +697,7 @@
                         <label class="form-label-gf">Return Location</label>
                         <div class="form-input-container">
                             <x-inline-select name="return_location_id" :options="$agents" module="trade-partner" type="location" x-model="form.return_location_id" class="form-control-gf" />
-                            <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'return_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                            <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'return_location_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                         </div>
                     </div>
                     <div class="form-group-gf">
@@ -718,6 +746,7 @@
                         </button>
                         <div x-show="openHblMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
                             <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                <li><button type="button" @click="copyHbl(index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy HB/L</button></li>
                                 <li><button type="button" @click="ToolsAction('copy_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-share" style="width:14px; text-align:center; margin-right:4px;"></i> Copy To</button></li>
                                 <li><button type="button" @click="ToolsAction('move_to', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-arrow-right" style="width:14px; text-align:center; margin-right:4px;"></i> Move To</button></li>
                                 <li><button type="button" @click="ToolsAction('proof_of_delivery', index); openHblMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-check-circle-o" style="width:14px; text-align:center; margin-right:4px;"></i> Proof of Delivery</button></li>
@@ -776,7 +805,7 @@
                             <label class="form-label-gf">Customer</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][customer_id]'" :options="$agents" module="trade-partner" type="customer" x-model="hbl.customer_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customer_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customer_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                         <div class="form-group-gf">
@@ -794,7 +823,7 @@
                             <label class="form-label-gf">Customs Broker</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][customs_broker_id]'" :options="$agents" module="trade-partner" type="agent" x-model="hbl.customs_broker_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customs_broker_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customs_broker_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                        <div class="form-group-gf">
@@ -826,7 +855,7 @@
                             <label class="form-label-gf">Delivery Loc.</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][delivery_location_id]'" :options="$agents" module="trade-partner" type="cfs" x-model="hbl.delivery_location_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][delivery_location_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][delivery_location_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                         <div class="form-group-gf">
@@ -849,7 +878,7 @@
                             <label class="form-label-gf">Shipper</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][shipper_id]'" :options="$agents" module="trade-partner" type="shipper" x-model="hbl.shipper_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][shipper_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][shipper_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                         <div class="form-group-gf">
@@ -884,12 +913,6 @@
     </div>
 </div>
                         <div class="form-group-gf">
-                            <label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE BY</label>
-                            <div class="form-input-container">
-                                <input type="text" :name="'hbls['+index+'][pre_carriage_by]'" class="form-control-gf" x-model="hbl.pre_carriage_by">
-                            </div>
-                        </div>
-                        <div class="form-group-gf">
                             <label class="form-label-gf" style="margin-right: 15px;">PRE-CARRIAGE VOYAGE</label>
                             <div class="form-input-container">
                                 <input type="text" :name="'hbls['+index+'][pre_carriage_voyage]'" class="form-control-gf" x-model="hbl.pre_carriage_voyage">
@@ -898,7 +921,9 @@
                         <div class="form-group-gf">
                             <label class="form-label-gf">VESSEL</label>
                             <div class="form-input-container">
-                                <input type="text" :name="'hbls['+index+'][vessel_name]'" class="form-control-gf" x-model="hbl.vessel_name">
+                                <input type="text" :name="'hbls['+index+'][vessel_name]'" class="form-control-gf" x-model="hbl.vessel_name" placeholder="Vessel" style="width: 50%;">
+                                <span style="font-size: 10px; font-weight: 600; color: #475569; white-space: nowrap; margin-left: 4px;">M. Voyage No:</span>
+                                <input type="text" :name="'hbls['+index+'][voyage_no]'" class="form-control-gf" x-model="hbl.voyage_no" placeholder="Voyage No" style="flex: 1;">
                             </div>
                         </div>
                         <div class="form-group-gf">
@@ -943,7 +968,7 @@
                             <label class="form-label-gf">Consignee</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][consignee_id]'" :options="$agents" module="trade-partner" type="consignee" x-model="hbl.consignee_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][consignee_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][consignee_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                        <div class="form-group-gf">
@@ -1036,7 +1061,7 @@
                             <label class="form-label-gf">Notify Party</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][notify_party_id]'" :options="$agents" module="trade-partner" type="notify" x-model="hbl.notify_party_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][notify_party_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][notify_party_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                        <div class="form-group-gf">
@@ -1132,7 +1157,7 @@
                             <label class="form-label-gf">CY/CFS Loc.</label>
                             <div class="form-input-container">
                                 <x-inline-select name="" x-bind:name="'hbls['+index+'][cfs_location_id]'" :options="$agents" module="trade-partner" type="cfs" x-model="hbl.cfs_location_id" class="form-control-gf" />
-                                <button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][cfs_location_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
+                                <button type="button" tabindex="-1" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][cfs_location_id]')"><i class="fa fa-external-link" style="font-size:9px;"></i></button>
                             </div>
                         </div>
                     </div>

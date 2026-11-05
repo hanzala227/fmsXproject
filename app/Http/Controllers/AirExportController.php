@@ -171,6 +171,11 @@ class AirExportController extends Controller
             $airExport->freight_term = $booking->wt_val_payment;
             $airExport->post_date = now();
             
+            if ($airExport->carrier_id && !$carriers->contains('id', $airExport->carrier_id)) {
+                $c = TradePartner::find($airExport->carrier_id);
+                if ($c) $carriers->push($c);
+            }
+            
             $chargesData = collect();
             return view('air-export.create', compact('airExport', 'offices', 'ports', 'agents', 'carriers', 'users', 'packageUnits', 'currencies', 'page', 'quotations', 'chargesData', 'booking'));
         }
@@ -184,6 +189,11 @@ class AirExportController extends Controller
             $airExport->file_no = null;
             $airExport->is_blocked = false;
             $airExport->created_at = null;
+            
+            if ($airExport->carrier_id && !$carriers->contains('id', $airExport->carrier_id)) {
+                $c = TradePartner::find($airExport->carrier_id);
+                if ($c) $carriers->push($c);
+            }
             $chargesData = $airExport->charges->isNotEmpty()
                 ? $airExport->charges->map(fn($c) => [
                     'id' => null,
@@ -1108,7 +1118,7 @@ class AirExportController extends Controller
         $totalCost = $shipment->charges->whereIn('type', ['AP', 'origin_cost'])->sum('amount');
         $totalProfit = $totalRevenue - $totalCost;
         $profitPercentage = $totalRevenue > 0 ? number_format(($totalProfit / $totalRevenue) * 100, 2) . '%' : 'N/A';
-        $profitMargin = $totalCost > 0 ? number_format(($totalCost / $totalCost) * 100, 2) . '%' : 'N/A';
+        $profitMargin = $totalCost > 0 ? number_format(($totalProfit / $totalCost) * 100, 2) . '%' : 'N/A';
 
         return view('air-export.profit-detail', compact(
             'shipment', 'totalRevenue', 'totalCost', 'totalProfit', 'profitPercentage', 'profitMargin'

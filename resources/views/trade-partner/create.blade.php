@@ -472,7 +472,7 @@
                 },
                 uploadFiles(files) {
                     if (!this.form.id) {
-                        showToast('warning', 'Please save the Trade Partner first before uploading documents.');
+                        showToast('warning', 'Please save the Customer first before uploading documents.');
                         return;
                     }
                     for (let i = 0; i < files.length; i++) {
@@ -565,7 +565,7 @@
                 },
                 checkBondStatus() {
                     if (!this.form.id) {
-                        showToast('warning', 'Please save the Trade Partner first before checking bond status.');
+                        showToast('warning', 'Please save the Customer first before checking bond status.');
                         return;
                     }
                     this.checkingBond = true;
@@ -635,7 +635,7 @@
                 copyTradePartner() {
                     this.ToolsOpen = false;
                     if (this.form.id) {
-                        showToast('info', 'Copying Trade Partner details...');
+                        showToast('info', 'Copying Customer details...');
                         this.form.id = '';
                         this.form.code = '';
                         if (this.form.name && !this.form.name.includes('(COPY)')) {
@@ -648,7 +648,7 @@
                         if (window.history && window.history.pushState) {
                             window.history.pushState({}, '', '/trade-partner/create');
                         }
-                        showToast('success', 'Copied to new Trade Partner form. Click SAVE TRADE PARTNER to persist.');
+                        showToast('success', 'Copied to new Customer form. Click SAVE CUSTOMER to persist.');
                     } else {
                         if (this.form.name && !this.form.name.includes('(COPY)')) {
                             this.form.name = this.form.name + ' (COPY)';
@@ -663,10 +663,10 @@
                 async deleteTradePartner() {
                     this.ToolsOpen = false;
                     if (!this.form.id) {
-                        showToast('warning', 'Cannot delete an unsaved Trade Partner.');
+                        showToast('warning', 'Cannot delete an unsaved Customer.');
                         return;
                     }
-                    var confirmed = await showConfirm('Delete Trade Partner', 'Are you sure you want to delete Trade Partner "' + (this.form.name || '') + '"?');
+                    var confirmed = await showConfirm('Delete Customer', 'Are you sure you want to delete Customer "' + (this.form.name || '') + '"?');
                     if (!confirmed) return;
                     
                     fetch(`/trade-partner/${this.form.id}`, {
@@ -683,17 +683,17 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success || data.message) {
-                            showToast('success', 'Trade Partner deleted successfully.');
+                            showToast('success', 'Customer deleted successfully.');
                             setTimeout(() => {
                                 window.location.href = '/trade-partner/list';
                             }, 600);
                         } else {
-                            showToast('error', data.message || 'Failed to delete Trade Partner.');
+                            showToast('error', data.message || 'Failed to delete Customer.');
                         }
                     })
                     .catch(err => {
                         console.error('Delete error:', err);
-                        showToast('error', 'Failed to delete Trade Partner.');
+                        showToast('error', 'Failed to delete Customer.');
                     });
                 },
 
@@ -708,7 +708,7 @@
                         errors.push('Phone number is mandatory under company settings.');
                     }
                     if (this.vm.enable_global_local_tp && !this.form.sales_office_id) {
-                        errors.push('Sales Office is mandatory when Global/Local Trade Partner settings are enabled.');
+                        errors.push('Sales Office is mandatory when Global/Local Customer settings are enabled.');
                     }
                     if (this.originalType === 'CS' && this.form.type === 'PR') {
                         errors.push(this.vm.notAllowChangeTypeToOverseaAgent);
@@ -767,7 +767,7 @@
                     })
                     .then(data => {
                         this.firstTabSaved = true;
-                        showToast('success', data.message || 'Trade Partner saved successfully.');
+                        showToast('success', data.message || 'Customer saved successfully.');
                         sessionStorage.setItem('tpActiveTab', this.activeTab);
                         const targetId = data.id || this.form.id;
                         if (targetId) {
@@ -791,7 +791,7 @@
                             let msgs = Object.values(err.errors).flat();
                             msgs.forEach(function(m) { showToast('error', m); });
                         } else {
-                            showToast('error', err.message || 'An error occurred while saving the Trade Partner.');
+                            showToast('error', err.message || 'An error occurred while saving the Customer.');
                         }
                     });
                 }
@@ -805,16 +805,16 @@
         <div class="page-bar" style="margin-bottom: 15px;">
             <ul class="page-breadcrumb">
                 <li><a href="/" style="transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#888';"><i class="fa fa-home"></i> Home</a><i class="fa fa-angle-right" style="margin: 0 8px; font-size: 10px;"></i></li>
-                <li><a href="/trade-partner/list" style="transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#888';">Trade Partner</a><i class="fa fa-angle-right" style="margin: 0 8px; font-size: 10px;"></i></li>
-                <li style="color: #333; font-weight: 700;" x-text="form.id ? 'Edit Trade Partner' : 'New Trade Partner'">New Trade Partner</li>
+                <li><a href="/trade-partner/list" style="transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#888';">Customers</a><i class="fa fa-angle-right" style="margin: 0 8px; font-size: 10px;"></i></li>
+                <li style="color: #333; font-weight: 700;" x-text="form.id ? 'Edit Customer' : 'New Customer'">New Customer</li>
             </ul>
         </div>
 
         <!-- Ocean Module Style Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h1 class="caption-subject" style="font-size: 18px;" x-text="form.id ? 'Edit Trade Partner' : 'New Trade Partner'">New Trade Partner</h1>
+            <h1 class="caption-subject" style="font-size: 18px;" x-text="form.id ? 'Edit Customer' : 'New Customer'">New Customer</h1>
             <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn-freightx" @click.prevent="submitForm()" x-show="vm.user_permissions.hasEditPerm && vm.user_permissions.hasAnyEditInfoPerm"><i class="fa fa-save"></i> SAVE TRADE PARTNER</button>
+                <button type="button" class="btn-freightx" @click.prevent="submitForm()" x-show="vm.user_permissions.hasEditPerm && vm.user_permissions.hasAnyEditInfoPerm"><i class="fa fa-save"></i> SAVE CUSTOMER</button>
 
                 <!-- Tools Dropdown Header -->
                 <div style="position: relative; display: inline-block;">
@@ -857,7 +857,7 @@
                         <!-- Left: TP Information -->
                     <div class="portlet light">
                         <div class="portlet-title">
-                            <span class="caption-subject"><i class="fa fa-building"></i> Trade Partner Information</span>
+                            <span class="caption-subject"><i class="fa fa-building"></i> Customer Information</span>
                         </div>
                             <div class="portlet-body">
                                 <div class="form-row">
@@ -1312,7 +1312,7 @@
                                 </div>
                             </div>
                             <div style="margin-top: 6px; font-size: 11px; color: #475569;">
-                                <i class="fa fa-info-circle" style="color: #2563eb;"></i> <strong>Note:</strong> If you are creating a new Trade Partner, simply fill in the email and password above and hit Save. The portal access will be created automatically. 
+                                <i class="fa fa-info-circle" style="color: #2563eb;"></i> <strong>Note:</strong> If you are creating a new Customer, simply fill in the email and password above and hit Save. The portal access will be created automatically. 
                             </div>
                         </div>
                     </div>
@@ -1795,7 +1795,7 @@
                 <div x-show="activeTab === 'status'" x-cloak>
                     <div class="portlet light">
                         <div class="portlet-title">
-                            <span class="caption-subject"><i class="fa fa-history"></i> Trade Partner Status</span>
+                            <span class="caption-subject"><i class="fa fa-history"></i> Customer Status</span>
                         </div>
                         <div class="portlet-body">
                             <h5 style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 20px;">Change Log</h5>

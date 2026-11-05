@@ -231,9 +231,15 @@
                                 </thead>
                                 <tbody id="grid-body">
                                 @forelse($expenses as $expense)
+                                    @php
+                                        $isApproved = method_exists($expense, 'isApproved')
+                                            ? $expense->isApproved()
+                                            : (in_array(strtoupper($expense->status ?? ''), ['POSTED', 'PAID', 'PARTIAL', 'VOID']) || in_array($expense->verification_status ?? '', ['Verified', 'Cancelled']));
+                                    @endphp
                                     <tr id="expense-row-{{ $expense->id }}"
                                         data-id="{{ $expense->id }}"
                                         data-file="{{ $expense->invoice_no }}"
+                                        data-approved="{{ $isApproved ? '1' : '0' }}"
                                         onclick="rowClick(event, this)"
                                     >
                                         <td class="sticky-col" style="width:25px;text-align:center;" onclick="event.stopPropagation()">
@@ -312,9 +318,25 @@
         const all = [...document.querySelectorAll('.row-check')];
         const n = checked.length;
         const sa = document.getElementById('select-all');
-        sa.checked = n === all.length && all.length > 0;
-        sa.indeterminate = n > 0 && n < all.length;
-        document.getElementById('btn-delete').disabled = n === 0;
+        if (sa) {
+            sa.checked = n === all.length && all.length > 0;
+            sa.indeterminate = n > 0 && n < all.length;
+        }
+
+        let hasApproved = false;
+        checked.forEach(cb => {
+            const row = cb.closest('tr[data-id]');
+            if (row && row.dataset.approved === '1') {
+                hasApproved = true;
+            }
+        });
+
+        const btnDel = document.getElementById('btn-delete');
+        if (btnDel) {
+            btnDel.disabled = n === 0 || hasApproved;
+            btnDel.title = hasApproved ? 'Document Control: Approved or posted expenses cannot be deleted.' : 'Delete Selected';
+        }
+
         document.getElementById('btn-copy').disabled = n !== 1;
         const badge = document.getElementById('sel-badge');
         badge.style.display = n > 0 ? 'inline' : 'none';
@@ -348,10 +370,19 @@
         });
     }
 
-    /* DELETE */
+    /* DELETE — Document Control Guard */
     function confirmDelete() {
-        const n = document.querySelectorAll('.row-check:checked').length;
-        if (!n) return;
+        const checked = [...document.querySelectorAll('.row-check:checked')];
+        if (!checked.length) return;
+        const hasApproved = checked.some(cb => {
+            const row = cb.closest('tr[data-id]');
+            return row && row.dataset.approved === '1';
+        });
+        if (hasApproved) {
+            showToast('error', 'Document Control: Approved or posted expenses cannot be deleted.');
+            return;
+        }
+        const n = checked.length;
         document.getElementById('confirm-msg').textContent = `You are about to permanently delete ${n} expense(s). This cannot be undone.`;
         document.getElementById('confirm-overlay').classList.add('open');
     }

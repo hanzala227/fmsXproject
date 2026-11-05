@@ -285,7 +285,7 @@
                             <strong>{{ $shipment->mbl_no ?? 'MBL55555' }}</strong><br>
                             <a href="#" class="inv-link">{{ $c->invoice_no ?? 'INV-001' }}</a>
                         </td>
-                        <td>{{ $c->billTo->name ?? ($c->vendor->name ?? 'TRADE PARTNER') }}</td>
+                        <td>{{ $c->billTo->name ?? ($c->vendor->name ?? 'CUSTOMER') }}</td>
                         <td>{{ $c->invoice_date ? $c->invoice_date->format('m-d-Y') : date('m-d-Y') }}</td>
                         <td>{{ $c->currency->code ?? 'USD' }}</td>
                         <td style="text-align:right;">{{ $c->type === 'AR' ? number_format($c->amount, 2) : '0.00' }}</td>

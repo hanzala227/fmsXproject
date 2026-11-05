@@ -70,11 +70,11 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div>
                                 <label class="form-label-gf">Shipper</label>
-                                <input type="text" x-model="header.shipper" class="form-control-gf" placeholder="Search Trade Partner...">
+                                <input type="text" x-model="header.shipper" class="form-control-gf" placeholder="Search Customer...">
                             </div>
                             <div>
                                 <label class="form-label-gf">Consignee</label>
-                                <input type="text" x-model="header.consignee" class="form-control-gf" placeholder="Search Trade Partner...">
+                                <input type="text" x-model="header.consignee" class="form-control-gf" placeholder="Search Customer...">
                             </div>
                         </div>
                     </div>

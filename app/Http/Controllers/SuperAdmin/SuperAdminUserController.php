@@ -27,23 +27,37 @@ class SuperAdminUserController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('department', 'like', "%{$search}%");
+                  ->orWhere('department', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($q2) use ($search) {
+                      $q2->where('name', 'like', "%{$search}%");
+                  });
             });
+        }
+
+        // Apply Company Filter
+        if ($request->filled('company_id')) {
+            if ($request->company_id === 'system') {
+                $query->whereNull('company_id');
+            } else {
+                $query->where('company_id', $request->company_id);
+            }
         }
 
         // Apply Role Filter
         if ($request->filled('role')) {
             $role = $request->role;
-            if ($role === 'Employees') {
+            if (in_array($role, ['Administrators', 'Admin'])) {
+                $query->where('role', 'Admin');
+            } elseif (in_array($role, ['Operations', 'Operation', 'Employees'])) {
                 $query->where('role', 'Operation');
+            } elseif (in_array($role, ['Clients', 'client', 'Customers', 'Customer'])) {
+                $query->whereIn('role', ['client', 'Customer']);
+            } elseif (in_array($role, ['SuperAdmins', 'SuperAdmin'])) {
+                $query->where('role', 'SuperAdmin');
             } elseif ($role === 'Support Team') {
                 $query->where('role', 'Support');
             } elseif ($role === 'Developers') {
                 $query->where('role', 'Developer');
-            } elseif ($role === 'Administrators') {
-                $query->where('role', 'Admin');
-            } elseif ($role === 'SuperAdmins') {
-                $query->where('role', 'SuperAdmin');
             } else {
                 $query->where('role', $role);
             }
@@ -51,7 +65,63 @@ class SuperAdminUserController extends Controller
 
         $users = $query->with('company')->latest()->paginate(15)->withQueryString();
 
-        return view('super-admin.users.index', compact('users'));
+        $tabCounts = [
+            '' => User::count(),
+            'Administrators' => User::where('role', 'Admin')->count(),
+            'Operations' => User::where('role', 'Operation')->count(),
+            'Clients' => User::whereIn('role', ['client', 'Customer'])->count(),
+            'SuperAdmins' => User::where('role', 'SuperAdmin')->count(),
+        ];
+
+        $companies = Company::orderBy('name')->get();
+
+        return view('super-admin.users.index', compact('users', 'tabCounts', 'companies'));
+    }
+
+    /**
+     * Export users directory to CSV.
+     */
+    public function exportCsv(Request $request)
+    {
+        $query = User::with('company');
+
+        if ($request->filled('role')) {
+            $role = $request->role;
+            if (in_array($role, ['Administrators', 'Admin'])) {
+                $query->where('role', 'Admin');
+            } elseif (in_array($role, ['Operations', 'Operation', 'Employees'])) {
+                $query->where('role', 'Operation');
+            } elseif (in_array($role, ['Clients', 'client', 'Customers', 'Customer'])) {
+                $query->whereIn('role', ['client', 'Customer']);
+            } elseif (in_array($role, ['SuperAdmins', 'SuperAdmin'])) {
+                $query->where('role', 'SuperAdmin');
+            } else {
+                $query->where('role', $role);
+            }
+        }
+
+        $users = $query->latest()->get();
+
+        $csv = "User ID,Name,Email,Company,Role,Department,Status,Last Login At,Last Login IP,Created At\n";
+        foreach ($users as $u) {
+            $csv .= implode(',', [
+                $u->id,
+                '"' . str_replace('"', '""', $u->name) . '"',
+                '"' . $u->email . '"',
+                '"' . str_replace('"', '""', $u->company?->name ?? 'System / Internal') . '"',
+                '"' . $u->role . '"',
+                '"' . ($u->department ?? 'N/A') . '"',
+                $u->status,
+                $u->last_login_at ? $u->last_login_at->format('Y-m-d H:i') : 'Never',
+                '"' . ($u->last_login_ip ?? 'N/A') . '"',
+                $u->created_at ? $u->created_at->format('Y-m-d') : 'N/A',
+            ]) . "\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="users-directory-' . date('Y-m-d') . '.csv"',
+        ]);
     }
 
     /**
@@ -60,8 +130,9 @@ class SuperAdminUserController extends Controller
     public function create()
     {
         $companies = Company::orderBy('name')->get();
+        $offices = \App\Models\Office::where('is_active', 1)->orWhereNull('is_active')->orderBy('code')->get();
         $user = null; // for the form
-        return view('super-admin.users.form', compact('user', 'companies'));
+        return view('super-admin.users.form', compact('user', 'companies', 'offices'));
     }
 
     /**
@@ -74,6 +145,7 @@ class SuperAdminUserController extends Controller
             'email' => 'required|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Password::min(8)],
             'role' => 'required|string',
+            'office_code' => 'nullable|string|max:50',
             'department' => 'nullable|string|max:100',
             'company_id' => 'nullable|exists:companies,id',
             'status' => 'required|in:Enable,Disable',
@@ -81,11 +153,16 @@ class SuperAdminUserController extends Controller
             'mfa_enabled' => 'boolean',
         ]);
 
+        $office = !empty($validated['office_code']) ? \App\Models\Office::where('code', $validated['office_code'])->first() : null;
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'office_code' => $office ? $office->code : ($validated['office_code'] ?? null),
+            'office_name' => $office ? $office->name : null,
+            'branch' => $office ? $office->name : null,
             'department' => $validated['department'],
             'company_id' => $validated['company_id'],
             'status' => $validated['status'],
@@ -114,7 +191,8 @@ class SuperAdminUserController extends Controller
     public function edit(User $user)
     {
         $companies = Company::orderBy('name')->get();
-        return view('super-admin.users.form', compact('user', 'companies'));
+        $offices = \App\Models\Office::where('is_active', 1)->orWhereNull('is_active')->orderBy('code')->get();
+        return view('super-admin.users.form', compact('user', 'companies', 'offices'));
     }
 
     /**
@@ -126,16 +204,22 @@ class SuperAdminUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|string',
+            'office_code' => 'nullable|string|max:50',
             'department' => 'nullable|string|max:100',
             'company_id' => 'nullable|exists:companies,id',
             'status' => 'required|in:Enable,Disable',
             'access_expiry' => 'nullable|date',
         ]);
 
+        $office = !empty($validated['office_code']) ? \App\Models\Office::where('code', $validated['office_code'])->first() : null;
+
         $user->update([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'role' => $validated['role'],
+            'office_code' => $office ? $office->code : ($validated['office_code'] ?? null),
+            'office_name' => $office ? $office->name : null,
+            'branch' => $office ? $office->name : null,
             'department' => $validated['department'],
             'company_id' => $validated['company_id'],
             'status' => $validated['status'],

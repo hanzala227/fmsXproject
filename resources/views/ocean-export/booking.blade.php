@@ -145,7 +145,7 @@
                     eta: @json(old('eta', isset($booking) && $booking->eta ? $booking->eta->format('Y-m-d') : '')),
                     del_id: @json(old('del_id', $booking->del_id ?? '')),
                     fdest_id: @json(old('fdest_id', $booking->fdest_id ?? '')),
-                    office_id: @json(old('office_id', $booking->office_id ?? '')),
+                    office_id: @json(old('office_id', isset($booking) && !empty($booking->office_id) ? $booking->office_id : (auth()->check() ? (auth()->user()->assigned_office_id ?? '') : ''))),
                     cargo_type: @json(old('cargo_type', $booking->cargo_type ?? 'GENERAL CARGO')),
                     trucker_id: @json(old('trucker_id', $booking->trucker_id ?? '')),
                     container_no: @json(old('container_no', $booking->container_no ?? '')),
@@ -322,6 +322,7 @@
                         'cost' => in_array($inv->type, ['AP', 'DC']) ? $inv->total_amount : 0,
                         'balance' => $inv->balance_amount,
                         'status' => $inv->status,
+                        'is_approved' => (method_exists($inv, 'isApproved') ? $inv->isApproved() : in_array($inv->status, ['POSTED', 'PAID', 'PARTIAL', 'VOID'])),
                         'post_date' => $inv->created_at ? $inv->created_at->format('Y-m-d') : '',
                         'invoice_date' => $inv->invoice_date ? $inv->invoice_date->format('Y-m-d') : ''
                     ])->toArray();
@@ -1163,7 +1164,7 @@
                                     <td style="text-align: center;"><button type="button" class="btn btn-xs btn-default"><i class="fa fa-envelope-o"></i></button></td>
                                     <td style="text-align: center;">
                                         <button type="button" class="btn btn-xs btn-default" @click="window.open('/accounting/invoice/' + inv.id + '/edit', '_blank')"><i class="fa fa-pencil"></i></button>
-                                        <button type="button" class="btn btn-xs btn-danger" @click="deleteInvoice(inv.id)"><i class="fa fa-trash"></i></button>
+                                        <button type="button" class="btn btn-xs btn-danger" x-show="!inv.is_approved && inv.status === 'DRAFT'" @click="deleteInvoice(inv.id)" title="Delete Draft"><i class="fa fa-trash"></i></button>
                                     </td>
                                 </tr>
                             </template>

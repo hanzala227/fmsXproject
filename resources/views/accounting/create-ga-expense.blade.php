@@ -403,7 +403,7 @@
                     invoice_no: '{{ old("invoice_no", $editMode ? ($ga_expense->invoice_no ?? "") : "INF-" . date("ymdHis")) }}',
                     invoice_date: '{{ old("invoice_date", $editMode && $ga_expense->invoice_date ? $ga_expense->invoice_date->format("Y-m-d") : date("Y-m-d")) }}',
                     due_date: '{{ old("due_date", $editMode && $ga_expense->due_date ? $ga_expense->due_date->format("Y-m-d") : date("Y-m-d", strtotime("+30 days"))) }}',
-                    office_id: '{{ old("office_id", $editMode ? ($ga_expense->office_id ?? "") : "") }}',
+                    office_id: '{{ old("office_id", ($editMode && isset($ga_expense->office_id)) ? $ga_expense->office_id : (auth()->user()->assigned_office_id ?? "")) }}',
                     currency_id: '{{ old("currency_id", $editMode ? ($ga_expense->currency_id ?? "") : "") }}',
                     total_amount: '{{ old("total_amount", $editMode ? ($ga_expense->total_amount ?? "0") : "0") }}',
                     tax_total: '{{ old("tax_total", $editMode ? ($ga_expense->tax_total ?? "0") : "0") }}',

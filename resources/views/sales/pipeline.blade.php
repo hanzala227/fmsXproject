@@ -59,8 +59,13 @@
                                     <span class="text-[9px] font-bold px-2 py-1 bg-slate-100 text-slate-400 rounded-md uppercase tracking-wider border border-slate-200">No Action</span>
                                     @endif
                                 </div>
-                                <div class="w-6 h-6 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700">
-                                    {{ strtoupper(substr($lead->contact_person, 0, 2)) }}
+                                <div class="flex items-center gap-2">
+                                    <a href="{{ route('sales.quotations.create', ['lead_id' => $lead->id]) }}" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" title="Create Freight Quotation">
+                                        <i class="fa fa-file-text-o"></i> Quote
+                                    </a>
+                                    <div class="w-6 h-6 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700">
+                                        {{ strtoupper(substr($lead->contact_person, 0, 2)) }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -86,6 +91,9 @@
                             
                             <div class="flex items-center justify-between border-t border-slate-50 pt-3">
                                 <span class="text-[9px] font-bold px-2 py-1 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-md uppercase tracking-wider">Validating</span>
+                                <a href="{{ route('sales.quotations.create', ['lead_id' => $lead->id]) }}" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" title="Create Freight Quotation">
+                                    <i class="fa fa-file-text-o"></i> Quote
+                                </a>
                             </div>
                         </div>
                         @endforeach
@@ -110,6 +118,9 @@
                             
                             <div class="flex items-center justify-between border-t border-slate-50 pt-3">
                                 <span class="text-[9px] font-bold px-2 py-1 bg-purple-50 text-purple-600 border border-purple-100 rounded-md uppercase tracking-wider">Negotiation Phase</span>
+                                <a href="{{ route('sales.quotations.create', ['lead_id' => $lead->id]) }}" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" title="Create Freight Quotation">
+                                    <i class="fa fa-file-text-o"></i> Quote
+                                </a>
                             </div>
                         </div>
                         @endforeach

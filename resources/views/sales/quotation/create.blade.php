@@ -82,7 +82,7 @@
             valid_date: window.getFormValue('valid_date', @json(($q?->expiry_date ?? $q?->valid_date)?->format('Y-m-d') ?? '')),
             enable_valid: {{ (($isEdit || $isCopy) && ($q?->expiry_date || $q?->valid_date)) || request()->old('valid_date') ? 'true' : 'false' }},
             create_date: window.getFormValue('create_date', @json(($q?->quote_date ?? $q?->create_date ?? now())->format('Y-m-d'))),
-            office_id: String(window.getFormValue('office_id', @json((string)($q?->office_id ?? optional($offices->first())->id ?? '')))),
+            office_id: String(window.getFormValue('office_id', @json((string)($q?->office_id ?? auth()->user()->assigned_office_id ?? optional($offices->first())->id ?? '')))),
             agent_id: String(window.getFormValue('agent_id', @json((string)($q?->agent_id ?? '')))),
             ship_mode: window.getFormValue('ship_mode', @json($q?->ship_mode ?? '')),
             service_term_origin: window.getFormValue('service_term_origin', @json($serviceTermParts[0] ?? 'CY')),
@@ -222,7 +222,11 @@
 
             printQuotation() {
                 this.ToolsOpen = false;
-                this.previewOpen = true;
+                if (this.saved && this.q && this.q.id) {
+                    window.open('/sales/quotations/' + this.q.id + '/print', '_blank');
+                } else {
+                    this.previewOpen = true;
+                }
             },
 
             toggleFavorite() {
@@ -536,6 +540,12 @@
                         <i class="fa" :class="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
                         <span x-text="saving ? 'SAVING...' : 'SAVE CHANGES'"></span>
                     </button>
+                </template>
+
+                <template x-if="saved && q && q.id">
+                    <a :href="'/sales/quotations/' + q.id + '/print'" target="_blank" class="btn-default-gf" style="display:inline-flex;align-items:center;gap:4px;color:#1e3a8a;font-weight:700;text-decoration:none;">
+                        <i class="fa fa-print"></i> PRINT
+                    </a>
                 </template>
 
                 <a href="/sales/quotation/list" class="btn-default-gf"><i class="fa fa-arrow-left"></i> BACK TO LIST</a>

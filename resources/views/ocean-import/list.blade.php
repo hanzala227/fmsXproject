@@ -338,11 +338,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
-                        <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                        <div class="config-panel" id="config-panel" style="display:none; min-width: 220px;">
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -373,8 +376,8 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="fa fa-search" style="font-size:10px;color:#94a3b8;"></i>
-                    <input type="text" id="quick-search" class="input-inline" style="width:160px;"
-                           placeholder="Quick search..." value="{{ request('search') }}"
+                    <input type="text" id="quick-search" class="input-inline" style="width:200px;"
+                           placeholder="Search by File #, MBL, Name..." value="{{ request('search') }}"
                            oninput="quickSearch(this.value)" onkeyup="if(event.key === 'Enter') this.blur()">
                 </div>
             </div>
@@ -449,21 +452,11 @@
                                         <td class="sticky-col" style="left:25px;"></td>
                                         <td class="sticky-col" style="left:50px;"></td>
                                         <td class="sticky-col" style="left:90px;"><input class="filter-input" data-param="filter_file_no" placeholder="Booking No..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
-                                        <td class="sticky-col" style="left:200px;"></td>
                                         <td class="sticky-col" style="left:200px;"><input class="filter-input" data-param="filter_mbl_no" placeholder="MB/L..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td></td>
                                         <td></td>
+                                        <td><input class="filter-input" data-param="filter_status" placeholder="Status..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
                                         <td><input class="filter-input" data-param="filter_office" placeholder="Office..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
-                                        <td>
-    @php
-        $shipmentStatus = $shipment->status ?? '--';
-    @endphp
-
-    <span class="badge-status">
-        {{ ucfirst(str_replace('_', ' ', $shipmentStatus)) }}
-    </span>
-</td>
-                                        <td></td>
                                         <td></td>
                                         <td></td>
                                         <td><input class="filter-input" data-param="filter_consignee" placeholder="Consignee..." oninput="applyFiltersTyping()" onkeyup="if(event.key === 'Enter') applyFilters()"></td>
@@ -819,9 +812,17 @@
     function buildConfigPanel() {
         const container = document.getElementById('col-toggles');
         container.innerHTML = '';
+        const searchInput = document.getElementById('config-col-search');
+        if (searchInput) searchInput.value = '';
         document.querySelectorAll('#header-row th[data-col]').forEach(th => {
             if (PINNED_COLS.includes(th.dataset.col)) return;
             const label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.gap = '6px';
+            label.style.padding = '3px 4px';
+            label.style.cursor = 'pointer';
+            label.style.fontSize = '11px';
             const cb    = document.createElement('input');
             cb.type    = 'checkbox';
             cb.checked = th.style.display !== 'none';
@@ -829,6 +830,14 @@
             label.appendChild(cb);
             label.append(' ' + th.textContent.trim());
             container.appendChild(label);
+        });
+    }
+
+    function filterConfigColumns(query) {
+        const q = (query || '').toLowerCase().trim();
+        document.querySelectorAll('#col-toggles label').forEach(label => {
+            const text = label.textContent.toLowerCase();
+            label.style.display = text.includes(q) ? 'flex' : 'none';
         });
     }
 

@@ -148,7 +148,7 @@ class AiExtractionController extends Controller
     {
         if (empty($name) || !is_string($name)) return null;
         $name = trim($name);
-        if ($name === '') return null;
+        if ($name === '' || strlen($name) < 2) return null;
 
         $companyId = auth()->user()->company_id ?? 1;
 
@@ -162,13 +162,19 @@ class AiExtractionController extends Controller
             ->first();
         if ($tp) return $tp->id;
 
-        // 2. Fuzzy match on significant token (>= 4 chars) within company
-        $firstWord = trim(explode(' ', $name)[0]);
-        if (strlen($firstWord) >= 4) {
-            $tp = \App\Models\TradePartner::where('company_id', $companyId)
-                ->where('name', 'like', '%' . $firstWord . '%')
-                ->first();
-            if ($tp) return $tp->id;
+        // 2. Clean normalized name match (strip LLC, LTD, INC, CO, CORP, commas, dots)
+        $cleanName = strtoupper(preg_replace('/\b(LLC|LTD|LIMITED|INC|INCORPORATED|CORP|CORPORATION|CO|COMPANY)\b|[^\w\s]/i', '', $name));
+        $cleanName = trim(preg_replace('/\s+/', ' ', $cleanName));
+
+        if (strlen($cleanName) >= 3) {
+            $existingPartners = \App\Models\TradePartner::where('company_id', $companyId)->get(['id', 'name']);
+            foreach ($existingPartners as $existing) {
+                $existingClean = strtoupper(preg_replace('/\b(LLC|LTD|LIMITED|INC|INCORPORATED|CORP|CORPORATION|CO|COMPANY)\b|[^\w\s]/i', '', $existing->name));
+                $existingClean = trim(preg_replace('/\s+/', ' ', $existingClean));
+                if ($cleanName === $existingClean || (strlen($existingClean) >= 4 && str_starts_with($cleanName, $existingClean))) {
+                    return $existing->id;
+                }
+            }
         }
 
         // 3. Fallback check across all partners if not found in company (shared global carriers/airlines)
@@ -186,7 +192,7 @@ class AiExtractionController extends Controller
 
         $code = $prefix . rand(1000, 9999);
         $attempts = 0;
-        while (\App\Models\TradePartner::withTrashed()->where('company_id', $companyId)->where('code', $code)->exists() && $attempts < 50) {
+        while (\App\Models\TradePartner::withoutGlobalScopes()->withTrashed()->where('code', $code)->exists() && $attempts < 50) {
             $code = $prefix . rand(1000, 9999);
             $attempts++;
         }
@@ -203,6 +209,20 @@ class AiExtractionController extends Controller
             $fallback = \App\Models\TradePartner::where('company_id', $companyId)->first() ?? \App\Models\TradePartner::first();
             return $fallback ? $fallback->id : null;
         }
+    }
+
+    // Helper to sanitize ISO 6346 Container Numbers (e.g. MSKU1234560)
+    private function sanitizeContainerNumber($raw)
+    {
+        if (empty($raw)) return null;
+        $clean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$raw));
+        // ISO 6346: 4 letters prefix + 6 digits serial + 1 check digit = 11 chars
+        if (strlen($clean) === 11) {
+            // Check digit at position 10: if OCR read 'O', replace with '0', if 'I', replace with '1'
+            if ($clean[10] === 'O') $clean[10] = '0';
+            if ($clean[10] === 'I') $clean[10] = '1';
+        }
+        return $clean;
     }
 
     // Helper to find a User within current company
@@ -421,6 +441,7 @@ class AiExtractionController extends Controller
 
             if (isset($data['containers']) && is_array($data['containers'])) {
                 foreach ($data['containers'] as &$container) {
+                    if (!empty($container['container_no'])) $container['container_no'] = $this->sanitizeContainerNumber($container['container_no']);
                     if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
                     if (!empty($container['package_unit'])) $container['package_unit_id'] = $this->getPackageUnitId($container['package_unit']);
                 }
@@ -542,6 +563,7 @@ class AiExtractionController extends Controller
 
             if (isset($data['containers']) && is_array($data['containers'])) {
                 foreach ($data['containers'] as &$container) {
+                    if (!empty($container['container_no'])) $container['container_no'] = $this->sanitizeContainerNumber($container['container_no']);
                     if (!empty($container['container_type'])) $container['container_type_id'] = $this->getContainerType($container['container_type']);
                     if (!empty($container['package_unit'])) $container['package_unit_id'] = $this->getPackageUnitId($container['package_unit']);
                 }

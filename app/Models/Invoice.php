@@ -23,6 +23,7 @@ class Invoice extends Model
         'invoiceable_type',
         'invoiceable_id',
         'currency_id',
+        'exchange_rate',
         'subtotal',
         'tax_total',
         'total_amount',
@@ -43,6 +44,9 @@ class Invoice extends Model
         'rejected_by',
         'rejected_at',
         'reject_reason',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
         'main_sequence_no',
         'group_letter',
         'document_type',
@@ -63,6 +67,7 @@ class Invoice extends Model
         'tax_pct' => 'decimal:2',
         'shipping_amount' => 'decimal:2',
         'color' => 'string',
+        'cancelled_at' => 'datetime',
     ];
 
     protected function casts(): array
@@ -136,6 +141,21 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'issued_by');
     }
 
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function rejecter()
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function canceller()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
     public function lines()
     {
         return $this->hasMany(InvoiceLine::class, 'invoice_id');
@@ -196,4 +216,80 @@ class Invoice extends Model
         return null;
     }
 
+    public function getShipmentUrlAttribute(): ?string
+    {
+        try {
+            $type = $this->invoiceable_type;
+            $id = $this->invoiceable_id;
+
+            if (!$id) {
+                $shipment = $this->invoiceable;
+                if ($shipment) {
+                    $id = $shipment->id;
+                    $type = get_class($shipment);
+                }
+            }
+
+            if (!$id || !$type) {
+                return null;
+            }
+
+            if (str_contains($type, 'OceanImport')) {
+                return route('ocean-import.edit', $id);
+            }
+            if (str_contains($type, 'OceanExport')) {
+                return route('ocean-export.edit', $id);
+            }
+            if (str_contains($type, 'AirImport')) {
+                return route('air-import.edit', $id);
+            }
+            if (str_contains($type, 'AirExport')) {
+                return route('air-export.edit', $id);
+            }
+            if (str_contains($type, 'TruckShipment') || str_contains($type, 'Truck')) {
+                return route('truck.edit', $id);
+            }
+            if (str_contains($type, 'OceanBooking')) {
+                return route('ocean-bookings.edit', $id);
+            }
+            if (str_contains($type, 'AirBooking')) {
+                return route('air-bookings.edit', $id);
+            }
+            if (str_contains($type, 'Quotation')) {
+                return route('sales.quotations.edit', $id);
+            }
+            if (str_contains($type, 'WarehouseReceipt')) {
+                return route('warehouse.receipts.edit', $id);
+            }
+            if (str_contains($type, 'WarehouseReceiving')) {
+                return route('receiving.edit', $id);
+            }
+            if (str_contains($type, 'WarehouseShipping')) {
+                return route('shipping.edit', $id);
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine if the document has received final approval or is posted/settled.
+     */
+    public function isApproved(): bool
+    {
+        return in_array(strtoupper($this->status ?? ''), ['POSTED', 'PARTIAL', 'PAID', 'VOID'])
+            || in_array($this->verification_status, ['Verified', 'Cancelled']);
+    }
+
+    /**
+     * Determine if the document is cancelled or voided.
+     */
+    public function isCancelled(): bool
+    {
+        return strtoupper($this->status ?? '') === 'VOID'
+            || $this->verification_status === 'Cancelled'
+            || !empty($this->cancelled_at);
+    }
 }

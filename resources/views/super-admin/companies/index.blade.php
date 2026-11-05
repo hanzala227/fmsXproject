@@ -30,8 +30,8 @@
             </div>
         </div>
 
-        {{-- Filter Tabs --}}
-        <div style="padding: 0 10px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px;">
+        {{-- Filter Tabs with Dynamic Real Counts --}}
+        <div style="padding: 0 10px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px; overflow-x: auto;">
             @php
                 $currentStatus = request('status', '');
                 $tabs = [
@@ -44,9 +44,16 @@
                 ];
             @endphp
             @foreach($tabs as $val => $label)
+            @php
+                $count = $tabCounts[$val] ?? 0;
+                $isActiveTab = ($currentStatus === $val);
+            @endphp
             <button @click="statusFilter = '{{ $val }}'; applyFilters()"
-                style="padding: 8px 4px; font-size: 11px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid {{ $currentStatus === $val ? '#0ab39c' : 'transparent' }}; color: {{ $currentStatus === $val ? '#0ab39c' : '#64748b' }};">
-                {{ $label }}
+                style="padding: 8px 4px; font-size: 11px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid {{ $isActiveTab ? '#0ab39c' : 'transparent' }}; color: {{ $isActiveTab ? '#0ab39c' : '#64748b' }}; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                <span>{{ $label }}</span>
+                <span style="font-size: 9px; padding: 1px 6px; border-radius: 9999px; background: {{ $isActiveTab ? '#0ab39c25' : '#f1f5f9' }}; color: {{ $isActiveTab ? '#089784' : '#64748b' }}; font-weight: 700;">
+                    {{ $count }}
+                </span>
             </button>
             @endforeach
         </div>
@@ -56,16 +63,16 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed;">
                 <thead>
                     <tr style="background: #f8fafc;">
-                        <th style="width: 40px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">#</th>
-                        <th style="width: 180px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Company</th>
-                        <th style="width: 80px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Code</th>
-                        <th style="width: 140px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Admin User</th>
-                        <th style="width: 180px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Email</th>
-                        <th style="width: 80px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Status</th>
-                        <th style="width: 200px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Modules</th>
-                        <th style="width: 90px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Created</th>
-                        <th style="width: 90px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Last Login</th>
-                        <th style="width: 140px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Actions</th>
+                        <th style="width: 35px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">#</th>
+                        <th style="width: 190px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Company & Workload</th>
+                        <th style="width: 75px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Code</th>
+                        <th style="width: 130px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Admin User</th>
+                        <th style="width: 160px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Email & Contact</th>
+                        <th style="width: 95px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Status & Plan</th>
+                        <th style="width: 190px; padding: 6px 8px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Freight Modules</th>
+                        <th style="width: 85px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Created</th>
+                        <th style="width: 85px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Last Login</th>
+                        <th style="width: 135px; padding: 6px 8px; text-align: center; border: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -37,20 +37,42 @@
     {{-- Toast Container --}}
     <div class="toast-container" id="toast-container"></div>
 
-    {{-- Delete Confirm Modal --}}
-    <div class="overlay" id="confirm-overlay" onclick="if(event.target===this) closeConfirm()">
-        <div class="confirm-box">
-            <div class="confirm-icon"><i class="fa fa-exclamation-triangle"></i></div>
-            <h4>Delete Payment(s)?</h4>
-            <p id="confirm-msg">This action cannot be undone.</p>
-            <div class="confirm-actions">
-                <button class="btn-tool" style="padding:0 18px;height:26px;" onclick="closeConfirm()">Cancel</button>
-                <button class="btn-tool danger" style="padding:0 18px;height:26px;" onclick="executeDelete()">
-                    <i class="fa fa-trash"></i> Delete
-                </button>
+    @php
+        $isAdminUser = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin());
+    @endphp
+
+    @if($isAdminUser)
+    {{-- CANCELLATION MODAL (Admin Only - Document Control) --}}
+    <div class="overlay" id="cancel-payment-overlay" onclick="if(event.target===this) closeCancelPaymentModal()">
+        <div class="confirm-box" style="max-width:480px;text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">
+                <h4 style="margin:0;font-size:13px;font-weight:700;color:#0f172a;">
+                    <i class="fa fa-ban" style="color:#ef4444;margin-right:6px;"></i> Cancel Payment Receipt <span id="cancel-payment-title"></span>
+                </h4>
+                <button type="button" class="btn-tool" style="padding:0 8px;height:22px;" onclick="closeCancelPaymentModal()"><i class="fa fa-times"></i></button>
             </div>
+            <div style="margin-bottom:12px;background:#fef2f2;border:1px solid #fee2e2;border-radius:6px;padding:8px 10px;font-size:11px;color:#991b1b;line-height:1.4;">
+                <i class="fa fa-shield" style="margin-right:4px;"></i> <strong>Document Control Policy:</strong>
+                Permanent deletion of financial payment records is strictly prohibited. Cancellation voids the payment, restores the linked invoice balance, and retains a permanent audit trail with your user ID and cancellation reason.
+            </div>
+            <form id="cancelPaymentForm" onsubmit="executeCancelPayment(event)">
+                <input type="hidden" id="cancel-payment-id" value="">
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;font-size:11px;font-weight:600;color:#334155;margin-bottom:4px;">
+                        Cancellation Reason <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea id="cancel-payment-reason" rows="3" required minlength="5" placeholder="Enter mandatory reason for cancellation (min 5 characters)..." style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:6px 8px;font-size:11px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <div class="confirm-actions" style="justify-content:flex-end;gap:8px;">
+                    <button type="button" class="btn-tool" style="padding:0 14px;height:26px;" onclick="closeCancelPaymentModal()">Dismiss</button>
+                    <button type="submit" id="btn-submit-payment-cancel" class="btn-tool danger" style="padding:0 14px;height:26px;background:#ef4444;color:#fff;">
+                        <i class="fa fa-ban"></i> Confirm Cancellation
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+    @endif
 
     {{-- Color Picker Modal --}}
     <div class="overlay color-picker-overlay" id="color-picker-overlay" onclick="if(event.target===this) closeColorPicker()">
@@ -112,9 +134,11 @@
                         <a class="btn-tool green" href="{{ route('accounting.payment-receive') }}" title="New Payment Receipt">
                             <i class="fa fa-plus"></i>
                         </a>
-                        <button class="btn-tool" id="btn-delete" disabled title="Delete Selected" onclick="confirmDelete()">
-                            <i class="fa fa-trash"></i> Delete
+                        @if($isAdminUser)
+                        <button class="btn-tool" id="btn-cancel-payment" disabled title="Cancel Payment (Admin Only)" onclick="openCancelPaymentModal()" style="color:#ef4444;">
+                            <i class="fa fa-ban"></i> Cancel Payment
                         </button>
+                        @endif
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -259,7 +283,18 @@
         sa.checked        = n === all.length && all.length > 0;
         sa.indeterminate  = n > 0 && n < all.length;
 
-        document.getElementById('btn-delete').disabled = n === 0;
+        let selectedVoid = false;
+        if (n === 1) {
+            const row = checked[0].closest('tr');
+            if (row && row.dataset.void === '1') {
+                selectedVoid = true;
+            }
+        }
+
+        const btnCancel = document.getElementById('btn-cancel-payment');
+        if (btnCancel) {
+            btnCancel.disabled = (n !== 1 || selectedVoid);
+        }
 
         const badge = document.getElementById('sel-badge');
         if (badge) {
@@ -286,40 +321,70 @@
     }
 
     /* ================================================================
-       DELETE — only selected records, with confirmation
+       ADMIN PAYMENT CANCELLATION (Mandatory Reason Popup)
     ================================================================ */
-    function confirmDelete() {
-        const n = document.querySelectorAll('.row-check:checked').length;
-        if (!n) return;
-        document.getElementById('confirm-msg').textContent =
-            `You are about to permanently delete ${n} payment(s). This cannot be undone.`;
-        document.getElementById('confirm-overlay').classList.add('open');
+    function openCancelPaymentModal() {
+        const checked = [...document.querySelectorAll('.row-check:checked')];
+        if (checked.length !== 1) {
+            showToast('info', 'Please select exactly one payment to cancel.');
+            return;
+        }
+        const row = checked[0].closest('tr');
+        if (!row) return;
+        if (row.dataset.void === '1') {
+            showToast('info', 'This payment is already void / cancelled.');
+            return;
+        }
+        const id = row.dataset.id;
+        const refNo = row.dataset.ref_no || row.dataset.payment_no || id;
+        const overlay = document.getElementById('cancel-payment-overlay');
+        if (!overlay) return;
+        document.getElementById('cancel-payment-id').value = id;
+        document.getElementById('cancel-payment-title').textContent = '#' + refNo;
+        document.getElementById('cancel-payment-reason').value = '';
+        overlay.classList.add('open');
+        document.getElementById('cancel-payment-reason').focus();
     }
-    function closeConfirm() {
-        document.getElementById('confirm-overlay').classList.remove('open');
-    }
-    function executeDelete() {
-        closeConfirm();
-        const ids = getSelectedIds();
-        if (!ids.length) return;
 
-        showToast('info', 'Deleting...');
-        fetch('{{ route("accounting.payment-received-list.bulk-delete") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ ids }),
-        }).then(r => r.json()).then(data => {
+    function closeCancelPaymentModal() {
+        const overlay = document.getElementById('cancel-payment-overlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    async function executeCancelPayment(e) {
+        e.preventDefault();
+        const id = document.getElementById('cancel-payment-id').value;
+        const reason = document.getElementById('cancel-payment-reason').value.trim();
+        if (!reason || reason.length < 5) {
+            showToast('error', 'Please enter a valid cancellation reason (minimum 5 characters).');
+            return;
+        }
+        const submitBtn = document.getElementById('btn-submit-payment-cancel');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...'; }
+
+        try {
+            const resp = await fetch(`/accounting/payment/${id}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ reason: reason })
+            });
+            const data = await resp.json();
             if (data.success) {
-                showToast('success', data.message || 'Deleted successfully');
+                closeCancelPaymentModal();
+                showToast('success', data.message || 'Payment successfully cancelled.');
                 setTimeout(() => window.location.reload(), 600);
             } else {
-                showToast('error', data.message || 'Failed to delete');
+                showToast('error', data.message || 'Failed to cancel payment.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
             }
-        }).catch(() => showToast('error', 'Failed to delete'));
+        } catch (err) {
+            showToast('error', 'Failed to cancel payment.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
+        }
     }
 
     function getSelectedIds() {

@@ -267,6 +267,43 @@
         </div>
     </div>
 
+    @php
+        $isAdminUser = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin());
+    @endphp
+
+    @if($isAdminUser)
+    {{-- CANCELLATION MODAL (Admin Only - Document Control) --}}
+    <div class="overlay" id="cancel-booking-overlay" onclick="if(event.target===this) closeCancelBookingModal()">
+        <div class="confirm-box" style="max-width:480px;text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">
+                <h4 style="margin:0;font-size:13px;font-weight:700;color:#0f172a;">
+                    <i class="fa fa-ban" style="color:#ef4444;margin-right:6px;"></i> Cancel Ocean Booking <span id="cancel-booking-title"></span>
+                </h4>
+                <button type="button" class="btn-tool" style="padding:0 8px;height:22px;" onclick="closeCancelBookingModal()"><i class="fa fa-times"></i></button>
+            </div>
+            <div style="margin-bottom:12px;background:#fef2f2;border:1px solid #fee2e2;border-radius:6px;padding:8px 10px;font-size:11px;color:#991b1b;line-height:1.4;">
+                <i class="fa fa-shield" style="margin-right:4px;"></i> <strong>Document Control Policy:</strong>
+                Confirmed or completed bookings cannot be permanently deleted. Cancellation changes the booking status to CANCELLED and permanently records your user ID, timestamp, and audit reason.
+            </div>
+            <form id="cancelBookingForm" onsubmit="executeCancelBooking(event)">
+                <input type="hidden" id="cancel-booking-id" value="">
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;font-size:11px;font-weight:600;color:#334155;margin-bottom:4px;">
+                        Cancellation Reason <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea id="cancel-booking-reason" rows="3" required minlength="5" placeholder="Enter mandatory reason for cancellation (min 5 characters)..." style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:6px 8px;font-size:11px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <div class="confirm-actions" style="justify-content:flex-end;gap:8px;">
+                    <button type="button" class="btn-tool" style="padding:0 14px;height:26px;" onclick="closeCancelBookingModal()">Dismiss</button>
+                    <button type="submit" id="btn-submit-booking-cancel" class="btn-tool danger" style="padding:0 14px;height:26px;background:#ef4444;color:#fff;">
+                        <i class="fa fa-ban"></i> Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     {{-- ═══════════════════════ COLOR PICKER MODAL ═══════════════════════ --}}
     <div class="overlay color-picker-overlay" id="color-picker-overlay" onclick="if(event.target===this) closeColorPicker()">
         <div class="modal-box">
@@ -344,11 +381,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
                         <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -371,6 +411,11 @@
                         <button class="btn-tool" id="btn-delete" disabled title="Delete Selected" onclick="confirmDelete()">
                             <i class="fa fa-trash"></i>
                         </button>
+                        @if($isAdminUser)
+                        <button class="btn-tool" id="btn-cancel-booking" disabled title="Cancel Booking (Admin Only)" onclick="openCancelBookingModal()" style="color:#ef4444;">
+                            <i class="fa fa-ban"></i> Cancel Booking
+                        </button>
+                        @endif
                     </div>
                     <div class="btn-group">
                         <button class="btn-tool" id="btn-convert" disabled style="padding:0 12px;" onclick="confirmConvert()">
@@ -381,7 +426,7 @@
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="fa fa-search" style="font-size:10px;color:#94a3b8;"></i>
                     <input type="text" id="quick-search" class="input-inline" style="width:160px;"
-                           placeholder="Quick search..." oninput="quickSearch(this.value)" onkeyup="if(event.key === 'Enter') this.blur()">
+                           placeholder="Search by File #, MBL, Name..." oninput="quickSearch(this.value)" onkeyup="if(event.key === 'Enter') this.blur()">
                 </div>
             </div>
 
@@ -572,8 +617,41 @@
             sa.checked = n === all.length && all.length > 0;
             sa.indeterminate = n > 0 && n < all.length;
         }
+
+        var hasProtected = false;
+        var selectedCancelCandidate = null;
+        for (var i = 0; i < checked.length; i++) {
+            var row = checked[i].closest('tr');
+            if (row) {
+                var st = (row.dataset.status || '').toUpperCase();
+                if (st === 'CONFIRMED' || st === 'COMPLETED' || st === 'CANCELLED') {
+                    hasProtected = true;
+                }
+                if (n === 1) {
+                    selectedCancelCandidate = {
+                        id: row.dataset.id,
+                        bookingNo: row.dataset.booking || row.dataset.id,
+                        status: st
+                    };
+                }
+            }
+        }
         
-        document.getElementById('btn-delete').disabled = n === 0;
+        var btnDel = document.getElementById('btn-delete');
+        if (btnDel) {
+            btnDel.disabled = (n === 0 || hasProtected);
+            if (hasProtected) {
+                btnDel.title = 'Document Control: Confirmed, completed, or cancelled bookings cannot be deleted.';
+            } else {
+                btnDel.title = 'Delete Selected';
+            }
+        }
+
+        var btnCancel = document.getElementById('btn-cancel-booking');
+        if (btnCancel) {
+            btnCancel.disabled = !(n === 1 && selectedCancelCandidate && selectedCancelCandidate.status !== 'CANCELLED');
+        }
+
         document.getElementById('btn-copy').disabled = n !== 1;
         document.getElementById('btn-convert').disabled = n === 0;
         document.getElementById('bulk-sales-select').disabled = n === 0;
@@ -613,11 +691,20 @@
     }
 
     /* ================================================================
-       DELETE
+       DELETE — Document Control Guard
     ================================================================ */
     function confirmDelete() {
+        var checked = document.querySelectorAll('.row-check:checked');
+        if (!checked.length) return;
+        for (var i = 0; i < checked.length; i++) {
+            var row = checked[i].closest('tr');
+            var st = (row ? (row.dataset.status || '') : '').toUpperCase();
+            if (st === 'CONFIRMED' || st === 'COMPLETED' || st === 'CANCELLED') {
+                showToast('error', 'Document Control: Confirmed, completed, or cancelled bookings cannot be deleted. Administrators may cancel open bookings instead.');
+                return;
+            }
+        }
         var ids = getSelectedIds();
-        if (!ids.length) return;
         document.getElementById('confirm-msg').textContent =
             'You are about to permanently delete ' + ids.length + ' booking(s). This cannot be undone.';
         document.getElementById('confirm-overlay').classList.add('open');
@@ -625,6 +712,74 @@
     
     function closeConfirm() {
         document.getElementById('confirm-overlay').classList.remove('open');
+    }
+
+    /* ================================================================
+       ADMIN BOOKING CANCELLATION (Mandatory Reason Popup)
+    ================================================================ */
+    function openCancelBookingModal() {
+        var checked = document.querySelectorAll('.row-check:checked');
+        if (checked.length !== 1) {
+            showToast('info', 'Please select exactly one booking to cancel.');
+            return;
+        }
+        var row = checked[0].closest('tr');
+        if (!row) return;
+        var st = (row.dataset.status || '').toUpperCase();
+        if (st === 'CANCELLED') {
+            showToast('info', 'This booking is already cancelled.');
+            return;
+        }
+        var id = row.dataset.id;
+        var bkgNo = row.dataset.booking || id;
+        var overlay = document.getElementById('cancel-booking-overlay');
+        if (!overlay) return;
+        document.getElementById('cancel-booking-id').value = id;
+        document.getElementById('cancel-booking-title').textContent = '#' + bkgNo;
+        document.getElementById('cancel-booking-reason').value = '';
+        overlay.classList.add('open');
+        document.getElementById('cancel-booking-reason').focus();
+    }
+
+    function closeCancelBookingModal() {
+        var overlay = document.getElementById('cancel-booking-overlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    async function executeCancelBooking(e) {
+        e.preventDefault();
+        var id = document.getElementById('cancel-booking-id').value;
+        var reason = document.getElementById('cancel-booking-reason').value.trim();
+        if (!reason || reason.length < 5) {
+            showToast('error', 'Please enter a valid cancellation reason (minimum 5 characters).');
+            return;
+        }
+        var submitBtn = document.getElementById('btn-submit-booking-cancel');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...'; }
+
+        try {
+            var resp = await fetch(`/ocean-export/booking/${id}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCSRF(),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ reason: reason })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                closeCancelBookingModal();
+                showToast('success', data.message || 'Booking successfully cancelled.');
+                setTimeout(function() { updateGrid(); }, 600);
+            } else {
+                showToast('error', data.message || 'Failed to cancel booking.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
+            }
+        } catch (err) {
+            showToast('error', 'Failed to cancel booking.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
+        }
     }
     
     function executeDelete() {
@@ -853,6 +1008,18 @@
        CONFIG PANEL — column visibility
     ================================================================ */
     var PINNED_COLS = ['check', 'booking_no', 'color', 'customer'];
+
+    
+    function filterConfigColumns(query) {
+        const q = (query || '').toLowerCase().trim();
+        const container = document.getElementById('col-toggles');
+        if (!container) return;
+        const labels = container.querySelectorAll('label');
+        labels.forEach(lbl => {
+            const txt = lbl.textContent.toLowerCase();
+            lbl.style.display = (!q || txt.includes(q)) ? 'flex' : 'none';
+        });
+    }
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');

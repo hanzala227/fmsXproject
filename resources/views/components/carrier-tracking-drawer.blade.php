@@ -150,18 +150,28 @@
                     </div>
 
                     <!-- Steps -->
-                    <template x-for="(st, idx) in steps" :key="idx">
+                    @php
+                        $milestoneSteps = [
+                            ['label' => 'Booking', 'icon' => 'fa-file-text-o'],
+                            ['label' => 'Gate In', 'icon' => 'fa-truck'],
+                            ['label' => 'Loaded', 'icon' => 'fa-ship'],
+                            ['label' => 'In Transit', 'icon' => 'fa-compass'],
+                            ['label' => 'Discharged', 'icon' => 'fa-anchor'],
+                            ['label' => 'Delivered', 'icon' => 'fa-check-circle']
+                        ];
+                    @endphp
+                    @foreach($milestoneSteps as $sIdx => $st)
                         <div style="position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; width: 68px; text-align: center;">
                             <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; transition: all 0.2s;"
-                                 :style="idx <= currentStepIndex() ? 'background:#3b82f6; color:#fff; box-shadow: 0 0 0 3px #bfdbfe;' : 'background:#fff; border:2px solid #cbd5e1; color:#94a3b8;'">
-                                <i class="fa" :class="idx < currentStepIndex() ? 'fa-check' : (idx === currentStepIndex() ? 'fa-circle' : st.icon)"></i>
+                                 :style="{{ $sIdx }} <= currentStepIndex() ? 'background:#3b82f6; color:#fff; box-shadow: 0 0 0 3px #bfdbfe;' : 'background:#fff; border:2px solid #cbd5e1; color:#94a3b8;'">
+                                <i class="fa" :class="{{ $sIdx }} < currentStepIndex() ? 'fa-check' : ({{ $sIdx }} === currentStepIndex() ? 'fa-circle' : '{{ $st['icon'] }}')"></i>
                             </div>
                             <span style="font-size: 10px; margin-top: 6px; font-weight: 600; line-height: 1.2;" 
-                                  :style="idx <= currentStepIndex() ? 'color:#1e293b;' : 'color:#94a3b8;'" 
-                                  x-text="st.label">
+                                  :style="{{ $sIdx }} <= currentStepIndex() ? 'color:#1e293b;' : 'color:#94a3b8;'">
+                                {{ $st['label'] }}
                             </span>
                         </div>
-                    </template>
+                    @endforeach
                 </div>
             </div>
 

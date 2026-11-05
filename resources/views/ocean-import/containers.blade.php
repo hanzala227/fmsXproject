@@ -316,11 +316,11 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
                         <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                            <div class="config-panel-title">Column Settings</div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>

@@ -14,12 +14,17 @@ use App\Http\Requests\UpdateAccountingPaymentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Models\ActivityLog;
 
 class AccountingPaymentController extends Controller
 {
     public function index()
     {
-        $payments = AccountingPayment::with(['tradePartner', 'currency', 'invoice'])->latest()->paginate(15);
+        $companyId = auth()->user()->company_id;
+        $payments = AccountingPayment::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->with(['tradePartner', 'currency', 'invoice'])
+            ->latest()
+            ->paginate(15);
         return response()->json($payments);
     }
 
@@ -40,19 +45,87 @@ class AccountingPaymentController extends Controller
     public function destroy($id)
     {
         $payment = AccountingPayment::findOrFail($id);
-        $invoiceId = $payment->invoice_id;
-        
-        $payment->delete();
-        self::syncInvoiceBalance($invoiceId);
 
-        if (request()->wantsJson() || request()->is('api/*')) {
+        // Permanent deletion of accounting payments (Money Receipts / Vouchers) is strictly prohibited
+        $msg = "Prohibited: Permanent deletion of accounting payments is prohibited by financial compliance. Only an administrator may cancel/void a payment with a valid reason.";
+        if (request()->wantsJson() || request()->is('api/*') || request()->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => $msg
+            ], 403);
+        }
+
+        return redirect()->back()->with('error', $msg);
+    }
+
+    /**
+     * Admin-only: Cancel/void an accounting payment with a mandatory reason.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Only an Administrator may cancel accounting payments.'
+            ], 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|min:5|max:1000',
+        ], [
+            'reason.required' => 'A valid cancellation reason is mandatory.',
+            'reason.min' => 'Cancellation reason must be at least 5 characters.',
+        ]);
+
+        $payment = AccountingPayment::findOrFail($id);
+
+        if ($payment->void_date) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This payment is already voided/cancelled.'
+            ], 422);
+        }
+
+        DB::transaction(function () use ($payment, $request, $user) {
+            $oldValues = $payment->only(['void_date', 'amount', 'type', 'invoice_id']);
+
+            $payment->update([
+                'void_date' => now()->toDateString(),
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason'),
+            ]);
+
+            // Synchronize the parent invoice balance atomically so the balance is restored
+            if ($payment->invoice_id) {
+                self::syncInvoiceBalance($payment->invoice_id);
+            }
+
+            // Retain audit trail
+            ActivityLog::create([
+                'company_id' => $payment->company_id,
+                'user_id' => $user->id,
+                'action' => 'payment_cancelled',
+                'description' => "Payment {$payment->payment_no} ({$payment->type}) cancelled by Administrator. Reason: " . $request->input('reason'),
+                'model_type' => AccountingPayment::class,
+                'model_id' => $payment->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'old_values' => $oldValues,
+                'new_values' => $payment->fresh()->only(['void_date', 'cancellation_reason', 'cancelled_at', 'cancelled_by']),
+            ]);
+        });
+
+        if (request()->wantsJson() || request()->is('api/*') || request()->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Payment deleted and invoice ledger synchronized successfully.'
+                'message' => "Payment {$payment->payment_no} cancelled successfully and invoice ledger updated.",
+                'payment' => $payment->fresh(),
             ]);
         }
 
-        return redirect()->back()->with('success', 'Payment deleted successfully.');
+        return redirect()->back()->with('success', "Payment {$payment->payment_no} cancelled successfully.");
     }
 
     public function receivedList(Request $request)
@@ -183,19 +256,10 @@ class AccountingPaymentController extends Controller
 
     public function bulkDeleteReceived(Request $request)
     {
-        $ids = $request->input('ids', []);
-        if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No items selected.']);
-        }
-
-        $affectedInvoiceIds = AccountingPayment::whereIn('id', $ids)->pluck('invoice_id')->filter()->unique()->toArray();
-        $count = AccountingPayment::whereIn('id', $ids)->where('type', 'RECEIVED')->delete();
-
-        foreach ($affectedInvoiceIds as $invId) {
-            self::syncInvoiceBalance($invId);
-        }
-
-        return response()->json(['success' => true, 'message' => "{$count} payment(s) deleted successfully."]);
+        return response()->json([
+            'success' => false,
+            'message' => "Prohibited: Permanent deletion of payment receipts (MR) is prohibited by financial compliance. Only an administrator may cancel/void a payment with a mandatory reason."
+        ], 403);
     }
 
     public function madeList(Request $request)
@@ -315,19 +379,10 @@ class AccountingPaymentController extends Controller
 
     public function bulkDeleteMade(Request $request)
     {
-        $ids = $request->input('ids', []);
-        if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No items selected.']);
-        }
-
-        $affectedInvoiceIds = AccountingPayment::whereIn('id', $ids)->pluck('invoice_id')->filter()->unique()->toArray();
-        $count = AccountingPayment::whereIn('id', $ids)->where('type', 'MADE')->delete();
-
-        foreach ($affectedInvoiceIds as $invId) {
-            self::syncInvoiceBalance($invId);
-        }
-
-        return response()->json(['success' => true, 'message' => "{$count} payment(s) deleted successfully."]);
+        return response()->json([
+            'success' => false,
+            'message' => "Prohibited: Permanent deletion of payment vouchers is prohibited by financial compliance. Only an administrator may cancel/void a payment with a mandatory reason."
+        ], 403);
     }
 
     public function create(Request $request)
@@ -408,42 +463,77 @@ class AccountingPaymentController extends Controller
         if (!$request->filled('clear_date')) $data['clear_date'] = null;
         if (!$request->filled('void_date')) $data['void_date'] = null;
 
-        // Guard against overpayments exceeding remaining invoice balance
-        if (!empty($data['invoice_id'])) {
-            $invoice = Invoice::find($data['invoice_id']);
-            if ($invoice && (float) $invoice->total_amount > 0) {
-                $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
-                if ((float) $data['amount'] > $remainingBalance + 0.001) {
-                    $msg = "Payment amount (\${$data['amount']}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
-                    if ($request->ajax()) {
-                        return response()->json(['success' => false, 'message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
+        // Lock historical exchange rate upon payment recording
+        if (empty($data['exchange_rate'])) {
+            $curr = Currency::find($data['currency_id'] ?? 1);
+            $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? 1.0);
+        }
+
+        $companyId = auth()->user()->company_id ?? 1;
+        $data['company_id'] = $companyId;
+
+        // Concurrency Lock and Duplicate Prevention inside an isolated DB transaction
+        return DB::transaction(function () use ($request, $data, $companyId) {
+            if (!empty($data['invoice_id'])) {
+                // Serialized pessimistic lock on invoice
+                $invoice = Invoice::where('id', $data['invoice_id'])->lockForUpdate()->first();
+                if ($invoice) {
+                    // Test 1 & 6: Duplicate payment guard
+                    if (!empty($data['reference_no'])) {
+                        $duplicate = AccountingPayment::where('company_id', $companyId)
+                            ->where('invoice_id', $invoice->id)
+                            ->where('reference_no', $data['reference_no'])
+                            ->where('amount', $data['amount'])
+                            ->exists();
+
+                        if ($duplicate) {
+                            $msg = "Duplicate payment rejected: A payment with reference '{$data['reference_no']}' for \${$data['amount']} has already been processed for this invoice.";
+                            if ($request->ajax()) {
+                                return response()->json(['success' => false, 'message' => $msg, 'errors' => ['reference_no' => [$msg]]], 422);
+                            }
+                            return back()->withInput()->withErrors(['reference_no' => $msg]);
+                        }
                     }
-                    return back()->withInput()->withErrors(['amount' => $msg]);
+
+                    // Test 2: Guard against overpayments exceeding remaining invoice balance
+                    if ((float) $invoice->total_amount > 0) {
+                        $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
+                        if ((float) $data['amount'] > $remainingBalance + 0.001) {
+                            $msg = "Payment amount (\${$data['amount']}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
+                            if ($request->ajax()) {
+                                return response()->json(['success' => false, 'message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
+                            }
+                            return back()->withInput()->withErrors(['amount' => $msg]);
+                        }
+                    }
                 }
             }
-        }
 
-        $payment = AccountingPayment::create($data);
+            $payment = AccountingPayment::create($data);
 
-        if ($payment->invoice_id) {
-            self::syncInvoiceBalance($payment->invoice_id);
-        }
+            if ($payment->invoice_id) {
+                self::syncInvoiceBalance($payment->invoice_id);
+            }
 
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment saved successfully.',
-                'payment' => $payment->fresh(),
-                'redirect' => route('accounting.payment.edit', $payment->id),
-            ]);
-        }
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Payment saved successfully.',
+                    'payment' => $payment->fresh(),
+                    'redirect' => route('accounting.payment.edit', $payment->id),
+                ]);
+            }
 
-        $saveAction = $request->input('save_action', 'save_close');
-        if ($saveAction === 'save_new') {
-            $redirectRoute = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
-            return redirect()->route($redirectRoute)
-                ->with('success', 'Payment recorded successfully. Create another.');
-        }
+            $saveAction = $request->input('save_action', 'save_close');
+            if ($saveAction === 'save_new') {
+                $redirectRoute = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
+                return redirect()->route($redirectRoute)
+                    ->with('success', 'Payment recorded successfully. Create another.');
+            }
+
+            return redirect()->route('accounting.payment.edit', $payment->id)
+                ->with('success', 'Payment recorded successfully.');
+        });
 
         return redirect()->route('accounting.payment.edit', $payment->id)
             ->with('success', 'Payment saved successfully. You can now manage documents and memos.');
@@ -655,6 +745,7 @@ class AccountingPaymentController extends Controller
         $totalPaid = (float) DB::table('payments')
             ->where('invoice_id', $invoice->id)
             ->whereNull('deleted_at')
+            ->whereNull('void_date')
             ->sum('amount');
 
         $invoice->paid_amount = $totalPaid;

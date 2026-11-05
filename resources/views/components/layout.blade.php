@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="turbo-cache-control" content="no-cache">
     <title>FreightX</title>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
     
@@ -13,8 +14,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script>
+        window.dynamicOptions = window.dynamicOptions || {};
+    </script>
     <style>
         * { box-sizing: border-box; }
+        .turbo-progress-bar, #nprogress, .pace { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; width: 0 !important; }
         html, body { 
             margin: 0; 
             padding: 0; 
@@ -292,6 +297,7 @@
     
     <x-searchable-select-global />
     <script src="{{ asset('js/iso6346-validator.js') }}"></script>
+    <x-form-usability-nav />
     
     @stack('scripts')
 </body>

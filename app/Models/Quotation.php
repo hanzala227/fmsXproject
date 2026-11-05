@@ -23,7 +23,7 @@ class Quotation extends Model
 
     public function customer()
     {
-        return $this->belongsTo(TradePartner::class, 'customer_id');
+        return $this->belongsTo(TradePartner::class, 'customer_id')->withTrashed();
     }
 
     public function salesPerson()

@@ -402,6 +402,7 @@ class OceanExportController extends Controller
                     $data[$field] = null;
                 }
             }
+            $data['type_name'] = $container->containerType->code ?? ($container->containerType->name ?? '');
             
             return (object) $data;
         });
@@ -940,41 +941,117 @@ class OceanExportController extends Controller
     // HBL PRINT
     // ========================================================================
 
-    public function hblPrint($id, $hblIndex)
+    public function hblPrint($id, $hblIndex = 0)
     {
         $shipment = OceanExport::with([
             'hbls.shipper', 'hbls.consignee', 'hbls.notifyParty',
             'hbls.placeOfDischarge', 'hbls.placeOfDelivery', 'hbls.finalDestination', 'hbls.placeOfReceipt', 'hbls.placeOfLoading',
             'hbls.deliveryLocation', 'hbls.customer', 'hbls.containers',
             'portOfLoading', 'portOfDischarge', 'placeOfDelivery', 'finalDestination', 'placeOfReceipt',
-            'vessel', 'forwardingAgent', 'carrier',
+            'vessel', 'forwardingAgent', 'carrier', 'overseaAgent',
+            'dmShipper', 'dmConsignee', 'dmNotify', 'dmCustomer', 'serviceTermFrom', 'incoterm',
             'containers.containerType',
         ])->findOrFail($id);
 
-        $hblIndex = (int) $hblIndex;
-        $hbls = $shipment->hbls->values();
+        $hbl = null;
+        $hbls = $shipment->hbls ? $shipment->hbls->values() : collect();
 
-        if ($hblIndex < 0 || $hblIndex >= $hbls->count()) {
-            abort(404, 'HBL index not found.');
+        // 1. Try finding by ID if $hblIndex matches an HBL ID
+        if (is_numeric($hblIndex)) {
+            $num = (int) $hblIndex;
+            $hbl = $shipment->hbls->firstWhere('id', $num);
+
+            // 2. If not matched by ID, try finding by array index
+            if (!$hbl && $num >= 0 && $num < $hbls->count()) {
+                $hbl = $hbls[$num];
+            }
         }
 
-        $hbl = $hbls[$hblIndex];
+        // 3. If still not found and shipment has HBLs, use first HBL
+        if (!$hbl && $hbls->isNotEmpty()) {
+            $hbl = $hbls->first();
+        }
 
-        // Resolve all display values from IDs
+        // 4. If shipment has NO HBLs at all, create a virtual HBL fallback populated from shipment
+        if (!$hbl) {
+            $hbl = new OceanExportHbl([
+                'ocean_export_id' => $shipment->id,
+                'hbl_no' => $shipment->sub_bl_no ?: ('HOE-' . ($shipment->file_no ?? $shipment->id)),
+                'quotation_no' => $shipment->quotation_no ?? '',
+                'sc_no' => $shipment->contract_no ?? '',
+                'service_term' => $shipment->serviceTermFrom?->name ?? 'CY/CY',
+                'ship_mode' => $shipment->ship_mode ?? 'FCL',
+                'cargo_type' => $shipment->cargo_type ?? 'GENERAL CARGO',
+                'freight_term' => $shipment->freight_term ?? 'Prepaid',
+                'freight_payable_at' => $shipment->freight_term ?? 'Prepaid',
+                'vessel_name' => $shipment->vessel?->name ?? '',
+                'voyage_no' => $shipment->voyage ?? '',
+                'hbl_description' => $shipment->description ?? '',
+                'hbl_mark' => $shipment->mark ?? '',
+                'date_of_issue' => $shipment->post_date ?? now(),
+            ]);
+
+            if ($shipment->dmShipper) $hbl->setRelation('shipper', $shipment->dmShipper);
+            elseif ($shipment->forwardingAgent) $hbl->setRelation('shipper', $shipment->forwardingAgent);
+
+            if ($shipment->dmConsignee) $hbl->setRelation('consignee', $shipment->dmConsignee);
+            if ($shipment->dmNotify) $hbl->setRelation('notifyParty', $shipment->dmNotify);
+            if ($shipment->dmCustomer) $hbl->setRelation('customer', $shipment->dmCustomer);
+            if ($shipment->portOfLoading) $hbl->setRelation('placeOfLoading', $shipment->portOfLoading);
+            if ($shipment->portOfDischarge) $hbl->setRelation('placeOfDischarge', $shipment->portOfDischarge);
+            if ($shipment->placeOfReceipt) $hbl->setRelation('placeOfReceipt', $shipment->placeOfReceipt);
+            if ($shipment->placeOfDelivery) $hbl->setRelation('placeOfDelivery', $shipment->placeOfDelivery);
+            if ($shipment->finalDestination) $hbl->setRelation('finalDestination', $shipment->finalDestination);
+            if ($shipment->overseaAgent) $hbl->setRelation('deliveryLocation', $shipment->overseaAgent);
+        }
+
+        $formatDate = function($val) {
+            if (!$val) return '';
+            if ($val instanceof \DateTimeInterface) return $val->format('Y-m-d');
+            return substr((string)$val, 0, 10);
+        };
+
+        $formatPartner = function($partner) {
+            if (!$partner) return '';
+            $lines = [];
+            $lines[] = $partner->print_name ?: $partner->name;
+            if ($partner->local_address) {
+                $lines[] = $partner->local_address;
+            } elseif ($partner->billing_address) {
+                $lines[] = $partner->billing_address;
+            }
+            $cityState = array_filter([$partner->city, $partner->state, $partner->zip_code]);
+            if ($cityState) {
+                $lines[] = implode(', ', $cityState);
+            }
+            if ($partner->phone) {
+                $lines[] = 'TEL: ' . $partner->phone;
+            }
+            return implode("\n", array_filter($lines));
+        };
+
+        $shipperPartner = $hbl->shipper ?: ($shipment->dmShipper ?: $shipment->forwardingAgent);
+        $consigneePartner = $hbl->consignee ?: $shipment->dmConsignee;
+        $notifyPartner = $hbl->notifyParty ?: $shipment->dmNotify;
+        $deliveryPartner = $hbl->deliveryLocation ?: $shipment->overseaAgent;
+
+        $dateOfIssue = $formatDate($hbl->date_of_issue) ?: ($formatDate($shipment->post_date) ?: date('Y-m-d'));
+
+        // Resolve all display values from IDs and fallback records
         $data = [
-            'hbl_number'        => $hbl->hbl_no ?? '',
+            'hbl_number'        => $hbl->hbl_no ?? ($shipment->sub_bl_no ?: 'HOE-' . ($shipment->file_no ?? 'DRAFT')),
             'booking_number'    => $shipment->booking_no ?: ($shipment->mbl_no ?? ''),
             'mbl_number'        => $shipment->mbl_no ?? '',
-            'quotation_no'      => $hbl->quotation_no ?? '',
-            'sc_no'             => $hbl->sc_no ?? '',
+            'quotation_no'      => $hbl->quotation_no ?? ($shipment->quotation_no ?? ''),
+            'sc_no'             => $hbl->sc_no ?? ($shipment->contract_no ?? ''),
             'lc_no'             => $hbl->lc_no ?? '',
             'po_no'             => $hbl->po_no ?? '',
             'export_references' => $shipment->sub_bl_no ?: ($hbl->po_no ?: ''),
-            'shipper'           => $hbl->shipper?->name ?? '',
-            'consignee'         => $hbl->consignee?->name ?? '',
-            'notify_party'      => $hbl->notifyParty?->name ?? '',
-            'delivery_agent'    => $hbl->deliveryLocation?->name ?? '',
-            'forwarding_agent'  => $shipment->forwardingAgent?->name ?? '',
+            'shipper'           => $formatPartner($shipperPartner) ?: ($shipperPartner?->name ?? ''),
+            'consignee'         => $formatPartner($consigneePartner) ?: ($consigneePartner?->name ?? ''),
+            'notify_party'      => $formatPartner($notifyPartner) ?: ($notifyPartner?->name ?? ''),
+            'delivery_agent'    => $formatPartner($deliveryPartner) ?: ($deliveryPartner?->name ?? ''),
+            'forwarding_agent'  => $formatPartner($shipment->forwardingAgent) ?: ($shipment->forwardingAgent?->name ?? ''),
             'vessel'            => $hbl->vessel_name ?: ($shipment->vessel?->name ?? ''),
             'voyage'            => $hbl->voyage_no ?: ($shipment->voyage ?? ''),
             'port_of_loading'   => $hbl->placeOfLoading?->name ?: ($shipment->portOfLoading?->name ?? ''),
@@ -983,58 +1060,83 @@ class OceanExportController extends Controller
             'place_of_delivery' => $hbl->placeOfDelivery?->name ?: ($shipment->placeOfDelivery?->name ?? ''),
             'final_destination' => $hbl->finalDestination?->name ?: ($shipment->finalDestination?->name ?? ''),
             'pre_carriage_by'   => $hbl->pre_carriage_by ?? '',
-            'service_term'      => $hbl->service_term ?? '',
-            'ship_mode'         => $hbl->ship_mode ?? '',
-            'cargo_type'        => $hbl->cargo_type ?? '',
+            'service_term'      => $hbl->service_term ?? ($shipment->serviceTermFrom?->name ?? 'CY/CY'),
+            'ship_mode'         => $hbl->ship_mode ?? ($shipment->ship_mode ?? 'FCL'),
+            'cargo_type'        => $hbl->cargo_type ?? ($shipment->cargo_type ?? 'GENERAL CARGO'),
             'shipped_on_board'  => ($hbl->vessel_name ?: ($shipment->vessel?->name ?? '')) . ($hbl->voyage_no ? ' / ' . $hbl->voyage_no : ($shipment->voyage ? ' / ' . $shipment->voyage : '')),
-            'on_board_date'     => $hbl->date_of_issue ? $hbl->date_of_issue->format('Y-m-d') : ($shipment->post_date ? $shipment->post_date->format('Y-m-d') : ''),
-            'freight_payable_at'=> $hbl->freight_payable_at ?? '',
+            'on_board_date'     => $dateOfIssue,
+            'freight_payable_at'=> $hbl->freight_payable_at ?? ($shipment->freight_term ?? 'Prepaid'),
             'currency'          => 'USD',
-            'prepaid_amount'    => strtolower($hbl->freight_payable_at ?? '') === 'prepaid' ? 'PREPAID' : '',
-            'collect_amount'    => strtolower($hbl->freight_payable_at ?? '') === 'collect' ? 'COLLECT' : '',
-            'date_of_issue'     => $hbl->date_of_issue ? $hbl->date_of_issue->format('Y-m-d') : ($shipment->post_date ? $shipment->post_date->format('Y-m-d') : ''),
-            'incoterms'         => $hbl->incoterms_id ?? '',
-            'hbl_remark'        => $hbl->hbl_remark ?? '',
+            'prepaid_amount'    => strtolower($hbl->freight_payable_at ?? ($shipment->freight_term ?? '')) === 'prepaid' ? 'PREPAID' : '',
+            'collect_amount'    => strtolower($hbl->freight_payable_at ?? ($shipment->freight_term ?? '')) === 'collect' ? 'COLLECT' : '',
+            'date_of_issue'     => $dateOfIssue,
+            'incoterms'         => $hbl->incoterms_id ?? ($shipment->incoterm?->code ?? ''),
+            'hbl_remark'        => $hbl->hbl_remark ?? ($shipment->internal_remark ?? ''),
             'marks_numbers'     => '',
             'no_of_packages'    => '',
-            'description'       => $hbl->description?->description ?? '',
+            'description'       => '',
             'gross_weight'      => '',
             'measurement'       => '',
         ];
 
         // Aggregate container data for marks, packages, weight, measurement
-        $containers = $shipment->containers;
-        if ($containers && $containers->count() > 0) {
-            $marks = [];
-            $totalPkg = 0;
-            $totalWeight = 0;
-            $totalMeasure = 0;
-            $descriptions = [];
+        $containers = ($hbl->containers && $hbl->containers->count() > 0) ? $hbl->containers : $shipment->containers;
+        $marks = [];
+        $totalPkg = 0;
+        $totalWeight = 0;
+        $totalMeasure = 0;
+        $descriptions = [];
 
+        if ($containers && $containers->count() > 0) {
             foreach ($containers as $c) {
-                $containerInfo = ($c->container_no ?? '') . ' / ' . ($c->seal_no ?? '');
-                if (trim($containerInfo, ' /')) {
-                    $marks[] = trim($containerInfo, ' /');
+                $cNo = trim($c->container_no ?? '');
+                $sNo = trim($c->seal_no ?? '');
+                $cType = $c->containerType->code ?? ($c->containerType->name ?? '');
+                $line = $cNo . ($sNo ? " / SEAL: $sNo" : '') . ($cType ? " ($cType)" : '');
+                if (trim($line)) {
+                    $marks[] = trim($line);
                 }
                 $totalPkg += (float)($c->pkg_qty ?? 0);
                 $totalWeight += (float)($c->weight_kg ?? 0);
                 $totalMeasure += (float)($c->measure_cbm ?? 0);
+                if (!empty($c->description)) {
+                    $descriptions[] = trim($c->description);
+                }
             }
-
-            $data['marks_numbers'] = implode("\n", $marks);
-            $data['no_of_packages'] = $totalPkg > 0 ? number_format($totalPkg) : '';
-            $data['gross_weight'] = $totalWeight > 0 ? number_format($totalWeight, 2) . ' KGS' : '';
-            $data['measurement'] = $totalMeasure > 0 ? number_format($totalMeasure, 3) . ' CBM' : '';
-            $data['description'] = $descriptions ? implode("\n", $descriptions) : '';
-
         }
+
+        if (!empty($hbl->hbl_mark)) {
+            $marks[] = trim($hbl->hbl_mark);
+        } elseif (!empty($shipment->mark)) {
+            $marks[] = trim($shipment->mark);
+        }
+
+        if (!empty($hbl->hbl_description)) {
+            $descriptions[] = trim($hbl->hbl_description);
+        } elseif (!empty($shipment->description)) {
+            $descriptions[] = trim($shipment->description);
+        }
+
+        if (method_exists($hbl, 'commodities') && $hbl->commodities && $hbl->commodities->count() > 0) {
+            foreach ($hbl->commodities as $comm) {
+                $desc = trim($comm->commodity_desc ?? '');
+                if ($comm->hts_code) $desc .= ' (HTS: ' . $comm->hts_code . ')';
+                if ($desc) $descriptions[] = $desc;
+            }
+        }
+
+        $data['marks_numbers'] = implode("\n", array_unique(array_filter($marks)));
+        $data['no_of_packages'] = $totalPkg > 0 ? (number_format($totalPkg) . ' PKGS') : '';
+        $data['gross_weight'] = $totalWeight > 0 ? (number_format($totalWeight, 2) . ' KGS') : '';
+        $data['measurement'] = $totalMeasure > 0 ? (number_format($totalMeasure, 3) . ' CBM') : '';
+        $data['description'] = implode("\n", array_unique(array_filter($descriptions)));
 
         // Template list
         $templates = [
+            ['key' => 'silk_container', 'name' => 'SILK CONTAINER LINES', 'pages' => 1, 'size' => 'A4'],
             ['key' => 'ntg_air', 'name' => 'NTG AIR', 'pages' => 2, 'size' => 'A4'],
             ['key' => 'united_american', 'name' => 'UNITED AMERICAN LINE', 'pages' => 1, 'size' => 'A4'],
             ['key' => 'ocean_blue', 'name' => 'OCEAN BLUE EXPRESS', 'pages' => 2, 'size' => 'letter'],
-            ['key' => 'silk_container', 'name' => 'SILK CONTAINER LINES', 'pages' => 1, 'size' => 'A4'],
             ['key' => 'transamerica', 'name' => 'TRANSAMERICA LOGISTICS', 'pages' => 1, 'size' => 'A4'],
         ];
 

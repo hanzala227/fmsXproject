@@ -115,31 +115,31 @@ class TradePartnerController extends Controller
     {
         if ($this->isInUse([$tradePartner->id])) {
             if (request()->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Cannot delete: Trade Partner is linked to active shipments, invoices, or quotations.'], 422);
+                return response()->json(['success' => false, 'message' => 'Cannot delete: Customer is linked to active shipments, invoices, or quotations.'], 422);
             }
-            return redirect()->route('trade-partner.index')->with('error', 'Cannot delete: Trade Partner is linked to active shipments, invoices, or quotations.');
+            return redirect()->route('trade-partner.index')->with('error', 'Cannot delete: Customer is linked to active shipments, invoices, or quotations.');
         }
 
         $tradePartner->delete();
         if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Trade Partner deleted.']);
+            return response()->json(['success' => true, 'message' => 'Customer deleted.']);
         }
-        return redirect()->route('trade-partner.index')->with('success', 'Trade Partner deleted.');
+        return redirect()->route('trade-partner.index')->with('success', 'Customer deleted.');
     }
 
     public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids', []);
         if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No trade partners selected.'], 422);
+            return response()->json(['success' => false, 'message' => 'No customers selected.'], 422);
         }
 
         if ($this->isInUse($ids)) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete: One or more selected Trade Partners are linked to active shipments, invoices, or quotations.'], 422);
+            return response()->json(['success' => false, 'message' => 'Cannot delete: One or more selected Customers are linked to active shipments, invoices, or quotations.'], 422);
         }
 
         TradePartner::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true, 'message' => count($ids) . ' trade partner(s) deleted.']);
+        return response()->json(['success' => true, 'message' => count($ids) . ' customer(s) deleted.']);
     }
 
     private function isInUse(array $ids): bool
@@ -177,10 +177,10 @@ class TradePartnerController extends Controller
     {
         $ids = $request->input('ids', []);
         if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No trade partners selected.'], 422);
+            return response()->json(['success' => false, 'message' => 'No customers selected.'], 422);
         }
         TradePartner::onlyTrashed()->whereIn('id', $ids)->restore();
-        return response()->json(['success' => true, 'message' => count($ids) . ' trade partner(s) restored.']);
+        return response()->json(['success' => true, 'message' => count($ids) . ' customer(s) restored.']);
     }
 
     public function exportCsv(Request $request)
@@ -275,12 +275,12 @@ class TradePartnerController extends Controller
             
             // Auto generate code if not provided
             if (empty($data['code'])) {
-                $maxId = TradePartner::withTrashed()->max('id') ?? 0;
+                $maxId = TradePartner::withoutGlobalScopes()->withTrashed()->max('id') ?? 0;
                 $prefix = strtoupper(substr($data['type'] ?? 'TP', 0, 2));
                 
                 $code = $prefix . str_pad($maxId + 1, 5, '0', STR_PAD_LEFT);
-                // Ensure absolute uniqueness just in case
-                while (TradePartner::withTrashed()->where('code', $code)->exists()) {
+                // Ensure absolute uniqueness across all tenants (since code has global unique key)
+                while (TradePartner::withoutGlobalScopes()->withTrashed()->where('code', $code)->exists()) {
                     $maxId++;
                     $code = $prefix . str_pad($maxId + 1, 5, '0', STR_PAD_LEFT);
                 }
@@ -394,14 +394,14 @@ class TradePartnerController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Trade Partner created successfully!',
+                    'message' => 'Customer created successfully!',
                     'redirect' => route('trade-partner.edit', $partner->id),
                     'id' => $partner->id,
                     'name' => $partner->name,
                 ]);
             }
 
-            return redirect()->route('trade-partner.edit', $partner->id)->with('success', 'Trade Partner created.');
+            return redirect()->route('trade-partner.edit', $partner->id)->with('success', 'Customer created.');
         } catch (\Exception $e) {
             \DB::rollBack();
             if ($request->expectsJson()) {
@@ -570,12 +570,12 @@ class TradePartnerController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Trade Partner updated successfully!',
+                    'message' => 'Customer updated successfully!',
                     'id' => $tradePartner->id
                 ]);
             }
 
-            return back()->with('success', 'Trade Partner updated.');
+            return back()->with('success', 'Customer updated.');
         } catch (\Exception $e) {
             \DB::rollBack();
             if ($request->expectsJson()) {

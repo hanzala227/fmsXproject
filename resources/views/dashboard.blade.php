@@ -170,6 +170,9 @@
         .bg-pre-alert { background: #00827f; }
         .bg-arrival { background: #4b77be; }
         .bg-invoice { background: #d05454; }
+        .bg-created { background: #10b981; }
+        .bg-updated { background: #3b82f6; }
+        .bg-blocked { background: #ef4444; }
 
         .section-header {
             font-size: 11px;
@@ -275,6 +278,7 @@
         .badge-subtle-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-block; }
         .badge-subtle-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-block; }
         .badge-subtle-info { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-block; }
+        .badge-subtle-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-block; }
 
         /* Loading Spinner */
         .loading-spinner {
@@ -414,7 +418,7 @@
                             <th>BOOKING NO.</th>
                             <th>ETA</th>
                             <th>MB/L</th>
-                            <th>HB/L</th>
+                            <th>HBL/HAWB</th>
                             <th>POD</th>
                             <th>CONSIGNEE</th>
                             <th>STATUS</th>
@@ -424,7 +428,7 @@
                         @forelse($todos as $todo)
 @php
     $typeSlug = strtolower(str_replace('Import', '-import', str_replace('Export', '-export', $todo['shipment_type'])));
-    $editUrl  = '/' . $typeSlug . '/' . $todo['id'] . '/edit';   // partial ke mutabiq badalna ho to yahan
+    $editUrl  = $todo['edit_url'] ?? ('/' . $typeSlug . '/' . $todo['id'] . '/edit');
 @endphp
 <tr style="cursor: pointer;" @click="handleTodoClick('{{ $editUrl }}')">
     <td><span class="badge-status {{ $todo['badgeClass'] }}">{{ $todo['task'] }}</span></td>
@@ -568,9 +572,10 @@
                         <tr>
                             <th>Name</th>
                             <th>Last Contacted</th>
-                            <th>Sales Representative</th>
+                            <th>OP Representative</th>
+                            <th>HBL/HAWB</th>
                             <th>Status</th>
-                            <th>Deal Value</th>
+                            <th>Submitted Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -580,18 +585,27 @@
                             <td style="font-weight: 500;">{{ $task['last_contacted'] }}</td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($task['sales_rep_name']) }}&background=4f46e5&color=fff&size=28" alt="{{ $task['sales_rep_name'] }}" class="avatar">
-                                    <span style="font-weight:500;">{{ $task['sales_rep_name'] }}</span>
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($task['op_rep_name']) }}&background=0284c7&color=fff&size=28" alt="{{ $task['op_rep_name'] }}" class="avatar">
+                                    <span style="font-weight:500;">{{ $task['op_rep_name'] }}</span>
                                 </div>
                             </td>
-                            <td><span class="{{ $task['badgeClass'] }}">{{ $task['status'] }}</span></td>
-                            <td style="font-weight: 700; color: {{ $task['dealColor'] }}; font-size: 12px;">
-                                ${{ number_format($task['deal_value'] / 1000, 1) }}K
+                            <td>
+                                @if(!empty($task['hbl_hawb']) && $task['hbl_hawb'] !== '--')
+                                    <span class="badge bg-light text-dark font-monospace" style="font-size:11px; font-weight:600; padding: 4px 8px; border: 1px solid #e2e8f0; letter-spacing: 0.5px;">{{ $task['hbl_hawb'] }}</span>
+                                @else
+                                    <span style="color: #94a3b8; font-weight: 500;">--</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="{{ $task['badgeClass'] }}" style="letter-spacing: 0.5px;">{{ $task['status'] }}</span>
+                            </td>
+                            <td style="font-weight: 600; color: #475569; font-size: 12px;">
+                                {{ $task['submitted_date'] }}
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="empty-state">
+                            <td colspan="6" class="empty-state">
                                 <i class="fa fa-inbox"></i>
                                 No leads found. Create a lead to see tasks here.
                             </td>

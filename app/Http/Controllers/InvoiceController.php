@@ -12,6 +12,7 @@ use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use Illuminate\Http\Request;
 use App\Models\Document;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ShipmentMemoAutoPopulationService;
@@ -22,10 +23,14 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $companyId = auth()->user()->company_id ?? 1;
-        // Only show verified invoices in the list
-        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer'])
+        // Show verified and cancelled/void invoices in the main list (pending verification stays in queue)
+        $query = Invoice::with(['billTo', 'currency', 'office', 'issuer', 'invoiceable'])
             ->where('company_id', $companyId)
-            ->where('verification_status', 'Verified');
+            ->where(function ($q) {
+                $q->where('verification_status', 'Verified')
+                  ->orWhere('verification_status', 'Cancelled')
+                  ->orWhere('status', 'VOID');
+            });
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -39,7 +44,15 @@ class InvoiceController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+            $statusVal = strtoupper($request->input('status'));
+            if ($statusVal === 'VOID' || $statusVal === 'CANCELLED') {
+                $query->where(function ($q) {
+                    $q->where('status', 'VOID')
+                      ->orWhere('verification_status', 'Cancelled');
+                });
+            } else {
+                $query->where('status', $statusVal);
+            }
         }
 
         // Filter row params
@@ -89,6 +102,7 @@ class InvoiceController extends Controller
         
         // Sum totals grouped by currency_id and type (AR vs AP), handling CN as negative
         $totalsGrouped = $totalsQuery->where('status', '!=', 'VOID')
+            ->where('verification_status', '!=', 'Cancelled')
             ->select(
                 'currency_id', 
                 'type',
@@ -240,6 +254,32 @@ class InvoiceController extends Controller
             $data['group_letter'] = $seqData['group_letter'];
             $data['document_type'] = $docType;
             $data['verification_status'] = 'Pending Verification';
+
+            // Lock historical exchange rate upon creation
+            if (empty($data['exchange_rate'])) {
+                $curr = Currency::find($data['currency_id'] ?? 1);
+                $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? 1.0);
+            }
+
+            // Guard: Credit Note cannot exceed original invoice amount
+            // NOTE: Do NOT call DB::rollBack() here — we are inside a DB::transaction() block.
+            // Returning a response without throwing exits the transaction cleanly; the outer
+            // try/catch will handle any real exceptions. Calling rollBack() inside a nested
+            // transaction (e.g., from DocumentSequenceService::generateSequence()) causes a
+            // "SAVEPOINT does not exist" PDO error on concurrent requests.
+            if ($docType === 'CN') {
+                $targetInvoiceId = $data['related_invoice_id'] ?? $request->input('related_invoice_id') ?? $data['invoiceable_id'] ?? null;
+                if ($targetInvoiceId) {
+                    $origInv = Invoice::find($targetInvoiceId);
+                    if ($origInv && (float) $data['total_amount'] > (float) $origInv->total_amount) {
+                        $msg = "Prohibited: Credit Note amount (\${$data['total_amount']}) exceeds original invoice amount (\${$origInv->total_amount}). Credit notes cannot exceed the original billed amount.";
+                        if ($request->ajax()) {
+                            return response()->json(['success' => false, 'message' => $msg, 'errors' => ['total_amount' => [$msg]]], 422);
+                        }
+                        return back()->withInput()->withErrors(['total_amount' => $msg]);
+                    }
+                }
+            }
 
             $invoice = Invoice::create($data);
 
@@ -404,9 +444,120 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        // Prohibit deletion of approved, verified, posted, partial, paid, or cancelled documents
+        $status = strtoupper($invoice->status ?? '');
+        if (in_array($status, ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || $invoice->verification_status === 'Verified' || $invoice->verification_status === 'Cancelled') {
+            $msg = "Prohibited: Invoices, Debit Notes, and Credit Notes cannot be deleted after final approval or settlement. Permanent deletion of accounting records is strictly prohibited. Only an administrator may cancel a document with a valid reason.";
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->route('accounting.invoices.index')->with('error', $msg);
+        }
+
         $invoice->delete();
         return redirect()->route('accounting.invoices.index')
-            ->with('success', 'Invoice deleted successfully.');
+            ->with('success', 'Draft invoice deleted successfully.');
+    }
+
+    /**
+     * Admin-only: Cancel an approved or active document with a mandatory reason.
+     */
+    public function cancel(Request $request, Invoice $invoice)
+    {
+        $user = auth()->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Only an Administrator may cancel approved accounting documents.'
+            ], 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|min:5|max:1000',
+        ], [
+            'reason.required' => 'A valid cancellation reason is mandatory.',
+            'reason.min' => 'Cancellation reason must be at least 5 characters.',
+        ]);
+
+        if ($invoice->status === 'VOID' || $invoice->verification_status === 'Cancelled') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document has already been cancelled.'
+            ], 422);
+        }
+
+        DB::transaction(function () use ($invoice, $request, $user) {
+            $oldValues = $invoice->only(['status', 'verification_status', 'balance_amount', 'paid_amount']);
+
+            // Auto-void linked active payments/settlements since invoice is being cancelled/refunded
+            $activePayments = $invoice->payments()->whereNull('void_date')->get();
+            foreach ($activePayments as $payment) {
+                $payment->update([
+                    'void_date' => now()->toDateString(),
+                    'cancellation_reason' => 'Auto-voided on invoice cancellation (Refund/Cancellation): ' . $request->input('reason'),
+                    'cancelled_by' => $user->id,
+                    'cancelled_at' => now(),
+                ]);
+
+                ActivityLog::create([
+                    'company_id' => $payment->company_id,
+                    'user_id' => $user->id,
+                    'action' => 'payment_cancelled',
+                    'description' => "Payment {$payment->payment_no} auto-voided due to cancellation of Invoice {$invoice->invoice_no}. Reason: " . $request->input('reason'),
+                    'model_type' => \App\Models\AccountingPayment::class,
+                    'model_id' => $payment->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'old_values' => ['void_date' => null],
+                    'new_values' => ['void_date' => $payment->void_date, 'cancellation_reason' => $payment->cancellation_reason],
+                ]);
+            }
+
+            $invoice->update([
+                'status' => 'VOID',
+                'verification_status' => 'Cancelled',
+                'balance_amount' => 0.00,
+                'paid_amount' => 0.00,
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason'),
+            ]);
+
+            // Release any linked charges so they can be re-billed if needed
+            DB::table('charges')
+                ->where('company_id', $invoice->company_id)
+                ->where('invoice_no', $invoice->invoice_no)
+                ->update([
+                    'is_invoiced' => false,
+                    'invoice_no' => null,
+                    'invoice_date' => null,
+                    'updated_at' => now(),
+                ]);
+
+            // Retain audit trail
+            ActivityLog::create([
+                'company_id' => $invoice->company_id,
+                'user_id' => $user->id,
+                'action' => 'document_cancelled',
+                'description' => "Document {$invoice->invoice_no} ({$invoice->document_type}) cancelled by Administrator. Reason: " . $request->input('reason'),
+                'model_type' => Invoice::class,
+                'model_id' => $invoice->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'old_values' => $oldValues,
+                'new_values' => $invoice->fresh()->only(['status', 'verification_status', 'cancellation_reason', 'cancelled_at', 'cancelled_by']),
+            ]);
+        });
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Document {$invoice->invoice_no} cancelled successfully.",
+                'invoice' => $invoice->fresh(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Document {$invoice->invoice_no} cancelled successfully.");
     }
 
     public function verifyQueue()
@@ -427,11 +578,18 @@ class InvoiceController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized to verify documents.'], 403);
         }
 
-        $invoice->update([
+        $updateData = [
             'verification_status' => 'Verified',
             'verified_by' => auth()->id(),
             'verified_at' => now(),
-        ]);
+        ];
+
+        // If currently in DRAFT status, promote to POSTED so it becomes visible on customer portal and reports
+        if ($invoice->status === 'DRAFT' || empty($invoice->status)) {
+            $updateData['status'] = 'POSTED';
+        }
+
+        $invoice->update($updateData);
         return response()->json(['success' => true, 'message' => 'Document verified successfully.']);
     }
 
@@ -488,8 +646,24 @@ class InvoiceController extends Controller
         if (empty($ids)) {
             return response()->json(['success' => false, 'message' => 'No invoices selected.']);
         }
+
+        // Check if any selected invoice is approved, verified, posted, settled, or cancelled
+        $approvedCount = Invoice::whereIn('id', $ids)
+            ->where(function($q) {
+                $q->whereIn('status', ['POSTED', 'PARTIAL', 'PAID', 'VOID'])
+                  ->orWhere('verification_status', 'Verified')
+                  ->orWhere('verification_status', 'Cancelled');
+            })->count();
+
+        if ($approvedCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Prohibited: {$approvedCount} of the selected document(s) are approved or posted and cannot be deleted. Permanent deletion of accounting documents is prohibited; only an administrator may cancel them."
+            ], 403);
+        }
+
         Invoice::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true, 'message' => count($ids) . ' invoice(s) deleted.']);
+        return response()->json(['success' => true, 'message' => count($ids) . ' draft invoice(s) deleted.']);
     }
 
     /**

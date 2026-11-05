@@ -179,11 +179,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
                         <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -221,7 +224,7 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="fa fa-search" style="font-size:10px;color:#94a3b8;"></i>
-                    <input type="text" id="quick-search" class="input-inline" style="width:160px;" placeholder="Quick search..." oninput="quickSearch(this.value)" value="{{ request('search') }}">
+                    <input type="text" id="quick-search" class="input-inline" style="width:160px;" placeholder="Search by File #, MBL, Name..." oninput="quickSearch(this.value)" value="{{ request('search') }}">
                 </div>
             </div>
 
@@ -236,7 +239,6 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th data-col="lock" style="width:35px;text-align:center;"><i class="fa fa-lock"></i></th>
-                                    <th data-col="color" style="width:40px;text-align:center;">Color</th>
                                     <th data-col="file_no" style="min-width:130px;">Booking No.</th>
                                     <th data-col="hawb_no" style="min-width:130px;font-weight:600;">HAWB No.</th>
                                     <th data-col="mawb_no" style="min-width:130px;">MAWB No.</th>
@@ -257,7 +259,6 @@
 
                                 {{-- FILTER ROW --}}
                                 <tr id="filter-row" style="display:none;background:#eff6ff;">
-                                    <td style="text-align:center;"></td>
                                     <td style="text-align:center;"></td>
                                     <td style="text-align:center;"></td>
                                     <td><input class="filter-input" style="width:100%;" data-param="filter_file_no" placeholder="File…" oninput="applyFiltersTyping()"></td>
@@ -443,6 +444,18 @@
        CONFIG PANEL — column visibility
     ================================================================ */
     var PINNED_COLS = ['check', 'lock'];
+
+    
+    function filterConfigColumns(query) {
+        const q = (query || '').toLowerCase().trim();
+        const container = document.getElementById('col-toggles');
+        if (!container) return;
+        const labels = container.querySelectorAll('label');
+        labels.forEach(lbl => {
+            const txt = lbl.textContent.toLowerCase();
+            lbl.style.display = (!q || txt.includes(q)) ? 'flex' : 'none';
+        });
+    }
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');

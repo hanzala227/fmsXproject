@@ -34,7 +34,7 @@ class AirImportController extends Controller
             'depPort', 'dstPort',
             'forwardingAgent', 'overseaAgent',
             'acctCarrier', 'packageUnit',
-            'hbls', 'dmSalesPerson', 'shipper_rel',
+            'hbls.shipper', 'hbls.customer', 'dmSalesPerson', 'shipper_rel',
         ]);
 
         if ($search = $request->get('search')) {
@@ -84,7 +84,7 @@ class AirImportController extends Controller
             'depPort', 'dstPort',
             'forwardingAgent', 'overseaAgent',
             'acctCarrier', 'packageUnit',
-            'hbls', 'dmSalesPerson', 'shipper_rel',
+            'hbls.shipper', 'hbls.customer', 'dmSalesPerson', 'shipper_rel',
         ]);
 
         if (auth()->check()) {

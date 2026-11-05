@@ -36,13 +36,7 @@
                 @endif
             </div>
 
-            <div style="margin-bottom: 24px;">
-                <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Guard Name *</label>
-                <select name="guard_name" required style="width: 100%; height: 32px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
-                    <option value="web" {{ old('guard_name', $role->guard_name ?? 'web') === 'web' ? 'selected' : '' }}>Web</option>
-                    <option value="api" {{ old('guard_name', $role->guard_name ?? '') === 'api' ? 'selected' : '' }}>API</option>
-                </select>
-            </div>
+            <input type="hidden" name="guard_name" value="{{ old('guard_name', $role->guard_name ?? 'web') }}">
 
             {{-- Permissions Selection --}}
             <div style="margin-bottom: 24px;">

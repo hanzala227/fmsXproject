@@ -119,6 +119,68 @@
         </div>
     </div>
 
+    {{-- Module Permissions Modal --}}
+    <div class="overlay" id="module-overlay" style="display:none;">
+        <div class="modal-box" style="min-width:480px; max-width:600px;">
+            <div class="modal-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="modal-header-title" style="font-weight:700; font-size:12px; color:#1e293b;">
+                    <i class="fa fa-shield" style="color:#0284c7; margin-right:6px;"></i> Module Permissions: <span id="module-user-name" style="color:#0284c7;"></span>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModuleModal()" style="background:none; border:none; font-size:16px; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px;">
+                <p style="font-size: 11px; color:#64748b; margin-bottom: 12px;">
+                    Select the modules that this employee is authorized to access:
+                </p>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
+                    <span style="font-size:10px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px;">Company Modules</span>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" onclick="selectAllModules(true)" style="background:none; border:none; color:#0284c7; font-size:10px; font-weight:700; cursor:pointer;">Select All</button>
+                        <span style="color:#cbd5e1;">|</span>
+                        <button type="button" onclick="selectAllModules(false)" style="background:none; border:none; color:#ef4444; font-size:10px; font-weight:700; cursor:pointer;">Deselect All</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 280px; overflow-y: auto; padding: 4px;">
+                    @foreach($availableModules ?? [] as $modKey => $modInfo)
+                    <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; font-size:11px; font-weight:500; transition:all 0.15s;" onmouseover="this.style.borderColor='#38bdf8'" onmouseout="this.style.borderColor='#e2e8f0'">
+                        <input type="checkbox" class="module-checkbox" value="{{ $modKey }}" style="cursor:pointer; width:14px; height:14px;">
+                        <i class="fa {{ $modInfo['icon'] ?? 'fa-cube' }}" style="color:#0284c7; width:16px; text-align:center;"></i>
+                        <span>{{ $modInfo['label'] }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn-tool" style="padding:0 16px; height:26px;" onclick="closeModuleModal()">Cancel</button>
+                <button type="button" class="btn-tool green" style="padding:0 18px; height:26px;" id="btn-save-modules" onclick="saveModuleAccess()">
+                    <i class="fa fa-check"></i> Save Permissions
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Datalist for Role Suggestions --}}
+    <datalist id="role-suggestions">
+        <option value="Operation">
+        <option value="Operation Manager">
+        <option value="Sales">
+        <option value="Sales Manager">
+        <option value="Accounting">
+        <option value="Accounting Manager">
+        <option value="Documentation Officer">
+        <option value="Logistics Coordinator">
+        <option value="Admin">
+    </datalist>
+
+    {{-- Datalist for Office Suggestions --}}
+    <datalist id="office-suggestions">
+        @foreach(\App\Models\Office::where('is_active', 1)->orWhereNull('is_active')->get() as $off)
+        <option value="{{ $off->code }} - {{ $off->name }}">
+        @endforeach
+    </datalist>
+
     <div class="page-content">
         {{-- Breadcrumb --}}
         <div class="page-bar">
@@ -176,6 +238,7 @@
                                     <th style="width:180px;">Department (Code - Name)</th>
                                     <th style="width:120px;">Branch</th>
                                     <th style="width:140px;">Role</th>
+                                    <th style="width:130px;text-align:center;">Module Access</th>
                                     <th style="width:80px;">Status</th>
                                     <th style="width:100px;">Create Date</th>
                                     <th style="width:120px;text-align:center;">Reset Password</th>
@@ -192,6 +255,7 @@
                                     <td><input class="filter-input" data-field="department" placeholder="Department..." oninput="applyFilter()"></td>
                                     <td><input class="filter-input" data-field="branch" placeholder="Branch..." oninput="applyFilter()"></td>
                                     <td><input class="filter-input" data-field="role" placeholder="Role..." oninput="applyFilter()"></td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>
@@ -219,7 +283,7 @@
                                         <input type="email" value="{{ $user->email }}" data-field="email" onchange="markUnsaved(this)" oninput="markUnsaved(this)">
                                     </td>
                                     <td>
-                                        <input type="text" value="{{ $user->office_code ? ($user->office_code . ($user->office_name ? ' - ' . $user->office_name : '')) : '' }}" data-field="office" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="Code - Name">
+                                        <input type="text" list="office-suggestions" value="{{ $user->office_code ? ($user->office_code . ($user->office_name ? ' - ' . $user->office_name : '')) : '' }}" data-field="office" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="Code - Name">
                                     </td>
                                     <td>
                                         <input type="text" value="{{ $user->department_code ? ($user->department_code . ($user->department_name ? ' - ' . $user->department_name : '')) : '' }}" data-field="department" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="Code - Name">
@@ -228,13 +292,15 @@
                                         <input type="text" value="{{ $user->branch }}" data-field="branch" onchange="markUnsaved(this)" oninput="markUnsaved(this)">
                                     </td>
                                     <td>
-                                        <select data-field="role" onchange="markUnsaved(this)">
-                                            <option value="Operation" {{ $user->role === 'Operation' ? 'selected' : '' }}>Operation</option>
-                                            <option value="Admin" {{ $user->role === 'Admin' ? 'selected' : '' }}>Admin</option>
-                                            <option value="Accounting Manager" {{ $user->role === 'Accounting Manager' ? 'selected' : '' }}>Accounting Manager</option>
-                                            <option value="Operation Manager" {{ $user->role === 'Operation Manager' ? 'selected' : '' }}>Operation Manager</option>
-                                            <option value="Sales Manager" {{ $user->role === 'Sales Manager' ? 'selected' : '' }}>Sales Manager</option>
-                                        </select>
+                                        <input type="text" value="{{ $user->role }}" data-field="role" list="role-suggestions" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="Enter role..." style="font-weight: 500;">
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <button type="button" class="btn-module-access" 
+                                                onclick="openModuleModal({{ $user->id }}, '{{ addslashes($user->name) }}', {{ json_encode($user->accessible_modules ?? []) }})" 
+                                                style="background:#f0f9ff; color:#0284c7; border:1px solid #bae6fd; font-size:10px; font-weight:600; padding:2px 8px; border-radius:3px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"
+                                                title="Configure Module Access Permissions">
+                                            <i class="fa fa-th-large"></i> Modules (<span id="mod-count-{{ $user->id }}">{{ count($user->accessible_modules ?? []) }}</span>)
+                                        </button>
                                     </td>
                                     <td>
                                         <select data-field="status" onchange="markUnsaved(this)">
@@ -251,7 +317,7 @@
                                 </tr>
                                 @empty
                                 <tr id="empty-row">
-                                    <td colspan="13" style="text-align:center;padding:30px;color:#94a3b8;">No users found. Click "+ Add User" above.</td>
+                                    <td colspan="14" style="text-align:center;padding:30px;color:#94a3b8;">No employees found. Click "+ Add User" above to create an employee.</td>
                                 </tr>
                                 @endforelse
                             </tbody>
@@ -415,14 +481,9 @@
                 <input type="text" value="" data-field="branch" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="Branch">
             </td>
             <td>
-                <select data-field="role" onchange="markUnsaved(this)">
-                    <option value="Operation" selected>Operation</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Accounting Manager">Accounting Manager</option>
-                    <option value="Operation Manager">Operation Manager</option>
-                    <option value="Sales Manager">Sales Manager</option>
-                </select>
+                <input type="text" value="Operation" data-field="role" list="role-suggestions" onchange="markUnsaved(this)" oninput="markUnsaved(this)" placeholder="e.g. Operation, Sales" style="font-weight:500;">
             </td>
+            <td style="text-align:center;color:#94a3b8;font-size:9px;">Save user first</td>
             <td>
                 <select data-field="status" onchange="markUnsaved(this)">
                     <option value="Enable" selected>Enable</option>
@@ -678,6 +739,85 @@
         .catch(err => {
             console.error(err);
             window.showToast('error', 'Failed to export');
+        });
+    };
+
+    // Module Access Modal Management
+    window.activeModuleUserId = null;
+
+    window.openModuleModal = function(userId, userName, modules) {
+        window.activeModuleUserId = userId;
+        document.getElementById('module-user-name').textContent = userName || ('User #' + userId);
+        
+        document.querySelectorAll('.module-checkbox').forEach(cb => {
+            cb.checked = Array.isArray(modules) && modules.includes(cb.value);
+        });
+        
+        const overlay = document.getElementById('module-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    };
+
+    window.closeModuleModal = function() {
+        window.activeModuleUserId = null;
+        const overlay = document.getElementById('module-overlay');
+        if (overlay) overlay.style.display = 'none';
+    };
+
+    window.selectAllModules = function(select) {
+        document.querySelectorAll('.module-checkbox').forEach(cb => {
+            cb.checked = !!select;
+        });
+    };
+
+    window.saveModuleAccess = function() {
+        if (!window.activeModuleUserId) return;
+        
+        const selected = [];
+        document.querySelectorAll('.module-checkbox:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+        
+        const btn = document.getElementById('btn-save-modules');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+        }
+        
+        fetch(`/api/users/${window.activeModuleUserId}/module-access`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': window.getCsrfToken()
+            },
+            body: JSON.stringify({ modules: selected })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const countEl = document.getElementById('mod-count-' + window.activeModuleUserId);
+                if (countEl) countEl.textContent = data.count !== undefined ? data.count : selected.length;
+                
+                const btnEl = countEl?.closest('.btn-module-access');
+                if (btnEl) {
+                    btnEl.setAttribute('onclick', `openModuleModal(${window.activeModuleUserId}, '${document.getElementById('module-user-name').textContent.replace(/'/g, "\\'")}', ${JSON.stringify(data.modules || selected)})`);
+                }
+                
+                window.showToast('success', data.message || 'Module access updated successfully');
+                window.closeModuleModal();
+            } else {
+                window.showToast('error', data.message || 'Failed to update module access');
+            }
+        })
+        .catch(err => {
+            console.error('Module access save error:', err);
+            window.showToast('error', 'Failed to update module access');
+        })
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-check"></i> Save Permissions';
+            }
         });
     };
 

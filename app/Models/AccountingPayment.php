@@ -21,6 +21,7 @@ class AccountingPayment extends Model
         'payment_date',
         'trade_partner_id',
         'currency_id',
+        'exchange_rate',
         'amount',
         'payment_method',
         'reference_no',
@@ -36,12 +37,16 @@ class AccountingPayment extends Model
         'bank_name',
         'bank_currency_id',
         'color',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
     ];
 
     protected $casts = [
         'payment_date' => 'date',
         'clear_date' => 'date',
         'void_date' => 'date',
+        'cancelled_at' => 'datetime',
         'show_party_on_check' => 'boolean',
     ];
 
@@ -78,5 +83,10 @@ class AccountingPayment extends Model
     public function bankCurrency()
     {
         return $this->belongsTo(Currency::class, 'bank_currency_id');
+    }
+
+    public function canceller()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 }

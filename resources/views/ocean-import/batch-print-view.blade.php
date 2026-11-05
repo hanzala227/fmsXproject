@@ -821,7 +821,7 @@
                     this.batchEmailHbls[hblIndex].contacts.splice(emailIndex, 1);
                 },
                 refreshContacts() {
-                    alert('Refreshing contact emails from trade partners...');
+                    alert('Refreshing contact emails from customers...');
                     this.batchEmailHbls.forEach((h, i) => {
                         h.contacts = ['michael36@gardner-spears.com', 'amy88@hotmail.com', 'clarkalan@yahoo.com'];
                     });

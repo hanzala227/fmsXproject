@@ -136,10 +136,11 @@ class GeneralLedgerController extends Controller
                 return (float) BankAccount::sum('opening_balance');
 
             case '1200': // AR
-                $arTotal = (float) Invoice::where('type', 'AR')
+                $arTotal = (float) (Invoice::where('type', 'AR')
                     ->where('invoice_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('total_amount');
+                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'CN' THEN -total_amount ELSE total_amount END), 0) as net")
+                    ->value('net') ?? 0);
                 $arPayments = (float) AccountingPayment::where('type', 'RECEIVED')
                     ->where('payment_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
@@ -147,10 +148,11 @@ class GeneralLedgerController extends Controller
                 return $arTotal - $arPayments;
 
             case '2000': // AP
-                $apTotal = (float) Invoice::where('type', 'AP')
+                $apTotal = (float) (Invoice::where('type', 'AP')
                     ->where('invoice_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('total_amount');
+                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'DN' THEN -total_amount ELSE total_amount END), 0) as net")
+                    ->value('net') ?? 0);
                 $apPayments = (float) AccountingPayment::where('type', 'MADE')
                     ->where('payment_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
@@ -158,16 +160,18 @@ class GeneralLedgerController extends Controller
                 return $apTotal - $apPayments;
 
             case '4000': // Revenue
-                return (float) Invoice::where('type', 'AR')
+                return (float) (Invoice::where('type', 'AR')
                     ->where('invoice_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('total_amount');
+                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'CN' THEN -total_amount ELSE total_amount END), 0) as net")
+                    ->value('net') ?? 0);
 
             case '5000': // Expenses
-                return (float) Invoice::where('type', 'AP')
+                return (float) (Invoice::where('type', 'AP')
                     ->where('invoice_date', '<', $periodFrom)
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('total_amount');
+                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'DN' THEN -total_amount ELSE total_amount END), 0) as net")
+                    ->value('net') ?? 0);
 
             default:
                 return 0;
@@ -236,12 +240,14 @@ class GeneralLedgerController extends Controller
                     ->get();
 
                 foreach ($invoices as $inv) {
+                    $isCN = strtoupper($inv->document_type ?? '') === 'CN';
+                    $amount = (float) $inv->total_amount;
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => 'Invoice - ' . ($inv->billTo?->name ?? 'N/A'),
+                        'description' => ($isCN ? 'Credit Note - ' : 'Invoice - ') . ($inv->billTo?->name ?? 'N/A'),
                         'debit'       => 0,
-                        'credit'      => (float) $inv->total_amount,
+                        'credit'      => $isCN ? -$amount : $amount,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
@@ -324,12 +330,14 @@ class GeneralLedgerController extends Controller
                     ->get();
 
                 foreach ($invoices as $inv) {
+                    $isCN = strtoupper($inv->document_type ?? '') === 'CN';
+                    $amount = (float) $inv->total_amount;
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => 'Revenue - ' . ($inv->billTo?->name ?? 'N/A'),
+                        'description' => ($isCN ? 'Credit Note (Contra-Revenue) - ' : 'Revenue - ') . ($inv->billTo?->name ?? 'N/A'),
                         'debit'       => 0,
-                        'credit'      => (float) $inv->total_amount,
+                        'credit'      => $isCN ? -$amount : $amount,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',

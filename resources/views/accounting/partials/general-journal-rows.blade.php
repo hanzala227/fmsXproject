@@ -10,7 +10,7 @@
             default  => 'badge-posted',
         };
     @endphp
-    <tr data-id="{{ $entry->id }}" onclick="rowClick(event, this)" style="cursor:pointer;">
+    <tr data-id="{{ $entry->id }}" data-status="{{ $entry->status ?? 'POSTED' }}" onclick="rowClick(event, this)" style="cursor:pointer;">
         <td style="text-align:center;"><input type="checkbox" class="row-check" value="{{ $entry->id }}" onclick="event.stopPropagation(); updateToolbar()"></td>
         <td style="text-align:center;">
             @if($entry->status === 'POSTED')

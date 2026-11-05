@@ -6,6 +6,8 @@ use App\Models\AirBooking;
 use App\Models\TradePartner;
 use App\Models\Port;
 use App\Models\Office;
+use App\Models\ActivityLog;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class AirBookingController extends Controller
@@ -142,7 +144,7 @@ class AirBookingController extends Controller
     {
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -205,7 +207,7 @@ class AirBookingController extends Controller
         $booking = AirBooking::findOrFail($id);
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -266,19 +268,101 @@ class AirBookingController extends Controller
     public function destroy($id)
     {
         $booking = AirBooking::findOrFail($id);
+
+        if (in_array(strtoupper($booking->status), ['CONFIRMED', 'COMPLETED', 'CANCELLED'])) {
+            $msg = "Prohibited: Confirmed or approved air bookings cannot be deleted. Only an administrator may cancel a booking with a valid reason.";
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->route('air-bookings.index')->with('error', $msg);
+        }
+
         $booking->delete();
         if (request()->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Booking deleted.']);
+            return response()->json(['success' => true, 'message' => 'Open booking deleted.']);
         }
         return redirect()->route('air-bookings.index')
-            ->with('success', 'Air Export Booking deleted successfully.');
+            ->with('success', 'Open Air Export Booking deleted successfully.');
+    }
+
+    /**
+     * Admin-only: Cancel an approved or confirmed air booking with mandatory reason.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Only an Administrator may cancel confirmed air bookings.'
+            ], 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|min:5|max:1000',
+        ], [
+            'reason.required' => 'A valid cancellation reason is mandatory.',
+            'reason.min' => 'Cancellation reason must be at least 5 characters.',
+        ]);
+
+        $booking = AirBooking::findOrFail($id);
+
+        if ($booking->status === 'CANCELLED') {
+            return response()->json(['success' => false, 'message' => 'This booking is already cancelled.'], 422);
+        }
+
+        DB::transaction(function () use ($booking, $request, $user) {
+            $oldValues = $booking->only(['status']);
+
+            $booking->update([
+                'status' => 'CANCELLED',
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason'),
+            ]);
+
+            ActivityLog::create([
+                'company_id' => $booking->company_id,
+                'user_id' => $user->id,
+                'action' => 'booking_cancelled',
+                'description' => "Air Booking {$booking->booking_no} cancelled by Administrator. Reason: " . $request->input('reason'),
+                'model_type' => AirBooking::class,
+                'model_id' => $booking->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'old_values' => $oldValues,
+                'new_values' => $booking->fresh()->only(['status', 'cancellation_reason', 'cancelled_at', 'cancelled_by']),
+            ]);
+        });
+
+        if ($request->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Air Booking {$booking->booking_no} cancelled successfully.",
+                'booking' => $booking->fresh(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Air Booking {$booking->booking_no} cancelled successfully.");
     }
 
     public function bulkDelete(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'exists:air_bookings,id']);
+
+        $blockedCount = AirBooking::whereIn('id', $request->ids)
+            ->whereIn('status', ['CONFIRMED', 'COMPLETED', 'CANCELLED'])
+            ->count();
+
+        if ($blockedCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Prohibited: {$blockedCount} of the selected booking(s) are confirmed/approved and cannot be deleted. Only an administrator may cancel them."
+            ], 403);
+        }
+
         AirBooking::whereIn('id', $request->ids)->delete();
-        return response()->json(['success' => true, 'message' => count($request->ids) . ' booking(s) deleted.']);
+        return response()->json(['success' => true, 'message' => count($request->ids) . ' open booking(s) deleted.']);
     }
 
     public function bulkChangeSales(Request $request)

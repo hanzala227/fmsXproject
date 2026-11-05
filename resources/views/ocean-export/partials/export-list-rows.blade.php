@@ -26,7 +26,9 @@
            onclick="toggleLock(this)"></i>
     </td>
     <td class="sticky-col" style="left:50px;" onclick="event.stopPropagation()">
-        <a href="{{ route('ocean-export.edit', $shipment->id) }}" class="col-link">VIEW</a>
+        <a href="{{ route('ocean-export.edit', $shipment->id) }}" class="col-link">
+            {{ $shipment->hbls->count() > 0 ? $shipment->hbls->count() . ' HBL' . ($shipment->hbls->count() > 1 ? 's' : '') : '0 HBL' }}
+        </a>
     </td>
     <td class="sticky-col" style="left:90px;" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -38,8 +40,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <span>{{ $shipment->mbl_no }}</span>
             <i class="fa fa-eye" style="color:#3b82f6;cursor:pointer;font-size:10px;" title="Quick view MBL" onclick="showMbl({
-                file_no: '{{ addslashes($shipment->file_no) }}',
-                mbl_no: '{{ addslashes($shipment->mbl_no) }}',
+                file_no: '{{ addslashes($shipment->file_no ?? '') }}',
+                mbl_no: '{{ addslashes($shipment->mbl_no ?? '') }}',
                 carrier: '{{ addslashes($shipment->carrier->name ?? '--') }}',
                 vessel: '{{ addslashes(($shipment->vessel->name ?? '--') . ' / ' . ($shipment->voyage ?? '--')) }}',
                 pol: '{{ addslashes($shipment->portOfLoading->name ?? '--') }}',
@@ -58,7 +60,25 @@
     <td>{{ $shipment->updated_at->format('m-d-Y H:i') }}</td>
     <td><span class="badge-status bg-green">MATCHED</span></td>
     <td>{{ $shipment->office->code ?? '--' }}</td>
-    <td>{{ $shipment->hbls->count() }} HBLs</td>
+    <td>
+        @if($shipment->hbls->isNotEmpty())
+            @php
+                $hblNos = $shipment->hbls->pluck('hbl_no')->filter()->values();
+            @endphp
+            @if($hblNos->isNotEmpty())
+                <a href="{{ route('ocean-export.edit', $shipment->id) }}" class="col-link" style="font-weight:600;">
+                    {{ $hblNos->first() }}
+                </a>
+                @if($hblNos->count() > 1)
+                    <span class="badge bg-blue" style="font-size:9px;padding:1px 4px;margin-left:3px;background:#3b82f6;color:#fff;border-radius:3px;" title="{{ $hblNos->implode(', ') }}">+{{ $hblNos->count() - 1 }}</span>
+                @endif
+            @else
+                <span style="color:#94a3b8;">--</span>
+            @endif
+        @else
+            <span style="color:#94a3b8;">--</span>
+        @endif
+    </td>
     <td style="text-align:right;">{{ $shipment->containers->count() }}</td>
     <td>
         @foreach($shipment->containers->take(2) as $c)

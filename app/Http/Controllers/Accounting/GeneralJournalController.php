@@ -125,6 +125,16 @@ class GeneralJournalController extends Controller
 
         $entries = AccountingJournal::whereIn('id', $ids)->get();
         foreach ($entries as $entry) {
+            $status = strtoupper($entry->status ?? 'POSTED');
+            if (in_array($status, ['POSTED', 'APPROVED'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Document Control: Posted or approved journal entries cannot be deleted. Reversal or cancellation is required.'
+                ], 403);
+            }
+        }
+
+        foreach ($entries as $entry) {
             $entry->lines()->delete();
             $entry->delete();
         }

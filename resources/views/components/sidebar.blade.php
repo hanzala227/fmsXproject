@@ -176,37 +176,10 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
 
                 @php
                     if (auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company) {
-                        $moduleMapping = [
-                            'Ocean Import' => 'ocean-import',
-                            'Ocean Export' => 'ocean-export',
-                            'Air Import' => 'air-import',
-                            'Air Export' => 'air-export',
-                            'Truck Shipment' => 'truck',
-                            'Custom Brokerage' => 'ocean-import',
-                            'Warehouse & Distribution' => 'warehouse',
-                            'Accounting' => 'accounting',
-                            'CRM' => 'sales',
-                            'Customers' => 'trade-partners',
-                            'Master Data' => 'trade-partners',
-                            'Reports' => 'reports',
-                            'Report' => 'reports',
-                            'General' => 'reports',
-                            'Settings' => 'settings'
-                        ];
-                        
-                        $userModules = auth()->user()->permissions->pluck('module_name')
-                            ->map(function($m) {
-                                return array_map('trim', explode(',', $m));
-                            })->flatten()->unique()->toArray();
-                            
-                        $allowedMenuIds = [];
-                        foreach ($userModules as $uMod) {
-                            if (isset($moduleMapping[$uMod])) {
-                                $allowedMenuIds[] = $moduleMapping[$uMod];
-                            }
-                        }
-                        
-                        $menus = array_filter($menus, fn($m) => in_array($m['id'], $allowedMenuIds) || $m['id'] === 'tracking');
+                        $menus = array_filter($menus, function($m) {
+                            if ($m['id'] === 'tracking') return true;
+                            return auth()->user()->hasModuleAccess($m['id']);
+                        });
                     }
                 @endphp
 

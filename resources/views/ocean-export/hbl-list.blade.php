@@ -328,11 +328,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
                         <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -361,7 +364,7 @@
                 <form method="GET" action="{{ route('ocean-export.hbl-list') }}" style="display:flex;align-items:center;gap:6px;margin:0;">
                     <i class="fa fa-search" style="font-size:10px;color:#94a3b8;"></i>
                     <input type="text" name="search" id="quick-search" class="input-inline" style="width:160px;"
-                           placeholder="Quick search..." value="{{ request('search') }}"
+                           placeholder="Search by File #, MBL, Name..." value="{{ request('search') }}"
                            oninput="quickSearch(this.value)" onkeyup="if(event.key === 'Enter') this.blur()">
                     @if(request()->has('search'))
                         <a href="{{ route('ocean-export.hbl-list') }}" style="font-size:10px;color:#3b82f6;text-decoration:none;">
@@ -947,6 +950,18 @@
        CONFIG PANEL — column visibility
     ================================================================ */
     var PINNED_COLS = ['check', 'lock', 'flag', 'file_no', 'color', 'hbl_no'];
+
+    
+    function filterConfigColumns(query) {
+        const q = (query || '').toLowerCase().trim();
+        const container = document.getElementById('col-toggles');
+        if (!container) return;
+        const labels = container.querySelectorAll('label');
+        labels.forEach(lbl => {
+            const txt = lbl.textContent.toLowerCase();
+            lbl.style.display = (!q || txt.includes(q)) ? 'flex' : 'none';
+        });
+    }
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');

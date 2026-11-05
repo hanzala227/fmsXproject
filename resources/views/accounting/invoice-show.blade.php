@@ -107,16 +107,40 @@
             <div style="display:flex;gap:4px;flex-wrap:wrap;">
                 <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-freightx" target="_blank"><i class="fa fa-pencil"></i> EDIT</a>
                 <a href="javascript:window.print()" class="btn-default-gf"><i class="fa fa-print"></i> PRINT</a>
+                @php
+                    $isApproved = in_array(strtoupper($invoice->status ?? ''), ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || $invoice->verification_status === 'Verified' || $invoice->verification_status === 'Cancelled';
+                    $isCancelled = strtoupper($invoice->status ?? '') === 'VOID' || $invoice->verification_status === 'Cancelled';
+                    $isAdmin = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin());
+                @endphp
+                @if(!$isApproved)
                 <form action="{{ route('accounting.invoices.destroy', $invoice) }}" method="POST" onsubmit="return confirmDelete()" style="display:inline;">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn-default-gf" style="color:#ef4444;border-color:#fecaca;"><i class="fa fa-trash"></i> DELETE</button>
                 </form>
+                @elseif($isAdmin && !$isCancelled)
+                <button type="button" onclick="openCancelModal()" class="btn-default-gf" style="color:#ef4444;border-color:#fecaca;"><i class="fa fa-ban"></i> CANCEL</button>
+                @endif
                 <a href="{{ route('accounting.invoices.index') }}" class="btn-default-gf" target="_blank"><i class="fa fa-arrow-left"></i> BACK</a>
             </div>
         </div>
 
         {{-- ═══════════════════ INVOICE DETAILS ═══════════════════ --}}
+        @if($isCancelled)
+        <div style="background:#fef2f2; border:1px solid #f87171; border-radius:6px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:12px;">
+            <div style="font-size:24px; color:#ef4444;"><i class="fa fa-ban"></i></div>
+            <div>
+                <div style="font-weight:700; color:#991b1b; font-size:13px;">DOCUMENT VOIDED / CANCELLED</div>
+                <div style="font-size:12px; color:#7f1d1d; margin-top:2px;">
+                    This document was officially cancelled on <strong>{{ $invoice->cancelled_at ? $invoice->cancelled_at->format('M d, Y H:i') : '--' }}</strong>
+                    by <strong>{{ $invoice->canceller?->name ?? 'Administrator' }}</strong>.
+                    @if($invoice->cancellation_reason)
+                        <br><strong>Audit Reason:</strong> <em>{{ $invoice->cancellation_reason }}</em>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
         @php
             $shipment = $invoice->invoiceable;
             $mblNo = $invoice->mbl_no ?? $shipment?->mbl_no ?? $shipment?->mawb_no ?? $shipment?->file_no ?? '--';
@@ -146,7 +170,13 @@
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">File / Job No.</span>
-                        <span class="detail-value">{{ $fileNo }}</span>
+                        <span class="detail-value">
+                            @if($invoice->shipment_url && $fileNo !== '--')
+                                <a href="{{ $invoice->shipment_url }}" class="col-link" style="color:#2563eb;font-weight:600;">{{ $fileNo }}</a>
+                            @else
+                                {{ $fileNo }}
+                            @endif
+                        </span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Invoice Date</span>
@@ -404,19 +434,64 @@
         {{-- ═══════════════════ ACTION BAR ═══════════════════ --}}
         <div class="action-bar">
             <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-tool green" target="_blank"><i class="fa fa-pencil"></i> Edit Invoice</a>
+            @if(!$isApproved)
             <form action="{{ route('accounting.invoices.destroy', $invoice) }}" method="POST" onsubmit="return confirmDelete()" style="display:inline;">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn-tool danger"><i class="fa fa-trash"></i> Delete</button>
             </form>
+            @elseif($isAdmin && !$isCancelled)
+            <button type="button" onclick="openCancelModal()" class="btn-tool danger" style="background:#ef4444; color:#fff; border:none; padding:4px 12px; border-radius:4px; font-weight:600; cursor:pointer;"><i class="fa fa-ban"></i> Cancel Invoice</button>
+            @endif
             <a href="{{ route('accounting.invoices.index') }}" class="btn-tool" target="_blank"><i class="fa fa-arrow-left"></i> Back to List</a>
         </div>
     </div>
+
+    {{-- ═══════════════════ CANCELLATION MODAL (Admin Only) ═══════════════════ --}}
+    @if($isAdmin && !$isCancelled && $isApproved)
+    <div id="cancelModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; width:480px; max-width:90%; padding:20px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0;">
+                    <i class="fa fa-ban" style="color:#ef4444; margin-right:6px;"></i> Cancel Document #{{ $invoice->invoice_no }}
+                </h3>
+                <button type="button" onclick="closeCancelModal()" style="border:none; background:transparent; font-size:18px; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <div style="margin-bottom:14px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:10px; font-size:12px; color:#991b1b;">
+                <i class="fa fa-shield" style="margin-right:4px;"></i> <strong>Document Control & Audit Compliance:</strong>
+                Approved accounting records cannot be deleted. Cancellation voids the document balance and permanently records your user ID, timestamp, and audit reason.
+            </div>
+            <form id="cancelForm" method="POST" action="{{ route('accounting.invoices.cancel', $invoice) }}">
+                @csrf
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:#334155; margin-bottom:4px;">
+                        Mandatory Cancellation Reason <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea name="reason" id="cancelReasonInput" rows="3" required minlength="5" placeholder="Enter valid audit reason for cancelling this document (min 5 characters)..." style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:12px; resize:vertical; box-sizing:border-box;"></textarea>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" onclick="closeCancelModal()" class="btn-default-gf">Close</button>
+                    <button type="submit" id="btnConfirmCancel" class="btn-tool danger" style="background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:4px; font-weight:600; cursor:pointer;">
+                        <i class="fa fa-ban"></i> Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
     @push('scripts')
     <script>
         function confirmDelete() {
             return confirm('Delete invoice #{{ $invoice->invoice_no }}? This action cannot be undone.');
+        }
+        function openCancelModal() {
+            var modal = document.getElementById('cancelModal');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeCancelModal() {
+            var modal = document.getElementById('cancelModal');
+            if (modal) modal.style.display = 'none';
         }
     </script>
     @endpush

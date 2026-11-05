@@ -74,13 +74,29 @@
                     </select>
                 </div>
 
+                {{-- Assigned Office / Branch --}}
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Assigned Office / Branch (Freight Origin)</label>
+                    <select name="office_code" style="width: 100%; height: 32px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
+                        <option value="">-- No Office Assigned --</option>
+                        @if(isset($offices))
+                            @foreach($offices as $office)
+                            <option value="{{ $office->code }}" {{ old('office_code', $user->office_code ?? '') === $office->code ? 'selected' : '' }}>
+                                {{ $office->code }} - {{ $office->name }}
+                            </option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                 {{-- Department --}}
                 <div>
                     <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px;">Department</label>
                     <input type="text" name="department" value="{{ old('department', $user->department ?? '') }}"
                         style="width: 100%; height: 32px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
                 </div>
-            </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                 {{-- Company --}}

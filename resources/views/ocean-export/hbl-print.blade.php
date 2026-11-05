@@ -71,6 +71,9 @@ textarea.hbl-field { overflow-y: auto; }
 
 @if(!request('pdf'))
 <div class="toolbar" id="toolbar">
+  <a href="/ocean-export/{{ $shipment->id }}/edit" style="color:#fff; text-decoration:none; background:#475569; font-size:12px; padding:4px 10px; border-radius:4px; display:inline-flex; align-items:center; gap:5px;" title="Back to Shipment">
+    <i class="fa fa-arrow-left"></i> Back
+  </a>
   <span class="title">🖨 HBL Print System</span>
   <label style="color:#94a3b8;font-size:11px;">Select Template:</label>
   <select id="templateSelect" onchange="switchTemplate(this.value)">
@@ -78,6 +81,18 @@ textarea.hbl-field { overflow-y: auto; }
     <option value="{{ $t['key'] }}" data-size="{{ $t['size'] }}">{{ $t['name'] }}</option>
     @endforeach
   </select>
+
+  @if($shipment->hbls && $shipment->hbls->count() > 1)
+  <label style="color:#94a3b8;font-size:11px;margin-left:4px;">Switch HBL:</label>
+  <select onchange="window.location.href='/ocean-export/{{ $shipment->id }}/hbl-print/' + this.value">
+    @foreach($shipment->hbls as $idx => $h)
+    <option value="{{ $idx }}" {{ (string)$hblIndex === (string)$idx || (isset($hbl->id) && $hbl->id === $h->id) ? 'selected' : '' }}>
+      HBL #{{ $idx + 1 }}: {{ $h->hbl_no ?: 'Draft' }}
+    </option>
+    @endforeach
+  </select>
+  @endif
+
   <button onclick="window.print()">🖨 Print</button>
   <button onclick="window.print()">💾 Save PDF</button>
   

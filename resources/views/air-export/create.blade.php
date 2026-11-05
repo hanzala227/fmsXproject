@@ -194,7 +194,7 @@
                     id: '{{ isset($airExport) ? $airExport->id : "" }}',
                     file_no: '{{ isset($airExport) ? $airExport->file_no : \App\Services\DocumentSequenceService::generateBookingNo("MAE", \App\Models\AirExport::class) }}',
                     mawb_no: '{{ isset($airExport) ? $airExport->mawb_no : "" }}',
-                    office: '{{ isset($airExport) ? $airExport->office_id : "" }}',
+                    office: '{{ old('office_id', isset($airExport) && !empty($airExport->office_id) ? $airExport->office_id : (auth()->check() ? (auth()->user()->assigned_office_id ?? '') : '')) }}',
                     carrier: '{{ isset($airExport) ? $airExport->carrier_id : "" }}',
                     issuing_carrier: @json(isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX"),
                     awb_type: @json(isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL"),
@@ -1394,12 +1394,14 @@
                                 'hawb_no' => $airExport->id ? $hbl->hawb_no : ($hbl->hawb_no ? $hbl->hawb_no . '-COPY' : ''),
                                 'booking_no' => $hbl->booking_no ?? '',
                                 'booking_date' => $hbl->booking_date ? \Carbon\Carbon::parse($hbl->booking_date)->format('Y-m-d') : '',
+                                'quotation_no' => $hbl->quotation_no ?? '',
                                 'shipper' => $hbl->shipper_id,
                                 'customer' => $hbl->customer_id,
                                 'bill_to' => $hbl->bill_to ?? '',
                                 'consignee' => $hbl->consignee_id,
                                 'notify' => $hbl->notify_party_id,
                                 'sales' => $hbl->sales_person_id,
+                                'op' => $airExport->operator?->name ?? (auth()->user()?->name ?? ''),
                                 'oversea_agent' => $hbl->oversea_agent_id ?? '',
                                 'sales_type' => $hbl->sales_type ?? '',
                                 'departure' => $hbl->departure ?? '',
@@ -1421,6 +1423,13 @@
                                 'commodity' => $hbl->commodity ?? '',
                                 'incoterms_id' => $hbl->incoterms_id ?? '',
                                 'freight_term' => $hbl->freight_term ?? 'P',
+                                'other_charge_term' => $hbl->other_charge_term ?? 'P',
+                                'issuing_carrier' => $hbl->issuing_carrier ?? 'FREIGHTX',
+                                'trucker' => $hbl->trucker ?? '',
+                                'dv_carriage' => $hbl->dv_carriage ?? 'N.V.D.',
+                                'dv_customs' => $hbl->dv_customs ?? 'N.C.V.',
+                                'insurance' => $hbl->insurance ?? 'N.I.L.',
+                                'cargo_ready_date' => $hbl->cargo_ready_date ? \Carbon\Carbon::parse($hbl->cargo_ready_date)->format('Y-m-d') : '',
                                 'hbl_remark' => $hbl->hbl_remark ?? '',
                                 'mark' => $hbl->mark ?? '',
                                 'description' => $hbl->description ?? '',
@@ -1463,6 +1472,124 @@
                         this.showQuoteModal = false;
                     }
                 },
+                ensureOpt(selectEl, val, text) {
+                    if (!selectEl || val === undefined || val === null || val === '') return;
+                    let opt = Array.from(selectEl.options).find(o => String(o.value) === String(val));
+                    if (!opt && text) {
+                        opt = document.createElement('option');
+                        opt.value = val;
+                        opt.textContent = text;
+                        selectEl.appendChild(opt);
+                    }
+                    if (opt) {
+                        opt.selected = true;
+                        selectEl.value = val;
+                    }
+                    let wrapper = selectEl.closest('.fms-searchable-select-wrapper');
+                    if (!wrapper && typeof window.enhanceSelect === 'function') {
+                        window.enhanceSelect(selectEl);
+                        wrapper = selectEl.closest('.fms-searchable-select-wrapper');
+                    }
+                    if (wrapper) {
+                        const control = wrapper.querySelector('.fms-ss-control');
+                        const textSpan = control ? control.querySelector('.fms-ss-text') : null;
+                        if (textSpan) {
+                            textSpan.textContent = (opt && opt.text) ? opt.text : (text || val || 'Select...');
+                        }
+                    }
+                },
+                loadQuoteToHawb(idx) {
+                    const hawb = this.hawbs[idx];
+                    if (!hawb || !hawb.quotation_no) return;
+                    const quotes = {!! json_encode($quotations->map(function($q) {
+                        return [
+                            'quote_no' => $q->quote_no,
+                            'customer_id' => $q->customer_id,
+                            'customer_name' => $q->customer ? $q->customer->name : '',
+                            'sales_person_id' => $q->sales_person_id,
+                            'pol_id' => $q->pol_id,
+                            'pod_id' => $q->pod_id,
+                            'carrier_id' => $q->carrier_id,
+                            'incoterms_id' => $q->incoterms_id,
+                            'commodity' => $q->commodity ?? '',
+                            'gross_weight' => $q->weight_kg ?? '',
+                            'volume' => $q->volume_cbm ?? '',
+                            'etd' => $q->quote_date ? $q->quote_date->format('Y-m-d') : '',
+                            'items' => $q->items->map(function($i) {
+                                return [
+                                    'charge_code' => $i->charge_code,
+                                    'charge_name' => $i->charge_name,
+                                    'qty' => (float)$i->qty,
+                                    'unit' => $i->unit,
+                                    'currency' => $i->currency ? $i->currency->code : 'USD',
+                                    'rate' => (float)$i->rate,
+                                    'amount' => (float)$i->amount,
+                                ];
+                            })->values()->toArray()
+                        ];
+                    })) !!};
+                    const q = quotes.find(item => item.quote_no === hawb.quotation_no);
+                    if (!q) return;
+
+                    if (q.customer_id) {
+                        hawb.customer = q.customer_id;
+                        this.form.dm_customer_id = q.customer_id;
+                        this.$nextTick(() => {
+                            const qText = q.quote_no + (q.customer_name ? ' - ' + q.customer_name : '');
+                            this.ensureOpt(document.querySelector(`select[name="hbls[${idx}][quotation_no]"]`), hawb.quotation_no, qText);
+                            this.ensureOpt(document.querySelector(`select[name="hbls[${idx}][customer_id]"]`), q.customer_id, q.customer_name);
+                            this.ensureOpt(document.querySelector('select[name="dm_customer_id"]'), q.customer_id, q.customer_name);
+                        });
+                    }
+                    if (q.sales_person_id) {
+                        hawb.sales = q.sales_person_id;
+                        this.form.dm_sales_person_id = q.sales_person_id;
+                    }
+                    if (q.incoterms_id) hawb.incoterms_id = q.incoterms_id;
+                    if (q.commodity) hawb.commodity = q.commodity;
+                    if (q.gross_weight) hawb.gross_weight = q.gross_weight;
+                    if (q.volume) hawb.volume = q.volume;
+                    if (q.pol_id && !this.form.departure) this.form.departure = q.pol_id;
+                    if (q.pod_id && !this.form.destination) this.form.destination = q.pod_id;
+                    if (q.carrier_id && !this.form.carrier) this.form.carrier = q.carrier_id;
+
+                    // Item 45: Import quotation charge amounts into shipment Charges section (chargesList)
+                    if (q.items && q.items.length > 0) {
+                        q.items.forEach(item => {
+                            const rate = parseFloat(item.rate) || 0;
+                            const qty = parseFloat(item.qty) || 1;
+                            const amt = parseFloat(item.amount) || (rate * qty);
+                            this.chargesList.push({
+                                id: null,
+                                _selected: false,
+                                selected: false,
+                                party: 'Freight',
+                                party_name: q.customer_name || '',
+                                party_name_id: q.customer_id || '',
+                                sal: 'Air',
+                                pr: 'Rec',
+                                ppc: 'Prepaid',
+                                chrg_code: item.charge_code || '',
+                                charge_name: item.charge_name || '',
+                                currency: item.currency || 'USD',
+                                rate: rate,
+                                qty: qty,
+                                qty_type: item.unit || 'B/L',
+                                roe: 1.0,
+                                vat: 0,
+                                inv_no: '',
+                                financial_date: new Date().toISOString().split('T')[0],
+                                eq_bl_no: hawb.hawb_no || '',
+                                remark: 'Quotation ' + q.quote_no,
+                                mbl_no: this.form.file_no || ''
+                            });
+                        });
+                    }
+
+                    if (typeof showToast === 'function') {
+                        showToast('success', 'Quotation ' + q.quote_no + ' loaded into HAWB');
+                    }
+                },
                 confirmQuoteSelection() {
                     const q = this.quoteForm;
                     
@@ -1476,36 +1603,71 @@
                     if (q.gross_weight_kg) this.form.gross_weight = q.gross_weight_kg;
                     if (q.volume_cbm) this.form.volume = q.volume_cbm;
                     if (q.carrier_id) this.form.carrier = q.carrier_id;
-                    if (q.oversea_agent_id) this.form.co_loader = q.oversea_agent_id; // Using co-loader for forwarding agent
+                    if (q.oversea_agent_id) this.form.co_loader = q.oversea_agent_id;
+                    if (q.customer_id) this.form.dm_customer_id = q.customer_id;
+                    if (q.sales_person_id) this.form.dm_sales_person_id = q.sales_person_id;
                     
                     // HAWB
                     if (this.hawbs.length === 0) this.addHawb();
                     this.hawbs[0].hawb_no = q.hawb_no || '';
-                    if (q.customer_id) this.hawbs[0].customer = q.customer_id;
+                    if (q.customer_id) {
+                        this.hawbs[0].customer = q.customer_id;
+                        this.$nextTick(() => {
+                            this.ensureOpt(document.querySelector('select[name="hbls[0][customer_id]"]'), q.customer_id, q.customer);
+                            this.ensureOpt(document.querySelector('select[name="dm_customer_id"]'), q.customer_id, q.customer);
+                        });
+                    }
                     if (q.sales_person_id) this.hawbs[0].sales = q.sales_person_id;
                     if (q.incoterms_id) this.hawbs[0].incoterms_id = q.incoterms_id;
                     if (q.gross_weight_kg) this.hawbs[0].gross_weight = q.gross_weight_kg;
                     if (q.volume_cbm) this.hawbs[0].volume = q.volume_cbm;
                     if (q.commodity) this.hawbs[0].commodity = q.commodity;
-                    if (q.quote_no) this.hawbs[0].quotation_no = q.quote_no;
+                    if (q.quote_no) {
+                        this.hawbs[0].quotation_no = q.quote_no;
+                        this.$nextTick(() => {
+                            const qText = q.quote_no + (q.customer ? ' - ' + q.customer : '');
+                            this.ensureOpt(document.querySelector('select[name="hbls[0][quotation_no]"]'), q.quote_no, qText);
+                        });
+                    }
                     
-                    // Charges
+                    // Item 45: Import quotation charge amounts into shipment Charges section (chargesList)
                     if (this.selectedQuote && this.selectedQuote.items) {
                         const items = this.selectedQuote.items.filter(item => item.selected !== false);
                         items.forEach(item => {
-                            this.form.other_charges.push({
-                                charge_code: item.charge_code,
-                                description: item.charge_name,
-                                term: 'P',
-                                rate: item.rate,
-                                amount: item.qty
+                            const cur = (item.currency && item.currency.code) ? item.currency.code : (item.currency || 'USD');
+                            const rate = parseFloat(item.rate) || 0;
+                            const qty = parseFloat(item.qty) || 1;
+                            const amt = parseFloat(item.amount) || (rate * qty);
+                            this.chargesList.push({
+                                id: null,
+                                _selected: false,
+                                selected: false,
+                                party: 'Freight',
+                                party_name: q.customer || '',
+                                party_name_id: q.customer_id || '',
+                                sal: 'Air',
+                                pr: 'Rec',
+                                ppc: 'Prepaid',
+                                chrg_code: item.charge_code || '',
+                                charge_name: item.charge_name || '',
+                                currency: cur,
+                                rate: rate,
+                                qty: qty,
+                                qty_type: item.unit || 'B/L',
+                                roe: 1.0,
+                                vat: 0,
+                                inv_no: '',
+                                financial_date: new Date().toISOString().split('T')[0],
+                                eq_bl_no: q.hawb_no || '',
+                                remark: 'Quotation ' + (q.quote_no || ''),
+                                mbl_no: this.form.file_no || ''
                             });
                         });
                     }
 
                     this.showQuoteModal = false;
                     if (typeof showToast === 'function') {
-                        showToast('success', 'Quotation data loaded successfully');
+                        showToast('success', 'Quotation data and charges loaded successfully');
                     }
                 },
                 createAccountingInvoice(type) {
@@ -2064,7 +2226,10 @@
                 <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
                     <i class="fa fa-bolt"></i> Frexo AI
                 </button>
-                <button type="submit" class="btn-freightx"><i class="fa fa-save"></i> SAVE SHIPMENT</button>
+                <button type="submit"
+                        style="background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 14px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;">
+                    <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+                </button>
                 <a href="/air-export/list" class="btn-default-gf">BACK TO LIST</a>
             </div>
         </div>
@@ -2118,7 +2283,7 @@
 
         <div style="padding-bottom: 50px;">
             <!-- BASIC TAB -->
-            <div x-show="activeTab === 'basic'" :style="activeTab === 'basic' ? '' : 'display: none !important;'" class="main-grid" x-cloak>
+            <div x-show="activeTab === 'basic'" class="main-grid">
                 <div class="portlet light">
                     <div @click="showMblSection = !showMblSection" class="portlet-title" style="cursor: pointer; background: #f9fafb;">
                         <span class="caption-subject">
@@ -2130,23 +2295,6 @@
                         </div>
                     </div>
                     <div class="portlet-body" x-show="showMblSection">
-                        <!-- Reminder Section for MAWB -->
-                        <div class="memo-section" style="margin-bottom: 10px;">
-                            <div class="memo-header" @click="showMblMemo = !showMblMemo">
-                                <span>Note</span>
-                                <div style="display: flex; gap: 10px; align-items: center;">
-                                    <button class="btn-default-gf" @click.stop="">Document (0) <i class="fa fa-external-link"></i></button>
-                                    <i class="fa" :class="showMblMemo ? 'fa-angle-up' : 'fa-angle-down'"></i>
-                                </div>
-                            </div>
-                            <div class="memo-body" x-show="showMblMemo">
-                                <div style="display: flex; gap: 10px;">
-                                    <div style="flex: 2; border: 1px solid #dcdcdc; min-height: 50px; background: #fff; padding: 10px; color: #999; text-align: center;">No records found.</div>
-                                    <div style="flex: 1;"><textarea class="form-control-gf" style="height: 80px; resize: none;" placeholder="Reminder content..."></textarea></div>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="form-grid-4">
                             <!-- Row 1 -->
                             <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : \App\Services\DocumentSequenceService::generateBookingNo('MAE', \App\Models\AirExport::class) }}" required></div></div>
@@ -2163,10 +2311,10 @@
                             <!-- Row 3 -->
                             <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><x-inline-select name="shipper_id" :options="$agents" module="trade-partner" x-model="form.shipper" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'shipper_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container">
-                                <select name="office_id" class="form-control-gf" x-model="form.office">
+                                <select name="office_id" class="form-control-gf" x-model="form.office" required>
                                     <option value="">Select Office...</option>
                                     @foreach($offices as $office)
-                                        <option value="{{ $office->id }}">{{ $office->name }}</option>
+                                        <option value="{{ $office->id }}" {{ (old('office_id', isset($airExport) ? $airExport->office_id : (auth()->user()->assigned_office_id ?? '')) == $office->id) ? 'selected' : '' }}>{{ $office->code }} - {{ $office->name }}</option>
                                     @endforeach
                                 </select>
                             </div></div>
@@ -2390,107 +2538,6 @@
 
                         <hr style="margin: 15px 0; border-top: 1px solid #eee;">
 
-                        <!-- MAWB Grids -->
-                        <div style="margin-bottom: 15px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Other Charges</h4>
-                                <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addOtherCharge()"><i class="fa fa-plus"></i> Add Charge</button>
-                            </div>
-                            <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
-                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
-                                    <colgroup>
-                                        <col style="width: 36px;">
-                                        <col style="width: 130px;">
-                                        <col>
-                                        <col style="width: 100px;">
-                                        <col style="width: 110px;">
-                                        <col style="width: 120px;">
-                                    </colgroup>
-                                    <thead>
-                                        <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
-                                            <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Charge Code</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Description</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Term</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Rate</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="(charge, idx) in form.other_charges" :key="idx">
-                                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                                <td style="text-align: center; padding: 4px; vertical-align: middle;">
-                                                    <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeOtherCharge(idx)"></i>
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="Code" x-model="charge.charge_code" :name="'other_charges['+idx+'][charge_code]'">
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <textarea class="form-control-gf" style="width: 100%; min-height: 50px; height: 60px; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Description..." x-model="charge.description" :name="'other_charges['+idx+'][description]'"></textarea>
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <select class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" x-model="charge.term" :name="'other_charges['+idx+'][term]'">
-                                                        <option value="P">PPD</option>
-                                                        <option value="C">COLL</option>
-                                                    </select>
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <input type="number" step="any" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px; text-align: right;" placeholder="0.00" x-model="charge.rate" :name="'other_charges['+idx+'][rate]'">
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <input type="number" step="any" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px; text-align: right;" placeholder="0.00" x-model="charge.amount" :name="'other_charges['+idx+'][amount]'">
-                                                </td>
-                                            </tr>
-                                        </template>
-                                        <tr x-show="!form.other_charges || form.other_charges.length === 0">
-                                            <td colspan="6" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No other charges added. Click "+ Add Charge" to add rows.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 15px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Accounting Information</h4>
-                                <button type="button" class="btn-default-gf" style="padding: 2px 8px; font-size: 10px; height: 22px;" @click="addAcctInfo()"><i class="fa fa-plus"></i> Add Info</button>
-                            </div>
-                            <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 3px; background: #fff;">
-                                <table class="table-custom" style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom: 0;">
-                                    <colgroup>
-                                        <col style="width: 36px;">
-                                        <col style="width: 180px;">
-                                        <col>
-                                    </colgroup>
-                                    <thead>
-                                        <tr style="background:#f8fafc; border-bottom: 1px solid #e5e7eb;">
-                                            <th style="text-align: center; padding: 6px 4px; color: #475569; font-weight: 600;">#</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Information Code</th>
-                                            <th style="padding: 6px 8px; color: #475569; font-weight: 600;">Accounting Information</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="(info, idx) in form.accounting_info" :key="idx">
-                                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                                <td style="text-align: center; padding: 4px; vertical-align: middle;">
-                                                    <i class="fa fa-trash text-red-500 hover:text-red-700 cursor-pointer" style="font-size: 12px;" title="Delete Row" @click="removeAcctInfo(idx)"></i>
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <input type="text" class="form-control-gf" style="width: 100%; height: 26px; padding: 2px 6px; font-size: 11px;" placeholder="Code" x-model="info.code" :name="'accounting_info['+idx+'][code]'">
-                                                </td>
-                                                <td style="padding: 4px 6px; vertical-align: top;">
-                                                    <textarea class="form-control-gf" style="width: 100%; min-height: 50px; height: 60px; resize: vertical; padding: 6px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Accounting information details..." x-model="info.info" :name="'accounting_info['+idx+'][info]'"></textarea>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                        <tr x-show="!form.accounting_info || form.accounting_info.length === 0">
-                                            <td colspan="3" style="text-align: center; color: #94a3b8; padding: 12px; font-style: italic;">No accounting information added.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
                         <div style="margin-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <h4 style="font-size: 11px; font-weight: 700; color: #4b77be; margin: 0; text-transform: uppercase;">Commodity</h4>
@@ -2531,19 +2578,12 @@
                                 </table>
                             </div>
                         </div>
-
-                        <div style="margin-top: 15px;">
-                            <label class="form-label-gf" style="margin-bottom: 4px;">Internal Memo</label>
-                            <div class="form-input-container">
-                                <textarea class="form-control-gf textarea-compact" style="width: 100%; min-height: 60px; height: 100px; padding: 6px 8px; resize: vertical; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" placeholder="Internal memo / remarks..." x-model="form.internal_remark" name="internal_remark"></textarea>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <!-- House B/L (HAWB) Section -->
                 <template x-for="(hawb, index) in hawbs" :key="index">
-                    <div class="portlet light" x-show="activeTab === 'basic'" :style="activeTab === 'basic' ? '' : 'display: none !important;'" style="margin-top: 5px;">
+                    <div class="portlet light" style="margin-top: 5px;">
                         <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hawbs[index].show = !hawbs[index].show">
                             <span class="caption-subject" style="color: #fff; font-size: 11px;">
                                 <i class="fa fa-user"></i> HAWB Information
@@ -2605,12 +2645,36 @@
                                 
                                 <!-- Row 2 -->
                                 <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" :name="'hbls[' + index + '][booking_no]'" class="form-control-gf" x-model="hawb.booking_no"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][customer_id]'" :options="$agents" module="trade-partner" x-model="hawb.customer" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Customer</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls[' + index + '][customer_id]'" x-model="hawb.customer">
+                                            <option value="">Select...</option>
+                                            @foreach($agents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.customer ? '/trade-partner/' + hawb.customer + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Customer"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls[' + index + '][customer_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][consignee_id]'" :options="$agents" module="trade-partner" x-model="hawb.consignee" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Oversea Agent</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][oversea_agent_id]'" :options="$agents" module="trade-partner" x-model="hawb.oversea_agent" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                                 
                                 <!-- Row 3 -->
-                                <div class="form-group-gf"><label class="form-label-gf">Quotation No.</label><div class="form-input-container"><x-inline-select name="" x-bind:name="'hbls[' + index + '][quotation_no]'" :options="$agents" module="trade-partner" x-model="hawb.quotation_no" class="form-control-gf" /></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Quotation No.</label>
+                                    <div class="form-input-container">
+                                        <select :name="'hbls[' + index + '][quotation_no]'" class="form-control-gf" x-model="hawb.quotation_no" @change="loadQuoteToHawb(index)">
+                                            <option value="">Select...</option>
+                                            @foreach($quotations as $q)
+                                                <option value="{{ $q->quote_no }}">{{ $q->quote_no }} - {{ $q->customer->name ?? '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding: 0 4px;" @click="showQuoteModal = true" title="Load Quotation Data"><i class="fa fa-folder-open-o" style="font-size:10px;"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding: 0 4px;" onclick="window.open('/sales/quotation/create', '_blank')" title="Create Quotation"><i class="fa fa-external-link" style="font-size:10px;"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sales</label><div class="form-input-container">
                                     <select :name="'hbls[' + index + '][sales_person_id]'" x-model="hawb.sales" class="form-control-gf">
                                         <option value="">Select...</option>
@@ -2810,13 +2874,13 @@
                     </div>
                 </template>
 
-                <div class="flex justify-end" x-show="activeTab === 'basic'" :style="activeTab === 'basic' ? '' : 'display: none !important;'" style="margin-top: 5px; margin-bottom: 20px;">
+                <div class="flex justify-end" style="margin-top: 5px; margin-bottom: 20px;">
                     <button type="button" @click="addHawb" class="btn-freightx" style="background:#f2bc00; padding: 4px 15px; font-size: 11px; border-radius: 2px;"><i class="fa fa-plus"></i> ADD HAWB</button>
                 </div>
             </div>
 
             <!-- CHARGES TAB -->
-            <div x-show="activeTab === 'charges'" class="main-grid" x-cloak>
+            <div x-show="activeTab === 'charges'" class="main-grid">
                 <div class="portlet light">
                     <div class="portlet-body">
                         @include('partials.charges-invoice-modal')
@@ -2845,47 +2909,46 @@
                         </div>
 
                         <!-- Charges Table -->
-                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px;">
-                            <table class="table-custom" style="font-size: 11px; min-width: 1200px;">
+                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px; overflow-x: auto;">
+                            <table class="table-custom" style="font-size: 10px; width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background: #f1f3f6;">
-                                        <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                            <input type="checkbox" @change="toggleAllCharges($event)" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
-                                        </th>
-                                        <th style="padding: 6px 8px;">Party</th>
-                                        <th style="padding: 6px 8px;">Party Name</th>
-                                        <th style="padding: 6px 8px;">SAL</th>
-                                        <th style="padding: 6px 8px;">P/R</th>
-                                        <th style="padding: 6px 8px;">PP/C</th>
-                                        <th style="padding: 6px 8px;">Chrg</th>
-                                        <th style="padding: 6px 8px;">Curr.</th>
-                                        <th style="padding: 6px 8px;">Rate</th>
-                                        <th style="padding: 6px 8px;">Qty</th>
-                                        <th style="padding: 6px 8px;">Q.Type</th>
-                                        <th style="padding: 6px 8px;">F.Amnt</th>
-                                        <th style="padding: 6px 8px;">ROE</th>
-                                        <th style="padding: 6px 8px;">VAT</th>
-                                        <th style="padding: 6px 8px;">L.Amnt</th>
-                                        <th style="padding: 6px 8px;">Inv/Dr/Cr/No</th>
-                                        <th style="padding: 6px 8px;">Fin. Dt</th>
-                                        <th style="padding: 6px 8px;">MBL#</th>
-                                        <th style="padding: 6px 8px;">Remark</th>
-                                        <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                            <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 6px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
-                                                <i class="fa fa-plus"></i>
-                                            </button>
-                                        </th>
+                                        <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <input type="checkbox" @change="toggleAllCharges()" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
+                            </th>
+                                        <th style="padding: 4px 3px;">Party</th>
+                                        <th style="padding: 4px 3px;">Party Name</th>
+                                        <th style="padding: 4px 3px;">SAL</th>
+                                        <th style="padding: 4px 3px;">P/R</th>
+                                        <th style="padding: 4px 3px;">PP/C</th>
+                                        <th style="padding: 4px 3px;">Chrg</th>
+                                        <th style="padding: 4px 3px;">Curr.</th>
+                                        <th style="padding: 4px 3px;">Rate</th>
+                                        <th style="padding: 4px 3px;">Qty</th>
+                                        <th style="padding: 4px 3px;">Q.Type</th>
+                                        <th style="padding: 4px 3px;">F.Amnt</th>
+                                        <th style="padding: 4px 3px;">ROE</th>
+                                        <th style="padding: 4px 3px;">VAT</th>
+                                        <th style="padding: 4px 3px;">L.Amnt</th>
+                                        <th style="padding: 4px 3px;">Inv/Dr/Cr/No</th>
+                                        <th style="padding: 4px 3px;">Fin. Dt</th>
+                                        <th style="padding: 4px 3px;">Remark</th>
+                                        <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 4px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="(charge, idx) in chargesList" :key="idx">
                                         <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
-                                            <td style="padding: 5px 8px; text-align: center;">
-                                                <input type="checkbox" x-model="charge._selected" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
+                                            <td style="padding: 3px 2px; text-align: center;">
+                                                <input type="checkbox" x-model="charge._selected" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                                 <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 80px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 62px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
                                                     <option value="Freight">Freight</option>
                                                     <option value="THC">THC</option>
                                                     <option value="Handling">Handling</option>
@@ -2893,7 +2956,7 @@
                                                     <option value="Customs">Customs</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
+                                            <td style="padding: 3px 2px;">
                                                 <div x-data="{ 
                                                     open: false, 
                                                     search: charge.party_name || '',
@@ -2905,8 +2968,7 @@
                                                     }
                                                 }" @click.away="open = false" style="position: relative;">
                                                     <div style="position: relative;">
-                                                        <input type="text" class="form-control-gf" style="width: 120px; font-size: 10px; padding-right: 20px;" 
-                                                            x-model="search" 
+                                                        <input type="text" class="form-control-gf" style="width: 90px; font-size: 10px; padding: 2px 14px 2px 3px; height: 24px;" x-model="search" 
                                                             @input="charge.party_name = search; open = true"
                                                             @focus="open = true"
                                                             @click="open = true"
@@ -2914,7 +2976,7 @@
                                                             placeholder="Search Party..." 
                                                             autocomplete="off">
                                                         <input type="hidden" :name="'charges[' + idx + '][party_name_id]'" x-model="charge.party_name_id">
-                                                        <i class="fa fa-caret-down" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer;" @click="open = !open"></i>
+                                                        <i class="fa fa-caret-down" style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer; font-size: 9px;" @click="open = !open"></i>
                                                     </div>
                                                     
                                                     <div x-show="open" style="display: none; position: absolute; z-index: 9999; background: white; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 2px;">
@@ -2929,77 +2991,75 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 50px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 42px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
                                                     <option value="Sea">Sea</option>
                                                     <option value="Air">Air</option>
                                                     <option value="Land">Land</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 55px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 44px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
                                                     <option value="Rec">Rec</option>
                                                     <option value="Pay">Pay</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 60px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
                                                     <option value="Colle">Colle</option>
                                                     <option value="Proj">Proj</option>
                                                     <option value="Prepaid">Prepaid</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 60px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="text" class="form-control-gf" style="width: 40px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 65px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
                                                     <option value="">Select...</option>
                                                     @foreach($currencies as $currency)
                                                         <option value="{{ $currency->code }}">{{ $currency->code }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 44px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 34px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 65px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 48px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
                                                     <option value="">Select...</option>
                                                     @foreach($packageUnits as $unit)
                                                         <option value="{{ $unit->code }}">{{ $unit->code }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0)).toFixed(2)" style="display: inline-block; min-width: 50px; text-align: right;">0.00</span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0)).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 55px; text-align: right;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 38px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 32px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 58px; color: #3b82f6; font-weight: bold; font-size: 10px;"></span>
                                                 <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="date" class="form-control-gf" style="width: 76px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
+                                    <input type="hidden" :name="'charges[' + idx + '][mbl_no]'" :value="charge.mbl_no">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="text" class="form-control-gf" style="width: 75px; font-size: 10px; padding: 2px 3px; height: 24px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
-                                            </td>
-                                            <td style="padding: 5px 8px; text-align: center;">
+                                            <td style="padding: 3px 2px; text-align: center;">
                                                 <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
                                                     <i class="fa fa-trash"></i>
                                                 </button>
@@ -3049,7 +3109,7 @@
             </div>
 
             <!-- DOC CENTER TAB (Placeholder) -->
-            <div x-show="activeTab === 'doc'" :style="activeTab === 'doc' ? 'display: flex !important;' : 'display: none !important;'" class="main-grid" x-cloak>
+            <div x-show="activeTab === 'doc'" class="main-grid">
                 <div class="portlet light">
                     <div class="portlet-title"><span class="caption-subject">Doc Center</span></div>
                     <div class="portlet-body">
@@ -3059,7 +3119,7 @@
             </div>
 
             <!-- WORK ORDER TAB -->
-            <div x-show="activeTab === 'workorder'" :style="activeTab === 'workorder' ? 'display: flex !important;' : 'display: none !important;'" class="main-grid" x-cloak style="flex-direction: row; gap: 10px;">
+            <div x-show="activeTab === 'workorder'" class="main-grid" style="flex-direction: row; gap: 10px;">
                 <!-- Main Work Order Area (col-10) -->
                 <div style="flex: 5;">
                     <div class="portlet light">
@@ -3205,7 +3265,7 @@
             </div>
 
             <!-- STATUS TAB -->
-            <div x-show="activeTab === 'status'" :style="activeTab === 'status' ? 'display: flex !important;' : 'display: none !important;'" class="main-grid" x-cloak style="flex-direction: row; gap: 10px;">
+            <div x-show="activeTab === 'status'" class="main-grid" style="flex-direction: row; gap: 10px;">
                 <!-- Main Status Area (col-10) -->
                 <div style="flex: 5;">
                     <div class="portlet light">
@@ -3371,11 +3431,6 @@
 
             <!-- Step 1 Content -->
             <div x-show="quoteStep === 1">
-                @php
-                    $agents = \App\Models\TradePartner::orderBy('name')->get();
-                    $ports = \App\Models\Port::orderBy('name')->get();
-                    $users = \App\Models\User::orderBy('name')->get();
-                @endphp
                 <!-- Ocean Style Grid -->
                 <div class="form-grid-4" style="grid-template-columns: repeat(3, 1fr);">
                     <div class="main-grid">
@@ -3383,15 +3438,19 @@
                             <x-inline-select name="customer" :options="$agents" module="trade-partner" x-model="filters.customer" class="form-control-gf" />
                         </div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Departure..</label><div class="form-input-container">
-                            <x-inline-select name="pol" :options="$agents" module="trade-partner" x-model="filters.pol" class="form-control-gf" />
+                            <select class="form-control-gf" x-model="filters.pol" data-ajax-search="true" data-type="AIR" data-search-url="{{ route('ports.search') }}">
+                                <option value="">Select...</option>
+                                @foreach($ports as $port)
+                                    <option value="{{ $port->id }}">{{ $port->name }}</option>
+                                @endforeach
+                            </select>
                         </div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Quote No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="filters.quote_no"></div></div>
                     </div>
                     <div class="main-grid">
                         <div class="form-group-gf"><label class="form-label-gf">Valid Date</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="filters.valid_date"></div></div>
                         <div class="form-group-gf"><label class="form-label-gf">Destination</label><div class="form-input-container">
-                            <select class="form-control-gf" x-model="filters.pod" data-ajax-search="true" data-type="AIR"
-    data-search-url="{{ route('ports.search') }}">
+                            <select class="form-control-gf" x-model="filters.pod" data-ajax-search="true" data-type="AIR" data-search-url="{{ route('ports.search') }}">
                                 <option value="">Select...</option>
                                 @foreach($ports as $port)
                                     <option value="{{ $port->id }}">{{ $port->name }}</option>
@@ -3441,7 +3500,7 @@
                             class="btn-tool-secondary"
                             style="background: #67809f; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; border: none; cursor: pointer;"
                             @click.stop="showQuoteConfig = !showQuoteConfig">
-                        <i class="fa fa-cogs"></i> Config
+                        <i class="fa fa-cog"></i> Settings
                     </button>
                 </div>
 
@@ -3499,7 +3558,7 @@
                                     quote_no: '{{ addslashes($quote->quote_no) }}',
                                     mawb_no: 'MAWB-{{ addslashes($quote->quote_no) }}',
                                     hawb_no: 'HAWB-{{ addslashes($quote->quote_no) }}',
-                                    eta: '{{ $quote->expiry_date ? $quote->expiry_date->format('Y-m-d') : '' }}',
+                                    eta: '',
                                     etd: '{{ $quote->quote_date ? $quote->quote_date->format('Y-m-d') : '' }}',
                                     customer: '{{ addslashes($quote->customer->name ?? '') }}',
                                     customer_id: '{{ $quote->customer_id }}',
@@ -3658,8 +3717,8 @@
             <button type="button" x-show="quoteStep > 1" class="btn-default-gf" @click="quoteStep--">Back</button>
 
             <button type="button" x-show="quoteStep < 3"
-                    :class="((quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer || !quoteForm.etd))) ? 'btn-freightx opacity-50 cursor-not-allowed' : 'btn-freightx'"
-                    :disabled="(quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer || !quoteForm.etd))"
+                    :class="((quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no))) ? 'btn-freightx opacity-50 cursor-not-allowed' : 'btn-freightx'"
+                    :disabled="(quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no))"
                     @click="quoteStep++">Next <i class="fa fa-arrow-right"></i></button>
 
             <button type="button" x-show="quoteStep === 3" class="btn-freightx" @click="confirmQuoteSelection()"><i class="fa fa-check"></i> Confirm</button>
@@ -3918,6 +3977,16 @@
     </div>
 </div>
         @include('partials.ai-modal')
+
+        <!-- Centered Floating Save Pill (Transparent Glass Style) -->
+        <div class="fixed-floating-save-pill" style="position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 5px 14px; border-radius: 9999px; border: 1px solid rgba(203, 213, 225, 0.8); box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08);">
+            <button type="button" @click="window.triggerPrimarySave ? window.triggerPrimarySave() : (document.getElementById('airExportForm') ? document.getElementById('airExportForm').submit() : null)"
+                    style="background: rgba(16, 185, 129, 0.14); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.4); padding: 6px 22px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;"
+                    onmouseover="this.style.background='rgba(16, 185, 129, 0.24)'"
+                    onmouseout="this.style.background='rgba(16, 185, 129, 0.14)'">
+                <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+            </button>
+        </div>
 <div id="toast-container" class="toast-container"></div>
 <script>
     function showToast(type, msg) {

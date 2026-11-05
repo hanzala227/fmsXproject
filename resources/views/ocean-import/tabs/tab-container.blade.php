@@ -196,6 +196,21 @@
         </div>
     </div>
 
+    <!-- Empty State when no HB/L is present -->
+    <template x-if="!hbls || hbls.length === 0">
+        <div class="portlet light" style="margin-top: 15px; border: 1px dashed #f2bc00; padding: 25px 20px; text-align: center; background: #fffdf5; border-radius: 4px;">
+            <div style="font-size: 13px; color: #854d0e; margin-bottom: 6px; font-weight: 700;">
+                <i class="fa fa-info-circle"></i> No House B/L (HB/L) Added Yet
+            </div>
+            <p style="font-size: 11px; color: #a16207; margin-bottom: 14px;">
+                This shipment currently has no HB/L assigned. Click below to add a House B/L and manage its containers, commodities, and marks.
+            </p>
+            <button type="button" @click="addHbl()" class="btn-freightx" style="background:#f2bc00; color: #fff; padding: 6px 18px; font-size: 11px; border-radius: 3px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa fa-plus"></i> Add HB/L &amp; Containers
+            </button>
+        </div>
+    </template>
+
     <!-- HBL Containers & Items Sections -->
     <template x-for="(hbl, hblIdx) in hbls" :key="hblIdx">
         <div class="portlet light" style="margin-top: 15px; border: 1px solid #f2bc00;">
@@ -256,19 +271,37 @@
                                     <tr>
                                         <td style="text-align: center; font-weight: bold;" x-text="cIdx + 1"></td>
                                         <td>
-                                            <select class="form-control-gf" x-model="c.container_no" @change="if(c.container_no !== 'MANUAL') c.manual_container_no = ''" :name="c.container_no !== 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''">
-                                                <option value="">Select MBL Container...</option>
-                                                <template x-for="mblC in form.containers">
-                                                    <option :value="mblC.container_no" x-text="mblC.container_no" :selected="c.container_no === mblC.container_no"></option>
+                                            <!-- Manual Entry Mode -->
+                                            <div x-show="c.is_manual || c.container_no === 'MANUAL'" style="display: flex; gap: 4px; align-items: center;">
+                                                <input type="text" class="form-control-gf uppercase" style="flex: 1; font-weight: 600;" 
+                                                       x-model="c.container_no" 
+                                                       :name="'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]'" 
+                                                       placeholder="Container No.">
+                                                <button type="button" @click="c.is_manual = false; if(c.container_no === 'MANUAL') c.container_no = '';" class="btn-tool-icon" style="padding: 2px 6px; font-size: 10px; color: #64748b; height: 26px;" title="Switch to MBL Container dropdown">
+                                                    <i class="fa fa-list"></i>
+                                                </button>
+                                            </div>
+
+                                            <!-- Dropdown Select Mode -->
+                                            <div x-show="!c.is_manual && c.container_no !== 'MANUAL'">
+                                                <div style="display: flex; gap: 4px; align-items: center;">
+                                                    <select class="form-control-gf" style="flex: 1;" x-model="c.container_no" @change="if(c.container_no === 'MANUAL') { c.is_manual = true; c.container_no = ''; }" :name="'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]'">
+                                                        <option value="">Select MBL Container...</option>
+                                                        <template x-for="mblC in form.containers">
+                                                            <option :value="mblC.container_no" x-text="mblC.container_no + (getContainerDetails(mblC.container_no) ? ' (' + getContainerDetails(mblC.container_no) + ')' : '')" :selected="c.container_no === mblC.container_no"></option>
+                                                        </template>
+                                                        <option value="MANUAL">+ Enter Manual Container</option>
+                                                    </select>
+                                                    <button type="button" @click="c.is_manual = true;" class="btn-tool-icon" style="padding: 2px 6px; font-size: 10px; color: #64748b; height: 26px;" title="Enter manual container directly">
+                                                        <i class="fa fa-pencil"></i>
+                                                    </button>
+                                                </div>
+                                                <template x-if="c.container_no && getContainerDetails(c.container_no)">
+                                                    <div style="font-size: 11px; color: #1e3a8a; margin-top: 4px; background: #eff6ff; padding: 3px 8px; border-radius: 4px; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
+                                                        <i class="fa fa-cube" style="color: #3b82f6;"></i>
+                                                        <span x-text="getContainerDetails(c.container_no)"></span>
+                                                    </div>
                                                 </template>
-                                                <option value="MANUAL" :selected="c.container_no === 'MANUAL'">Add Manual</option>
-                                            </select>
-                                            <div x-show="c.container_no === 'MANUAL'" class="mt-1">
-                                                @include('partials.container-number-field', [
-                                                    'name' => "c.container_no === 'MANUAL' ? 'hbls['+hblIdx+'][containers]['+cIdx+'][container_no]' : ''",
-                                                    'model' => 'c.manual_container_no',
-                                                    'placeholder' => 'Enter Container No.'
-                                                ])
                                             </div>
                                         </td>
                                         <td>
@@ -332,8 +365,9 @@
                             </tfoot>
                         </table>
                     </div>
-                    <div class="mt-2">
-                        <button type="button" @click="hbl.containers.push({container_no:'', pkg_qty:'', pkg_unit:'CARTON(S)', weight_kg:'', weight_unit:'KG', measure_cbm:'', measure_unit:'CBM', po_no:''})" class="btn-tool" style="background-color: #3b82f6; color: #fff; border-color: #3b82f6;" title="Add Container"><i class="fa fa-plus"></i> Add Container</button>
+                    <div class="mt-2" style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" @click="addHblContainer(hbl, false)" class="btn-tool" style="background-color: #3b82f6; color: #fff; border-color: #3b82f6;" title="Add Container from MBL"><i class="fa fa-plus"></i> Add Container</button>
+                        <button type="button" @click="addHblContainer(hbl, true)" class="btn-tool-outline" style="color: #2563eb; border-color: #93c5fd; background: #eff6ff;" title="Add Manual Container"><i class="fa fa-pencil"></i> Add Manual Container</button>
                     </div>
                 </div>
 
@@ -520,4 +554,9 @@
             </div>
         </div>
     </template>
+
+    <!-- Container & Items Tab - Add HB/L Button -->
+    <div class="flex justify-end" style="margin-top: 10px;" x-show="hbls && hbls.length > 0">
+        <button type="button" @click="addHbl" class="btn-freightx" style="background:#f2bc00; padding: 4px 15px; font-size: 11px; border-radius: 2px;"><i class="fa fa-plus"></i> ADD HB/L</button>
+    </div>
 </div>

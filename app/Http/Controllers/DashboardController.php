@@ -140,61 +140,155 @@ class DashboardController extends Controller
     protected function calculateTodos()
     {
         $todos = [];
+        $seenBookings = [];
 
         try {
             $logs = ShipmentStatusLog::with('shipment')
-                ->where('created_at', '>=', now()->subDays(30))
-                ->latest()->take(10)->get();
+                ->where('created_at', '>=', now()->subDays(60))
+                ->latest()
+                ->take(100)
+                ->get();
 
             foreach ($logs as $log) {
                 $shipment = $log->shipment;
                 if (!$shipment) continue;
 
-                $fileNo = $shipment->file_no ?? $shipment->mawb_no ?? $shipment->booking_no ?? 'N/A';
+                $fileNo = $shipment->file_no ?? $shipment->booking_no ?? $shipment->mawb_no ?? 'N/A';
+                $bookingKey = class_basename($log->shipment_type) . '_' . $shipment->id;
+
+                // Prevent duplicate rows for the same booking
+                if (isset($seenBookings[$bookingKey]) || (isset($seenBookings[$fileNo]) && $fileNo !== 'N/A')) {
+                    continue;
+                }
+                $seenBookings[$bookingKey] = true;
+                if ($fileNo !== 'N/A') {
+                    $seenBookings[$fileNo] = true;
+                }
+
                 $mblNo  = $shipment->mbl_no ?? $shipment->mawb_no ?? '--';
-                $pod    = $shipment->portOfDischarge?->name ?? $shipment->dstPort?->name ?? '--';
+                $pod    = $shipment->portOfDischarge?->name 
+                    ?? $shipment->podPort?->name 
+                    ?? $shipment->dstPort?->name 
+                    ?? $shipment->destinationPort?->name 
+                    ?? '--';
                 $eta    = $shipment->eta ?? $shipment->created_at;
                 $statusName = $log->status_name ?? $log->status_code ?? 'Update';
 
+                $hblNo = '--';
+                if (isset($shipment->hbls) && $shipment->hbls instanceof \Illuminate\Support\Collection && $shipment->hbls->isNotEmpty()) {
+                    $latestHbl = $shipment->hbls->sortByDesc(fn($h) => $h->updated_at ?? $h->created_at ?? $h->id)->first();
+                    $hblNo = $latestHbl ? ($latestHbl->hbl_no ?? $latestHbl->hawb_no ?? '--') : '--';
+                }
+
+                $consignee = $shipment->consignee?->name 
+                    ?? $shipment->dmConsignee?->name 
+                    ?? $shipment->customer?->name 
+                    ?? $shipment->dmCustomer?->name 
+                    ?? '--';
+
                 $badgeClass = 'bg-pre-alert';
-                if (stripos($statusName, 'arrival') !== false) $badgeClass = 'bg-arrival';
-                elseif (stripos($statusName, 'invoice') !== false) $badgeClass = 'bg-invoice';
+                if (stripos($statusName, 'arrival') !== false) {
+                    $badgeClass = 'bg-arrival';
+                } elseif (stripos($statusName, 'invoice') !== false) {
+                    $badgeClass = 'bg-invoice';
+                } elseif (stripos($statusName, 'block') !== false) {
+                    $badgeClass = 'bg-blocked';
+                } elseif (stripos($statusName, 'update') !== false) {
+                    $badgeClass = 'bg-updated';
+                } elseif (stripos($statusName, 'create') !== false) {
+                    $badgeClass = 'bg-created';
+                }
+
+                $editUrl = '';
+                if ($shipment instanceof \App\Models\OceanImport) {
+                    $editUrl = route('ocean-import.edit', $shipment->id);
+                } elseif ($shipment instanceof \App\Models\OceanExport) {
+                    $editUrl = route('ocean-export.edit', $shipment->id);
+                } elseif ($shipment instanceof \App\Models\AirImport) {
+                    $editUrl = route('air-import.edit', $shipment->id);
+                } elseif ($shipment instanceof \App\Models\AirExport) {
+                    $editUrl = route('air-export.edit', $shipment->id);
+                } elseif ($shipment instanceof \App\Models\AirBooking) {
+                    $editUrl = route('air-bookings.edit', $shipment->id);
+                } elseif ($shipment instanceof \App\Models\OceanBooking) {
+                    $editUrl = route('ocean-bookings.edit', $shipment->id);
+                }
 
                 $todos[] = [
-                    'id'         => $shipment->id,
-                    'task'       => $statusName,
-                    'file_no'    => $fileNo,
-                    'eta'        => $eta instanceof \Carbon\Carbon ? $eta->format('m-d-Y') : (is_string($eta) ? $eta : '--'),
-                    'mbl'        => $mblNo,
-                    'hbl'        => '--',
-                    'pod'        => $pod,
-                    'consignee'  => $shipment->dmConsignee?->name ?? $shipment->dmCustomer?->name ?? '--',
-                    'status'     => $statusName,
-                    'badgeClass' => $badgeClass,
+                    'id'            => $shipment->id,
+                    'task'          => $statusName,
+                    'file_no'       => $fileNo,
+                    'eta'           => $eta instanceof \Carbon\Carbon ? $eta->format('m-d-Y') : (is_string($eta) ? substr($eta, 0, 10) : '--'),
+                    'mbl'           => $mblNo,
+                    'hbl'           => $hblNo,
+                    'pod'           => $pod,
+                    'consignee'     => $consignee,
+                    'status'        => $statusName,
+                    'badgeClass'    => $badgeClass,
                     'shipment_type' => class_basename($log->shipment_type),
+                    'edit_url'      => $editUrl,
                 ];
+
+                if (count($todos) >= 10) {
+                    break;
+                }
             }
         } catch (\Exception $e) {}
 
-        if (empty($todos)) {
+        // If fewer than 10, backfill with recent shipments from modules so dashboard has 10 distinct bookings
+        if (count($todos) < 10) {
             try {
-                $recentShipments = OceanImport::with(['portOfDischarge', 'dmConsignee'])
-                    ->latest()->take(5)->get();
+                $shipmentConfigs = [
+                    ['model' => \App\Models\OceanImport::class, 'type' => 'OceanImport', 'task' => 'Pre-alert', 'route' => 'ocean-import.edit', 'relations' => ['portOfDischarge', 'dmConsignee', 'hbls']],
+                    ['model' => \App\Models\OceanExport::class, 'type' => 'OceanExport', 'task' => 'Pre-alert', 'route' => 'ocean-export.edit', 'relations' => ['portOfDischarge', 'dmConsignee', 'hbls']],
+                    ['model' => \App\Models\AirImport::class,   'type' => 'AirImport',   'task' => 'Pre-alert', 'route' => 'air-import.edit',   'relations' => ['dstPort', 'dmConsignee', 'hbls']],
+                    ['model' => \App\Models\AirExport::class,   'type' => 'AirExport',   'task' => 'Pre-alert', 'route' => 'air-export.edit',   'relations' => ['dstPort', 'consignee', 'dmConsignee', 'hbls']],
+                ];
 
-                foreach ($recentShipments as $s) {
-                    $todos[] = [
-                        'id'         => $s->id,
-                        'task'       => 'Pre-alert',
-                        'file_no'    => $s->file_no ?? 'N/A',
-                        'eta'        => $s->eta ? $s->eta->format('m-d-Y') : '--',
-                        'mbl'        => $s->mbl_no ?? '--',
-                        'hbl'        => '--',
-                        'pod'        => $s->portOfDischarge?->name ?? '--',
-                        'consignee'  => $s->dmConsignee?->name ?? '--',
-                        'status'     => 'Pending',
-                        'badgeClass' => 'bg-pre-alert',
-                        'shipment_type' => 'OceanImport',
-                    ];
+                foreach ($shipmentConfigs as $cfg) {
+                    if (count($todos) >= 10) break;
+
+                    $recent = $cfg['model']::with($cfg['relations'])
+                        ->latest()
+                        ->take(5)
+                        ->get();
+
+                    foreach ($recent as $s) {
+                        $fileNo = $s->file_no ?? $s->booking_no ?? $s->mawb_no ?? 'N/A';
+                        $bookingKey = $cfg['type'] . '_' . $s->id;
+
+                        if (isset($seenBookings[$bookingKey]) || (isset($seenBookings[$fileNo]) && $fileNo !== 'N/A')) {
+                            continue;
+                        }
+                        $seenBookings[$bookingKey] = true;
+                        if ($fileNo !== 'N/A') $seenBookings[$fileNo] = true;
+
+                        $pod = $s->portOfDischarge?->name ?? $s->dstPort?->name ?? $s->podPort?->name ?? '--';
+                        $eta = $s->eta ? ($s->eta instanceof \Carbon\Carbon ? $s->eta->format('m-d-Y') : substr($s->eta, 0, 10)) : '--';
+                        $hblNo = '--';
+                        if (isset($s->hbls) && $s->hbls instanceof \Illuminate\Support\Collection && $s->hbls->isNotEmpty()) {
+                            $latestHbl = $s->hbls->sortByDesc(fn($h) => $h->updated_at ?? $h->created_at ?? $h->id)->first();
+                            $hblNo = $latestHbl ? ($latestHbl->hbl_no ?? $latestHbl->hawb_no ?? '--') : '--';
+                        }
+                        $consignee = $s->consignee?->name ?? $s->dmConsignee?->name ?? $s->customer?->name ?? $s->dmCustomer?->name ?? '--';
+
+                        $todos[] = [
+                            'id'            => $s->id,
+                            'task'          => $cfg['task'],
+                            'file_no'       => $fileNo,
+                            'eta'           => $eta,
+                            'mbl'           => $s->mbl_no ?? $s->mawb_no ?? '--',
+                            'hbl'           => $hblNo,
+                            'pod'           => $pod,
+                            'consignee'     => $consignee,
+                            'status'        => 'Pending',
+                            'badgeClass'    => 'bg-pre-alert',
+                            'shipment_type' => $cfg['type'],
+                            'edit_url'      => route($cfg['route'], $s->id),
+                        ];
+
+                        if (count($todos) >= 10) break;
+                    }
                 }
             } catch (\Exception $e) {}
         }
@@ -336,36 +430,129 @@ class DashboardController extends Controller
         $tasks = [];
 
         try {
-            $quotations = Quotation::with(['customer', 'salesPerson'])->latest()->take(10)->get();
+            $quotations = Quotation::with(['customer', 'salesPerson', 'op'])->latest()->take(10)->get();
 
             foreach ($quotations as $q) {
-                $dealValue   = $q->total_amount ?? $q->amount ?? 0;
-                $status      = $q->status ?? 'draft';
-                $statusLower = strtolower($status);
+                // OP Representative (Ticket 03)
+                $opUser = $q->op ?? $q->salesPerson;
+                $opRepName = $opUser?->name ?? 'Unassigned';
+                $opRepInitial = $opUser ? substr($opUser->name, 0, 1) : '?';
 
-                $badgeClass = 'badge-subtle-info';
-                $dealColor  = '#3b82f6';
+                // Find connected HBL / HAWB / Shipment (Ticket 02 & 04)
+                $hblCandidates = collect();
+                $connectedShipment = null;
 
-                if (in_array($statusLower, ['approved', 'won', 'closed'])) {
-                    $badgeClass = 'badge-subtle-success';
-                    $dealColor  = '#0ab39c';
-                } elseif (in_array($statusLower, ['sent', 'negotiation', 'pending'])) {
-                    $badgeClass = 'badge-subtle-warning';
-                    $dealColor  = '#f59e0b';
-                } elseif (in_array($statusLower, ['lost', 'cancelled', 'rejected'])) {
-                    $badgeClass = 'badge-subtle-danger';
-                    $dealColor  = '#ef4444';
+                if (!empty($q->quote_no)) {
+                    if ($h = \App\Models\OceanExportHbl::where('quotation_no', $q->quote_no)->latest('updated_at')->first()) {
+                        if ($h->hbl_no) $hblCandidates->push(['model' => $h, 'no' => $h->hbl_no, 'type' => 'OE_HBL', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\AirExportHbl::where('quotation_no', $q->quote_no)->latest('updated_at')->first()) {
+                        if ($h->hawb_no) $hblCandidates->push(['model' => $h, 'no' => $h->hawb_no, 'type' => 'AE_HAWB', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\OceanImportHbl::where('quotation_no', $q->quote_no)->latest('updated_at')->first()) {
+                        if ($h->hbl_no) $hblCandidates->push(['model' => $h, 'no' => $h->hbl_no, 'type' => 'OI_HBL', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\AirImportHbl::where('quotation_id', $q->id)->latest('updated_at')->first()) {
+                        if ($h->hawb_no) $hblCandidates->push(['model' => $h, 'no' => $h->hawb_no, 'type' => 'AI_HAWB', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                }
+
+                if (!empty($q->booking_no)) {
+                    if ($oe = \App\Models\OceanExport::where('booking_no', $q->booking_no)->with('hbls')->first()) {
+                        $connectedShipment = $oe;
+                        if ($oe->hbls && $oe->hbls->isNotEmpty()) {
+                            $latest = $oe->hbls->sortByDesc(fn($x) => $x->updated_at ?? $x->created_at ?? $x->id)->first();
+                            if ($latest && $latest->hbl_no) {
+                                $hblCandidates->push(['model' => $latest, 'no' => $latest->hbl_no, 'type' => 'OE_HBL', 'time' => $latest->updated_at ?? $latest->created_at ?? $latest->id]);
+                            }
+                        }
+                    }
+
+                    if (!$connectedShipment && ($ae = \App\Models\AirExport::where('booking_no', $q->booking_no)->with('hbls')->first())) {
+                        $connectedShipment = $ae;
+                        if ($ae->hbls && $ae->hbls->isNotEmpty()) {
+                            $latest = $ae->hbls->sortByDesc(fn($x) => $x->updated_at ?? $x->created_at ?? $x->id)->first();
+                            if ($latest && $latest->hawb_no) {
+                                $hblCandidates->push(['model' => $latest, 'no' => $latest->hawb_no, 'type' => 'AE_HAWB', 'time' => $latest->updated_at ?? $latest->created_at ?? $latest->id]);
+                            }
+                        }
+                    }
+
+                    $aeHbl = \App\Models\AirExportHbl::where('booking_no', $q->booking_no)->latest('updated_at')->first();
+                    if ($aeHbl && $aeHbl->hawb_no) {
+                        $hblCandidates->push(['model' => $aeHbl, 'no' => $aeHbl->hawb_no, 'type' => 'AE_HAWB', 'time' => $aeHbl->updated_at ?? $aeHbl->created_at ?? $aeHbl->id]);
+                    }
+                }
+
+                if ($hblCandidates->isEmpty() && !empty($q->customer_id)) {
+                    if ($h = \App\Models\OceanExportHbl::where('customer_id', $q->customer_id)->latest('updated_at')->first()) {
+                        if ($h->hbl_no) $hblCandidates->push(['model' => $h, 'no' => $h->hbl_no, 'type' => 'OE_HBL', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\AirExportHbl::where('customer_id', $q->customer_id)->latest('updated_at')->first()) {
+                        if ($h->hawb_no) $hblCandidates->push(['model' => $h, 'no' => $h->hawb_no, 'type' => 'AE_HAWB', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\OceanImportHbl::where('customer_id', $q->customer_id)->latest('updated_at')->first()) {
+                        if ($h->hbl_no) $hblCandidates->push(['model' => $h, 'no' => $h->hbl_no, 'type' => 'OI_HBL', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                    if ($h = \App\Models\AirImportHbl::where('customer_id', $q->customer_id)->latest('updated_at')->first()) {
+                        if ($h->hawb_no) $hblCandidates->push(['model' => $h, 'no' => $h->hawb_no, 'type' => 'AI_HAWB', 'time' => $h->updated_at ?? $h->created_at ?? $h->id]);
+                    }
+                }
+
+                $bestHbl = $hblCandidates->sortByDesc('time')->first();
+                $hblHawbNo = $bestHbl ? $bestHbl['no'] : '--';
+
+                // Workflow Milestones (Ticket 04)
+                $hasAms = $connectedShipment && (!empty($connectedShipment->ams_no) || !empty($connectedShipment->isf_no));
+                $hasHbl = !empty($bestHbl);
+                $hasBooking = !empty($q->booking_no);
+                $qStatusLower = strtolower($q->status ?? 'draft');
+
+                if ($hasAms) {
+                    $milestoneStatus = 'AMS Submitted';
+                    $milestoneBadge  = 'badge-subtle-success';
+                } elseif ($hasHbl) {
+                    $milestoneStatus = ($bestHbl['type'] ?? '') === 'AE_HAWB' ? 'HAWB Created' : 'HBL Created';
+                    $milestoneBadge  = 'badge-subtle-info';
+                } elseif ($hasBooking) {
+                    $milestoneStatus = 'Booking Created';
+                    $milestoneBadge  = 'badge-subtle-warning';
+                } elseif (in_array($qStatusLower, ['approved', 'won', 'closed'])) {
+                    $milestoneStatus = 'Quotation Approved';
+                    $milestoneBadge  = 'badge-subtle-success';
+                } elseif (in_array($qStatusLower, ['sent', 'negotiation', 'pending'])) {
+                    $milestoneStatus = 'Quotation Sent';
+                    $milestoneBadge  = 'badge-subtle-warning';
+                } elseif (in_array($qStatusLower, ['lost', 'cancelled', 'rejected'])) {
+                    $milestoneStatus = 'Cancelled';
+                    $milestoneBadge  = 'badge-subtle-danger';
+                } else {
+                    $milestoneStatus = 'Draft Created';
+                    $milestoneBadge  = 'badge-subtle-secondary';
+                }
+
+                // Submitted Date (Ticket 05)
+                $rawSubmitted = $q->create_date ?? $q->quote_date ?? $q->created_at;
+                $submittedDate = '--';
+                if ($rawSubmitted) {
+                    try {
+                        $submittedDate = $rawSubmitted instanceof \Carbon\Carbon 
+                            ? $rawSubmitted->format('M d, Y') 
+                            : \Carbon\Carbon::parse($rawSubmitted)->format('M d, Y');
+                    } catch (\Exception $e) {
+                        $submittedDate = substr((string)$rawSubmitted, 0, 10);
+                    }
                 }
 
                 $tasks[] = [
                     'name'              => $q->customer?->name ?? $q->customer?->company ?? 'Unknown',
                     'last_contacted'    => $q->updated_at ? $q->updated_at->format('M d, Y') : '--',
-                    'sales_rep_name'    => $q->salesPerson?->name ?? 'Unassigned',
-                    'sales_rep_initial' => $q->salesPerson ? substr($q->salesPerson->name, 0, 1) : '?',
-                    'status'            => ucfirst($status),
-                    'badgeClass'        => $badgeClass,
-                    'deal_value'        => $dealValue,
-                    'dealColor'         => $dealColor,
+                    'op_rep_name'       => $opRepName,
+                    'op_rep_initial'    => $opRepInitial,
+                    'hbl_hawb'          => $hblHawbNo,
+                    'status'            => $milestoneStatus,
+                    'badgeClass'        => $milestoneBadge,
+                    'submitted_date'    => $submittedDate,
                 ];
             }
         } catch (\Exception $e) {}

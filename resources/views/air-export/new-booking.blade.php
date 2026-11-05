@@ -626,7 +626,7 @@
                     <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office Branch</label><div class="form-input-container">
                         <select name="office_id" class="form-control-gf" required><option value="">Select Office...</option>
                             @foreach($offices ?? [] as $office)
-                                <option value="{{ $office->id }}" {{ old('office_id', isset($booking) ? $booking->office_id : '') == $office->id ? 'selected' : '' }}>{{ $office->name }}</option>
+                                <option value="{{ $office->id }}" {{ old('office_id', isset($booking) ? $booking->office_id : (auth()->user()->assigned_office_id ?? '')) == $office->id ? 'selected' : '' }}>{{ $office->code }} - {{ $office->name }}</option>
                             @endforeach</select>
                     </div></div>
                     <div class="form-group-gf"><label class="form-label-gf">Operator</label><div class="form-input-container">

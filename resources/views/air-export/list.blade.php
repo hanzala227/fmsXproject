@@ -337,12 +337,18 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
-                        <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
-                            <div id="col-toggles"></div>
+                        <div class="config-panel" id="config-panel" style="display:none; padding:10px; width:220px; box-shadow:0 4px 12px rgba(0,0,0,0.15); border-radius:6px; background:#fff; border:1px solid #e2e8f0; position:absolute; right:0; top:100%; z-index:1000;">
+                            <div style="font-weight:700; font-size:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                                <span>Column Settings</span>
+                                <button type="button" onclick="toggleConfig()" style="border:none;background:none;cursor:pointer;color:#94a3b8;font-size:14px;">&times;</button>
+                            </div>
+                            <div style="margin-bottom:8px;">
+                                <input type="text" id="config-col-search" placeholder="Search columns..." oninput="filterConfigColumns(this.value)" style="width:100%; font-size:11px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; outline:none; box-sizing:border-box;">
+                            </div>
+                            <div id="col-toggles" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
                         </div>
                     </div>
                     <button class="btn-action-round white" onclick="exportCsv()" title="Download as CSV/Excel">
@@ -770,18 +776,36 @@
     }
 
     function buildConfigPanel() {
+        var searchInput = document.getElementById('config-col-search');
+        if (searchInput) searchInput.value = '';
         var container = document.getElementById('col-toggles');
         container.innerHTML = '';
         document.querySelectorAll('#header-row th[data-col]').forEach(function(th) {
             if (PINNED_COLS.indexOf(th.dataset.col) >= 0) return;
             var label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.gap = '6px';
+            label.style.fontSize = '11px';
+            label.style.cursor = 'pointer';
+            label.style.margin = '2px 0';
             var cb    = document.createElement('input');
             cb.type    = 'checkbox';
             cb.checked = th.style.display !== 'none';
             cb.onchange = function() { toggleColumn(th.dataset.col, cb.checked); };
             label.appendChild(cb);
-            label.append(' ' + th.textContent.trim());
+            var span = document.createElement('span');
+            span.textContent = th.textContent.trim();
+            label.appendChild(span);
             container.appendChild(label);
+        });
+    }
+
+    function filterConfigColumns(query) {
+        var q = (query || '').toLowerCase().trim();
+        document.querySelectorAll('#col-toggles label').forEach(function(lbl) {
+            var txt = lbl.textContent.toLowerCase();
+            lbl.style.display = txt.includes(q) ? 'flex' : 'none';
         });
     }
 

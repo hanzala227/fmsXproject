@@ -1573,7 +1573,7 @@
                     incoterm_id: '{{ old('incoterm_id', $airImport->incoterm_id ?? '') }}',
                     cargo_type: '{{ old('cargo_type', $airImport->cargo_type ?? '') }}',
                     mawb_number: '',
-                    office_id: '',
+                    office_id: '{{ old('office_id', isset($airImport) && !empty($airImport->office_id) ? $airImport->office_id : (auth()->check() ? (auth()->user()->assigned_office_id ?? '') : '')) }}',
                     post_date: '',
                     voyage: '',
                     etd: '',
@@ -1721,6 +1721,63 @@
                         this.showQuoteModal = false;
                     }
                 },
+                ensureOpt(selectEl, val, text) {
+                    if (!selectEl || !val) return;
+                    let opt = Array.from(selectEl.options).find(o => o.value == val);
+                    if (!opt) {
+                        opt = document.createElement('option');
+                        opt.value = val;
+                        opt.textContent = text || val;
+                        selectEl.appendChild(opt);
+                    }
+                    selectEl.value = val;
+                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                },
+                loadQuoteToHawb(idx) {
+                    const hawb = this.hawbs[idx];
+                    if (!hawb || !hawb.quotation_no) return;
+                    const quotes = {!! json_encode($quotations->map(function($q) {
+                        return [
+                            'quote_no' => $q->quote_no,
+                            'customer_id' => $q->customer_id,
+                            'customer_name' => $q->customer ? $q->customer->name : '',
+                            'sales_person_id' => $q->sales_person_id,
+                            'pol_id' => $q->pol_id,
+                            'pod_id' => $q->pod_id,
+                            'carrier_id' => $q->carrier_id,
+                            'incoterms_id' => $q->incoterms_id,
+                            'commodity' => $q->commodity ?? '',
+                            'etd' => $q->quote_date ? $q->quote_date->format('Y-m-d') : '',
+                        ];
+                    })) !!};
+                    const q = quotes.find(item => item.quote_no === hawb.quotation_no);
+                    if (!q) return;
+
+                    if (q.customer_id) {
+                        hawb.customer_id = q.customer_id;
+                        this.$nextTick(() => {
+                            this.ensureOpt(document.querySelector(`select[name="hbls[${idx}][customer_id]"]`), q.customer_id, q.customer_name);
+                        });
+                    }
+                    if (q.sales_person_id) hawb.sales_person_id = q.sales_person_id;
+                    if (q.incoterms_id) hawb.incoterm_id = q.incoterms_id;
+                    if (q.commodity) hawb.commodity = q.commodity;
+                    if (q.pol_id) {
+                        const depEl = document.querySelector('[name="dep_port_id"]');
+                        if (depEl) { depEl.value = q.pol_id; depEl.dispatchEvent(new Event('change', { bubbles: true })); }
+                    }
+                    if (q.pod_id) {
+                        const dstEl = document.querySelector('[name="dst_port_id"]');
+                        if (dstEl) { dstEl.value = q.pod_id; dstEl.dispatchEvent(new Event('change', { bubbles: true })); }
+                    }
+                    if (q.carrier_id) {
+                        const crEl = document.querySelector('[name="carrier_id"]');
+                        if (crEl) { crEl.value = q.carrier_id; crEl.dispatchEvent(new Event('change', { bubbles: true })); }
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('success', 'Quotation ' + q.quote_no + ' loaded into HAWB');
+                    }
+                },
                 confirmQuoteSelection() {
                     const q = this.quoteForm;
 
@@ -1736,6 +1793,10 @@
                     this.hawbs[0].customer_id    = q.customer_id || '';
                     this.hawbs[0].sales_person_id = q.sales_person_id || '';
                     this.hawbs[0].quotation_no   = q.quote_no  || '';
+
+                    this.$nextTick(() => {
+                        this.ensureOpt(document.querySelector('select[name="hbls[0][customer_id]"]'), q.customer_id, q.customer);
+                    });
 
                     // ── Fill static MAWB form name= fields via DOM ──
                     const setVal = (name, val) => {
@@ -1757,8 +1818,12 @@
                     // ETD — convert YYYY-MM-DD to datetime-local
                     if (q.etd) setVal('etd', q.etd.length === 10 ? q.etd + 'T00:00' : q.etd);
 
-                    // ETA — convert YYYY-MM-DD to datetime-local
-                    if (q.eta) setVal('eta', q.eta.length === 10 ? q.eta + 'T00:00' : q.eta);
+                    // ETA — Keep empty on quotation load per instructions unless user explicitly specified
+                    if (q.eta && q.eta.trim()) {
+                        setVal('eta', q.eta.length === 10 ? q.eta + 'T00:00' : q.eta);
+                    } else {
+                        setVal('eta', '');
+                    }
 
                     // Departure (dep_port_id) & Destination (dst_port_id)
                     if (q.pol_id) setVal('dep_port_id', q.pol_id);
@@ -1774,7 +1839,10 @@
                     setVal('hbl_no', q.hawb_no || '');
 
                     // Customer (HAWB section)
-                    if (q.customer_id) setVal('customer_id', q.customer_id);
+                    if (q.customer_id) {
+                        setVal('customer_id', q.customer_id);
+                        this.ensureOpt(document.querySelector('select[name="customer_id"]'), q.customer_id, q.customer);
+                    }
 
                     // OP (hidden input op_id)
                     if (q.op_id) setVal('op_id', q.op_id);
@@ -1978,12 +2046,25 @@
 
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <h1 class="caption-subject" style="font-size: 18px; text-transform: uppercase;">{{ isset($airImport) ? 'AIR IMPORT SHIPMENT' : 'New Air Import Shipment' }}</h1>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h1 class="caption-subject" style="font-size: 18px; text-transform: uppercase; margin: 0;">{{ isset($airImport) ? 'AIR IMPORT SHIPMENT' : 'New Air Import Shipment' }}</h1>
+                <span x-show="form.mawb_no" style="display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 4px;">
+                    <i class="fa fa-plane"></i> MAWB: <span x-text="form.mawb_no"></span>
+                </span>
+                <template x-for="(h, hIdx) in (hawbs || [])" :key="hIdx">
+                    <span x-show="h.hawb_no || h.hbl_no" style="display: inline-flex; align-items: center; gap: 5px; background: #fefce8; color: #854d0e; border: 1px solid #fef08a; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                        <i class="fa fa-file-text-o"></i> HAWB: <span x-text="h.hawb_no || h.hbl_no"></span>
+                    </span>
+                </template>
+            </div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
                     <i class="fa fa-bolt"></i> Frexo AI
                 </button>
-                <button type="submit" form="air-import-form" class="btn-gf-inline"><i class="fa fa-save"></i> SAVE SHIPMENT</button>
+                <button type="submit" form="air-import-form"
+                        style="background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 14px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;">
+                    <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+                </button>
                 <a href="/air-import/list" class="btn-default-gf">BACK TO LIST</a>
             </div>
         </div>
@@ -2027,12 +2108,33 @@
             <!-- BASIC TAB -->
             <div x-show="activeTab === 'basic'" class="main-grid" x-cloak>
                 <div class="portlet light">
-                    <div @click="showMblSection = !showMblSection" class="portlet-title" style="cursor: pointer; background: #f9fafb;">
-                        <span class="caption-subject">
-                            <i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MAWB
-                            <span x-show="form.mawb_no" style="margin-left: 8px; color: #1e3a8a; font-weight: 700; background: #dbeafe; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="form.mawb_no"></span>
+                    <div @click="showMblSection = !showMblSection" class="portlet-title" style="cursor: pointer; background: #f9fafb; display: flex; align-items: center; justify-content: space-between;">
+                        <span class="caption-subject" style="color: #4b77be; font-size: 11px; display: inline-flex; align-items: center; gap: 8px;">
+                            <span><i class="fa" :class="showMblSection ? 'fa-minus-square-o' : 'fa-plus-square-o'"></i> MAWB</span>
+                            <span x-show="form.mawb_no" style="color: #1e40af; font-weight: 700; background: #dbeafe; padding: 2px 8px; border-radius: 4px; font-size: 11px; border: 1px solid #bfdbfe;" x-text="'No: ' + form.mawb_no"></span>
                         </span>
-                        <div class="actions">
+                        <div class="actions" style="display: flex; align-items: center; gap: 8px;" @click.stop>
+                            <!-- MAWB Docs Dropdown -->
+                            <div style="position: relative;" x-data="{ showMawbDocsMenu: false }" @click.away="showMawbDocsMenu = false">
+                                <button type="button" @click.stop.prevent="showMawbDocsMenu = !showMawbDocsMenu"
+                                        class="btn-default-gf"
+                                        style="display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.15); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #374151; cursor: pointer; height: 22px;">
+                                    <i class="fa fa-wrench" style="color: #4b5563; font-size: 10px;"></i> Docs <i class="fa fa-angle-down" style="font-size: 10px;"></i>
+                                </button>
+                                <div x-show="showMawbDocsMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); z-index: 100; min-width: 190px; text-align: left; display: none;">
+                                    <ul style="list-style: none; padding: 4px 0; margin: 0;">
+                                        <li><button type="button" @click="saved ? ToolsAction('block') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-lock" style="width:14px; text-align:center; margin-right:4px;"></i> Block</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('unblock') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-unlock" style="width:14px; text-align:center; margin-right:4px;"></i> Unblock</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('copy') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-copy" style="width:14px; text-align:center; margin-right:4px;"></i> Copy</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('delete') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#ef4444; cursor:pointer;"><i class="fa fa-trash-o" style="width:14px; text-align:center; margin-right:4px; color:#ef4444;"></i> Delete</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('manifest') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-file-text-o" style="width:14px; text-align:center; margin-right:4px;"></i> Manifest</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('delivery_order') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-truck" style="width:14px; text-align:center; margin-right:4px;"></i> Delivery Order</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('profit_summary') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-bar-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Summary</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('profit_detail') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-pie-chart" style="width:14px; text-align:center; margin-right:4px;"></i> Profit Report</button></li>
+                                        <li><button type="button" @click="saved ? ToolsAction('track_trace') : showToast('info', 'Save shipment first.'); showMawbDocsMenu = false" class="dropdown-item" style="width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:11px; color:#374151; cursor:pointer;"><i class="fa fa-plane" style="width:14px; text-align:center; margin-right:4px;"></i> Track-Trace</button></li>
+                                    </ul>
+                                </div>
+                            </div>
                             <i class="fa fa-angle-down transition-transform" :class="showMblSection ? 'rotate-180' : ''"></i>
                         </div>
                     </div>
@@ -2076,7 +2178,7 @@
                             <!-- Row 1: Core Identifiers -->
                             <div class="form-group-gf"><label class="form-label-gf">Booking no</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" value="{{ $airImport->file_no ?? \App\Services\DocumentSequenceService::generateBookingNo('MAI', \App\Models\AirImport::class) }}" readonly style="background:#f5f5f5;"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" value="{{ $airImport->mawb_no ?? '' }}" x-model="form.mawb_no" required></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container"><select name="office_id" class="form-control-gf" required><option value="">Select Office...</option>@foreach($offices as $office)<option value="{{ $office->id }}" {{ (isset($airImport) && $airImport->office_id == $office->id) ? 'selected' : '' }}>{{ $office->code }}</option>@endforeach</select></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*Office</label><div class="form-input-container"><select name="office_id" class="form-control-gf" x-model="form.office_id" required><option value="">Select Office...</option>@foreach($offices as $office)<option value="{{ $office->id }}" {{ (old('office_id', isset($airImport) ? $airImport->office_id : (auth()->user()->assigned_office_id ?? '')) == $office->id) ? 'selected' : '' }}>{{ $office->code }} - {{ $office->name }}</option>@endforeach</select></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">AWB Type</label><div class="form-input-container"><select name="awb_type" class="form-control-gf"><option value="NORMAL" {{ (isset($airImport) && $airImport->awb_type == 'NORMAL') ? 'selected' : 'selected' }}>NORMAL</option><option value="DIRECT" {{ (isset($airImport) && $airImport->awb_type == 'DIRECT') ? 'selected' : '' }}>DIRECT</option></select></div></div>
 
                             <!-- Row 2: Dates, Agent & Direct Master Toggle -->
@@ -2334,21 +2436,7 @@
                             <input type="radio" name="stackable" value="1" {{ old('stackable', $airImport->stackable ?? 1) == 1 ? 'checked' : '' }}>
                             <input type="radio" name="stackable" value="0" {{ old('stackable', $airImport->stackable ?? 1) == 0 ? 'checked' : '' }}>
                             <select name="display_unit"><option value="BOTH" {{ old('display_unit', $airImport->display_unit ?? '') == 'BOTH' ? 'selected' : '' }}>Show Both</option></select>
-                        </div>
-
-                        <div style="height: 5px;"></div>
-                        <div style="margin-bottom: 10px;">
-                            <button type="button" @click="showMore = !showMore" class="btn-default-gf" style="border:none; color:#00827f; font-weight:700;">
-                                <span x-text="showMore ? 'More [-]' : 'More [+]'"></span>
-                            </button>
-                        </div>
-
-                        <div class="form-grid-4" x-show="showMore">
-                            <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">E-Commerce</label><div class="form-input-container" style="justify-content: flex-start; align-items:center;"><input type="checkbox" name="is_ecommerce" value="1" {{ old('is_ecommerce', $airImport->is_ecommerce ?? false) ? 'checked' : '' }} style="width: 14px; height: 14px;"></div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
+                            <input type="checkbox" name="is_ecommerce" value="1" {{ old('is_ecommerce', $airImport->is_ecommerce ?? false) ? 'checked' : '' }}>
                         </div>
                     </div>
                 </div>
@@ -2357,11 +2445,12 @@
                 <!-- House B/L (HAWB) Section -->
                 <template x-for="(hawb, index) in hawbs" :key="index">
                     <div class="portlet light" style="margin-top: 5px;">
-                        <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 24px; padding: 2px 10px;" @click="hawb.show = !hawb.show">
-                            <span class="caption-subject" style="color: #fff; font-size: 11px;">
-                                <i class="fa fa-user"></i> HAWB Information
-                                <span x-show="hawb.hawb_no || hawb.hbl_no" style="margin-left: 8px; color: #854d0e; font-weight: 700; background: #fef08a; padding: 1px 7px; border-radius: 3px; font-size: 11px;" x-text="hawb.hawb_no || hawb.hbl_no"></span>
-                                <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small>
+                        <div class="portlet-title" style="background: #f2bc00; color: #fff; cursor: pointer; min-height: 28px; padding: 2px 10px; display: flex; align-items: center; justify-content: space-between;" @click="hawb.show = !hawb.show">
+                            <span class="caption-subject" style="color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span><i class="fa fa-user"></i> HAWB Information</span>
+                                <span x-show="hawb.hawb_no || hawb.hbl_no" style="color: #1e3a8a; font-weight: 700; background: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; border: 1px solid #bfdbfe;" x-text="'No: ' + (hawb.hawb_no || hawb.hbl_no)"></span>
+                                <span x-show="!(hawb.hawb_no || hawb.hbl_no)" style="color: #fef9c3; font-weight: 600; font-size: 11px;" x-text="'(HAWB #' + (index + 1) + ')'"></span>
+                                <small style="color:rgba(255,255,255,0.85); margin-left: 6px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small>
                             </span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
                                 <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
@@ -2445,18 +2534,90 @@
                             <div class="form-grid-4">
                                 <!-- Row 1: Identification & Customer -->
                                 <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*HAWB No.</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls[' + index + '][hawb_no]'" x-model="hawb.hawb_no" :required="!isDirectMaster" @input="hawb.hbl_no = hawb.hawb_no"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Quotation No.</label><div class="form-input-container"><select class="form-control-gf" disabled style="background:#eee;"><option value="">Select...</option></select></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Quotation No.</label>
+                                    <div class="form-input-container">
+                                        <select :name="'hbls['+index+'][quotation_no]'" class="form-control-gf" x-model="hawb.quotation_no" @change="loadQuoteToHawb(index)">
+                                            <option value="">Select...</option>
+                                            @foreach($quotations as $q)
+                                                <option value="{{ $q->quote_no }}">{{ $q->quote_no }} - {{ $q->customer->name ?? '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding: 0 4px;" @click="showQuoteModal = true" title="Load Quotation Data"><i class="fa fa-folder-open-o" style="font-size:10px;"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding: 0 4px;" onclick="window.open('/sales/quotation/create', '_blank')" title="Create Quotation"><i class="fa fa-external-link" style="font-size:10px;"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">HSN</label><div class="form-input-container"><input type="text" class="form-control-gf" :name="'hbls['+index+'][hsn_code]'" x-model="hawb.hsn_code" @input="hawb.hsn = hawb.hsn_code"></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Customer</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][customer_id]'" x-model="hawb.customer_id"><option value="">Select...</option>@foreach($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</select></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Customer</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][customer_id]'" x-model="hawb.customer_id">
+                                            <option value="">Select...</option>
+                                            @foreach($customers as $customer)
+                                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.customer_id ? '/trade-partner/' + hawb.customer_id + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Customer"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][customer_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
 
                                 <!-- Row 2: Parties & OP -->
-                                <div class="form-group-gf"><label class="form-label-gf">Shipper</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][shipper_id]'" x-model="hawb.shipper_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-edit"></i></button><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Consignee</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][consignee_id]'" x-model="hawb.consignee_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-edit"></i></button><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
-                                <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][notify_party_id]'" x-model="hawb.notify_party_id" @change="hawb.notify_id = hawb.notify_party_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-edit"></i></button><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Shipper</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][shipper_id]'" x-model="hawb.shipper_id">
+                                            <option value="">Select...</option>
+                                            @foreach($allAgents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.shipper_id ? '/trade-partner/' + hawb.shipper_id + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Shipper"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][shipper_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Consignee</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][consignee_id]'" x-model="hawb.consignee_id">
+                                            <option value="">Select...</option>
+                                            @foreach($allAgents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.consignee_id ? '/trade-partner/' + hawb.consignee_id + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Consignee"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][consignee_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Notify</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][notify_party_id]'" x-model="hawb.notify_party_id" @change="hawb.notify_id = hawb.notify_party_id">
+                                            <option value="">Select...</option>
+                                            @foreach($allAgents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.notify_party_id ? '/trade-partner/' + hawb.notify_party_id + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Notify"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][notify_party_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">OP</label><div class="form-input-container"><input type="text" class="form-control-gf" value="{{ auth()->user()->name ?? 'DEMO_USER' }}" disabled style="background:#eee;"></div></div>
 
                                 <!-- Row 3: Billing, Sales & Types -->
-                                <div class="form-group-gf"><label class="form-label-gf">Bill To</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][bill_to_id]'" x-model="hawb.bill_to_id"><option value="">Select...</option>@foreach($allAgents as $agent)<option value="{{ $agent->id }}">{{ $agent->name }}</option>@endforeach</select><button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;"><i class="fa fa-external-link-square"></i></button></div></div>
+                                <div class="form-group-gf">
+                                    <label class="form-label-gf">Bill To</label>
+                                    <div class="form-input-container">
+                                        <select class="form-control-gf" :name="'hbls['+index+'][bill_to_id]'" x-model="hawb.bill_to_id">
+                                            <option value="">Select...</option>
+                                            @foreach($allAgents as $agent)
+                                                <option value="{{ $agent->id }}">{{ $agent->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="window.open(hawb.bill_to_id ? '/trade-partner/' + hawb.bill_to_id + '/edit' : '/trade-partner/create', '_blank')" title="Edit / View Bill To"><i class="fa fa-edit"></i></button>
+                                        <button type="button" class="btn-default-gf" style="height:20px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'hbls['+index+'][bill_to_id]')" title="Add New Customer"><i class="fa fa-external-link-square"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sales</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][sales_person_id]'" x-model="hawb.sales_person_id"><option value="">Select...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Sales Type</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][sales_type]'" x-model="hawb.sales_type"><option value="">Select...</option><option value="CO-LOAD">CO-LOAD</option><option value="FREE CARGO">FREE CARGO</option><option value="NOMI">NOMI</option></select></div></div>
                                 <div class="form-group-gf"><label class="form-label-gf">Ship Type</label><div class="form-input-container"><select class="form-control-gf" :name="'hbls['+index+'][ship_type]'" x-model="hawb.ship_type"><option value="">Select...</option><option value="NORMAL">NORMAL</option><option value="S/W">S/W</option><option value="T/S">T/S</option></select></div></div>
@@ -2679,18 +2840,7 @@
                                 </div>
                             </div>
 
-                            <div style="margin-top: 10px; margin-bottom: 10px;">
-                                <button type="button" @click="hawb.showMore = !hawb.showMore" class="btn-default-gf" style="border:none; color:#00827f; font-weight:700;">
-                                    <span x-text="hawb.showMore ? 'More [-]' : 'More [+]'"></span>
-                                </button>
-                            </div>
-
-                            <div class="form-grid-4" x-show="hawb.showMore">
-                                <div class="form-group-gf"><label class="form-label-gf">E-Commerce</label><div class="form-input-container" style="justify-content: flex-start; align-items:center;"><input type="checkbox" style="width: 14px; height: 14px;" :name="'hbls['+index+'][hbl_is_ecommerce]'" value="1" x-model="hawb.is_ecommerce"></div></div>
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                            </div>
+                            <input type="hidden" :name="'hbls['+index+'][hbl_is_ecommerce]'" :value="hawb.is_ecommerce ? 1 : 0">
 
                             <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
 
@@ -2835,13 +2985,6 @@
                                     <textarea class="form-control-gf" :name="'hbls['+index+'][description_text]'" x-model="hawb.description_text" style="height: 60px !important; resize: vertical; padding:5px;"></textarea>
                                 </div>
                             </div>
-
-                            <hr style="margin: 10px 0; border-top: 1px solid #ddd;">
-
-                            <div>
-                                <h4 style="font-size: 11px; font-weight: 600; margin: 0 0 5px 0; color: #333;">Remark</h4>
-                                <textarea class="form-control-gf" :name="'hbls['+index+'][hbl_remark]'" x-model="hawb.hbl_remark" style="height: 50px !important; resize: vertical; padding:5px;"></textarea>
-                            </div>
                         </div>
                     </div>
                 </template>
@@ -2882,47 +3025,46 @@
                         </div>
 
                         <!-- Charges Table -->
-                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px;">
-                            <table class="table-custom" style="font-size: 11px; min-width: 1200px;">
+                        <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px; overflow-x: auto;">
+                            <table class="table-custom" style="font-size: 10px; width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background: #f1f3f6;">
-                                        <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                            <input type="checkbox" @change="toggleAllCharges($event)" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
-                                        </th>
-                                        <th style="padding: 6px 8px;">Party</th>
-                                        <th style="padding: 6px 8px;">Party Name</th>
-                                        <th style="padding: 6px 8px;">SAL</th>
-                                        <th style="padding: 6px 8px;">P/R</th>
-                                        <th style="padding: 6px 8px;">PP/C</th>
-                                        <th style="padding: 6px 8px;">Chrg</th>
-                                        <th style="padding: 6px 8px;">Curr.</th>
-                                        <th style="padding: 6px 8px;">Rate</th>
-                                        <th style="padding: 6px 8px;">Qty</th>
-                                        <th style="padding: 6px 8px;">Q.Type</th>
-                                        <th style="padding: 6px 8px;">F.Amnt</th>
-                                        <th style="padding: 6px 8px;">ROE</th>
-                                        <th style="padding: 6px 8px;">VAT</th>
-                                        <th style="padding: 6px 8px;">L.Amnt</th>
-                                        <th style="padding: 6px 8px;">Inv/Dr/Cr/No</th>
-                                        <th style="padding: 6px 8px;">Fin. Dt</th>
-                                        <th style="padding: 6px 8px;">MBL#</th>
-                                        <th style="padding: 6px 8px;">Remark</th>
-                                        <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                            <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 6px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
-                                                <i class="fa fa-plus"></i>
-                                            </button>
-                                        </th>
+                                        <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <input type="checkbox" @change="toggleAllCharges()" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
+                            </th>
+                                        <th style="padding: 4px 3px;">Party</th>
+                                        <th style="padding: 4px 3px;">Party Name</th>
+                                        <th style="padding: 4px 3px;">SAL</th>
+                                        <th style="padding: 4px 3px;">P/R</th>
+                                        <th style="padding: 4px 3px;">PP/C</th>
+                                        <th style="padding: 4px 3px;">Chrg</th>
+                                        <th style="padding: 4px 3px;">Curr.</th>
+                                        <th style="padding: 4px 3px;">Rate</th>
+                                        <th style="padding: 4px 3px;">Qty</th>
+                                        <th style="padding: 4px 3px;">Q.Type</th>
+                                        <th style="padding: 4px 3px;">F.Amnt</th>
+                                        <th style="padding: 4px 3px;">ROE</th>
+                                        <th style="padding: 4px 3px;">VAT</th>
+                                        <th style="padding: 4px 3px;">L.Amnt</th>
+                                        <th style="padding: 4px 3px;">Inv/Dr/Cr/No</th>
+                                        <th style="padding: 4px 3px;">Fin. Dt</th>
+                                        <th style="padding: 4px 3px;">Remark</th>
+                                        <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 4px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="(charge, idx) in chargesList" :key="idx">
                                         <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
-                                            <td style="padding: 5px 8px; text-align: center;">
-                                                <input type="checkbox" x-model="charge._selected" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
+                                            <td style="padding: 3px 2px; text-align: center;">
+                                                <input type="checkbox" x-model="charge._selected" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                                 <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 80px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 62px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
                                                     <option value="Freight">Freight</option>
                                                     <option value="THC">THC</option>
                                                     <option value="Handling">Handling</option>
@@ -2930,7 +3072,7 @@
                                                     <option value="Customs">Customs</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
+                                            <td style="padding: 3px 2px;">
                                                 <div x-data="{ 
                                                     open: false, 
                                                     search: charge.party_name || '',
@@ -2942,8 +3084,7 @@
                                                     }
                                                 }" @click.away="open = false" style="position: relative;">
                                                     <div style="position: relative;">
-                                                        <input type="text" class="form-control-gf" style="width: 120px; font-size: 10px; padding-right: 20px;" 
-                                                            x-model="search" 
+                                                        <input type="text" class="form-control-gf" style="width: 90px; font-size: 10px; padding: 2px 14px 2px 3px; height: 24px;" x-model="search" 
                                                             @input="charge.party_name = search; open = true"
                                                             @focus="open = true"
                                                             @click="open = true"
@@ -2951,7 +3092,7 @@
                                                             placeholder="Search Party..." 
                                                             autocomplete="off">
                                                         <input type="hidden" :name="'charges[' + idx + '][party_name_id]'" x-model="charge.party_name_id">
-                                                        <i class="fa fa-caret-down" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer;" @click="open = !open"></i>
+                                                        <i class="fa fa-caret-down" style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer; font-size: 9px;" @click="open = !open"></i>
                                                     </div>
                                                     
                                                     <div x-show="open" style="display: none; position: absolute; z-index: 9999; background: white; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 2px;">
@@ -2966,77 +3107,75 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 50px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 42px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
                                                     <option value="Sea">Sea</option>
                                                     <option value="Air">Air</option>
                                                     <option value="Land">Land</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 55px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 44px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
                                                     <option value="Rec">Rec</option>
                                                     <option value="Pay">Pay</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 60px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
                                                     <option value="Colle">Colle</option>
                                                     <option value="Proj">Proj</option>
                                                     <option value="Prepaid">Prepaid</option>
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 60px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="text" class="form-control-gf" style="width: 40px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 65px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
                                                     <option value="">Select...</option>
                                                     @foreach($currencies as $currency)
                                                         <option value="{{ $currency->code }}">{{ $currency->code }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 44px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 34px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <select class="form-control-gf" style="width: 65px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
+                                            <td style="padding: 3px 2px;">
+                                                <select class="form-control-gf" style="width: 48px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
                                                     <option value="">Select...</option>
                                                     @foreach($packageUnits as $unit)
                                                         <option value="{{ $unit->code }}">{{ $unit->code }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0)).toFixed(2)" style="display: inline-block; min-width: 50px; text-align: right;">0.00</span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="((parseFloat(charge.rate) || 0) * (parseFloat(charge.qty) || 0)).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 55px; text-align: right;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 38px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="number" class="form-control-gf" style="width: 32px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
+                                            <td style="padding: 3px 2px;">
+                                                <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 58px; color: #3b82f6; font-weight: bold; font-size: 10px;"></span>
                                                 <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="date" class="form-control-gf" style="width: 76px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
+                                    <input type="hidden" :name="'charges[' + idx + '][mbl_no]'" :value="charge.mbl_no">
+                                            <td style="padding: 3px 2px;">
+                                                <input type="text" class="form-control-gf" style="width: 75px; font-size: 10px; padding: 2px 3px; height: 24px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
                                             </td>
-                                            <td style="padding: 5px 8px;">
-                                                <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
-                                            </td>
-                                            <td style="padding: 5px 8px; text-align: center;">
+                                            <td style="padding: 3px 2px; text-align: center;">
                                                 <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
                                                     <i class="fa fa-trash"></i>
                                                 </button>
@@ -3371,6 +3510,8 @@
                 </button>
             </div>
         </div>
+    </div>
+</div>
     <!-- Load Quotation Data Modal -->
         <template x-teleport="body">
     <!-- QUOTE MODAL (Ocean Export UI Style for Air Import) -->
@@ -3514,7 +3655,7 @@
                         <button type="button"
         @click="showQuoteConfig = !showQuoteConfig"
         class="btn-tool-secondary">
-    <i class="fa fa-cogs"></i> Config
+    <i class="fa fa-cog"></i> Settings
 </button>
                     </div>
                     
@@ -3567,7 +3708,7 @@
                                             quote_no: '{{ addslashes($quote->quote_no) }}',
                                             mawb_no: 'MAWB-{{ addslashes($quote->quote_no) }}',
                                             hawb_no: 'HAWB-{{ addslashes($quote->quote_no) }}',
-                                            eta: '{{ $quote->expiry_date ? $quote->expiry_date->format('Y-m-d') : '' }}',
+                                            eta: '',
                                             etd: '{{ $quote->quote_date ? $quote->quote_date->format('Y-m-d') : '' }}',
                                             customer: '{{ addslashes($quote->customer->name ?? '') }}',
                                             customer_id: '{{ $quote->customer_id }}',
@@ -3657,7 +3798,7 @@
                         </div>
                         <div class="main-grid">
                             <div class="form-group-gf"><label class="form-label-gf" style="color: #ef4444;">*HAWB No.</label><div class="form-input-container"><input type="text" class="form-control-gf" x-model="quoteForm.hawb_no"></div></div>
-                            <div class="form-group-gf"><label class="form-label-gf" style="color: #ef4444;">*Arrival Date/Time</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="quoteForm.eta"></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Arrival Date/Time</label><div class="form-input-container"><input type="date" class="form-control-gf" x-model="quoteForm.eta"></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Service Term</label><div class="form-input-container"><span x-text="quoteForm.service_term || '-'" style="font-size: 10px; color: #334155;"></span></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Incoterms</label><div class="form-input-container"><span x-text="quoteForm.incoterms || '-'" style="font-size: 10px; color: #334155;"></span></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Volume Weight</label><div class="form-input-container"><span style="font-size: 10px; color: #334155;">-</span></div></div>
@@ -3733,8 +3874,8 @@
                 <button type="button" x-show="quoteStep > 1" class="btn-default-gf" @click="quoteStep--">Back</button>
 
                 <button type="button" x-show="quoteStep < 3"
-                        :class="((quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer || !quoteForm.eta))) ? 'btn-freightx opacity-50 cursor-not-allowed' : 'btn-freightx'"
-                        :disabled="(quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer || !quoteForm.eta))"
+                        :class="((quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer))) ? 'btn-freightx opacity-50 cursor-not-allowed' : 'btn-freightx'"
+                        :disabled="(quoteStep === 1 && !selectedQuote) || (quoteStep === 2 && (!quoteForm.mawb_no || !quoteForm.hawb_no || !quoteForm.customer))"
                         @click="quoteStep++">Next <i class="fa fa-arrow-right"></i></button>
 
                 <button type="button" x-show="quoteStep === 3" class="btn-freightx" @click="confirmQuoteSelection()"><i class="fa fa-check"></i> Confirm</button>
@@ -3742,10 +3883,16 @@
         </div>
     </div>
 </template>
-    </div>
 
-    
-</div>
+    <!-- Centered Floating Save Pill (Transparent Glass Style) -->
+    <div class="fixed-floating-save-pill" style="position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 5px 14px; border-radius: 9999px; border: 1px solid rgba(203, 213, 225, 0.8); box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08);">
+        <button type="button" @click="window.triggerPrimarySave ? window.triggerPrimarySave() : (document.getElementById('air-import-form') ? document.getElementById('air-import-form').submit() : null)"
+                style="background: rgba(16, 185, 129, 0.14); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.4); padding: 6px 22px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;"
+                onmouseover="this.style.background='rgba(16, 185, 129, 0.24)'"
+                onmouseout="this.style.background='rgba(16, 185, 129, 0.14)'">
+            <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+        </button>
+    </div>
 </div>
 
 <div id="toast-container" class="toast-container"></div>

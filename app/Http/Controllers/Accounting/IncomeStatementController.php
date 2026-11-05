@@ -54,8 +54,17 @@ class IncomeStatementController extends Controller
             $totalPaid  = (float) $invoice->payments->sum('amount');
             $balance    = (float) $invoice->total_amount;
             $invType    = strtoupper($invoice->type ?? '');
+            $isCN       = strtoupper($invoice->document_type ?? '') === 'CN';
             $officeName = $invoice->office?->name ?? 'N/A';
-            $currCode   = $invoice->currency?->name ?? 'USD';
+            $currCode   = $invoice->currency?->code ?? $invoice->currency?->name ?? 'USD';
+            $rate       = (float) ($invoice->exchange_rate ?? $invoice->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+
+            // Convert to base functional currency (USD)
+            $baseBalance = ($rate != 1.0) ? round($balance / $rate, 2) : $balance;
+            $basePaid    = ($rate != 1.0) ? round($totalPaid / $rate, 2) : $totalPaid;
+
+            $signedAmount = $isCN ? -$baseBalance : $baseBalance;
 
             $item = [
                 'invoice_no'   => $invoice->invoice_no ?? '',
@@ -63,17 +72,17 @@ class IncomeStatementController extends Controller
                 'description'  => $invoice->description ?? $invoice->remark ?? '',
                 'office'       => $officeName,
                 'currency'     => $currCode,
-                'total_amount' => $balance,
-                'paid_amount'  => $totalPaid,
-                'balance'      => $balance - $totalPaid,
+                'total_amount' => $signedAmount,
+                'paid_amount'  => $basePaid,
+                'balance'      => $baseBalance - $basePaid,
             ];
 
             if (in_array($invType, ['AR', 'RECEIVED'])) {
                 $revenueItems[] = $item;
-                $totalRevenue += $balance;
+                $totalRevenue += $signedAmount;
             } else {
                 $expenseItems[] = $item;
-                $totalExpenses += $balance;
+                $totalExpenses += $baseBalance;
             }
         }
 

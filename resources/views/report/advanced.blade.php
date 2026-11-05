@@ -309,7 +309,7 @@
                     <div id="shippingRadarChart" style="min-height: 340px;"></div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-title" style="color:#10b981;"><i class="fa fa-bar-chart" style="margin-right:4px;"></i> Top 10 Trade Partners by Profit</div>
+                    <div class="chart-title" style="color:#10b981;"><i class="fa fa-bar-chart" style="margin-right:4px;"></i> Top 10 Customers by Profit</div>
                     <div id="partnerBarChart" style="min-height: 340px;"></div>
                 </div>
                 <div class="chart-card">
@@ -322,7 +322,7 @@
             <div class="chart-card" style="margin-bottom: 14px;">
                 <div class="tab-nav">
                     <button class="tab-btn" :class="{ active: activeTab === 'shipping' }" @click="switchTab('shipping')">By Shipping Type</button>
-                    <button class="tab-btn" :class="{ active: activeTab === 'partner' }" @click="switchTab('partner')">By Trade Partner</button>
+                    <button class="tab-btn" :class="{ active: activeTab === 'partner' }" @click="switchTab('partner')">By Customer</button>
                     <button class="tab-btn" :class="{ active: activeTab === 'office' }" @click="switchTab('office')">By Office</button>
                     <button class="tab-btn" :class="{ active: activeTab === 'sales' }" @click="switchTab('sales')">By Sales Person</button>
                 </div>
@@ -376,12 +376,12 @@
                 </div>
 
                 <div class="tab-panel" :class="{ active: activeTab === 'partner' }">
-                    <div class="print-section-title">Breakdown by Trade Partner</div>
+                    <div class="print-section-title">Breakdown by Customer</div>
                     <div style="overflow-x: auto;">
                         <table class="table-custom">
                             <thead>
                                 <tr>
-                                    <th style="text-align:left;">Trade Partner</th>
+                                    <th style="text-align:left;">Customer</th>
                                     <th style="text-align:right;">Revenue</th>
                                     <th style="text-align:right;">Cost</th>
                                     <th style="text-align:right;">Profit</th>
@@ -700,7 +700,7 @@
                 }, items.length > 0);
             },
 
-            // 3) Horizontal colorful bars - Top 10 trade partners by profit
+            // 3) Horizontal colorful bars - Top 10 customers by profit
             renderPartnerBar() {
                 const rows = [...(this.data.by_partner || [])]
                     .sort((a, b) => parseFloat(b.profit || 0) - parseFloat(a.profit || 0))

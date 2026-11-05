@@ -84,9 +84,12 @@ class AgingReportController extends Controller
         $grouped = [];
         foreach ($invoices as $invoice) {
             $totalPaid = (float) $invoice->payments->sum('amount');
-            $balance   = (float) $invoice->total_amount - $totalPaid;
+            $isCN      = strtoupper($invoice->document_type ?? '') === 'CN';
+            $balance   = ($invoice->status === 'PAID' || (float)$invoice->balance_amount <= 0.001) 
+                ? 0.0 
+                : ($isCN ? -abs((float)$invoice->balance_amount) : (float)$invoice->balance_amount);
 
-            if ($balance <= 0 && $hideZeroBal === '1') {
+            if (abs($balance) <= 0.001 && $hideZeroBal === '1') {
                 continue;
             }
             if ($hideOverpaid === '1' && $balance < 0) {
@@ -121,9 +124,12 @@ class AgingReportController extends Controller
                 continue;
             }
 
-            $daysOverdue = $dueDate ? $asOfCarbon->diffInDays(Carbon::parse($dueDate), false) : 0;
-            if ($daysOverdue < 0) {
-                $daysOverdue = 0;
+            $daysOverdue = 0;
+            if ($dueDate) {
+                $dueCarbon = Carbon::parse($dueDate);
+                if ($asOfCarbon->gt($dueCarbon)) {
+                    $daysOverdue = (int) $dueCarbon->diffInDays($asOfCarbon, false);
+                }
             }
 
             $current = 0;

@@ -87,7 +87,32 @@ class OceanImportController extends Controller
                 $q->where('file_no', 'like', "%{$search}%")
                   ->orWhere('mbl_no', 'like', "%{$search}%")
                   ->orWhere('sub_bl_no', 'like', "%{$search}%")
-                  ->orWhere('voyage', 'like', "%{$search}%");
+                  ->orWhere('voyage', 'like', "%{$search}%")
+                  ->orWhereHas('dmCustomer', fn($sq) => $sq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('dmShipper', fn($sq) => $sq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('dmConsignee', fn($sq) => $sq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('overseaAgent', fn($sq) => $sq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('carrier', fn($sq) => $sq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('hbls', fn($sq) => $sq->where('hbl_no', 'like', "%{$search}%")
+                      ->orWhereHas('customer', fn($csq) => $csq->where('name', 'like', "%{$search}%"))
+                      ->orWhereHas('shipper', fn($csq) => $csq->where('name', 'like', "%{$search}%"))
+                      ->orWhereHas('consignee', fn($csq) => $csq->where('name', 'like', "%{$search}%"))
+                  );
+            });
+        }
+
+        if ($request->filled('filter_name') || $request->filled('name')) {
+            $name = $request->get('filter_name') ?: $request->get('name');
+            $query->where(function ($q) use ($name) {
+                $q->whereHas('dmCustomer', fn($sq) => $sq->where('name', 'like', "%{$name}%"))
+                  ->orWhereHas('dmShipper', fn($sq) => $sq->where('name', 'like', "%{$name}%"))
+                  ->orWhereHas('dmConsignee', fn($sq) => $sq->where('name', 'like', "%{$name}%"))
+                  ->orWhereHas('overseaAgent', fn($sq) => $sq->where('name', 'like', "%{$name}%"))
+                  ->orWhereHas('carrier', fn($sq) => $sq->where('name', 'like', "%{$name}%"))
+                  ->orWhereHas('hbls', fn($sq) => $sq->whereHas('customer', fn($csq) => $csq->where('name', 'like', "%{$name}%"))
+                      ->orWhereHas('shipper', fn($csq) => $csq->where('name', 'like', "%{$name}%"))
+                      ->orWhereHas('consignee', fn($csq) => $csq->where('name', 'like', "%{$name}%"))
+                  );
             });
         }
 
@@ -519,6 +544,7 @@ $ports = Port::where('type', 'SEA')
                     $data[$field] = null;
                 }
             }
+            $data['type_name'] = $container->containerType->code ?? ($container->containerType->name ?? '');
             return (object) $data;
         });
 

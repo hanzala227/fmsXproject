@@ -12,13 +12,13 @@ class SuperAdminRoleController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Role::withCount('users');
+        $query = Role::withCount(['users', 'permissions']);
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
 
-        $roles = $query->paginate(15)->withQueryString();
+        $roles = $query->latest()->paginate(15)->withQueryString();
 
         return view('super-admin.roles.index', compact('roles'));
     }
@@ -32,10 +32,12 @@ class SuperAdminRoleController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['guard_name' => $request->input('guard_name') ?: 'web']);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
-            'guard_name' => 'required|string|max:255',
+            'guard_name' => 'nullable|string|max:255',
         ]);
+        $validated['guard_name'] = $validated['guard_name'] ?: 'web';
 
         $role = Role::create($validated);
 
@@ -71,10 +73,12 @@ class SuperAdminRoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
+        $request->merge(['guard_name' => $request->input('guard_name') ?: ($role->guard_name ?: 'web')]);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
-            'guard_name' => 'required|string|max:255',
+            'guard_name' => 'nullable|string|max:255',
         ]);
+        $validated['guard_name'] = $validated['guard_name'] ?: ($role->guard_name ?: 'web');
 
         $role->update($validated);
 

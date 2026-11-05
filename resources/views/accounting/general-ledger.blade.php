@@ -116,7 +116,7 @@
                                 <select id="report_type" class="form-control-gf">
                                     <option value="summary">Summary</option>
                                     <option value="detail">Detail</option>
-                                    <option value="trade_partner">Trade Partner Summary</option>
+                                    <option value="trade_partner">Customer Summary</option>
                                     <option value="ga_expense">G&A Expense</option>
                                 </select>
                             </div>

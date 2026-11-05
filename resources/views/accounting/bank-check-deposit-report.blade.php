@@ -162,7 +162,7 @@
                                 <button type="button" title="Clear" onclick="document.getElementById('vendor_id').value='';"><i class="fa fa-times"></i></button>
                             </div>
                         </div>
-                        <label class="radio-item" style="margin-top:3px;"><input type="checkbox" id="include_local_tp"> Include local trade partner data</label>
+                        <label class="radio-item" style="margin-top:3px;"><input type="checkbox" id="include_local_tp"> Include local customer data</label>
                     </div>
 
                     {{-- Payment Type --}}

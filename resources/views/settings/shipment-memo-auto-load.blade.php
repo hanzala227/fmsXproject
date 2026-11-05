@@ -177,7 +177,7 @@
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
                 <li><a href="/settings">Setting</a> <i class="fa fa-angle-right"></i></li>
-                <li><a href="#">Trade Partner</a> <i class="fa fa-angle-right"></i></li>
+                <li><a href="#">Customers</a> <i class="fa fa-angle-right"></i></li>
                 <li><span style="color:#333;font-weight:700;">Shipment Memo Auto-Load</span></li>
             </ul>
         </div>

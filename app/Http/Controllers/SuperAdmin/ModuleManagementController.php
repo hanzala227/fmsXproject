@@ -13,10 +13,79 @@ use Illuminate\Support\Facades\DB;
 
 class ModuleManagementController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of system modules with real freight metrics and filters.
+     */
+    public function index(Request $request)
     {
-        $modules = SystemModule::orderBy('category')->orderBy('name')->get();
-        return view('super-admin.modules.index', compact('modules'));
+        $query = SystemModule::with('companies');
+
+        // Tab Filter
+        $currentTab = $request->get('tab', 'all');
+        if ($currentTab === 'freight') {
+            $query->whereIn('category', ['Freight', 'Logistics']);
+        } elseif ($currentTab === 'finance') {
+            $query->where('category', 'Finance');
+        } elseif ($currentTab === 'commercial') {
+            $query->where('category', 'Commercial');
+        } elseif ($currentTab === 'platform') {
+            $query->whereIn('category', ['Core', 'Platform', 'Operations', 'Configuration']);
+        }
+
+        // Direct Category Filter
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        // Direct Status Filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Search Filter (name, key, description, category)
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->search) . '%';
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                  ->orWhere('key', 'like', $term)
+                  ->orWhere('description', 'like', $term)
+                  ->orWhere('category', 'like', $term);
+            });
+        }
+
+        // Tab counts
+        $counts = [
+            'all'        => SystemModule::count(),
+            'freight'    => SystemModule::whereIn('category', ['Freight', 'Logistics'])->count(),
+            'finance'    => SystemModule::where('category', 'Finance')->count(),
+            'commercial' => SystemModule::where('category', 'Commercial')->count(),
+            'platform'   => SystemModule::whereIn('category', ['Core', 'Platform', 'Operations', 'Configuration'])->count(),
+        ];
+
+        // Overall Freight SaaS Stats
+        $stats = [
+            'total_modules'      => $counts['all'],
+            'freight_modules'    => $counts['freight'],
+            'total_tenants'      => Company::count(),
+            'active_deployments' => CompanyModule::distinct('company_id', 'module_key')->count(),
+            'health_pct'         => 100,
+        ];
+
+        // Unique Categories for dropdown
+        $categories = SystemModule::select('category')->distinct()->pluck('category')->filter()->values();
+
+        // Custom sort: Freight & Logistics first, then Finance, Commercial, Configuration, Operations, Core, Platform
+        $modules = $query->orderByRaw("FIELD(category, 'Freight', 'Logistics', 'Finance', 'Commercial', 'Configuration', 'Operations', 'Core', 'Platform')")
+            ->orderBy('id', 'asc')
+            ->get();
+
+        return view('super-admin.modules.index', compact(
+            'modules',
+            'counts',
+            'stats',
+            'categories',
+            'currentTab'
+        ));
     }
 
     public function store(Request $request)
@@ -26,17 +95,20 @@ class ModuleManagementController extends Controller
             'key' => 'required|string|unique:system_modules,key',
             'category' => 'nullable|string',
             'version' => 'nullable|string',
+            'description' => 'nullable|string',
         ]);
 
-        SystemModule::create($request->all());
+        $data = $request->all();
+        $data['release_date'] = now();
+        $data['status'] = $request->get('status', 'Active');
+
+        SystemModule::create($data);
         return back()->with('success', 'Module created successfully.');
     }
 
     public function show(SystemModule $module)
     {
-        $companies = Company::whereHas('modules', function ($query) use ($module) {
-            $query->where('module_key', $module->key);
-        })->get();
+        $companies = $module->active_companies_list;
 
         return view('super-admin.modules.show', compact('module', 'companies'));
     }

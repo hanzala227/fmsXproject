@@ -376,7 +376,7 @@
                     invoice_no: '{{ old("invoice_no", "INF-" . date("ymdHis")) }}',
                     invoice_date: '{{ old("invoice_date", date("Y-m-d")) }}',
                     due_date: '{{ old("due_date", date("Y-m-d", strtotime("+30 days"))) }}',
-                    office_id: '{{ old("office_id", "") }}',
+                    office_id: '{{ old("office_id", auth()->user()->assigned_office_id ?? "") }}',
                     currency_id: '{{ old("currency_id", "") }}',
                     total_amount: '{{ old("total_amount", "0") }}',
                     tax_total: '{{ old("tax_total", "0") }}',

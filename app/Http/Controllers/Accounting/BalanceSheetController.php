@@ -53,16 +53,25 @@ class BalanceSheetController extends Controller
         $asOfDate = $request->input('as_of_date', date('Y-m-d'));
         $officeId = $request->input('office_id');
 
-        // ── Total receipts and payments up to as-of date (computed once) ──
-        $totalReceipts = (float) AccountingPayment::where('type', 'RECEIVED')
+        // ── Total receipts and payments up to as-of date (computed in functional base currency) ──
+        $payments = AccountingPayment::with('currency')
             ->where('payment_date', '<=', $asOfDate)
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('amount');
+            ->get();
 
-        $totalPaymentsMade = (float) AccountingPayment::where('type', 'MADE')
-            ->where('payment_date', '<=', $asOfDate)
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('amount');
+        $totalReceipts = 0.0;
+        $totalPaymentsMade = 0.0;
+
+        foreach ($payments as $p) {
+            $rate = (float) ($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $baseAmount = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
+            if ($p->type === 'RECEIVED') {
+                $totalReceipts += $baseAmount;
+            } elseif ($p->type === 'MADE') {
+                $totalPaymentsMade += $baseAmount;
+            }
+        }
 
         // ── Cash & Cash Equivalents ──
         $bankAccounts = BankAccount::with('currency')->orderBy('name')->get();
@@ -71,7 +80,9 @@ class BalanceSheetController extends Controller
         $totalBankOpeningBalances = 0;
 
         foreach ($bankAccounts as $account) {
-            $openingBalance = (float) $account->opening_balance;
+            $rate = (float) ($account->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $openingBalance = ($rate != 1.0) ? round(((float)$account->opening_balance) / $rate, 2) : (float)$account->opening_balance;
             $totalBankOpeningBalances += $openingBalance;
 
             $cashItems[] = [
@@ -85,23 +96,34 @@ class BalanceSheetController extends Controller
         $netCashMovement = $totalReceipts - $totalPaymentsMade;
         $totalCash = $totalBankOpeningBalances + $netCashMovement;
 
-        // ── Accounts Receivable ──
-        $totalAR = (float) Invoice::where('type', 'AR')
+        // ── Accounts Receivable & Accounts Payable (in functional base currency) ──
+        $invoices = Invoice::with('currency')
             ->where('invoice_date', '<=', $asOfDate)
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('total_amount');
+            ->get();
+
+        $totalAR = 0.0;
+        $totalAP = 0.0;
+
+        foreach ($invoices as $inv) {
+            $rate = (float) ($inv->exchange_rate ?? $inv->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $baseAmount = ($rate != 1.0) ? round(((float)$inv->total_amount) / $rate, 2) : (float)$inv->total_amount;
+            $isCN = strtoupper($inv->document_type ?? '') === 'CN';
+            $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+
+            if ($inv->type === 'AR') {
+                $totalAR += ($isCN ? -$baseAmount : $baseAmount);
+            } elseif ($inv->type === 'AP') {
+                $totalAP += ($isDN ? -$baseAmount : $baseAmount);
+            }
+        }
 
         // Payments received reduce AR
-        $netAR = $totalAR - $totalReceipts;
-
-        // ── Accounts Payable ──
-        $totalAP = (float) Invoice::where('type', 'AP')
-            ->where('invoice_date', '<=', $asOfDate)
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->sum('total_amount');
+        $netAR = max(0.0, $totalAR - $totalReceipts);
 
         // Payments made reduce AP
-        $netAP = $totalAP - $totalPaymentsMade;
+        $netAP = max(0.0, $totalAP - $totalPaymentsMade);
 
         // ── Equity (Retained Earnings) ──
         $totalRevenue = $totalAR;

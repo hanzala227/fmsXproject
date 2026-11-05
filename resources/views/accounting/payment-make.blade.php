@@ -437,7 +437,13 @@
                                                 x-model="allocationRMB[{{ $inv->id }}]">
                                         </td>
                                         <td data-col="description" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">{{ $inv->internal_remark ?? '' }}</td>
-                                        <td data-col="file_no">{{ optional($inv->invoiceable)->file_no ?? '--' }}</td>
+                                        <td data-col="file_no">
+                                            @if($inv->shipment_url && optional($inv->invoiceable)->file_no)
+                                                <a href="{{ $inv->shipment_url }}" class="col-link" target="_blank">{{ $inv->invoiceable->file_no }}</a>
+                                            @else
+                                                {{ optional($inv->invoiceable)->file_no ?? '--' }}
+                                            @endif
+                                        </td>
                                         <td data-col="mbl_no" style="font-weight:600;color:#0f172a;">{{ $inv->master_bl_no ?? '--' }}</td>
                                         <td data-col="hbl_no" style="font-weight:600;color:#0369a1;">{{ $inv->house_bl_no ?? '--' }}</td>
                                         <td data-col="po_no"></td>

@@ -93,7 +93,7 @@ class TradePartner extends Model
             'RAMP_LOCATION' => 'RC',
             'TERMINAL' => 'TM',
         ];
-        return $map[$value] ?? $value;
+        return ($value !== null && isset($map[$value])) ? $map[$value] : $value;
     }
 
     public function setTypeAttribute($value)
@@ -228,7 +228,7 @@ class TradePartner extends Model
                 'date' => $this->created_at->format('m-d-Y'),
                 'time' => $this->created_at->format('H:i'),
                 'icon' => 'C',
-                'action' => 'Trade Partner Created',
+                'action' => 'Customer Created',
                 'user' => $this->salesPerson?->name ?? 'System',
                 'info' => null
             ];
@@ -240,9 +240,9 @@ class TradePartner extends Model
                 'date' => $this->updated_at->format('m-d-Y'),
                 'time' => $this->updated_at->format('H:i'),
                 'icon' => 'U',
-                'action' => 'Trade Partner Updated',
+                'action' => 'Customer Updated',
                 'user' => auth()->user()?->name ?? 'System',
-                'info' => 'Trade partner profile was updated.'
+                'info' => 'Customer profile was updated.'
             ];
         }
         

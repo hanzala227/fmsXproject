@@ -20,7 +20,7 @@ class CompanyController extends Controller
     public function index(Request $request)
     {
         $query = Company::with(['users' => function ($q) {
-            $q->orderBy('id')->limit(1);
+            $q->orderBy('id');
         }, 'modules']);
 
         // Search
@@ -36,19 +36,53 @@ class CompanyController extends Controller
             });
         }
 
-        // Status filter
+        // Status filter: handle both subscription_status and company status
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            $statusLower = strtolower($status);
+            if (in_array($statusLower, ['trial', 'suspended', 'expired', 'cancelled'])) {
+                $query->where('subscription_status', $statusLower);
+            } else {
+                $query->where('status', $statusLower);
+            }
         }
 
         $companies = $query->latest()->paginate(15)->withQueryString();
+
+        // Calculate freight shipments count per company
+        $companyIds = $companies->pluck('id')->toArray();
+        $oceanCounts = DB::table('ocean_imports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $oceanExpCounts = DB::table('ocean_exports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $airCounts = DB::table('air_imports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $airExpCounts = DB::table('air_exports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $truckCounts = DB::table('truck_shipments')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+
+        foreach ($companies as $c) {
+            $c->ocean_count = ($oceanCounts[$c->id] ?? 0) + ($oceanExpCounts[$c->id] ?? 0);
+            $c->air_count = ($airCounts[$c->id] ?? 0) + ($airExpCounts[$c->id] ?? 0);
+            $c->truck_count = $truckCounts[$c->id] ?? 0;
+            $c->total_shipments = $c->ocean_count + $c->air_count + $c->truck_count;
+        }
+
+        $tabCounts = [
+            '' => Company::count(),
+            'active' => Company::where('status', 'active')->count(),
+            'trial' => Company::where('subscription_status', 'trial')->count(),
+            'suspended' => Company::where('status', 'inactive')->orWhere('subscription_status', 'suspended')->count(),
+            'expired' => Company::where('subscription_status', 'expired')->count(),
+            'inactive' => Company::where('status', 'inactive')->count(),
+        ];
 
         // For AJAX partial reload
         if ($request->ajax()) {
             return view('super-admin.companies.partials.table-rows', compact('companies'));
         }
 
-        return view('super-admin.companies.index', compact('companies'));
+        return view('super-admin.companies.index', compact('companies', 'tabCounts'));
     }
 
     /**
@@ -357,23 +391,48 @@ class CompanyController extends Controller
     }
 
     /**
-     * Export companies to CSV.
+     * Export companies to CSV with freight operations metrics.
      */
     public function exportCsv()
     {
-        $companies = Company::with(['users' => fn($q) => $q->orderBy('id')->limit(1), 'modules'])->get();
+        $companies = Company::with(['users', 'modules'])->get();
 
-        $csv = "Company,Code,Admin,Email,Phone,Status,Modules,Created\n";
+        $companyIds = $companies->pluck('id')->toArray();
+        $oceanCounts = DB::table('ocean_imports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $oceanExpCounts = DB::table('ocean_exports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $airCounts = DB::table('air_imports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $airExpCounts = DB::table('air_exports')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+        $truckCounts = DB::table('truck_shipments')->whereIn('company_id', $companyIds)
+            ->select('company_id', DB::raw('count(*) as cnt'))->groupBy('company_id')->pluck('cnt', 'company_id');
+
+        $csv = "Company,Code,Country,Subdomain,Admin,Email,Phone,Status,Subscription,Users Count,Ocean Shipments,Air Shipments,Truck Shipments,Total Freight Jobs,Modules,Created\n";
         foreach ($companies as $c) {
             $admin = $c->users->first();
             $modules = $c->modules->pluck('module_key')->implode('; ');
+            $ocean = ($oceanCounts[$c->id] ?? 0) + ($oceanExpCounts[$c->id] ?? 0);
+            $air = ($airCounts[$c->id] ?? 0) + ($airExpCounts[$c->id] ?? 0);
+            $truck = $truckCounts[$c->id] ?? 0;
+            $tot = $ocean + $air + $truck;
+
             $csv .= implode(',', [
                 '"' . str_replace('"', '""', $c->name) . '"',
                 '"' . ($c->code ?? '') . '"',
+                '"' . ($c->country ?? 'Global') . '"',
+                '"' . ($c->subdomain ?? 'app') . '"',
                 '"' . ($admin?->name ?? '') . '"',
                 '"' . ($admin?->email ?? '') . '"',
                 '"' . ($c->phone ?? '') . '"',
                 $c->status,
+                $c->subscription_status ?? 'trial',
+                $c->users->count(),
+                $ocean,
+                $air,
+                $truck,
+                $tot,
                 '"' . $modules . '"',
                 $c->created_at?->format('Y-m-d') ?? '',
             ]) . "\n";
@@ -381,7 +440,7 @@ class CompanyController extends Controller
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="companies-' . date('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="freight-companies-' . date('Y-m-d') . '.csv"',
         ]);
     }
 }

@@ -17,6 +17,7 @@
         </td>
         <td class="sticky-col" style="width:120px;left:25px;" onclick="event.stopPropagation()">
             <a href="{{ route('sales.quotations.edit', $q->id) }}" class="col-link">{{ $q->quote_no }}</a>
+            <a href="{{ route('sales.quotations.print', $q->id) }}" target="_blank" title="Print Quotation PDF" style="margin-left: 6px; color: #64748b; font-size: 11px;" onclick="event.stopPropagation()"><i class="fa fa-print"></i></a>
         </td>
         <td class="sticky-col" style="width:85px;left:145px;">{{ ($q->quote_date ?? $q->created_at)?->format('Y-m-d') ?? '--' }}</td>
         <td class="sticky-col" style="width:85px;left:230px;text-align:center;">

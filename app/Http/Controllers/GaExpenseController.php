@@ -276,6 +276,9 @@ class GaExpenseController extends Controller
         if ($ga_expense->type !== 'AP') {
             abort(404);
         }
+        if ($ga_expense->isApproved() || in_array(strtoupper($ga_expense->status), ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || in_array($ga_expense->verification_status, ['Verified', 'Cancelled'])) {
+            return redirect()->back()->with('error', 'Document Control: Approved or posted expenses cannot be deleted. Cancellation is required.');
+        }
         $ga_expense->delete();
         return redirect()->route('accounting.ga-expense.index')
             ->with('success', 'G&A Expense deleted successfully.');
@@ -303,6 +306,22 @@ class GaExpenseController extends Controller
         if (empty($ids)) {
             return response()->json(['success' => false, 'message' => 'No expenses selected.']);
         }
+
+        $protected = Invoice::whereIn('id', $ids)
+            ->where('type', 'AP')
+            ->where(function ($q) {
+                $q->whereIn('status', ['POSTED', 'PARTIAL', 'PAID', 'VOID'])
+                  ->orWhereIn('verification_status', ['Verified', 'Cancelled']);
+            })
+            ->exists();
+
+        if ($protected) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Document Control: Approved or posted expenses cannot be deleted. Administrators must cancel them.'
+            ], 403);
+        }
+
         Invoice::whereIn('id', $ids)->where('type', 'AP')->delete();
         return response()->json(['success' => true, 'message' => count($ids) . ' expense(s) deleted.']);
     }

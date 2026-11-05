@@ -4,6 +4,8 @@
     <tr id="payment-row-{{ $payment->id }}"
         data-id="{{ $payment->id }}"
         data-payment_no="{{ $payment->payment_no }}"
+        data-ref_no="{{ $payment->reference_no }}"
+        data-void="{{ $payment->void_date ? '1' : '0' }}"
         data-date="{{ $payment->payment_date?->format('Y-m-d') ?? '' }}"
         data-partner="{{ $payment->tradePartner?->name ?? '' }}"
         data-amount="{{ $payment->amount }}"

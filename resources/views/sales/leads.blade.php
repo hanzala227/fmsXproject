@@ -85,7 +85,10 @@
                             <td>{{ $lead->service_required }}</td>
                             <td>{{ $lead->potential_volume }}</td>
                             <td style="text-align: center;">
-                                <div style="display: flex; gap: 5px; justify-content: center;">
+                                <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                                    <a href="{{ route('sales.quotations.create', ['lead_id' => $lead->id]) }}" title="Create Freight Quotation" style="color: #26c281; font-size: 10px; font-weight: 700; text-decoration: none; padding: 2px 6px; border: 1px solid #26c281; border-radius: 3px; display: inline-flex; align-items: center; gap: 3px;">
+                                        <i class="fa fa-file-text-o"></i> Quote
+                                    </a>
                                     <i class="fa fa-edit" style="color: #4b77be; cursor: pointer;"></i>
                                     <form action="{{ route('leads.destroy', $lead->id) }}" method="POST" style="display:inline;">
                                         @csrf @method('DELETE')

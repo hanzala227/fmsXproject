@@ -402,7 +402,7 @@
                                     <tr>
                                         <th style="width:30px;">#</th>
                                         <th style="width:200px;">G/L Account *</th>
-                                        <th style="width:160px;">Trade Partner</th>
+                                        <th style="width:160px;">Customer</th>
                                         <th>Line Description</th>
                                         <th style="width:110px;text-align:right;">Local Debit ($)</th>
                                         <th style="width:110px;text-align:right;">Local Credit ($)</th>
@@ -489,7 +489,7 @@
                             <thead>
                                 <tr>
                                     <th>G/L Account</th>
-                                    <th>Trade Partner</th>
+                                    <th>Customer</th>
                                     <th>Description</th>
                                     <th style="text-align:right;">Debit</th>
                                     <th style="text-align:right;">Credit</th>

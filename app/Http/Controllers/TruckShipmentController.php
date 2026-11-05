@@ -156,7 +156,7 @@ class TruckShipmentController extends Controller
         $offices = Office::where('is_active', true)->get();
         $users = User::all();
         $agents = TradePartner::all();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
 
         return view('truck.my-shipment-list', compact('shipments', 'offices', 'users', 'agents', 'ports'));
     }
@@ -166,7 +166,7 @@ class TruckShipmentController extends Controller
     public function create(Request $request)
     {
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
         $agents = TradePartner::all();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();
@@ -211,7 +211,7 @@ class TruckShipmentController extends Controller
         $truckShipment->load(['charges', 'documents.uploader', 'workOrders', 'memos', 'containers', 'statusLogs']);
 
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
         $agents = TradePartner::all();
         $users = \App\Models\User::all();
         $packageUnits = \App\Models\PackageUnit::all();

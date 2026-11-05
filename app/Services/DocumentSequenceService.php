@@ -54,14 +54,18 @@ class DocumentSequenceService
                 ->first();
 
             if (!$sequence) {
-                // If row doesn't exist, create it (safe because we wrapped in transaction, but better to insert if not exists)
-                DB::table('document_sequences')->insert([
-                    'company_id' => $companyId,
-                    'document_type' => $docType,
-                    'current_number' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                // If row doesn't exist, create it concurrently using insertOrIgnore
+                try {
+                    DB::table('document_sequences')->insertOrIgnore([
+                        'company_id' => $companyId,
+                        'document_type' => $docType,
+                        'current_number' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    // Concurrent insert collision handled gracefully
+                }
                 
                 // Re-fetch with lock
                 $sequence = DB::table('document_sequences')

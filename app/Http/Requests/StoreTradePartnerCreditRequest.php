@@ -38,8 +38,8 @@ class StoreTradePartnerCreditRequest extends FormRequest
     {
         return [
             'entries.required' => 'No credit entries provided.',
-            'entries.*.id.required' => 'Each entry must have a trade partner ID.',
-            'entries.*.id.exists' => 'Invalid trade partner ID detected.',
+            'entries.*.id.required' => 'Each entry must have a customer ID.',
+            'entries.*.id.exists' => 'Invalid customer ID detected.',
             'entries.*.account_group_id.exists' => 'Invalid account group selected.',
             'entries.*.payment_type.in' => 'Payment type must be one of: COD, CREDIT, PREPAID, COLLECT.',
             'entries.*.credit_limit.numeric' => 'Credit limit must be a valid number.',

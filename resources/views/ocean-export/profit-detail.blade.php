@@ -84,7 +84,7 @@
                     @forelse($shipment->charges as $c)
                     <tr>
                         <td>{{ $c->charge_code ?? 'FREIGHT' }}</td>
-                        <td>{{ $c->billTo->name ?? ($c->vendor->name ?? 'TRADE PARTNER') }}</td>
+                        <td>{{ $c->billTo->name ?? ($c->vendor->name ?? 'CUSTOMER') }}</td>
                         <td>{{ $c->type }}</td>
                         <td>{{ $c->currency->code ?? 'USD' }}</td>
                         <td style="text-align:right;">{{ number_format($c->rate, 2) }}</td>

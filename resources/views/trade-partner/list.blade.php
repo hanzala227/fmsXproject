@@ -28,7 +28,7 @@
     <div class="overlay" id="delete-overlay" onclick="if(event.target===this) closeDeleteModal()">
         <div class="confirm-box">
             <div class="confirm-icon"><i class="fa fa-exclamation-triangle"></i></div>
-            <h4 id="delete-title">Delete Trade Partner(s)?</h4>
+            <h4 id="delete-title">Delete Customer(s)?</h4>
             <p id="delete-msg">This action cannot be undone.</p>
             <div class="confirm-actions">
                 <button class="btn-tool" style="padding:0 18px;height:26px;" onclick="closeDeleteModal()">Cancel</button>
@@ -43,8 +43,8 @@
     <div class="overlay" id="restore-overlay" onclick="if(event.target===this) closeRestoreModal()">
         <div class="confirm-box">
             <div class="confirm-icon" style="color:#3b82f6;"><i class="fa fa-undo"></i></div>
-            <h4>Restore Trade Partner(s)?</h4>
-            <p id="restore-msg">Selected trade partners will be restored.</p>
+            <h4>Restore Customer(s)?</h4>
+            <p id="restore-msg">Selected customers will be restored.</p>
             <div class="confirm-actions">
                 <button class="btn-tool" style="padding:0 18px;height:26px;" onclick="closeRestoreModal()">Cancel</button>
                 <button class="btn-tool" style="padding:0 18px;height:26px;background:#3b82f6;color:#fff;border-color:#2563eb;" onclick="executeRestore()">
@@ -60,8 +60,8 @@
         <div class="page-bar">
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
-                <li><a href="/trade-partner/list">Trade Partner</a> <i class="fa fa-angle-right"></i></li>
-                <li><span style="color: #1e293b; font-weight: 700;">Trade Partner List</span></li>
+                <li><a href="/trade-partner/list">Customers</a> <i class="fa fa-angle-right"></i></li>
+                <li><span style="color: #1e293b; font-weight: 700;">Customer List</span></li>
             </ul>
         </div>
 
@@ -70,7 +70,7 @@
             {{-- PORTLET TITLE --}}
             <div class="portlet-title">
                 <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">Trade Partner List</span>
+                    <span class="caption-subject">Customer List</span>
                     <span id="sel-badge" style="display:none;font-size:10px;color:#3b82f6;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:10px;border:1px solid #bfdbfe;"></span>
                 </div>
                 <div class="actions" style="display:flex;gap:4px;position:relative;align-items:center;">
@@ -96,7 +96,7 @@
             <div class="portlet-tool">
                 <div style="display:flex;gap:10px;align-items:center;">
                     <div class="btn-group">
-                        <a class="btn-tool green" href="{{ route('trade-partner.create') }}" title="New Trade Partner" target="_blank">
+                        <a class="btn-tool green" href="{{ route('trade-partner.create') }}" title="New Customer" target="_blank">
                             <i class="fa fa-plus"></i>
                         </a>
                         <button class="btn-tool" id="btn-delete" disabled title="Delete Selected" onclick="confirmDelete()">
@@ -268,7 +268,7 @@
                                 <tr id="empty-row">
                                     <td colspan="25" style="text-align:center;padding:30px 10px;color:#94a3b8;">
                                         <i class="fa fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>
-                                        No trade partners found.
+                                        No customers found.
                                     </td>
                                 </tr>
                             @endforelse
@@ -339,8 +339,8 @@
     function confirmDelete() {
         const n = document.querySelectorAll('.row-check:checked').length;
         if (!n) return;
-        document.getElementById('delete-title').textContent = 'Delete Trade Partner(s)?';
-        document.getElementById('delete-msg').textContent = 'You are about to delete ' + n + ' trade partner(s). This can be undone from Trash.';
+        document.getElementById('delete-title').textContent = 'Delete Customer(s)?';
+        document.getElementById('delete-msg').textContent = 'You are about to delete ' + n + ' customer(s). This can be undone from Trash.';
         document.getElementById('delete-overlay').classList.add('open');
     }
     function closeDeleteModal() {
@@ -375,7 +375,7 @@
     function confirmRestore() {
         const n = document.querySelectorAll('.row-check:checked').length;
         if (!n) return;
-        document.getElementById('restore-msg').textContent = 'You are about to restore ' + n + ' trade partner(s).';
+        document.getElementById('restore-msg').textContent = 'You are about to restore ' + n + ' customer(s).';
         document.getElementById('restore-overlay').classList.add('open');
     }
     function closeRestoreModal() {

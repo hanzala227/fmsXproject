@@ -47,7 +47,7 @@
                         <template x-for="item in items" :key="item.id">
                             <tr class="hover:bg-blue-50/30 transition-colors cursor-pointer">
                                 <template x-for="header in headers" :key="header">
-                                    <td class="px-5 py-3 text-[0.7rem] font-medium text-gray-600" x-text="item[header] || '-'"></td>
+                                    <td class="px-5 py-3 text-[0.7rem] font-medium text-gray-600" x-text="typeof item[header] === 'object' && item[header] !== null ? (item[header].name || item[header].code || item[header].invoice_no || item[header].title || '-') : (item[header] ?? '-')"></td>
                                 </template>
                             </tr>
                         </template>

@@ -92,8 +92,8 @@
         <div class="page-bar">
             <ul class="page-breadcrumb">
                 <li><i class="fa fa-home"></i> <a href="/">Home</a> <i class="fa fa-angle-right"></i></li>
-                <li><a href="/trade-partner/list">Trade Partner</a> <i class="fa fa-angle-right"></i></li>
-                <li><span style="color: #1e293b; font-weight: 700;">Trade Partner Credit Entry</span></li>
+                <li><a href="/trade-partner/list">Customers</a> <i class="fa fa-angle-right"></i></li>
+                <li><span style="color: #1e293b; font-weight: 700;">Customer Credit Entry</span></li>
             </ul>
         </div>
 
@@ -117,7 +117,7 @@
             {{-- PORTLET TITLE --}}
             <div class="portlet-title">
                 <div class="caption" style="display:flex;align-items:center;gap:8px;">
-                    <span class="caption-subject">Trade Partner Credit Entry</span>
+                    <span class="caption-subject">Customer Credit Entry</span>
                     <span style="font-size:10px;color:#64748b;font-weight:400;text-transform:none;">
                         Manage credit terms &amp; limits
                     </span>
@@ -138,7 +138,7 @@
             {{-- TABS — Ocean Module themed --}}
             <ul class="ce-tabs">
                 <li :class="{ 'active': activeTab === 'partners' }">
-                    <a href="javascript:;" @click="switchTab('partners')"><i class="fa fa-users" style="margin-right:4px;"></i>Trade Partners</a>
+                    <a href="javascript:;" @click="switchTab('partners')"><i class="fa fa-users" style="margin-right:4px;"></i>Customers</a>
                 </li>
                 <li :class="{ 'active': activeTab === 'groups' }">
                     <a href="javascript:;" @click="switchTab('groups')"><i class="fa fa-tags" style="margin-right:4px;"></i>Credit Limit Groups</a>
@@ -152,7 +152,7 @@
                 <span>Modified: <span class="val" x-text="modifiedCount" :class="modifiedCount > 0 ? 'over' : ''">0</span></span>
             </div>
 
-            {{-- ========== TRADE PARTNERS TAB ========== --}}
+            {{-- ========== CUSTOMERS TAB ========== --}}
             <div x-show="activeTab === 'partners'">
                 {{-- TOOLBAR --}}
                 <div class="portlet-tool">
@@ -182,7 +182,7 @@
                                 <thead>
                                     <tr id="header-row">
                                         <th style="width:50px;">Code</th>
-                                        <th style="width:200px;">Trade Partner</th>
+                                        <th style="width:200px;">Customer</th>
                                         <th style="width:100px;">Alias</th>
                                         <th style="width:60px;">Type</th>
                                         <th style="width:150px;">Account Group</th>
@@ -286,7 +286,7 @@
                                     <tr id="empty-row">
                                         <td colspan="12" style="text-align:center;padding:30px 10px;color:#94a3b8;">
                                             <i class="fa fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>
-                                            No trade partners found.
+                                            No customers found.
                                         </td>
                                     </tr>
                                     @endforelse
@@ -984,7 +984,7 @@
 
             deleteGroup(id, name) {
                 this.deleteGroupId = id;
-                this.deleteGroupMsg = 'Are you sure you want to delete "' + name + '"? Trade partners assigned to this group will have their credit limit group cleared.';
+                this.deleteGroupMsg = 'Are you sure you want to delete "' + name + '"? Customers assigned to this group will have their credit limit group cleared.';
                 this.showDeleteConfirm = true;
             },
 

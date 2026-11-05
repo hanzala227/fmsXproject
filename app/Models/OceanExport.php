@@ -13,7 +13,7 @@ class OceanExport extends Model
     use HasFactory, SoftDeletes, BelongsToTenant;
 
     protected $fillable = [
-        'company_id', 'file_no', 'mbl_no', 'booking_no', 'post_date', 'office_id', 'op_id', 
+        'company_id', 'file_no', 'mbl_no', 'booking_no', 'quotation_no', 'post_date', 'office_id', 'op_id', 
         'forwarding_agent_id', 'oversea_agent_id', 'co_loader_id', 
         'carrier_id', 'acct_carrier_id', 'business_referred_by_id',
         'is_direct_master', 'dm_customer_id', 'dm_shipper_id', 

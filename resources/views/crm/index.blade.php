@@ -32,16 +32,16 @@
         <!-- Breadcrumbs -->
         <div style="font-size: 11px; color: #8e9eae; margin-bottom: 15px;">
             <a href="/" style="color: #8e9eae; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#8e9eae';" target="_blank"><i class="fa fa-home"></i> Home</a> <i class="fa fa-angle-right" style="margin: 0 5px; opacity: 0.5;"></i> 
-            <a href="/trade-partner/list" style="color: #8e9eae; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#8e9eae';">Trade Partner</a> <i class="fa fa-angle-right" style="margin: 0 5px; opacity: 0.5;"></i> 
-            <span style="color: #333; font-weight: 700;">Trade Partner List</span>
+            <a href="/trade-partner/list" style="color: #8e9eae; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#337ab7';" onmouseout="this.style.color='#8e9eae';">Customers</a> <i class="fa fa-angle-right" style="margin: 0 5px; opacity: 0.5;"></i> 
+            <span style="color: #333; font-weight: 700;">Customer List</span>
         </div>
 
         <!-- Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h1 class="caption-subject" style="font-size: 18px;" x-text="isCreating ? 'System Partner / New' : 'Trade Partner Directory'"></h1>
+            <h1 class="caption-subject" style="font-size: 18px;" x-text="isCreating ? 'System Partner / New' : 'Customer Directory'"></h1>
             <div style="display: flex; gap: 8px;">
                 <template x-if="!isCreating">
-                    <button @click="openCreateForm" class="btn-freightx"><i class="fa fa-plus"></i> NEW TRADE PARTNER</button>
+                    <button @click="openCreateForm" class="btn-freightx"><i class="fa fa-plus"></i> NEW CUSTOMER</button>
                 </template>
                 <template x-if="isCreating">
                     <div style="display: flex; gap: 8px;">
@@ -124,7 +124,7 @@
                             </div>
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label class="form-label-gf">Trade Partner Name (Legal) <span style="color:red;">*</span></label>
+                            <label class="form-label-gf">Customer Name (Legal) <span style="color:red;">*</span></label>
                             <input type="text" x-model="form.name" class="form-control-gf" style="font-weight: 700;">
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
@@ -260,7 +260,7 @@
                 savePartner() {
                     const newPartner = {
                         id: Date.now(),
-                        name: this.form.name || 'New Trade Partner',
+                        name: this.form.name || 'New Customer',
                         code: this.form.code || 'TP-' + Math.floor(Math.random() * 1000),
                         alias: this.form.alias || this.form.name,
                         tp_type: this.form.tp_type,

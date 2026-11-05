@@ -616,7 +616,7 @@
 
                 form: {
                     warehouse_receipt_id: '{{ old("warehouse_receipt_id", $receiving->warehouse_receipt_id ?? "") }}',
-                    office_id: '{{ old("office_id", $receiving->office_id ?? "") }}',
+                    office_id: '{{ old("office_id", isset($receiving) && !empty($receiving->office_id) ? $receiving->office_id : (auth()->user()->assigned_office_id ?? "")) }}',
                     customer_id: '{{ old("customer_id", $receiving->customer_id ?? "") }}',
                     bill_to_id: '{{ old("bill_to_id", $receiving->bill_to_id ?? "") }}',
                     ship_from_id: '{{ old("ship_from_id", $receiving->ship_from_id ?? "") }}',

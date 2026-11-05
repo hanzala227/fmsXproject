@@ -98,7 +98,7 @@ class TradePartnerCreditController extends Controller
 
             // Header row
             fputcsv($handle, [
-                'Code', 'Trade Partner', 'Alias', 'Type',
+                'Code', 'Customer', 'Alias', 'Type',
                 'Account Group', 'Payment Type', 'Credit Term',
                 'Days', 'Credit Limit', 'Current Balance',
                 'Over Limit', 'Remark'
@@ -263,7 +263,7 @@ class TradePartnerCreditController extends Controller
         if ($memberCount > 0) {
             return response()->json([
                 'success' => false,
-                'message' => "Cannot delete: {$memberCount} trade partner(s) are assigned to this group."
+                'message' => "Cannot delete: {$memberCount} customer(s) are assigned to this group."
             ], 422);
         }
 

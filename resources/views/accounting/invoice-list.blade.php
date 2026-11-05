@@ -27,6 +27,14 @@
             flex-wrap: wrap;
             justify-content: flex-end;
         }
+        .badge-void {
+            background: #fee2e2 !important;
+            color: #dc2626 !important;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
     </style>
     @endpush
 
@@ -104,6 +112,43 @@
             </div>
         </div>
     </div>
+
+    @php
+        $isAdminUser = auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin());
+    @endphp
+
+    @if($isAdminUser)
+    {{-- CANCELLATION MODAL (Admin Only - Document Control) --}}
+    <div class="overlay" id="cancel-doc-overlay" onclick="if(event.target===this) closeCancelModal()">
+        <div class="confirm-box" style="max-width:480px;text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">
+                <h4 style="margin:0;font-size:13px;font-weight:700;color:#0f172a;">
+                    <i class="fa fa-ban" style="color:#ef4444;margin-right:6px;"></i> Cancel Document <span id="cancel-doc-title"></span>
+                </h4>
+                <button type="button" class="btn-tool" style="padding:0 8px;height:22px;" onclick="closeCancelModal()"><i class="fa fa-times"></i></button>
+            </div>
+            <div style="margin-bottom:12px;background:#fef2f2;border:1px solid #fee2e2;border-radius:6px;padding:8px 10px;font-size:11px;color:#991b1b;line-height:1.4;">
+                <i class="fa fa-shield" style="margin-right:4px;"></i> <strong>Document Control Policy:</strong>
+                Approved accounting records cannot be deleted. Cancellation voids the invoice and auto-voids linked payment settlements (for refunds/reversals), releases billing charges, and permanently records your audit reason and user ID.
+            </div>
+            <form id="cancelDocForm" onsubmit="executeCancelDoc(event)">
+                <input type="hidden" id="cancel-doc-id" value="">
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;font-size:11px;font-weight:600;color:#334155;margin-bottom:4px;">
+                        Cancellation Reason <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea id="cancel-doc-reason" rows="3" required minlength="5" placeholder="Enter mandatory reason for cancellation (min 5 characters)..." style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:6px 8px;font-size:11px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <div class="confirm-actions" style="justify-content:flex-end;gap:8px;">
+                    <button type="button" class="btn-tool" style="padding:0 14px;height:26px;" onclick="closeCancelModal()">Dismiss</button>
+                    <button type="submit" id="btn-submit-cancel" class="btn-tool danger" style="padding:0 14px;height:26px;background:#ef4444;color:#fff;">
+                        <i class="fa fa-ban"></i> Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
     {{-- COLOR PICKER MODAL --}}
     <div class="overlay color-picker-overlay" id="color-picker-overlay" onclick="if(event.target===this) closeColorPicker()">
@@ -274,6 +319,11 @@
                         <button class="btn-tool" id="btn-delete" disabled title="Delete Selected" onclick="confirmDelete()">
                             <i class="fa fa-trash"></i>
                         </button>
+                        @if($isAdminUser)
+                        <button class="btn-tool" id="btn-cancel-doc" disabled title="Cancel Document (Admin Only)" onclick="openCancelModal()" style="color:#ef4444;">
+                            <i class="fa fa-ban"></i> Cancel
+                        </button>
+                        @endif
                     </div>
                     <div class="btn-group">
                         <button class="btn-tool green" onclick="makePayment()" title="Make Payment">
@@ -294,13 +344,13 @@
                     <i class="fa fa-search" style="font-size:10px;color:#94a3b8;"></i>
                     <input type="text" id="quick-search" class="input-inline" style="width:160px;"
                            placeholder="Quick search..." oninput="quickSearch(this.value)" onkeyup="if(event.key === 'Enter') this.blur()">
-                    <select class="input-inline" id="status-filter" onchange="applyStatusFilter(this.value)" style="width:90px;">
-                        <option value="">All Status</option>
-                        <option value="DRAFT">Draft</option>
-                        <option value="POSTED">Posted</option>
-                        <option value="PAID">Paid</option>
-                        <option value="PARTIAL">Partial</option>
-                        <option value="VOID">Void</option>
+                    <select class="input-inline" id="status-filter" onchange="applyStatusFilter(this.value)" style="width:95px;">
+                        <option value="" {{ request('status') === null || request('status') === '' ? 'selected' : '' }}>All Status</option>
+                        <option value="DRAFT" {{ request('status') === 'DRAFT' ? 'selected' : '' }}>Draft</option>
+                        <option value="POSTED" {{ request('status') === 'POSTED' ? 'selected' : '' }}>Posted</option>
+                        <option value="PAID" {{ request('status') === 'PAID' ? 'selected' : '' }}>Paid</option>
+                        <option value="PARTIAL" {{ request('status') === 'PARTIAL' ? 'selected' : '' }}>Partial</option>
+                        <option value="VOID" {{ in_array(request('status'), ['VOID', 'CANCELLED']) ? 'selected' : '' }}>Cancelled</option>
                     </select>
                     <select class="input-inline" id="page-size" onchange="applyPageSize(this.value)" style="width:60px;">
                         <option value="15" {{ request('limit', 15) == 15 ? 'selected' : '' }}>15</option>
@@ -369,9 +419,20 @@
                                 </thead>
                                 <tbody id="grid-body">
                                 @forelse($invoices as $invoice)
+                                    @php
+                                        $isApproved = method_exists($invoice, 'isApproved') 
+                                            ? $invoice->isApproved() 
+                                            : (in_array(strtoupper($invoice->status ?? ''), ['POSTED', 'PAID', 'PARTIAL', 'VOID']) || in_array($invoice->verification_status ?? '', ['Verified', 'Cancelled']));
+                                        $isCancelled = method_exists($invoice, 'isCancelled') 
+                                            ? $invoice->isCancelled() 
+                                            : (strtoupper($invoice->status ?? '') === 'VOID' || ($invoice->verification_status ?? '') === 'Cancelled' || !empty($invoice->cancelled_at));
+                                    @endphp
                                     <tr id="inv-row-{{ $invoice->id }}"
                                         data-id="{{ $invoice->id }}"
                                         data-inv-no="{{ $invoice->invoice_no }}"
+                                        data-status="{{ $invoice->status }}"
+                                        data-approved="{{ $isApproved ? '1' : '0' }}"
+                                        data-cancelled="{{ $isCancelled ? '1' : '0' }}"
                                         onclick="rowClick(event, this)"
                                     >
                                         {{-- Checkbox --}}
@@ -393,9 +454,15 @@
                                                 } catch (\Throwable $e) {
                                                     $relatedShipment = null;
                                                 }
+                                                $bookingFileNo = $relatedShipment ? (method_exists($relatedShipment, 'getFileNoAttribute') ? $relatedShipment->file_no : ($relatedShipment->file_no ?? ($relatedShipment->bkg_no ?? null))) : null;
+                                                $shipmentUrl = $invoice->shipment_url;
                                             @endphp
-                                            @if($relatedShipment)
-                                                <a href="#" class="col-link">{{ Str::limit(method_exists($relatedShipment, 'getFileNoAttribute') ? $relatedShipment->file_no : ($relatedShipment->file_no ?? '--'), 12) }}</a>
+                                            @if($bookingFileNo)
+                                                @if($shipmentUrl)
+                                                    <a href="{{ $shipmentUrl }}" class="col-link" title="{{ $bookingFileNo }}">{{ Str::limit($bookingFileNo, 14) }}</a>
+                                                @else
+                                                    <span title="{{ $bookingFileNo }}">{{ Str::limit($bookingFileNo, 14) }}</span>
+                                                @endif
                                             @endif
                                         </td>
                                         {{-- Invoice No. --}}
@@ -415,8 +482,12 @@
                                                     'VOID' => 'badge-void',
                                                     default => 'badge-draft',
                                                 };
+                                                if ($isCancelled) {
+                                                    $statusBadge = 'badge-void';
+                                                }
+                                                $displayStatus = $isCancelled ? 'CANCELLED' : $invoice->status;
                                             @endphp
-                                            <span class="badge-status {{ $statusBadge }}">{{ $invoice->status }}</span>
+                                            <span class="badge-status {{ $statusBadge }}">{{ $displayStatus }}</span>
                                         </td>
                                         <td>{{ $invoice->invoice_date ? $invoice->invoice_date->format('m-d-Y') : '' }}</td>
                                         <td>{{ $invoice->due_date ? $invoice->due_date->format('m-d-Y') : '' }}</td>
@@ -447,7 +518,7 @@
                                         <td>{{ $invoice->updated_at ? $invoice->updated_at->format('m-d-Y') : '' }}</td>
                                         <td>{{ $invoice->mbl_no ?? optional($relatedShipment)->mbl_no ?? optional($relatedShipment)->mawb_no ?? '--' }}</td>
                                         <td>{{ optional($relatedShipment)->hbl_no ?? optional($relatedShipment)->hawb_no ?? '--' }}</td>
-                                        <td style="text-align:center;"><span class="badge-status {{ $statusBadge }}">{{ $invoice->status }}</span></td>
+                                        <td style="text-align:center;"><span class="badge-status {{ $statusBadge }}">{{ $displayStatus }}</span></td>
                                         <td>--</td>
                                         <td></td>
                                     </tr>
@@ -481,22 +552,63 @@
     @push('scripts')
     <script>
     /* ================================================================
-       TOOLBAR — checkbox management
+       TOOLBAR — checkbox management & Document Control
     ================================================================ */
     function updateToolbar() {
         const checked  = [...document.querySelectorAll('.row-check:checked')];
         const all      = [...document.querySelectorAll('.row-check')];
         const n        = checked.length;
         const sa       = document.getElementById('select-all');
-        sa.checked        = n === all.length && all.length > 0;
-        sa.indeterminate  = n > 0 && n < all.length;
+        if (sa) {
+            sa.checked        = n === all.length && all.length > 0;
+            sa.indeterminate  = n > 0 && n < all.length;
+        }
 
-        document.getElementById('btn-delete').disabled  = n === 0;
-        document.getElementById('btn-copy').disabled    = n !== 1;
+        let hasApproved = false;
+        let selectedCancelCandidate = null;
+        checked.forEach(cb => {
+            const row = cb.closest('tr');
+            if (row) {
+                if (row.dataset.approved === '1') {
+                    hasApproved = true;
+                }
+                if (n === 1) {
+                    selectedCancelCandidate = {
+                        id: row.dataset.id,
+                        invNo: row.dataset.invNo,
+                        isApproved: row.dataset.approved === '1',
+                        isCancelled: row.dataset.cancelled === '1',
+                        status: row.dataset.status
+                    };
+                }
+            }
+        });
+
+        const btnDelete = document.getElementById('btn-delete');
+        if (btnDelete) {
+            btnDelete.disabled = (n === 0 || hasApproved);
+            if (hasApproved) {
+                btnDelete.title = 'Document Control: Approved/Posted invoices cannot be deleted. Use Admin Cancel instead.';
+            } else {
+                btnDelete.title = n > 0 ? 'Delete Selected' : 'Delete Selected';
+            }
+        }
+
+        const btnCopy = document.getElementById('btn-copy');
+        if (btnCopy) {
+            btnCopy.disabled = n !== 1;
+        }
+
+        const btnCancel = document.getElementById('btn-cancel-doc');
+        if (btnCancel) {
+            btnCancel.disabled = !(n === 1 && selectedCancelCandidate && !selectedCancelCandidate.isCancelled);
+        }
 
         const badge = document.getElementById('sel-badge');
-        badge.style.display = n > 0 ? 'inline' : 'none';
-        badge.textContent   = n + ' selected';
+        if (badge) {
+            badge.style.display = n > 0 ? 'inline' : 'none';
+            badge.textContent   = n + ' selected';
+        }
 
         document.querySelectorAll('#grid-body tr[data-id]').forEach(row => {
             const cb = row.querySelector('.row-check');
@@ -520,13 +632,18 @@
     }
 
     /* ================================================================
-       DELETE
+       DELETE — Document Control Guard
     ================================================================ */
     function confirmDelete() {
-        const n = document.querySelectorAll('.row-check:checked').length;
-        if (!n) return;
+        const checked = [...document.querySelectorAll('.row-check:checked')];
+        if (!checked.length) return;
+        const hasApproved = checked.some(cb => cb.closest('tr')?.dataset.approved === '1');
+        if (hasApproved) {
+            showToast('error', 'Document Control: Approved invoices cannot be deleted. Administrators must use the Cancel action.');
+            return;
+        }
         document.getElementById('confirm-msg').textContent =
-            `You are about to permanently delete ${n} invoice(s). This cannot be undone.`;
+            `You are about to permanently delete ${checked.length} invoice(s). This cannot be undone.`;
         document.getElementById('confirm-overlay').classList.add('open');
     }
     function closeConfirm() {
@@ -553,6 +670,73 @@
                 showToast('error', data.message || 'Failed to delete');
             }
         }).catch(() => showToast('error', 'Failed to delete'));
+    }
+
+    /* ================================================================
+       ADMIN DOCUMENT CANCELLATION (Mandatory Reason Popup)
+    ================================================================ */
+    function openCancelModal() {
+        const checked = [...document.querySelectorAll('.row-check:checked')];
+        if (checked.length !== 1) {
+            showToast('info', 'Please select exactly one document to cancel.');
+            return;
+        }
+        const row = checked[0].closest('tr');
+        if (!row) return;
+        if (row.dataset.cancelled === '1') {
+            showToast('info', 'This document is already cancelled.');
+            return;
+        }
+        const id = row.dataset.id;
+        const invNo = row.dataset.invNo;
+        const overlay = document.getElementById('cancel-doc-overlay');
+        if (!overlay) return;
+        document.getElementById('cancel-doc-id').value = id;
+        document.getElementById('cancel-doc-title').textContent = '#' + invNo;
+        document.getElementById('cancel-doc-reason').value = '';
+        overlay.classList.add('open');
+        document.getElementById('cancel-doc-reason').focus();
+    }
+
+    function closeCancelModal() {
+        const overlay = document.getElementById('cancel-doc-overlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    async function executeCancelDoc(e) {
+        e.preventDefault();
+        const id = document.getElementById('cancel-doc-id').value;
+        const reason = document.getElementById('cancel-doc-reason').value.trim();
+        if (!reason || reason.length < 5) {
+            showToast('error', 'Please enter a valid cancellation reason (minimum 5 characters).');
+            return;
+        }
+        const submitBtn = document.getElementById('btn-submit-cancel');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...'; }
+
+        try {
+            const resp = await fetch(`/accounting/invoice/${id}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ reason: reason })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                closeCancelModal();
+                showToast('success', data.message || 'Document successfully cancelled.');
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                showToast('error', data.message || 'Failed to cancel document.');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
+            }
+        } catch (err) {
+            showToast('error', 'Failed to cancel document.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-ban"></i> Confirm Cancellation'; }
+        }
     }
 
     /* ================================================================

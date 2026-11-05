@@ -18,6 +18,10 @@ class OceanImportService
                 'containers_count' => isset($data['containers']) ? count($data['containers']) : 0
             ]);
             
+            if (empty($data['op_id']) && auth()->check()) {
+                $data['op_id'] = auth()->id();
+            }
+
             $oceanImport = OceanImport::create($data);
             \Log::info('OceanImport created with ID:', ['id' => $oceanImport->id]);
 

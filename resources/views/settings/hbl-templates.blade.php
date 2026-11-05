@@ -145,7 +145,7 @@
                             <div class="helper-item" @click="insertAtCursor('@{{ $hbl->pre_carriage_by }}')">@{{ $hbl->pre_carriage_by }}</div>
                             <div class="helper-item" @click="insertAtCursor('@{{ $hbl->freight_payable_at }}')">@{{ $hbl->freight_payable_at }}</div>
 
-                            <div class="helper-title" style="margin-top:10px;">Trade Partners</div>
+                            <div class="helper-title" style="margin-top:10px;">Customers</div>
                             <div class="helper-item" @click="insertAtCursor('@{{ $hbl->shipper->name }}')">@{{ $hbl->shipper->name }}</div>
                             <div class="helper-item" @click="insertAtCursor('@{{ $hbl->shipper->address }}')">@{{ $hbl->shipper->address }}</div>
                             <div class="helper-item" @click="insertAtCursor('@{{ $hbl->consignee->name }}')">@{{ $hbl->consignee->name }}</div>

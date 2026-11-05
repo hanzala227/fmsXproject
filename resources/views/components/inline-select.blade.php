@@ -57,7 +57,7 @@
         @endforeach
         
         {{-- Render options dynamically pushed via Alpine (optional support) --}}
-        <template x-for="dynOpt in (window.dynamicOptions['{{ $module }}'] || [])" :key="dynOpt.id">
+        <template x-for="dynOpt in ((window.dynamicOptions && window.dynamicOptions['{{ $module }}']) || [])" :key="dynOpt.id">
             <option :value="dynOpt.id" x-text="dynOpt.name"></option>
         </template>
         

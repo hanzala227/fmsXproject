@@ -64,7 +64,7 @@
                     <thead>
                         <tr>
                             <th style="width: 120px;">Quote No.</th>
-                            <th>Trade Partner / Client</th>
+                            <th>Customer / Client</th>
                             <th>Origin → Destination</th>
                             <th style="width: 120px; text-align: center;">Validity</th>
                             <th style="width: 120px; text-align: right;">Total (USD)</th>
@@ -132,9 +132,9 @@
                     
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
                         <div style="grid-column: span 2;">
-                            <label class="form-label-gf">Trade Partner / Client <span style="color:red;">*</span></label>
+                            <label class="form-label-gf">Customer / Client <span style="color:red;">*</span></label>
                             <select name="trade_partner_id" required class="form-control-gf">
-                                <option value="">Select Partner...</option>
+                                <option value="">Select Customer...</option>
                                 @foreach($tradePartners ?? [] as $tp)
                                     <option value="{{ $tp->id }}">{{ $tp->name }}</option>
                                 @endforeach

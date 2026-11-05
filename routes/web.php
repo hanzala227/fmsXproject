@@ -228,7 +228,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ocean-export/{id}/batch-print-view', [OceanExportController::class, 'batchPrintView'])->name('ocean-export.batch-print-view');
     Route::get('/ocean-export/{id}/mbl-print', [OceanExportController::class, 'batchPrintView'])->name('ocean-export.mbl-print');
     Route::get('/ocean-export/{id}/dev-seg', [OceanExportController::class, 'devSegView'])->name('ocean-export.dev-seg');
-    Route::get('/ocean-export/{id}/hbl-print/{hblIndex}', [OceanExportController::class, 'hblPrint'])->name('ocean-export.hbl-print');
+    Route::get('/ocean-export/{id}/hbl-print/{hblIndex?}', [OceanExportController::class, 'hblPrint'])->name('ocean-export.hbl-print');
 
 
     // Alias for /ocean/export pattern
@@ -244,6 +244,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ocean-export/booking/{id}/edit', [OceanBookingController::class, 'edit'])->name('ocean-bookings.edit');
     Route::put('/ocean-export/booking/{id}', [OceanBookingController::class, 'update'])->name('ocean-bookings.update');
     Route::delete('/ocean-export/booking/{id}', [OceanBookingController::class, 'destroy'])->name('ocean-bookings.destroy');
+    Route::post('/ocean-export/booking/{id}/cancel', [OceanBookingController::class, 'cancel'])->name('ocean-bookings.cancel');
     Route::patch('/ocean-export/booking/{id}/color', [OceanBookingController::class, 'updateColor'])->name('ocean-bookings.color');
     Route::post('/ocean-export/bookings/bulk-delete', [OceanBookingController::class, 'bulkDelete'])->name('ocean-bookings.bulk-delete');
     Route::post('/ocean-export/bookings/bulk-change-sales', [OceanBookingController::class, 'bulkChangeSales'])->name('ocean-bookings.bulk-change-sales');
@@ -446,6 +447,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/air-export/booking/{id}/edit', [AirBookingController::class, 'edit'])->name('air-bookings.edit');
     Route::put('/air-export/booking/{id}', [AirBookingController::class, 'update'])->name('air-bookings.update');
     Route::delete('/air-export/booking/{id}', [AirBookingController::class, 'destroy'])->name('air-bookings.destroy');
+    Route::post('/air-export/booking/{id}/cancel', [AirBookingController::class, 'cancel'])->name('air-bookings.cancel');
     Route::match(['GET','POST','DELETE'], '/air-export/booking/bulk-delete', [AirBookingController::class, 'bulkDelete'])->name('air-bookings.bulk-delete');
     Route::post('/air-export/booking/bulk-change-sales', [AirBookingController::class, 'bulkChangeSales'])->name('air-bookings.bulk-change-sales');
     Route::post('/air-export/booking/bulk-change-op', [AirBookingController::class, 'bulkChangeOp'])->name('air-bookings.bulk-change-op');
@@ -609,6 +611,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/api/users/{id}', [App\Http\Controllers\UserManagementController::class, 'update'])->name('api.users.update');
     Route::delete('/api/users/{id}', [App\Http\Controllers\UserManagementController::class, 'destroy'])->name('api.users.destroy');
     Route::post('/api/users/{id}/reset-password', [App\Http\Controllers\UserManagementController::class, 'resetPassword'])->name('api.users.reset-password');
+    Route::post('/api/users/{id}/module-access', [App\Http\Controllers\UserManagementController::class, 'updateModuleAccess'])->name('api.users.module-access');
 
     // Settings - AWB No. Management
     Route::get('/settings/awb-management', [App\Http\Controllers\AwbManagementController::class, 'index'])->name('settings.awb-management');
@@ -915,6 +918,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/accounting/invoice/{invoice}', [InvoiceController::class, 'update'])->name('accounting.invoices.update');
     Route::post('/accounting/invoice/{invoice}/verify', [InvoiceController::class, 'verify'])->name('accounting.invoices.verify');
     Route::post('/accounting/invoice/{invoice}/reject', [InvoiceController::class, 'reject'])->name('accounting.invoices.reject');
+    Route::post('/accounting/invoice/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('accounting.invoices.cancel');
     Route::delete('/accounting/invoice/{invoice}', [InvoiceController::class, 'destroy'])->name('accounting.invoices.destroy');
     // Accounting — G&A Expense (AP Invoices)
     Route::get('/accounting/ga-expense-list', [GaExpenseController::class, 'index'])->name('accounting.ga-expense.index');
@@ -945,6 +949,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/accounting/payment', [AccountingPaymentController::class, 'store'])->name('accounting.payment.store');
     Route::get('/accounting/payment/{payment}/edit', [AccountingPaymentController::class, 'edit'])->name('accounting.payment.edit');
     Route::put('/accounting/payment/{payment}', [AccountingPaymentController::class, 'update'])->name('accounting.payment.update');
+    Route::post('/accounting/payment/{payment}/cancel', [AccountingPaymentController::class, 'cancel'])->name('accounting.payment.cancel');
+    Route::delete('/accounting/payment/{payment}', [AccountingPaymentController::class, 'destroy'])->name('accounting.payment.destroy');
 
     // Payment Documents
     Route::post('/accounting/payment/{payment}/documents', [AccountingPaymentController::class, 'uploadDocument'])->name('accounting.payment.documents.store');
@@ -957,6 +963,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/accounting/payment/memos/{memo}', [AccountingPaymentController::class, 'deleteMemo'])->name('accounting.payment.memos.destroy');
 
     Route::get('/accounting/{page?}/{subpage?}/{action?}', function ($page = 'report', $subpage = null, $action = null) {
+        if ($page === 'verify-queue' || ($page === 'invoice' && $subpage === 'verify-queue')) return redirect()->route('accounting.invoices.verify-queue');
+        if ($page === 'report' && ($subpage === 'aging' || $subpage === 'aging-report')) return redirect()->route('accounting.report.aging-report');
         if ($page === 'ar-payment-list') return redirect()->route('accounting.payment-received-list');
         if ($page === 'ap-payment-list') return redirect()->route('accounting.payment-made-list');
         if ($page === 'invoice') return redirect()->route('accounting.invoices.index');
@@ -979,7 +987,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         if ($page === 'bank' && $subpage === 'batch-process') return redirect()->route('accounting.bank.batch-process');
         if ($page === 'bank' && $subpage === 'clear-check-by-excel') return redirect()->route('accounting.bank.clear-check-excel');
         if ($page === 'bank' && $subpage === 'check-deposit-report') return redirect()->route('accounting.bank.check-deposit-report');
-        return view('generic.index', ['title' => 'Accounting: ' . ucfirst($page), 'api_endpoint' => '/api/accounting-payments']);
+        return redirect()->route('accounting.invoices.index');
     });
 
     // Reports
@@ -1040,6 +1048,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/quotations', [QuotationController::class, 'index']);
         Route::get('/quotation', [QuotationController::class, 'create']);
         Route::get('/quotation/create', [QuotationController::class, 'create'])->name('sales.quotations.create');
+        Route::get('/quotations/{id}/print', [QuotationController::class, 'print'])->name('sales.quotations.print');
         Route::get('/quotation/{id}/edit', [QuotationController::class, 'edit'])->name('sales.quotations.edit');
         Route::get('/quotation/list', [QuotationController::class, 'index'])->name('sales.quotations.list');
 
@@ -1134,6 +1143,7 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
     Route::get('/', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/reports', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'reports'])->name('dashboard.reports');
     Route::get('/system-status', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'systemStatus'])->name('dashboard.system-status');
+    Route::get('/export-metrics', [\App\Http\Controllers\SuperAdmin\DashboardController::class, 'export'])->name('dashboard.export');
     
     // Company Management
     Route::get('/companies', [SuperAdminCompanyController::class, 'index'])->name('companies.index');
@@ -1147,6 +1157,7 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
     Route::post('/companies/{company}/reset-password', [SuperAdminCompanyController::class, 'resetPassword'])->name('companies.reset-password');
 
     // Users (Accounts & Access)
+    Route::get('/users/export-csv', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'exportCsv'])->name('users.export-csv');
     Route::resource('users', App\Http\Controllers\SuperAdmin\SuperAdminUserController::class);
     Route::patch('/users/{user}/toggle-status', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{user}/reset-password', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'resetPassword'])->name('users.reset-password');
@@ -1164,6 +1175,7 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
 
     // Bugs & Issues
     Route::get('/bugs', [\App\Http\Controllers\SuperAdmin\BugController::class, 'index'])->name('bugs.index');
+    Route::get('/bugs/export-csv', [\App\Http\Controllers\SuperAdmin\BugController::class, 'exportCsv'])->name('bugs.export-csv');
     Route::get('/bugs/{ticket}', [\App\Http\Controllers\SuperAdmin\BugController::class, 'show'])->name('bugs.show');
     Route::patch('/bugs/{ticket}/status', [\App\Http\Controllers\SuperAdmin\BugController::class, 'updateStatus'])->name('bugs.update-status');
     Route::post('/bugs/{ticket}/message', [\App\Http\Controllers\SuperAdmin\BugController::class, 'message'])->name('bugs.message');
@@ -1212,6 +1224,14 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
         Route::post('/test', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'testConnection'])->name('test');
         Route::delete('/clear-logs', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'clearLogs'])->name('clear-logs');
     });
+
+    // SaaS Billing & Subscriptions
+    Route::get('/billing', [\App\Http\Controllers\SuperAdmin\BillingController::class, 'index'])->name('billing.index');
+    Route::patch('/billing/{company}/update-subscription', [\App\Http\Controllers\SuperAdmin\BillingController::class, 'updateSubscription'])->name('billing.update-subscription');
+
+    // System Settings & Security Compliance
+    Route::get('/settings', [\App\Http\Controllers\SuperAdmin\SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [\App\Http\Controllers\SuperAdmin\SettingsController::class, 'update'])->name('settings.update');
 });
 
 // ============================================
@@ -1221,6 +1241,8 @@ Route::middleware(['auth', 'verified', 'check-status', 'customer-access'])->pref
     Route::get('/dashboard', [\App\Http\Controllers\CustomerPortal\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/shipments', [\App\Http\Controllers\CustomerPortal\ShipmentTrackingController::class, 'index'])->name('shipments.index');
     Route::get('/shipments/{id}', [\App\Http\Controllers\CustomerPortal\ShipmentTrackingController::class, 'show'])->name('shipments.show');
+    Route::get('/invoices', fn() => redirect()->route('cp.invoices.index'))->name('invoices.redirect');
+    Route::get('/invoices/{id}', fn($id) => redirect()->route('cp.invoices.show', $id))->name('invoices.show.redirect');
 });
 
 require __DIR__.'/auth.php';

@@ -19,8 +19,8 @@
                             'label' => 'Dashboard', 'icon' => 'fa-dashboard', 'route' => 'super-admin.dashboard', 'match' => 'super-admin',
                             'sub' => [
                                 ['label' => 'Overview', 'route' => 'super-admin.dashboard'],
-                                ['label' => 'Reports', 'route' => '#'],
-                                ['label' => 'System Status', 'route' => '#'],
+                                ['label' => 'Reports', 'route' => 'super-admin.dashboard.reports'],
+                                ['label' => 'System Status', 'route' => 'super-admin.dashboard.system-status'],
                             ]
                         ],
                         [
@@ -34,9 +34,6 @@
                             'label' => 'Accounts & Access', 'icon' => 'fa-users', 'route' => 'super-admin.users.index', 'match' => 'super-admin/users',
                             'sub' => [
                                 ['label' => 'All Users', 'route' => 'super-admin.users.index', 'params' => []],
-                                ['label' => 'Support Team', 'route' => 'super-admin.users.index', 'params' => ['role' => 'Support Team']],
-                                ['label' => 'Developers', 'route' => 'super-admin.users.index', 'params' => ['role' => 'Developers']],
-                                ['label' => 'Administrators', 'route' => 'super-admin.users.index', 'params' => ['role' => 'Administrators']],
                             ]
                         ],
                     ],
@@ -47,21 +44,20 @@
                                 ['label' => 'Roles', 'route' => 'super-admin.roles.index'],
                                 ['label' => 'Permissions', 'route' => 'super-admin.permissions.index'],
                                 ['label' => 'Role Permissions', 'route' => 'super-admin.role-permissions.index'],
-                                ['label' => 'Company Permissions', 'route' => '#'],
                             ]
                         ],
                         [
-                            'label' => 'Bugs & Issues', 'icon' => 'fa-bug', 'route' => '#', 'match' => 'super-admin/bugs',
+                            'label' => 'Bugs & Issues', 'icon' => 'fa-bug', 'route' => 'super-admin.bugs.index', 'match' => 'super-admin/bugs',
                             'sub' => [
-                                ['label' => 'All Bugs & Issues', 'route' => 'super-admin.bugs.index'],
+                                ['label' => 'Issue Triage Console', 'route' => 'super-admin.bugs.index'],
                             ]
                         ],
                         [
                             'label' => 'Support Center', 'icon' => 'fa-life-ring', 'route' => 'super-admin.support-center.index', 'match' => 'super-admin/support-center',
                             'sub' => [
                                 ['label' => 'All Tickets', 'route' => 'super-admin.support-center.index'],
-                                ['label' => 'New Ticket', 'route' => 'super-admin.support-center.create'],
-                                ['label' => 'My Tickets', 'route' => 'super-admin.support-center.my-tickets'],
+                                ['label' => 'Log New Ticket', 'route' => 'super-admin.support-center.create'],
+                                ['label' => 'My Assigned Tickets', 'route' => 'super-admin.support-center.my-tickets'],
                                 ['label' => 'SLA Management', 'route' => 'super-admin.support-center.sla-management'],
                                 ['label' => 'Knowledge Base', 'route' => 'super-admin.support-center.knowledge-base'],
                             ]
@@ -78,64 +74,38 @@
                             ]
                         ],
                         [
-                            'label' => 'Integrations', 'icon' => 'fa-plug', 'route' => '#', 'match' => 'super-admin/integrations',
+                            'label' => 'Integrations', 'icon' => 'fa-plug', 'route' => 'super-admin.carrier-tracking.index', 'match' => 'super-admin/carrier-tracking',
                             'sub' => [
-                                ['label' => 'All Integrations', 'route' => '#'],
-                                ['label' => 'API Integrations', 'route' => '#'],
-                                ['label' => 'Carrier Tracking APIs', 'route' => 'super-admin.carrier-tracking.index'],
-                                ['label' => 'Integration Logs', 'route' => '#'],
-                                ['label' => 'API Keys', 'route' => '#'],
+                                ['label' => 'Carrier Tracking (DCSA)', 'route' => 'super-admin.carrier-tracking.index'],
                                 ['label' => 'AI Engine Settings', 'route' => 'super-admin.ai-settings.index'],
-                            ]
-                        ],
-                        [
-                            'label' => 'Releases & Updates', 'icon' => 'fa-rocket', 'route' => '#', 'match' => 'super-admin/releases',
-                            'sub' => [
-                                ['label' => 'Release Dashboard', 'route' => '#'],
-                                ['label' => 'All Releases', 'route' => '#'],
-                                ['label' => 'Release Notes', 'route' => '#'],
-                                ['label' => 'Deployment Logs', 'route' => '#'],
                             ]
                         ],
                     ],
                     'System' => [
                         [
-                            'label' => 'System Health', 'icon' => 'fa-heartbeat', 'route' => '#', 'match' => 'super-admin/health',
+                            'label' => 'Billing & Plans', 'icon' => 'fa-credit-card', 'route' => 'super-admin.billing.index', 'match' => 'super-admin/billing',
                             'sub' => [
-                                ['label' => 'System Overview', 'route' => '#'],
-                                ['label' => 'Servers', 'route' => '#'],
-                                ['label' => 'Database / Queue', 'route' => '#'],
-                                ['label' => 'Backup', 'route' => '#'],
+                                ['label' => 'Tenant Subscriptions', 'route' => 'super-admin.billing.index'],
+                                ['label' => 'Commercial Packages', 'route' => 'super-admin.modules.packages'],
+                            ]
+                        ],
+                        [
+                            'label' => 'System Health', 'icon' => 'fa-heartbeat', 'route' => 'super-admin.dashboard.system-status', 'match' => 'super-admin/system-status',
+                            'sub' => [
+                                ['label' => 'Infrastructure Status', 'route' => 'super-admin.dashboard.system-status'],
+                                ['label' => 'System Reports', 'route' => 'super-admin.dashboard.reports'],
                             ]
                         ],
                         [
                             'label' => 'Audit Log', 'icon' => 'fa-history', 'route' => 'super-admin.audit-log', 'match' => 'super-admin/audit-log',
                             'sub' => [
-                                ['label' => 'All Activity', 'route' => 'super-admin.audit-log'],
-                                ['label' => 'User Activity', 'route' => '#'],
-                                ['label' => 'Company Activity', 'route' => '#'],
-                                ['label' => 'System Events', 'route' => '#'],
+                                ['label' => 'Security Audit Trail', 'route' => 'super-admin.audit-log'],
                             ]
                         ],
                         [
-                            'label' => 'Billing', 'icon' => 'fa-credit-card', 'route' => '#', 'match' => 'super-admin/billing',
+                            'label' => 'Settings', 'icon' => 'fa-cog', 'route' => 'super-admin.settings.index', 'match' => 'super-admin/settings',
                             'sub' => [
-                                ['label' => 'Plans', 'route' => '#'],
-                                ['label' => 'Subscriptions', 'route' => '#'],
-                                ['label' => 'Invoices', 'route' => '#'],
-                                ['label' => 'Payments', 'route' => '#'],
-                                ['label' => 'Usage & Limits', 'route' => '#'],
-                            ]
-                        ],
-                        [
-                            'label' => 'Settings', 'icon' => 'fa-cog', 'route' => '#', 'match' => 'super-admin/settings',
-                            'sub' => [
-                                ['label' => 'General Settings', 'route' => '#'],
-                                ['label' => 'Security Settings', 'route' => '#'],
-                                ['label' => 'Email / Notification', 'route' => '#'],
-                                ['label' => 'Notification Rules', 'route' => '#'],
-                                ['label' => 'System Config', 'route' => '#'],
-                                ['label' => 'Backup Settings', 'route' => '#'],
+                                ['label' => 'Platform & Security', 'route' => 'super-admin.settings.index'],
                             ]
                         ],
                     ]

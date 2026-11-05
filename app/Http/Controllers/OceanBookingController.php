@@ -13,6 +13,8 @@ use App\Models\Quotation;
 use App\Models\ContainerType;
 use App\Models\Incoterm;
 use App\Models\OceanExport;
+use App\Models\ActivityLog;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class OceanBookingController extends Controller
@@ -120,7 +122,7 @@ class OceanBookingController extends Controller
         $customers = TradePartner::whereIn('type', ['CS', 'CLIENT'])->get();
         $truckers = TradePartner::whereIn('type', ['TR', 'TRUCKER'])->get();
         $vessels = Vessel::all();
-        $ports = Port::all()->latest()->take(10)->get();
+        $ports = Port::latest()->take(10)->get();
         $users = User::all();
         $serviceTerms = ServiceTerm::all();
         $containerTypes = ContainerType::all();
@@ -295,9 +297,79 @@ class OceanBookingController extends Controller
     public function destroy($id)
     {
         $booking = OceanBooking::findOrFail($id);
+
+        if (in_array(strtoupper($booking->status), ['CONFIRMED', 'COMPLETED', 'CANCELLED'])) {
+            $msg = "Prohibited: Confirmed or approved bookings cannot be deleted. Only an administrator may cancel a booking with a valid reason.";
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->route('ocean-bookings.index')->with('error', $msg);
+        }
+
         $booking->delete();
         return redirect()->route('ocean-bookings.index')
-            ->with('success', 'Ocean Export Booking deleted successfully.');
+            ->with('success', 'Open booking deleted successfully.');
+    }
+
+    /**
+     * Admin-only: Cancel an approved or confirmed ocean booking with mandatory reason.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Only an Administrator may cancel confirmed bookings.'
+            ], 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|min:5|max:1000',
+        ], [
+            'reason.required' => 'A valid cancellation reason is mandatory.',
+            'reason.min' => 'Cancellation reason must be at least 5 characters.',
+        ]);
+
+        $booking = OceanBooking::findOrFail($id);
+
+        if ($booking->status === 'CANCELLED') {
+            return response()->json(['success' => false, 'message' => 'This booking is already cancelled.'], 422);
+        }
+
+        DB::transaction(function () use ($booking, $request, $user) {
+            $oldValues = $booking->only(['status']);
+
+            $booking->update([
+                'status' => 'CANCELLED',
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason'),
+            ]);
+
+            ActivityLog::create([
+                'company_id' => $booking->company_id,
+                'user_id' => $user->id,
+                'action' => 'booking_cancelled',
+                'description' => "Ocean Booking {$booking->booking_no} cancelled by Administrator. Reason: " . $request->input('reason'),
+                'model_type' => OceanBooking::class,
+                'model_id' => $booking->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'old_values' => $oldValues,
+                'new_values' => $booking->fresh()->only(['status', 'cancellation_reason', 'cancelled_at', 'cancelled_by']),
+            ]);
+        });
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Ocean Booking {$booking->booking_no} cancelled successfully.",
+                'booking' => $booking->fresh(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Ocean Booking {$booking->booking_no} cancelled successfully.");
     }
 
     public function updateColor(Request $request, $id)
@@ -311,8 +383,20 @@ class OceanBookingController extends Controller
     public function bulkDelete(Request $request)
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'exists:ocean_bookings,id']);
+
+        $blockedCount = OceanBooking::whereIn('id', $request->ids)
+            ->whereIn('status', ['CONFIRMED', 'COMPLETED', 'CANCELLED'])
+            ->count();
+
+        if ($blockedCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "Prohibited: {$blockedCount} of the selected booking(s) are confirmed/approved and cannot be deleted. Only an administrator may cancel them."
+            ], 403);
+        }
+
         OceanBooking::whereIn('id', $request->ids)->delete();
-        return response()->json(['success' => true, 'message' => count($request->ids) . ' booking(s) deleted.']);
+        return response()->json(['success' => true, 'message' => count($request->ids) . ' open booking(s) deleted.']);
     }
 
     public function bulkChangeSales(Request $request)

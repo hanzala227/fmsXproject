@@ -121,4 +121,22 @@ class OceanImport extends Model
     // Tracking relations
     public function trackings() { return $this->morphMany(ShipmentTracking::class, 'trackable'); }
     public function latestTracking() { return $this->morphOne(ShipmentTracking::class, 'trackable')->latestOfMany(); }
+
+    /**
+     * Compute workflow milestone status for shipment
+     */
+    public function getStatusAttribute()
+    {
+        if ($this->is_blocked) return 'Blocked';
+        if ($this->is_hold) return 'Hold';
+        if ($this->is_released || $this->released_date) return 'Released';
+        if ($this->door_delivery_date) return 'Delivered';
+        if ($this->is_do_sent || $this->do_sent_date) return 'D.O. Sent';
+        if ($this->ata || ($this->eta && \Carbon\Carbon::parse($this->eta)->isPast())) return 'Arrived';
+        if ($this->atd || ($this->etd && \Carbon\Carbon::parse($this->etd)->isPast())) return 'In Transit';
+        if ($this->isf_no || $this->isf_matched_date) return 'ISF Matched';
+        if ($this->is_obl_received || $this->obl_received_date) return 'OBL Received';
+        if ($this->hbls()->count() > 0) return 'HBL Created';
+        return 'Booking Created';
+    }
 }

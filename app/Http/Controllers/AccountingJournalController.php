@@ -119,6 +119,14 @@ class AccountingJournalController extends Controller
     public function destroy($id)
     {
         $journal = AccountingJournal::findOrFail($id);
+        $status = strtoupper($journal->status ?? 'POSTED');
+        if (in_array($status, ['POSTED', 'APPROVED'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Document Control: Posted or approved journal entries cannot be deleted. Reversal or cancellation is required.'
+            ], 403);
+        }
+
         $journal->lines()->delete();
         $journal->delete();
 

@@ -150,12 +150,12 @@
                         </div>
                     </div>
 
-                    {{-- Trade Partner --}}
+                    {{-- Customer --}}
                     <div class="form-group-gf">
-                        <label class="form-label-gf">Trade Partner</label>
+                        <label class="form-label-gf">Customer</label>
                         <div class="form-input-container">
                             <div style="position:relative; width:320px;" @click.outside="partnerDropdown=false">
-                                <input type="text" class="form-control-gf" x-model="partnerSearch" @input.debounce.300ms="searchPartners()" @focus="partnerDropdown=true; if(!partnerSearch) filteredPartners=partners.slice(0,20);" placeholder="Type to search trade partner...">
+                                <input type="text" class="form-control-gf" x-model="partnerSearch" @input.debounce.300ms="searchPartners()" @focus="partnerDropdown=true; if(!partnerSearch) filteredPartners=partners.slice(0,20);" placeholder="Type to search customer...">
                                 <div style="position:absolute; right:4px; top:50%; transform:translateY(-50%); display:flex; gap:3px; z-index:2;">
                                     <i class="fa fa-times" style="cursor:pointer; font-size:9px; color:#94a3b8;" @click="clearPartner(); partnerDropdown=false;"></i>
                                     <i class="fa fa-angle-down" style="cursor:pointer; font-size:9px; color:#94a3b8;" @click="partnerDropdown=!partnerDropdown; if(!partnerSearch) filteredPartners=partners.slice(0,20);"></i>

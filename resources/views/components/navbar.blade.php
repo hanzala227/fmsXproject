@@ -39,7 +39,7 @@
                 loading: false,
                 selectedIndex: 0,
                 debounceTimer: null,
-                modules: ['All', 'Ocean Export', 'Ocean Import', 'Air Export', 'Air Import', 'Trucking', 'Warehouse', 'Accounting', 'Sales', 'Trade Partners', 'Settings'],
+                modules: ['All', 'Ocean Export', 'Ocean Import', 'Air Export', 'Air Import', 'Trucking', 'Warehouse', 'Accounting', 'Sales', 'Customers', 'Settings'],
                 pages: [
                     { name: 'Dashboard', category: 'General', icon: 'fa-dashboard', url: '/dashboard', keywords: 'dashboard home main stats profit analytics' },
                     { name: 'Action Center', category: 'General', icon: 'fa-tasks', url: '/action-center', keywords: 'action center tasks actions pending' },

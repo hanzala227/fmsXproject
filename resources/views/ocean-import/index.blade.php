@@ -40,6 +40,7 @@
         function oceanImportModule() {
             return {
                 saved: @json(isset($oceanImport) ? true : false),
+                containerTypesMap: @json(isset($containerTypes) ? $containerTypes->pluck('code', 'id') : []),
                 showAiModal: false,
                 isAiProcessing: false,
                 aiPreviewMode: false,
@@ -457,7 +458,7 @@
                     this.batchEmailHbls[hblIndex].contacts.splice(emailIndex, 1);
                 },
                 refreshContacts() {
-                    showToast('info', 'Refreshing contact emails from trade partners...');
+                    showToast('info', 'Refreshing contact emails from customers...');
                     setTimeout(() => {
                         this.batchEmailHbls.forEach((h, i) => {
                             h.contacts = ['michael36@gardner-spears.com', 'amy88@hotmail.com', 'clarkalan@yahoo.com'];
@@ -1539,6 +1540,38 @@
                         }
                     });
                     
+                    this.containerValidationErrors = [];
+                    this.form.containers.forEach((container, idx) => {
+                        if (container.container_no && container.container_no.trim()) {
+                            const cNo = container.container_no.trim();
+                            if (window.iso6346Validator) {
+                                const vRes = window.iso6346Validator.validate(cNo);
+                                if (vRes.status === 'invalid' || vRes.status === 'mismatch') {
+                                    const desc = "Container #" + (idx + 1) + " (" + cNo + "): " + (vRes.reason || "Invalid ISO 6346 format");
+                                    this.containerValidationErrors.push(desc);
+                                }
+                            }
+                        }
+                    });
+
+                    (this.hbls || []).forEach((hbl, hIdx) => {
+                        (hbl.containers || []).forEach((hc, cIdx) => {
+                            const val = hc.container_no === 'MANUAL' ? hc.manual_container_no : (hc.is_manual ? hc.container_no : '');
+                            if (val && val.trim() && window.iso6346Validator) {
+                                const vRes = window.iso6346Validator.validate(val.trim());
+                                if (vRes.status === 'invalid' || vRes.status === 'mismatch') {
+                                    this.containerValidationErrors.push("HB/L #" + (hIdx + 1) + " Container (" + val + "): " + (vRes.reason || "Invalid ISO 6346 format"));
+                                }
+                            }
+                        });
+                    });
+
+                    if (this.containerValidationErrors.length > 0) {
+                        this.containerValidationErrors.forEach(err => showToast('error', err));
+                        // Alert is displayed prominently at the top; no scrolling down required
+                        return false;
+                    }
+
                     if (errors.length > 0) {
                         showToast('error', 'Please fix: ' + errors.join(', '));
                         return false;
@@ -1705,16 +1738,30 @@
                     return this.form.containers.reduce((sum, c) => sum + (parseFloat(c[field]) || 0), 0);
                 },
                 copyContainersFromMbl(hbl) {
-                    hbl.containers = this.form.containers.map(c => ({
-                        container_no: c.container_no,
-                        pkg_qty: c.pkg_qty || '',
-                        pkg_unit: 'CARTON(S)',
-                        weight_kg: c.weight_kg || '',
-                        weight_unit: 'KG',
-                        measure_cbm: c.measure_cbm || '',
-                        measure_unit: 'CBM',
-                        po_no: ''
+                    if (!this.form.containers || !this.form.containers.length) {
+                        if (typeof showToast === 'function') showToast('warning', 'No MB/L containers available to copy.');
+                        return;
+                    }
+                    const isMultiHbl = (this.hbls || []).length > 1;
+                    hbl.containers = (this.form.containers || []).map(c => ({
+                        container_no: c.container_no || '',
+                        manual_container_no: '',
+                        is_manual: false,
+                        pkg_qty: isMultiHbl ? '' : (c.pkg_qty || ''),
+                        pkg_unit: c.pkg_unit || 'CARTON(S)',
+                        weight_kg: isMultiHbl ? '' : (c.weight_kg || ''),
+                        weight_unit: c.weight_unit || 'KG',
+                        measure_cbm: isMultiHbl ? '' : (c.measure_cbm || ''),
+                        measure_unit: c.measure_unit || 'CBM',
+                        po_no: c.po_no || ''
                     }));
+                    if (typeof showToast === 'function') {
+                        if (isMultiHbl) {
+                            showToast('info', 'Consolidation mode: Copied ' + hbl.containers.length + ' container(s). Please enter cargo weights/pkgs for this specific HB/L.');
+                        } else {
+                            showToast('success', hbl.containers.length + ' container(s) and full cargo totals copied from MB/L.');
+                        }
+                    }
                 },
                 createApFromContainers() {
                     if (!this.form.containers.length) { showToast('error', 'No containers to create A/P from.'); return; }
@@ -1739,11 +1786,16 @@
                     const containerMap = {};
                     let unassignedPkg = 0, unassignedWgt = 0, unassignedVol = 0;
 
-                    this.hbls.forEach(h         => {
+                    this.hbls.forEach(h => {
                         (h.containers || []).forEach(c => {
-                            const pkg = parseFloat(c.pkg_qty) || 0;
-                            const wgt = parseFloat(c.weight_kg) || 0;
-                            const vol = parseFloat(c.measure_cbm) || 0;
+                            let pkg = parseFloat(c.pkg_qty) || 0;
+                            let wgt = parseFloat(c.weight_kg) || 0;
+                            // Freight standard unit normalization to KG
+                            if (c.weight_unit === 'LBS') wgt = wgt * 0.45359237;
+                            let vol = parseFloat(c.measure_cbm) || 0;
+                            // Freight standard unit normalization to CBM
+                            if (c.measure_unit === 'CFT') vol = vol * 0.0283168;
+
                             const cNo = (c.container_no && c.container_no !== 'MANUAL') ? c.container_no : (c.manual_container_no || '');
 
                             if (cNo) {
@@ -1770,9 +1822,9 @@
 
                     this.form.containers.forEach(mblC => {
                         if (mblC.container_no && containerMap[mblC.container_no]) {
-                            mblC.pkg_qty = containerMap[mblC.container_no].pkg;
-                            mblC.weight_kg = containerMap[mblC.container_no].wgt;
-                            mblC.measure_cbm = containerMap[mblC.container_no].vol;
+                            mblC.pkg_qty = Math.round(containerMap[mblC.container_no].pkg);
+                            mblC.weight_kg = parseFloat(containerMap[mblC.container_no].wgt.toFixed(2));
+                            mblC.measure_cbm = parseFloat(containerMap[mblC.container_no].vol.toFixed(3));
                             delete containerMap[mblC.container_no];
                         }
                     });
@@ -1786,30 +1838,50 @@
                             seal_no: '',
                             lfd: '',
                             fdd: '',
-                            pkg_qty: containerMap[cNo].pkg,
-                            weight_kg: containerMap[cNo].wgt,
-                            measure_cbm: containerMap[cNo].vol,
+                            pkg_qty: Math.round(containerMap[cNo].pkg),
+                            weight_kg: parseFloat(containerMap[cNo].wgt.toFixed(2)),
+                            measure_cbm: parseFloat(containerMap[cNo].vol.toFixed(3)),
                             expanded: false
                         });
                     });
 
                     if ((unassignedPkg > 0 || unassignedWgt > 0 || unassignedVol > 0) && this.form.containers.length === 1) {
-                        this.form.containers[0].pkg_qty = (parseFloat(this.form.containers[0].pkg_qty) || 0) + unassignedPkg;
-                        this.form.containers[0].weight_kg = (parseFloat(this.form.containers[0].weight_kg) || 0) + unassignedWgt;
-                        this.form.containers[0].measure_cbm = (parseFloat(this.form.containers[0].measure_cbm) || 0) + unassignedVol;
+                        this.form.containers[0].pkg_qty = Math.round((parseFloat(this.form.containers[0].pkg_qty) || 0) + unassignedPkg);
+                        this.form.containers[0].weight_kg = parseFloat(((parseFloat(this.form.containers[0].weight_kg) || 0) + unassignedWgt).toFixed(2));
+                        this.form.containers[0].measure_cbm = parseFloat(((parseFloat(this.form.containers[0].measure_cbm) || 0) + unassignedVol).toFixed(3));
                     }
 
                     if (typeof showToast === 'function') {
-                        showToast('success', 'Data copied from all HBLs successfully. MBL Container totals updated.');
+                        showToast('success', 'HB/L totals consolidated with ISO unit conversion into MB/L.');
                     }
                 },
                 copyDescriptionFromAllHbl() {
-                    const descs = (this.hbls || []).map(h => h.hbl_description || h.hbl_no || '').filter(Boolean);
-                    if (descs.length) {
-                        this.form.description = descs.join('; ');
-                        showToast('success', 'Descriptions copied from all HBLs.');
+                    const lines = [];
+                    (this.hbls || []).forEach((h, idx) => {
+                        const hblNum = h.hbl_no ? 'HB/L #' + h.hbl_no : 'HB/L ' + (idx + 1);
+                        const parts = [];
+                        if (h.hbl_description && h.hbl_description.trim()) {
+                            parts.push(h.hbl_description.trim());
+                        }
+                        if (h.commodities && h.commodities.length) {
+                            h.commodities.forEach(comm => {
+                                if (comm.commodity_desc && comm.commodity_desc.trim()) {
+                                    let cd = comm.commodity_desc.trim();
+                                    if (comm.hts_code) cd += ' (HTS: ' + comm.hts_code + ')';
+                                    if (!parts.includes(cd)) parts.push(cd);
+                                }
+                            });
+                        }
+                        if (parts.length) {
+                            lines.push(hblNum + ': ' + parts.join(', '));
+                        }
+                    });
+
+                    if (lines.length) {
+                        this.form.description = lines.join('\n');
+                        if (typeof showToast === 'function') showToast('success', 'Manifest description compiled from all HB/Ls.');
                     } else {
-                        showToast('info', 'No HBL descriptions found.');
+                        if (typeof showToast === 'function') showToast('info', 'No HB/L descriptions or commodities found.');
                     }
                 },
                 getPoList(poStr) {
@@ -1818,6 +1890,34 @@
                 },
                 calculateHblTotal(hbl, field) {
                     return (hbl.containers || []).reduce((sum, c) => sum + (parseFloat(c[field]) || 0), 0).toFixed(2);
+                },
+                addHblContainer(hbl, isManual = false) {
+                    if (!hbl.containers) hbl.containers = [];
+                    hbl.containers.push({
+                        container_no: '',
+                        manual_container_no: '',
+                        is_manual: isManual,
+                        pkg_qty: '',
+                        pkg_unit: 'CARTON(S)',
+                        weight_kg: '',
+                        weight_unit: 'KG',
+                        measure_cbm: '',
+                        measure_unit: 'CBM',
+                        po_no: ''
+                    });
+                },
+                getContainerDetails(containerNo) {
+                    if (!containerNo || !this.form.containers) return '';
+                    const mblC = this.form.containers.find(c => c.container_no === containerNo);
+                    if (!mblC) return '';
+                    const parts = [];
+                    const typeName = mblC.type_name || mblC.container_type || (this.containerTypesMap && mblC.container_type_id ? this.containerTypesMap[mblC.container_type_id] : '');
+                    if (typeName) parts.push(typeName);
+                    if (mblC.seal_no) parts.push('Seal: ' + mblC.seal_no);
+                    if (mblC.pkg_qty) parts.push(mblC.pkg_qty + ' ' + (mblC.pkg_unit || 'PKGS'));
+                    if (mblC.weight_kg) parts.push(mblC.weight_kg + ' ' + (mblC.weight_unit || 'KG'));
+                    if (mblC.measure_cbm) parts.push(mblC.measure_cbm + ' ' + (mblC.measure_unit || 'CBM'));
+                    return parts.join(' | ');
                 },
                 addHblCommodity(hbl) {
                     hbl.commodities.push({
@@ -2887,12 +2987,20 @@
                     <i class="fa fa-bolt"></i> Frexo AI
                 </button>
                 <template x-if="!saved">
-                    <button type="button" class="btn-freightx" @click="saveMainTab" :disabled="isSaving" style="background:#f59e0b;">
+                    <button type="button" @click="saveMainTab" :disabled="isSaving"
+                            style="background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 14px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                            onmouseover="this.style.background='rgba(16, 185, 129, 0.22)'"
+                            onmouseout="this.style.background='rgba(16, 185, 129, 0.12)'">
                         <i class="fa" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-                        <span x-text="isSaving ? 'SAVING...' : 'SAVE MAIN'"></span>
+                        <span x-text="isSaving ? 'SAVING...' : 'SAVE SHIPMENT'"></span>
                     </button>
                 </template>
-                <button type="button" class="btn-freightx" x-show="saved" @click="if(validateForm()) $el.closest('form').submit()"><i class="fa fa-save"></i> SAVE SHIPMENT</button>
+                <button type="button" x-show="saved" @click="if(validateForm()) $el.closest('form').submit()"
+                        style="background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 14px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
+                        onmouseover="this.style.background='rgba(16, 185, 129, 0.22)'"
+                        onmouseout="this.style.background='rgba(16, 185, 129, 0.12)'">
+                    <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+                </button>
                 <a href="{{ route('ocean-import.index') }}" class="btn-default-gf">BACK TO LIST</a>
             </div>
         </div>
@@ -3152,33 +3260,32 @@
             </div>
 
             <!-- Charges Table -->
-            <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px;">
-                <table class="table-custom" style="font-size: 11px; min-width: 1200px;">
+            <div class="table-responsive charges-table-container" style="margin-bottom: 15px; min-height: 250px; overflow-x: auto;">
+                <table class="table-custom" style="font-size: 10px; width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: #f1f3f6;">
-                            <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                <input type="checkbox" @change="toggleAllCharges($event)" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
+                            <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <input type="checkbox" @change="toggleAllCharges()" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6;" title="Select All">
                             </th>
-                            <th style="padding: 6px 8px;">Party</th>
-                            <th style="padding: 6px 8px;">Party Name</th>
-                            <th style="padding: 6px 8px;">SAL</th>
-                            <th style="padding: 6px 8px;">P/R</th>
-                            <th style="padding: 6px 8px;">PP/C</th>
-                            <th style="padding: 6px 8px;">Chrg</th>
-                            <th style="padding: 6px 8px;">Curr.</th>
-                            <th style="padding: 6px 8px;">Rate</th>
-                            <th style="padding: 6px 8px;">Qty</th>
-                            <th style="padding: 6px 8px;">Q.Type</th>
-                            <th style="padding: 6px 8px;">F.Amnt</th>
-                            <th style="padding: 6px 8px;">ROE</th>
-                            <th style="padding: 6px 8px;">VAT</th>
-                            <th style="padding: 6px 8px;">L.Amnt</th>
-                            <th style="padding: 6px 8px;">Inv/Dr/Cr/No</th>
-                            <th style="padding: 6px 8px;">Fin. Dt</th>
-                            <th style="padding: 6px 8px;">MBL#</th>
-                            <th style="padding: 6px 8px;">Remark</th>
-                            <th style="padding: 6px 8px; width: 30px; text-align: center;">
-                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 6px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
+                            <th style="padding: 4px 3px;">Party</th>
+                            <th style="padding: 4px 3px;">Party Name</th>
+                            <th style="padding: 4px 3px;">SAL</th>
+                            <th style="padding: 4px 3px;">P/R</th>
+                            <th style="padding: 4px 3px;">PP/C</th>
+                            <th style="padding: 4px 3px;">Chrg</th>
+                            <th style="padding: 4px 3px;">Curr.</th>
+                            <th style="padding: 4px 3px;">Rate</th>
+                            <th style="padding: 4px 3px;">Qty</th>
+                            <th style="padding: 4px 3px;">Q.Type</th>
+                            <th style="padding: 4px 3px;">F.Amnt</th>
+                            <th style="padding: 4px 3px;">ROE</th>
+                            <th style="padding: 4px 3px;">VAT</th>
+                            <th style="padding: 4px 3px;">L.Amnt</th>
+                            <th style="padding: 4px 3px;">Inv/Dr/Cr/No</th>
+                            <th style="padding: 4px 3px;">Fin. Dt</th>
+                            <th style="padding: 4px 3px;">Remark</th>
+                            <th style="padding: 4px 3px; width: 22px; text-align: center;">
+                                <button type="button" @click="addNewCharge" class="btn-tool-icon-blue" style="border:none; padding: 2px 4px; border-radius: 2px; cursor: pointer; display: inline-block;" title="Add Row">
                                     <i class="fa fa-plus"></i>
                                 </button>
                             </th>
@@ -3187,12 +3294,12 @@
                     <tbody>
                         <template x-for="(charge, idx) in chargesList" :key="idx">
                             <tr x-show="shouldShowChargeRow(charge)" :class="{ 'bg-blue-50': charge._selected }">
-                                <td style="padding: 5px 8px; text-align: center;">
-                                    <input type="checkbox" x-model="charge._selected" style="width: 14px; height: 14px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
+                                <td style="padding: 3px 2px; text-align: center;">
+                                    <input type="checkbox" x-model="charge._selected" style="width: 13px; height: 13px; cursor: pointer; accent-color: #3b82f6; display: block; margin: 0 auto;" title="Select for Invoicing">
                                     <input type="hidden" :name="'charges[' + idx + '][id]'" :value="charge.id">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 80px; font-size: 10px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 62px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.party" :name="'charges[' + idx + '][party]'">
                                         <option value="Freight">Freight</option>
                                         <option value="THC">THC</option>
                                         <option value="Handling">Handling</option>
@@ -3200,7 +3307,7 @@
                                         <option value="Customs">Customs</option>
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
+                                <td style="padding: 3px 2px;">
                                     <div x-data="{ 
                                         open: false, 
                                         search: charge.party_name || '',
@@ -3212,8 +3319,7 @@
                                         }
                                     }" @click.away="open = false" style="position: relative;">
                                         <div style="position: relative;">
-                                            <input type="text" class="form-control-gf" style="width: 120px; font-size: 10px; padding-right: 20px;" 
-                                                x-model="search" 
+                                            <input type="text" class="form-control-gf" style="width: 90px; font-size: 10px; padding: 2px 14px 2px 3px; height: 24px;" x-model="search" 
                                                 @input="charge.party_name = search; open = true"
                                                 @focus="open = true"
                                                 @click="open = true"
@@ -3221,7 +3327,7 @@
                                                 placeholder="Search Party..." 
                                                 autocomplete="off">
                                             <input type="hidden" :name="'charges[' + idx + '][party_name_id]'" x-model="charge.party_name_id">
-                                            <i class="fa fa-caret-down" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer;" @click="open = !open"></i>
+                                            <i class="fa fa-caret-down" style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer; font-size: 9px;" @click="open = !open"></i>
                                         </div>
                                         
                                         <div x-show="open" style="display: none; position: absolute; z-index: 9999; background: white; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 2px;">
@@ -3236,77 +3342,75 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 50px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 42px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.sal" :name="'charges[' + idx + '][sal]'">
                                         <option value="Sea">Sea</option>
                                         <option value="Air">Air</option>
                                         <option value="Land">Land</option>
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 55px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 44px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.pr" :name="'charges[' + idx + '][pr]'">
                                         <option value="Rec">Rec</option>
                                         <option value="Pay">Pay</option>
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 60px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.ppc" :name="'charges[' + idx + '][ppc]'">
                                         <option value="Colle">Colle</option>
                                         <option value="Proj">Proj</option>
                                         <option value="Prepaid">Prepaid</option>
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 60px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
+                                <td style="padding: 3px 2px;">
+                                    <input type="text" class="form-control-gf" style="width: 40px; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.chrg_code" :name="'charges[' + idx + '][chrg_code]'" placeholder="Code">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 65px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 46px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.currency" :name="'charges[' + idx + '][currency]'">
                                         <option value="">Select...</option>
                                         @foreach($currencies as $currency)
                                             <option value="{{ $currency->code }}">{{ $currency->code }}</option>
                                         @endforeach
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="number" class="form-control-gf" style="width: 60px; text-align: right;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
+                                <td style="padding: 3px 2px;">
+                                    <input type="number" class="form-control-gf" style="width: 44px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.rate" :name="'charges[' + idx + '][rate]'" @input="updateChargeAmount(idx)">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
+                                <td style="padding: 3px 2px;">
+                                    <input type="number" class="form-control-gf" style="width: 34px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.qty" :name="'charges[' + idx + '][qty]'" @input="updateChargeAmount(idx)">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <select class="form-control-gf" style="width: 65px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
+                                <td style="padding: 3px 2px;">
+                                    <select class="form-control-gf" style="width: 48px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.qty_type" :name="'charges[' + idx + '][qty_type]'">
                                         <option value="">Select...</option>
                                         @foreach($packageUnits as $unit)
                                             <option value="{{ $unit->code }}">{{ $unit->code }}</option>
                                         @endforeach
                                     </select>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <span x-text="(charge.rate * charge.qty).toFixed(2)" style="display: inline-block; min-width: 50px; text-align: right;">0.00</span>
+                                <td style="padding: 3px 2px;">
+                                    <span x-text="(charge.rate * charge.qty).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="number" class="form-control-gf" style="width: 55px; text-align: right;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
+                                <td style="padding: 3px 2px;">
+                                    <input type="number" class="form-control-gf" style="width: 38px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.roe" :name="'charges[' + idx + '][roe]'" @input="updateLocalAmount(idx)">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="number" class="form-control-gf" style="width: 50px; text-align: right;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
+                                <td style="padding: 3px 2px;">
+                                    <input type="number" class="form-control-gf" style="width: 32px; text-align: right; font-size: 10px; padding: 2px 2px; height: 24px;" x-model="charge.vat" :name="'charges[' + idx + '][vat]'" @input="updateLocalAmount(idx)">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 65px; text-align: right; font-weight: 500;">0.00</span>
+                                <td style="padding: 3px 2px;">
+                                    <span x-text="calculateLocalAmount(charge).toFixed(2)" style="display: inline-block; min-width: 42px; text-align: right; font-size: 10px;">0.00</span>
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 90px; color: #3b82f6; font-weight: bold;"></span>
+                                <td style="padding: 3px 2px;">
+                                    <span x-text="charge.inv_no || '-'" style="display: inline-block; min-width: 58px; color: #3b82f6; font-weight: bold; font-size: 10px;"></span>
                                     <input type="hidden" :name="'charges[' + idx + '][inv_no]'" :value="charge.inv_no">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="date" class="form-control-gf" style="width: 85px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
+                                <td style="padding: 3px 2px;">
+                                    <input type="date" class="form-control-gf" style="width: 76px; font-size: 10px; padding: 2px 1px; height: 24px;" x-model="charge.financial_date" :name="'charges[' + idx + '][financial_date]'">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 80px;" x-model="charge.mbl_no" :name="'charges[' + idx + '][mbl_no]'" placeholder="MBL#">
+                                    <input type="hidden" :name="'charges[' + idx + '][mbl_no]'" :value="charge.mbl_no">
+                                <td style="padding: 3px 2px;">
+                                    <input type="text" class="form-control-gf" style="width: 75px; font-size: 10px; padding: 2px 3px; height: 24px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
                                 </td>
-                                <td style="padding: 5px 8px;">
-                                    <input type="text" class="form-control-gf" style="width: 140px;" x-model="charge.remark" :name="'charges[' + idx + '][remark]'" placeholder="Remark">
-                                </td>
-                                <td style="padding: 5px 8px; text-align: center;">
+                                <td style="padding: 3px 2px; text-align: center;">
                                     <button type="button" @click="removeCharge(idx)" class="btn-tool-icon" style="color: #ef4444; border:none; padding: 2px; background: transparent; cursor: pointer; display: inline-block;" title="Delete Row">
                                         <i class="fa fa-trash"></i>
                                     </button>
@@ -4297,6 +4401,25 @@
 
         </div>
     </div>
+                <!-- Centered Floating Save Pill (Transparent Glass Style) -->
+        <div class="fixed-floating-save-pill" style="position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 5px 14px; border-radius: 9999px; border: 1px solid rgba(203, 213, 225, 0.8); box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08);">
+            <template x-if="!saved">
+                <button type="button" @click="saveMainTab" :disabled="isSaving"
+                        style="background: rgba(16, 185, 129, 0.14); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.4); padding: 6px 22px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;"
+                        onmouseover="this.style.background='rgba(16, 185, 129, 0.24)'"
+                        onmouseout="this.style.background='rgba(16, 185, 129, 0.14)'">
+                    <i class="fa" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                    <span x-text="isSaving ? 'SAVING...' : 'SAVE SHIPMENT'"></span>
+                </button>
+            </template>
+            <button type="button" x-show="saved" @click="if(validateForm()) $el.closest('form').submit()"
+                    style="background: rgba(16, 185, 129, 0.14); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.4); padding: 6px 22px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;"
+                    onmouseover="this.style.background='rgba(16, 185, 129, 0.24)'"
+                    onmouseout="this.style.background='rgba(16, 185, 129, 0.14)'">
+                <i class="fa fa-save"></i> <span>SAVE SHIPMENT</span>
+            </button>
+        </div>
+
         @include('partials.ai-modal')
 
 

@@ -305,11 +305,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
-                        <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                        <div class="config-panel" id="config-panel" style="display:none; min-width: 220px;">
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -920,11 +923,19 @@
     function buildConfigPanel() {
         var container = document.getElementById('col-toggles');
         container.innerHTML = '';
+        var searchInput = document.getElementById('config-col-search');
+        if (searchInput) searchInput.value = '';
         var headers = document.querySelectorAll('#header-row th[data-col]');
         for (var i = 0; i < headers.length; i++) {
             var th = headers[i];
             if (PINNED_COLS.indexOf(th.dataset.col) !== -1) continue;
             var label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.gap = '6px';
+            label.style.padding = '3px 4px';
+            label.style.cursor = 'pointer';
+            label.style.fontSize = '11px';
             var cb    = document.createElement('input');
             cb.type    = 'checkbox';
             cb.checked = th.style.display !== 'none';
@@ -936,6 +947,14 @@
             label.appendChild(document.createTextNode(' ' + th.textContent.trim()));
             container.appendChild(label);
         }
+    }
+
+    function filterConfigColumns(query) {
+        var q = (query || '').toLowerCase().trim();
+        document.querySelectorAll('#col-toggles label').forEach(function(label) {
+            var text = label.textContent.toLowerCase();
+            label.style.display = text.includes(q) ? 'flex' : 'none';
+        });
     }
 
     function toggleColumn(colName, show) {

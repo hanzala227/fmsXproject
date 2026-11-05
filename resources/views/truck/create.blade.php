@@ -2231,7 +2231,7 @@
                 form: {
                     file_no: '{{ isset($truckShipment) ? $truckShipment->file_no : "MTR-" . date("YmdHis") }}',
                     post_date: '{{ isset($truckShipment) && $truckShipment->post_date ? \Carbon\Carbon::parse($truckShipment->post_date)->format("Y-m-d") : date("Y-m-d") }}',
-                    office_id: '{{ isset($truckShipment) ? $truckShipment->office_id : (isset($copyShipment) ? $copyShipment->office_id : "") }}',
+                    office_id: '{{ old('office_id', isset($truckShipment) && !empty($truckShipment->office_id) ? $truckShipment->office_id : (isset($copyShipment) ? $copyShipment->office_id : (auth()->user()->assigned_office_id ?? ''))) }}',
                     ship_type: '{{ isset($truckShipment) ? $truckShipment->ship_type : (isset($copyShipment) ? $copyShipment->ship_type : "Trucking") }}',
                     mbl_no: '{{ isset($truckShipment) ? $truckShipment->mbl_no : (isset($copyShipment) ? $copyShipment->mbl_no : "") }}',
                     hbl_no: '{{ isset($truckShipment) ? $truckShipment->hbl_no : (isset($copyShipment) ? $copyShipment->hbl_no : "") }}',

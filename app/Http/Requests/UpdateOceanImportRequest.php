@@ -58,6 +58,13 @@ class UpdateOceanImportRequest extends FormRequest
                         $hbls[$index]['incoterms_id'] = (string)$hInco;
                     }
                 }
+                if (isset($hbl['containers']) && is_array($hbl['containers'])) {
+                    foreach ($hbl['containers'] as $cIdx => $c) {
+                        if (isset($c['container_no']) && $c['container_no'] === 'MANUAL' && !empty($c['manual_container_no'])) {
+                            $hbls[$index]['containers'][$cIdx]['container_no'] = $c['manual_container_no'];
+                        }
+                    }
+                }
             }
             $this->merge(['hbls' => $hbls]);
         }

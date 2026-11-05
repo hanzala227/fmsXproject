@@ -61,40 +61,14 @@ class CheckModuleAccess
             abort(403, 'No company associated with your account.');
         }
 
-        // Check if user has permission for this module (e.g. granted via SuperAdmin Permissions)
-        $moduleMapping = [
-            'Ocean Import' => 'ocean-import',
-            'Ocean Export' => 'ocean-export',
-            'Air Import' => 'air-import',
-            'Air Export' => 'air-export',
-            'Truck Shipment' => 'truck',
-            'Custom Brokerage' => 'ocean-import',
-            'Warehouse & Distribution' => 'warehouse',
-            'Accounting' => 'accounting',
-            'CRM' => 'sales',
-            'Customers' => 'trade-partners',
-            'Master Data' => 'trade-partners',
-            'Reports' => 'reports',
-            'Report' => 'reports',
-            'General' => 'reports',
-            'Settings' => 'settings'
-        ];
-
-        $userPermModules = $user->permissions->pluck('module_name')
-            ->map(fn($m) => array_map('trim', explode(',', $m)))
-            ->flatten()
-            ->unique()
-            ->toArray();
-
-        foreach ($userPermModules as $uMod) {
-            if (($moduleMapping[$uMod] ?? null) === $moduleKey) {
-                return $next($request);
-            }
-        }
-
         // Check if company has access to this module
         if (!$user->company->hasModule($moduleKey)) {
             abort(403, 'Your company does not have access to this module.');
+        }
+
+        // Check if user has permission to access this module
+        if (!$user->hasModuleAccess($moduleKey)) {
+            abort(403, 'You do not have permission to access this module. Please contact your administrator.');
         }
 
         return $next($request);

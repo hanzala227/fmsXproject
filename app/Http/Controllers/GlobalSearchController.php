@@ -220,9 +220,9 @@ class GlobalSearchController extends Controller
         }
 
         // ─────────────────────────────────────────────
-        // 8. Trade Partners  (name | code | email)
+        // 8. Customers  (name | code | email)
         // ─────────────────────────────────────────────
-        if ($module === 'All' || $module === 'Trade Partners') {
+        if ($module === 'All' || $module === 'Customers' || $module === 'Trade Partners') {
             try {
                 $results = TradePartner::where(function ($q) use ($query) {
                         $q->where('name', 'like', "%{$query}%")
@@ -233,7 +233,7 @@ class GlobalSearchController extends Controller
 
                 foreach ($results as $item) {
                     $records[] = [
-                        'category'    => 'Trade Partner',
+                        'category'    => 'Customer',
                         'icon'        => 'fa-building',
                         'badge_color' => '#0891b2',
                         'title'       => $item->name,

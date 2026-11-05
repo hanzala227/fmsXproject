@@ -105,7 +105,30 @@ class QuotationController extends Controller
         $destJson = '[]';
         $serviceTermParts = ['', ''];
 
-        if ($request->filled('copy')) {
+        if ($request->filled('lead_id')) {
+            $lead = \App\Models\Lead::find($request->lead_id);
+            if ($lead) {
+                $companyId = auth()->user()->company_id ?? 1;
+                $tp = TradePartner::where('company_id', $companyId)->where('name', $lead->company_name)->first();
+                if (!$tp) {
+                    $tp = TradePartner::create([
+                        'company_id' => $companyId,
+                        'name' => $lead->company_name,
+                        'code' => 'CS' . rand(1000, 9999),
+                        'type' => 'CLIENT',
+                        'email' => $lead->email,
+                        'phone' => $lead->phone,
+                        'contact_person' => $lead->contact_person,
+                    ]);
+                    $customers->push($tp);
+                }
+                $q = new Quotation([
+                    'customer_id' => $tp->id,
+                    'commodity' => $lead->service_required,
+                    'description' => $lead->notes,
+                ]);
+            }
+        } elseif ($request->filled('copy')) {
             $q = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'items.currency', 'agent', 'carrier', 'office', 'createdBy', 'op', 'schedule', 'documents'])->find($request->copy);
             if ($q) {
                 $isCopy = true;
@@ -391,6 +414,19 @@ class QuotationController extends Controller
         }
 
         return redirect()->back()->with('success', 'Quotation updated successfully.');
+    }
+
+    public function print($id)
+    {
+        $quotation = Quotation::with([
+            'customer', 'salesPerson', 'pol', 'pod', 'items.currency', 
+            'agent', 'carrier', 'office', 'createdBy', 'op', 'schedule'
+        ])->findOrFail($id);
+
+        $freightItems = $quotation->items->where('type', 'AR');
+        $localItems = $quotation->items->where('type', 'DC_NOTE');
+
+        return view('sales.quotation.print', compact('quotation', 'freightItems', 'localItems'));
     }
 
     public function destroy($id)

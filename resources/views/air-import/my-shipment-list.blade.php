@@ -117,11 +117,14 @@
                         <i class="fa fa-filter"></i> Filter
                     </button>
                     <div style="position:relative;display:inline-flex;align-items:center;">
-                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column visibility">
-                            <i class="fa fa-cogs"></i> Config
+                        <button class="btn-action-round" id="btn-config" onclick="toggleConfig()" title="Column Settings">
+                            <i class="fa fa-cog"></i> Settings
                         </button>
-                        <div class="config-panel" id="config-panel" style="display:none;">
-                            <div class="config-panel-title">Column Visibility</div>
+                        <div class="config-panel" id="config-panel" style="display:none; min-width: 220px;">
+                            <div class="config-panel-title">Column Settings</div>
+                            <div style="padding: 4px 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                                <input type="text" id="config-col-search" placeholder="Search column name..." style="width: 100%; height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" oninput="filterConfigColumns(this.value)">
+                            </div>
                             <div id="col-toggles"></div>
                         </div>
                     </div>
@@ -163,8 +166,9 @@
                                         <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" title="Select All">
                                     </th>
                                     <th class="sticky-col sticky-col-header" data-col="lock" style="width:28px;text-align:center;left:25px;"><i class="fa fa-lock"></i></th>
-                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:125px;left:53px;">Booking no</th>
-                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:178px;">MAWB No.</th>
+                                    <th class="sticky-col sticky-col-header" data-col="hawb" style="width:65px;left:53px;">HAWB</th>
+                                    <th class="sticky-col sticky-col-header" data-col="file_no" style="width:125px;left:118px;">Booking no</th>
+                                    <th class="sticky-col sticky-col-header" data-col="mawb_no" style="width:130px;left:243px;">MAWB No.</th>
                                     
                                     <th data-col="oversea_agent" style="width:150px;">Oversea Agent</th>
                                     <th data-col="shipper" style="width:150px;">Shipper</th>
@@ -189,12 +193,13 @@
                                 <tr id="filter-row" style="display:none;">
                                     <td class="sticky-col" style="left:0;"></td>
                                     <td class="sticky-col" style="left:25px;"></td>
-                                    <td class="sticky-col" style="left:53px;"><input class="filter-input" data-col-idx="2" placeholder="File…" oninput="applyFilters()"></td>
-                                    <td class="sticky-col" style="left:178px;"><input class="filter-input" data-col-idx="3" placeholder="MAWB…" oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="4" placeholder="Agent…" oninput="applyFilters()"></td>
-                                    <td><input class="filter-input" data-col-idx="5" placeholder="Shipper…" oninput="applyFilters()"></td>
+                                    <td class="sticky-col" style="left:53px;"></td>
+                                    <td class="sticky-col" style="left:118px;"><input class="filter-input" data-col-idx="3" placeholder="File…" oninput="applyFilters()"></td>
+                                    <td class="sticky-col" style="left:243px;"><input class="filter-input" data-col-idx="4" placeholder="MAWB…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="5" placeholder="Agent…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="6" placeholder="Shipper…" oninput="applyFilters()"></td>
                                     <td colspan="8"></td>
-                                    <td><input class="filter-input" data-col-idx="14" placeholder="HAWB…" oninput="applyFilters()"></td>
+                                    <td><input class="filter-input" data-col-idx="15" placeholder="HAWB…" oninput="applyFilters()"></td>
                                     <td colspan="7"></td>
                                 </tr>
                             </thead>
@@ -352,7 +357,7 @@
         }
     }
 
-    var PINNED_COLS = ['check', 'lock', 'file_no', 'color', 'mawb_no'];
+    var PINNED_COLS = ['check', 'lock', 'hawb', 'file_no', 'mawb_no'];
 
     function toggleConfig() {
         var panel = document.getElementById('config-panel');

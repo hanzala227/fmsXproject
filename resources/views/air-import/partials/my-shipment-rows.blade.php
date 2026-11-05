@@ -9,14 +9,19 @@
                title="{{ $shipment->is_blocked ? 'Locked' : 'Unlocked' }}"
                onclick="toggleLock(this)"></i>
         </td>
-        <td class="sticky-col" style="left:53px;font-weight:600;" onclick="event.stopPropagation()">
+        <td class="sticky-col" style="left:53px;" onclick="event.stopPropagation()">
+            <a href="{{ route('air-import.edit', $shipment->id) }}" class="col-link">
+                {{ $shipment->hbls->count() > 0 ? $shipment->hbls->count() . ' HAWB' . ($shipment->hbls->count() > 1 ? 's' : '') : '0 HAWB' }}
+            </a>
+        </td>
+        <td class="sticky-col" style="left:118px;font-weight:600;" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <a href="{{ route('air-import.edit', $shipment->id) }}" class="col-link">{{ $shipment->file_no ?: '--' }}</a>
                 <i class="fa fa-external-link" style="color:#94a3b8;font-size:10px;cursor:pointer;"></i>
             </div>
         </td>
-        <td class="sticky-col" style="left:178px;font-weight:600;border-right:1px solid #cbd5e1!important;">
-            <span>{{ $shipment->mawb_no ?: '--' }}</span>
+        <td class="sticky-col" style="left:243px;font-weight:600;border-right:1px solid #cbd5e1!important;">
+            <a href="{{ route('air-import.edit', $shipment->id) }}" class="col-link">{{ $shipment->mawb_no ?: '--' }}</a>
         </td>
         <td>{{ $shipment->overseaAgent->name ?? '--' }}</td>
         <td>{{ $shipment->shipper_rel->name ?? '--' }}</td>
@@ -28,7 +33,25 @@
         <td>{{ $shipment->ata ? $shipment->ata->format('m-d-Y') : '--' }}</td>
         <td>{{ $shipment->etd ? $shipment->etd->format('m-d-Y') : '--' }}</td>
         <td>{{ $shipment->atd ? $shipment->atd->format('m-d-Y') : '--' }}</td>
-        <td>{{ $shipment->hbls->pluck('hawb_no')->implode(', ') ?: '--' }}</td>
+        <td>
+            @if($shipment->hbls->isNotEmpty())
+                @php
+                    $hawbNos = $shipment->hbls->pluck('hawb_no')->filter()->values();
+                @endphp
+                @if($hawbNos->isNotEmpty())
+                    <a href="{{ route('air-import.edit', $shipment->id) }}" class="col-link" style="font-weight:600;">
+                        {{ $hawbNos->first() }}
+                    </a>
+                    @if($hawbNos->count() > 1)
+                        <span class="badge bg-blue" style="font-size:9px;padding:1px 4px;margin-left:3px;background:#3b82f6;color:#fff;border-radius:3px;" title="{{ $hawbNos->implode(', ') }}">+{{ $hawbNos->count() - 1 }}</span>
+                    @endif
+                @else
+                    <span style="color:#94a3b8;">--</span>
+                @endif
+            @else
+                <span style="color:#94a3b8;">--</span>
+            @endif
+        </td>
         <td>{{ $shipment->flight_no ?? '--' }}</td>
         <td style="text-align:right;">{{ $shipment->ar_balance ?? '0.00' }}</td>
         <td style="text-align:right;">{{ $shipment->ap_balance ?? '0.00' }}</td>
