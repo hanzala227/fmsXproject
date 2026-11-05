@@ -34,6 +34,12 @@ class JournalReportController extends Controller
         $currencyId = $request->input('currency_id');
         $search     = $request->input('search');
 
+        if ($startDate && $endDate && $startDate > $endDate) {
+            $tmp = $startDate;
+            $startDate = $endDate;
+            $endDate = $tmp;
+        }
+
         $query = JournalEntryLine::with([
                 'journalEntry',
                 'glAccount',
@@ -42,11 +48,15 @@ class JournalReportController extends Controller
                 'currency',
             ])
             ->whereHas('journalEntry', function ($q) use ($startDate, $endDate) {
-                $q->where('entry_date', '>=', $startDate)
-                  ->where('entry_date', '<=', $endDate)
-                  ->where('status', '!=', 'VOIDED');
+                $q->whereBetween('entry_date', [$startDate, $endDate])
+                  ->whereNotIn('status', ['VOIDED', 'VOID', 'CANCELLED']);
             })
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->when($officeId, function ($q) use ($officeId) {
+                $q->where(function ($sq) use ($officeId) {
+                    $sq->where('office_id', $officeId)
+                      ->orWhereHas('journalEntry', fn($je) => $je->where('office_id', $officeId));
+                });
+            })
             ->when($currencyId, fn($q) => $q->where('currency_id', $currencyId))
             ->when($glFrom, function ($q) use ($glFrom) {
                 $q->whereHas('glAccount', fn($g) => $g->where('code', '>=', $glFrom));
@@ -58,7 +68,8 @@ class JournalReportController extends Controller
                 $q->where(function ($sq) use ($search) {
                     $sq->where('description', 'LIKE', "%{$search}%")
                       ->orWhereHas('journalEntry', fn($je) => $je->where('entry_no', 'LIKE', "%{$search}%")->orWhere('description', 'LIKE', "%{$search}%"))
-                      ->orWhereHas('tradePartner', fn($tp) => $tp->where('name', 'LIKE', "%{$search}%"));
+                      ->orWhereHas('tradePartner', fn($tp) => $tp->where('name', 'LIKE', "%{$search}%"))
+                      ->orWhereHas('glAccount', fn($g) => $g->where('code', 'LIKE', "%{$search}%")->orWhere('name', 'LIKE', "%{$search}%"));
                 });
             })
             ->orderBy('journal_entry_id')
@@ -67,8 +78,8 @@ class JournalReportController extends Controller
         $lines = $query->get();
 
         $results = [];
-        $totalDebit = 0;
-        $totalCredit = 0;
+        $totalDebit = 0.0;
+        $totalCredit = 0.0;
 
         foreach ($lines as $line) {
             $je = $line->journalEntry;
@@ -94,7 +105,7 @@ class JournalReportController extends Controller
             $totalCredit += (float) $line->local_credit;
         }
 
-        return [$results, $startDate, $endDate, $totalDebit, $totalCredit];
+        return [$results, $startDate, $endDate, round($totalDebit, 2), round($totalCredit, 2)];
     }
 
     public function apiView(Request $request)

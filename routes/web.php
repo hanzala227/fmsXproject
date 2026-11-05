@@ -852,7 +852,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Accounting — Journal Report
     Route::get('/accounting/report/journal-report', [JournalReportController::class, 'index'])->name('accounting.report.journal-report');
-    Route::post('/accounting/report/journal-report/view', [JournalReportController::class, 'apiView'])->name('accounting.report.journal-report.view');
+    Route::match(['get', 'post'], '/accounting/report/journal-report/view', [JournalReportController::class, 'apiView'])->name('accounting.report.journal-report.view');
     Route::get('/accounting/report/journal-report/preview', [JournalReportController::class, 'preview'])->name('accounting.report.journal-report.preview');
     Route::get('/accounting/report/journal-report/print', [JournalReportController::class, 'printReport'])->name('accounting.report.journal-report.print');
     Route::get('/accounting/report/journal-report/export-excel', [JournalReportController::class, 'exportExcel'])->name('accounting.report.journal-report.export-excel');
