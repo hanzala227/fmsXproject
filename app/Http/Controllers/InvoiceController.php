@@ -39,6 +39,9 @@ class InvoiceController extends Controller
                   ->orWhere('billing_address', 'like', "%{$search}%")
                   ->orWhereHas('billTo', function($sub) use ($search) {
                       $sub->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhere(function($subQ) use ($search) {
+                      $this->applyBookingSearch($subQ, $search);
                   });
             });
         }
@@ -66,9 +69,7 @@ class InvoiceController extends Controller
         if ($request->filled('filter_file_no')) {
             $fileNo = $request->input('filter_file_no');
             $query->where(function($q) use ($fileNo) {
-                $q->whereHasMorph('invoiceable', '*', function($sub) use ($fileNo) {
-                    $sub->where('file_no', 'like', "%{$fileNo}%");
-                });
+                $this->applyBookingSearch($q, $fileNo);
             });
         }
 
@@ -1126,6 +1127,79 @@ class InvoiceController extends Controller
         }
 
         $invoice->saveQuietly();
+    }
+
+    /**
+     * Apply booking / file number search to invoice query.
+     */
+    protected function applyBookingSearch($query, string $search)
+    {
+        return $query->whereHasMorph('invoiceable', [
+            \App\Models\OceanExport::class,
+            \App\Models\OceanImport::class,
+            \App\Models\AirExport::class,
+            \App\Models\AirImport::class,
+            \App\Models\TruckShipment::class,
+            \App\Models\OceanBooking::class,
+            \App\Models\AirBooking::class,
+        ], function($sub, $type) use ($search) {
+            $matched = false;
+            if (in_array($type, [
+                \App\Models\OceanExport::class,
+                \App\Models\OceanImport::class,
+                \App\Models\AirExport::class,
+                \App\Models\AirImport::class,
+                \App\Models\TruckShipment::class
+            ])) {
+                $sub->where('file_no', 'like', "%{$search}%");
+                $matched = true;
+            }
+            if (in_array($type, [
+                \App\Models\OceanExport::class,
+                \App\Models\AirExport::class,
+                \App\Models\OceanBooking::class,
+                \App\Models\AirBooking::class
+            ])) {
+                if ($matched) {
+                    $sub->orWhere('booking_no', 'like', "%{$search}%");
+                } else {
+                    $sub->where('booking_no', 'like', "%{$search}%");
+                    $matched = true;
+                }
+            }
+            if (in_array($type, [
+                \App\Models\TruckShipment::class,
+                \App\Models\OceanBooking::class
+            ])) {
+                if ($matched) {
+                    $sub->orWhere('carrier_bkg_no', 'like', "%{$search}%");
+                } else {
+                    $sub->where('carrier_bkg_no', 'like', "%{$search}%");
+                }
+            }
+        });
+    }
+
+    /**
+     * Search and open related Invoice (INV), Debit Note (DN), and Credit Note (CN) directly by booking number.
+     */
+    public function byBooking(Request $request, string $bookingNo)
+    {
+        $companyId = auth()->user()->company_id;
+        $invoices = Invoice::where('company_id', $companyId)
+            ->where(function($q) use ($bookingNo) {
+                $q->where('invoice_no', $bookingNo)
+                  ->orWhere(function($sub) use ($bookingNo) {
+                      $this->applyBookingSearch($sub, $bookingNo);
+                  });
+            })
+            ->get();
+
+        if ($invoices->count() === 1) {
+            return redirect()->route('accounting.invoices.show', $invoices->first()->id);
+        }
+
+        return redirect()->route('accounting.invoices.index', ['search' => $bookingNo]);
     }
 }
 

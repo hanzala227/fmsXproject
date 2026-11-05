@@ -170,26 +170,75 @@ class GlobalSearchController extends Controller
         }
 
         // ─────────────────────────────────────────────
-        // 6. Invoices  (invoice_no | file_no | bill_to_name)
+        // 6. Invoices  (invoice_no | booking_no | file_no | bill_to_name)
         // ─────────────────────────────────────────────
         if ($module === 'All' || $module === 'Accounting') {
             try {
-                $results = Invoice::where(function ($q) use ($query) {
+                $results = Invoice::with(['billTo', 'currency', 'invoiceable'])
+                    ->where(function ($q) use ($query) {
                         $q->where('invoice_no', 'like', "%{$query}%")
-                          ->orWhere('file_no', 'like', "%{$query}%")
-                          ->orWhere('bill_to_name', 'like', "%{$query}%");
+                          ->orWhereHas('billTo', fn($bq) => $bq->where('name', 'like', "%{$query}%"))
+                          ->orWhereHasMorph('invoiceable', [
+                              \App\Models\OceanExport::class,
+                              \App\Models\OceanImport::class,
+                              \App\Models\AirExport::class,
+                              \App\Models\AirImport::class,
+                              \App\Models\TruckShipment::class,
+                              \App\Models\OceanBooking::class,
+                              \App\Models\AirBooking::class,
+                          ], function($sub, $type) use ($query) {
+                              $matched = false;
+                              if (in_array($type, [
+                                  \App\Models\OceanExport::class,
+                                  \App\Models\OceanImport::class,
+                                  \App\Models\AirExport::class,
+                                  \App\Models\AirImport::class,
+                                  \App\Models\TruckShipment::class
+                              ])) {
+                                  $sub->where('file_no', 'like', "%{$query}%");
+                                  $matched = true;
+                              }
+                              if (in_array($type, [
+                                  \App\Models\OceanExport::class,
+                                  \App\Models\AirExport::class,
+                                  \App\Models\OceanBooking::class,
+                                  \App\Models\AirBooking::class
+                              ])) {
+                                  if ($matched) {
+                                      $sub->orWhere('booking_no', 'like', "%{$query}%");
+                                  } else {
+                                      $sub->where('booking_no', 'like', "%{$query}%");
+                                      $matched = true;
+                                  }
+                              }
+                              if (in_array($type, [
+                                  \App\Models\TruckShipment::class,
+                                  \App\Models\OceanBooking::class
+                              ])) {
+                                  if ($matched) {
+                                      $sub->orWhere('carrier_bkg_no', 'like', "%{$query}%");
+                                  } else {
+                                      $sub->where('carrier_bkg_no', 'like', "%{$query}%");
+                                  }
+                              }
+                          });
                     })
                     ->limit($limit)->get();
 
                 foreach ($results as $item) {
+                    $relatedShipment = $item->invoiceable;
+                    $bookingRef = $relatedShipment ? ($relatedShipment->file_no ?? $relatedShipment->booking_no ?? $relatedShipment->carrier_bkg_no ?? 'N/A') : 'N/A';
+                    $billToName = $item->billTo?->name ?? 'N/A';
+                    $curCode = $item->currency?->code ?? 'USD';
+                    $docType = $item->type ?? 'INV';
                     $records[] = [
                         'category'    => 'Invoice',
                         'icon'        => 'fa-file-text-o',
                         'badge_color' => '#0284c7',
-                        'title'       => $item->invoice_no ?: ('Invoice #' . $item->id),
-                        'subtitle'    => 'File: ' . ($item->file_no ?: 'N/A')
-                                       . ' | Bill To: ' . ($item->bill_to_name ?: 'N/A')
-                                       . ' | $' . number_format($item->total_amount ?? 0, 2),
+                        'title'       => "{$docType} #{$item->invoice_no}",
+                        'subtitle'    => 'Booking: ' . $bookingRef
+                                       . ' | Party: ' . $billToName
+                                       . ' | ' . $curCode . ' ' . number_format($item->total_amount ?? 0, 2),
                         'url'         => url('/accounting/invoice/' . $item->id),
                     ];
                 }

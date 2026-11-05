@@ -454,15 +454,13 @@
                                                 } catch (\Throwable $e) {
                                                     $relatedShipment = null;
                                                 }
-                                                $bookingFileNo = $relatedShipment ? (method_exists($relatedShipment, 'getFileNoAttribute') ? $relatedShipment->file_no : ($relatedShipment->file_no ?? ($relatedShipment->bkg_no ?? null))) : null;
+                                                $bookingFileNo = $relatedShipment ? (method_exists($relatedShipment, 'getFileNoAttribute') ? $relatedShipment->file_no : ($relatedShipment->file_no ?? ($relatedShipment->bkg_no ?? ($relatedShipment->booking_no ?? null)))) : null;
                                                 $shipmentUrl = $invoice->shipment_url;
                                             @endphp
                                             @if($bookingFileNo)
-                                                @if($shipmentUrl)
-                                                    <a href="{{ $shipmentUrl }}" class="col-link" title="{{ $bookingFileNo }}">{{ Str::limit($bookingFileNo, 14) }}</a>
-                                                @else
-                                                    <span title="{{ $bookingFileNo }}">{{ Str::limit($bookingFileNo, 14) }}</span>
-                                                @endif
+                                                <a href="{{ route('accounting.invoices.by-booking', urlencode($bookingFileNo)) }}" class="col-link" title="Open related documents for {{ $bookingFileNo }}" style="color:#2563eb;font-weight:600;">
+                                                    {{ Str::limit($bookingFileNo, 14) }}
+                                                </a>
                                             @endif
                                         </td>
                                         {{-- Invoice No. --}}
