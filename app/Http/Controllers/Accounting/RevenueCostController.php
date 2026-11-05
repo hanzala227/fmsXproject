@@ -5,24 +5,26 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\AccountingPayment;
+use App\Models\Currency;
 use App\Models\Office;
 use App\Models\TradePartner;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class RevenueCostController extends Controller
 {
     private $shippingTypeMap = [
-        'App\\Models\\OceanImport'      => 'Ocean Import',
-        'App\\Models\\OceanExport'      => 'Ocean Export',
-        'App\\Models\\AirImport'        => 'Air Import',
-        'App\\Models\\AirExport'        => 'Air Export',
-        'App\\Models\\TruckShipment'    => 'Truck Operation',
-        'App\\Models\\WarehouseShipping'=> 'Warehouse Operation',
+        'App\\Models\\OceanImport'       => 'Ocean Import',
+        'App\\Models\\OceanExport'       => 'Ocean Export',
+        'App\\Models\\AirImport'         => 'Air Import',
+        'App\\Models\\AirExport'         => 'Air Export',
+        'App\\Models\\TruckShipment'     => 'Truck Operation',
+        'App\\Models\\WarehouseShipping' => 'Warehouse Operation',
         'App\\Models\\WarehouseReceiving'=> 'Warehouse Operation',
-        'App\\Models\\WorkOrder'        => 'Misc. Operation',
+        'App\\Models\\WorkOrder'         => 'Misc. Operation',
     ];
 
     public function index()
@@ -63,17 +65,49 @@ class RevenueCostController extends Controller
         $billToId      = $request->input('bill_to_id');
         $salesPersonId = $request->input('sales_person_id');
         $reportType    = $request->input('report_type', 'summary');
+        $companyId     = auth()->user()->company_id ?? 1;
+
+        // Currency conversion helper to base USD
+        $toUSD = function ($amount, $currCode, $modelRate = null) {
+            if ($modelRate && (float) $modelRate > 0) {
+                return ((float) $modelRate != 1.0) ? round(((float) $amount) / (float) $modelRate, 2) : (float) $amount;
+            }
+            $currCode = $currCode ?: 'USD';
+            if ($currCode === 'USD') return (float) $amount;
+
+            $rate = 1.0;
+            $rateRecord = DB::table('currency_rates')
+                ->where('from_currency', $currCode)
+                ->where('to_currency', 'USD')
+                ->orderByDesc('as_of_date')
+                ->first();
+            if ($rateRecord && (float) $rateRecord->rate_internal > 0) {
+                $rate = (float) $rateRecord->rate_internal;
+            } else {
+                $curr = Currency::where('code', $currCode)->first();
+                if ($curr && (float) $curr->exchange_rate > 0) {
+                    $rate = (float) $curr->exchange_rate;
+                }
+            }
+            return ($rate > 0 && $rate != 1.0) ? round(((float) $amount) / $rate, 2) : (float) $amount;
+        };
 
         if ($periodType === 'paid_date') {
-            $paidInvoiceIds = AccountingPayment::whereBetween('payment_date', [$startDate, $endDate])
+            $paidInvoiceIds = AccountingPayment::where('company_id', $companyId)
+                ->whereBetween('payment_date', [$startDate, $endDate])
+                ->whereNull('void_date')
                 ->whereNotNull('invoice_id')
                 ->pluck('invoice_id')
                 ->unique();
 
-            $query = Invoice::whereIn('id', $paidInvoiceIds);
+            $query = Invoice::where('company_id', $companyId)->whereIn('id', $paidInvoiceIds);
         } else {
-            $query = Invoice::query()->whereBetween('invoice_date', [$startDate, $endDate]);
+            $query = Invoice::where('company_id', $companyId)->whereBetween('invoice_date', [$startDate, $endDate]);
         }
+
+        // Exclude VOID and cancelled documents
+        $query->where('status', '!=', 'VOID')
+              ->where('verification_status', '!=', 'Cancelled');
 
         if ($officeId) {
             $query->where('office_id', $officeId);
@@ -85,7 +119,7 @@ class RevenueCostController extends Controller
             $query->where('type', 'AP');
         }
 
-        if ($shippingTypes !== 'all') {
+        if ($shippingTypes !== 'all' && !empty($shippingTypes)) {
             $allowedTypes = array_map('trim', explode(',', $shippingTypes));
             $modelTypes   = [];
             foreach ($this->shippingTypeMap as $model => $label) {
@@ -106,28 +140,42 @@ class RevenueCostController extends Controller
             $query->where('issued_by', $salesPersonId);
         }
 
-        $invoices = $query->with(['billTo', 'currency', 'office', 'issuer', 'payments'])->get();
+        $invoices = $query->with(['billTo', 'currency', 'office', 'issuer', 'payments'])->orderBy('invoice_date')->get();
 
         $results = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->sum('amount');
-            $balance   = (float) $invoice->total_amount - $totalPaid;
+            $totalPaid  = (float) $invoice->payments->whereNull('void_date')->sum('amount');
+            $rawAmount  = (float) $invoice->total_amount;
+            $invType    = strtoupper($invoice->type ?? '');
+            $docType    = strtoupper($invoice->document_type ?? '');
+            $isCN       = $docType === 'CN';
+            $isDN       = $docType === 'DN';
+            $currCode   = $invoice->currency?->code ?? 'USD';
 
-            if ($paymentStatus === 'paid' && $balance > 0.01) continue;
-            if ($paymentStatus === 'not_paid' && $totalPaid > 0.01) continue;
-            if ($paymentStatus === 'partial' && ($totalPaid <= 0.01 || $balance <= 0.01)) continue;
+            $baseAmount = $toUSD($rawAmount, $currCode, $invoice->exchange_rate);
+            $basePaid   = $toUSD($totalPaid, $currCode, $invoice->exchange_rate);
 
-            $invType       = strtoupper($invoice->type ?? '');
+            // In Revenue (AR), CN is negative; In Cost (AP), DN is negative
+            if ($invType === 'AR') {
+                $netAmount = $isCN ? -$baseAmount : $baseAmount;
+            } else {
+                $netAmount = $isDN ? -$baseAmount : $baseAmount;
+            }
+            $balance = $netAmount - $basePaid;
+
+            if ($paymentStatus === 'paid' && abs($balance) > 0.01) continue;
+            if ($paymentStatus === 'not_paid' && $basePaid > 0.01) continue;
+            if ($paymentStatus === 'partial' && ($basePaid <= 0.01 || abs($balance) <= 0.01)) continue;
+
             $shippingLabel = $this->shippingTypeMap[$invoice->invoiceable_type ?? ''] ?? 'Other Operation';
             $partnerName   = $invoice->billTo?->name ?? 'N/A';
             $salesPerson   = $invoice->issuer?->name ?? 'N/A';
-            $officeName    = $invoice->office?->name ?? 'N/A';
-            $currCode      = $invoice->currency?->name ?? 'USD';
+            $officeName    = $invoice->office?->name ?? 'HQ';
 
             $status = 'Not Paid';
-            if ($balance <= 0.01) {
+            if (abs($balance) <= 0.01) {
                 $status = 'Paid';
-            } elseif ($totalPaid > 0.01) {
+            } elseif ($basePaid > 0.01) {
                 $status = 'Partial';
             }
 
@@ -138,12 +186,12 @@ class RevenueCostController extends Controller
                 'partner_name'  => $partnerName,
                 'sales_person'  => $salesPerson,
                 'office'        => $officeName,
-                'currency'      => $currCode,
+                'currency'      => 'USD',
                 'type'          => $invType,
                 'shipping_type' => $shippingLabel,
-                'total_amount'  => (float) $invoice->total_amount,
-                'paid_amount'   => $totalPaid,
-                'balance'       => $balance,
+                'total_amount'  => round($netAmount, 2),
+                'paid_amount'   => round($basePaid, 2),
+                'balance'       => round($balance, 2),
                 'status'        => $status,
             ];
         }
@@ -170,9 +218,9 @@ class RevenueCostController extends Controller
             $results = array_values($grouped);
         }
 
-        $totalAmount = array_sum(array_column($results, 'total_amount'));
-        $totalPaid   = array_sum(array_column($results, 'paid_amount'));
-        $totalBal    = array_sum(array_column($results, 'balance'));
+        $totalAmount = round(array_sum(array_column($results, 'total_amount')), 2);
+        $totalPaid   = round(array_sum(array_column($results, 'paid_amount')), 2);
+        $totalBal    = round(array_sum(array_column($results, 'balance')), 2);
 
         return response()->json([
             'success'      => true,
