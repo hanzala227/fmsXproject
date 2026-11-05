@@ -35,7 +35,7 @@ class CurrencyRateController extends Controller
         $lastBlockDate = $lastBlockRecord ? date('m-d-Y', strtotime($lastBlockRecord->block_date)) : 'N/A';
 
         $fromCurrencies = DB::table('currency_rates')->distinct()->pluck('from_currency')->filter()->values()->toArray();
-        $toCurrencies = DB::table('currency_rates')->distinct()->pluck('to_currency')->filter()->values()->toArray();
+        $toCurrencies = ['USD'];
 
         return view('accounting.currency-table', compact(
             'rates', 'latestRate', 'lastBlockDate', 'fromCurrencies', 'toCurrencies'
@@ -112,7 +112,7 @@ class CurrencyRateController extends Controller
             foreach ($rates as $rateData) {
                 $dataToSave = [
                     'from_currency' => strtoupper(trim($rateData['from_currency'] ?? 'CAD')),
-                    'to_currency'   => strtoupper(trim($rateData['to_currency'] ?? 'USD')),
+                    'to_currency'   => 'USD',
                     'as_of_date'    => $rateData['as_of_date'] ?? date('Y-m-d'),
                     'rate_internal' => (float)($rateData['rate_internal'] ?? 0),
                     'rate_external' => (float)($rateData['rate_external'] ?? 0),

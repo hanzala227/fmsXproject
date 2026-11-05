@@ -96,16 +96,8 @@
                         </select>
                         <i class="fa fa-arrow-right" style="color:#94a3b8;font-size:12px;"></i>
                         <span>To:</span>
-                        <select class="select-tool" x-model="toCurrency" style="width:80px;">
-                            <option value="EUR">EUR</option>
+                        <select class="select-tool" x-model="toCurrency" style="width:80px;background:#f8fafc;font-weight:600;" disabled title="Exchange-rate entry supports USD only">
                             <option value="USD">USD</option>
-                            <option value="CAD">CAD</option>
-                            <option value="GBP">GBP</option>
-                            <option value="JPY">JPY</option>
-                            <option value="AUD">AUD</option>
-                            <option value="CNY">CNY</option>
-                            <option value="PKR">PKR</option>
-                            <option value="INR">INR</option>
                         </select>
                     </div>
                     <div class="btn-group">
@@ -201,8 +193,8 @@
                                         </td>
                                         <td class="sticky-col" style="left:115px;" @click.stop>
                                             <input type="text" x-model="rate.to_currency" 
-                                                   class="input-inline" style="width:100%;font-weight:600;text-transform:uppercase;"
-                                                   @input="rate._unsaved = true">
+                                                   class="input-inline" style="width:100%;font-weight:600;text-transform:uppercase;background:#f8fafc;color:#1e293b;"
+                                                   readonly title="Exchange rate entry supports USD only">
                                         </td>
                                         <td @click.stop>
                                             <input type="date" x-model="rate.as_of_date" 
@@ -293,7 +285,7 @@
             filteredRates: [],
             selectedRates: [],
             fromCurrency: 'CAD',
-            toCurrency: 'EUR',
+            toCurrency: 'USD',
             searchTerm: '',
             allSelected: false,
             showFilters: false,
@@ -398,7 +390,7 @@
                 const newRate = {
                     id: null,
                     from_currency: this.fromCurrency || 'CAD',
-                    to_currency: this.toCurrency || 'EUR',
+                    to_currency: 'USD',
                     as_of_date: new Date().toISOString().split('T')[0],
                     rate_internal: 1.000000,
                     rate_external: 1.000000,
