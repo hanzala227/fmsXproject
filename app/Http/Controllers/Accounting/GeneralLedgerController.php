@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\BankAccount;
 use App\Models\Invoice;
 use App\Models\AccountingPayment;
+use App\Models\AccountingJournal;
+use App\Models\Currency;
 use App\Models\Office;
 use App\Models\TradePartner;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class GeneralLedgerController extends Controller
@@ -19,7 +21,8 @@ class GeneralLedgerController extends Controller
     public function index()
     {
         $offices = Office::where('is_active', true)->orderBy('name')->get();
-        $glAccounts = $this->getGLAccounts();
+        $companyId = auth()->user()->company_id ?? 1;
+        $glAccounts = $this->getGLAccounts($companyId);
 
         return view('accounting.general-ledger', compact('offices', 'glAccounts'));
     }
@@ -27,15 +30,65 @@ class GeneralLedgerController extends Controller
     /**
      * Get available GL accounts for the filter dropdowns.
      */
-    private function getGLAccounts(): array
+    private function getGLAccounts(?int $companyId = null): array
     {
-        return [
-            ['code' => '1000', 'name' => 'Cash & Cash Equivalents'],
-            ['code' => '1200', 'name' => 'Accounts Receivable'],
-            ['code' => '2000', 'name' => 'Accounts Payable'],
-            ['code' => '4000', 'name' => 'Revenue'],
-            ['code' => '5000', 'name' => 'Expenses'],
+        $baseAccounts = [
+            ['code' => '1000', 'name' => 'Cash & Cash Equivalents', 'type' => 'debit'],
+            ['code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'debit'],
+            ['code' => '2000', 'name' => 'Accounts Payable', 'type' => 'credit'],
+            ['code' => '3000', 'name' => "Owner's Capital / Opening Equity", 'type' => 'credit'],
+            ['code' => '4000', 'name' => 'Freight & Operating Revenue', 'type' => 'credit'],
+            ['code' => '5000', 'name' => 'Cost of Freight & Operating Expenses', 'type' => 'debit'],
         ];
+
+        // Also include any GL accounts from gl_codes that have journal entries
+        $usedGlIds = DB::table('journal_entry_lines')->distinct()->pluck('gl_account_id')->filter()->all();
+        if (!empty($usedGlIds)) {
+            $extraGl = DB::table('gl_codes')
+                ->whereIn('id', $usedGlIds)
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhere('company_id', 1);
+                })
+                ->get();
+            foreach ($extraGl as $gl) {
+                $code = $gl->gl_code;
+                if (!in_array($code, array_column($baseAccounts, 'code'))) {
+                    $baseAccounts[] = [
+                        'code' => $code,
+                        'name' => $gl->gl_name_eng ?: ($gl->gl_name_local ?: 'General Ledger Account'),
+                        'type' => 'debit',
+                    ];
+                }
+            }
+        }
+
+        usort($baseAccounts, fn($a, $b) => strcmp($a['code'], $b['code']));
+        return $baseAccounts;
+    }
+
+    /**
+     * Helper to convert foreign currency amount to base USD.
+     */
+    private function toUSD(float $amount, ?string $currCode, $modelRate = null): float
+    {
+        if ($modelRate && (float) $modelRate > 0) {
+            return ((float) $modelRate != 1.0) ? round($amount / (float) $modelRate, 2) : $amount;
+        }
+        $currCode = $currCode ?: 'USD';
+        if ($currCode === 'USD') return $amount;
+
+        $rateRecord = DB::table('currency_rates')
+            ->where('from_currency', $currCode)
+            ->where('to_currency', 'USD')
+            ->orderByDesc('as_of_date')
+            ->first();
+        if ($rateRecord && (float) $rateRecord->rate_internal > 0) {
+            $rate = (float) $rateRecord->rate_internal;
+        } else {
+            $curr = Currency::where('code', $currCode)->first();
+            $rate = ($curr && (float) $curr->exchange_rate > 0) ? (float) $curr->exchange_rate : 1.0;
+        }
+        return ($rate > 0 && $rate != 1.0) ? round($amount / $rate, 2) : $amount;
     }
 
     /**
@@ -62,11 +115,12 @@ class GeneralLedgerController extends Controller
         $reportType = $request->input('report_type', 'summary');
         $glFrom     = $request->input('gl_from');
         $glTo       = $request->input('gl_to');
+        $companyId  = auth()->user()->company_id ?? 1;
 
         $accounts = [];
 
         // Build GL accounts list with optional range filter
-        $allAccounts = $this->getGLAccounts();
+        $allAccounts = $this->getGLAccounts($companyId);
         if ($glFrom) {
             $allAccounts = array_filter($allAccounts, fn($a) => $a['code'] >= $glFrom);
         }
@@ -77,35 +131,42 @@ class GeneralLedgerController extends Controller
         foreach ($allAccounts as $glAccount) {
             $code = $glAccount['code'];
             $name = $glAccount['name'];
+            $type = $glAccount['type'] ?? 'debit';
 
             // Calculate opening balance (sum of all transactions before period_from)
-            $openingBalance = $this->calculateOpeningBalance($code, $periodFrom, $officeId);
+            $openingBalance = $this->calculateOpeningBalance($code, $periodFrom, $officeId, $companyId);
 
             // Get transactions in period
-            $transactions = $this->getTransactions($code, $periodFrom, $periodTo, $officeId, $reportType);
+            $transactions = $this->getTransactions($code, $periodFrom, $periodTo, $officeId, $companyId, $reportType, $openingBalance, $type);
 
-            // Calculate closing balance
-            $totalDebit  = array_sum(array_column($transactions, 'debit'));
-            $totalCredit = array_sum(array_column($transactions, 'credit'));
-            $closingBalance = $openingBalance + $totalDebit - $totalCredit;
+            $totalDebit  = round(array_sum(array_column($transactions, 'debit')), 2);
+            $totalCredit = round(array_sum(array_column($transactions, 'credit')), 2);
+
+            // Closing balance matches final running balance or opening + activity
+            if (!empty($transactions)) {
+                $closingBalance = end($transactions)['running_balance'];
+            } else {
+                $closingBalance = $openingBalance;
+            }
 
             $accounts[] = [
-                'code'            => $code,
-                'name'            => $name,
-                'opening_balance' => $openingBalance,
-                'transactions'    => $transactions,
-                'total_debit'     => $totalDebit,
-                'total_credit'    => $totalCredit,
-                'closing_balance' => $closingBalance,
+                'code'              => $code,
+                'name'              => $name,
+                'type'              => $type,
+                'opening_balance'   => round($openingBalance, 2),
+                'transactions'      => $transactions,
+                'total_debit'       => $totalDebit,
+                'total_credit'      => $totalCredit,
+                'closing_balance'   => round($closingBalance, 2),
                 'transaction_count' => count($transactions),
             ];
         }
 
         // Grand totals
-        $grandTotalDebit  = array_sum(array_column($accounts, 'total_debit'));
-        $grandTotalCredit = array_sum(array_column($accounts, 'total_credit'));
-        $grandOpening     = array_sum(array_column($accounts, 'opening_balance'));
-        $grandClosing     = array_sum(array_column($accounts, 'closing_balance'));
+        $grandTotalDebit  = round(array_sum(array_column($accounts, 'total_debit')), 2);
+        $grandTotalCredit = round(array_sum(array_column($accounts, 'total_credit')), 2);
+        $grandOpening     = round(array_sum(array_column($accounts, 'opening_balance')), 2);
+        $grandClosing     = round(array_sum(array_column($accounts, 'closing_balance')), 2);
 
         return response()->json([
             'success'     => true,
@@ -129,100 +190,164 @@ class GeneralLedgerController extends Controller
     /**
      * Calculate opening balance for an account before the period start.
      */
-    private function calculateOpeningBalance(string $glCode, string $periodFrom, ?int $officeId): float
+    private function calculateOpeningBalance(string $glCode, string $periodFrom, ?int $officeId, int $companyId): float
     {
         switch ($glCode) {
-            case '1000': // Cash
-                return (float) BankAccount::sum('opening_balance');
+            case '1000': // Cash & Cash Equivalents
+                $banks = DB::table('banks')
+                    ->where(function ($q) use ($companyId) {
+                        $q->where('company_id', $companyId)->orWhere('company_id', 1);
+                    })
+                    ->where('is_active', 1)
+                    ->get();
+                $initialCash = $banks->sum(fn($b) => $this->toUSD((float) $b->initial_amount, $b->currency));
 
-            case '1200': // AR
-                $arTotal = (float) (Invoice::where('type', 'AR')
-                    ->where('invoice_date', '<', $periodFrom)
-                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'CN' THEN -total_amount ELSE total_amount END), 0) as net")
-                    ->value('net') ?? 0);
-                $arPayments = (float) AccountingPayment::where('type', 'RECEIVED')
+                $priorRec = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
                     ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('amount');
-                return $arTotal - $arPayments;
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
 
-            case '2000': // AP
-                $apTotal = (float) (Invoice::where('type', 'AP')
-                    ->where('invoice_date', '<', $periodFrom)
-                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'DN' THEN -total_amount ELSE total_amount END), 0) as net")
-                    ->value('net') ?? 0);
-                $apPayments = (float) AccountingPayment::where('type', 'MADE')
+                $priorPay = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
                     ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->sum('amount');
-                return $apTotal - $apPayments;
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
 
-            case '4000': // Revenue
-                return (float) (Invoice::where('type', 'AR')
-                    ->where('invoice_date', '<', $periodFrom)
-                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'CN' THEN -total_amount ELSE total_amount END), 0) as net")
-                    ->value('net') ?? 0);
+                return $initialCash + $priorRec - $priorPay;
 
-            case '5000': // Expenses
-                return (float) (Invoice::where('type', 'AP')
+            case '1200': // Accounts Receivable (Asset: Debit normal)
+                $arPrior = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AR')
                     ->where('invoice_date', '<', $periodFrom)
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'DN' THEN -total_amount ELSE total_amount END), 0) as net")
-                    ->value('net') ?? 0);
+                    ->get()
+                    ->sum(fn($i) => ($i->document_type === 'CN' ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
+
+                $arRecPrior = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
+
+                return $arPrior - $arRecPrior;
+
+            case '2000': // Accounts Payable (Liability: Credit normal)
+                $apPrior = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AP')
+                    ->where('invoice_date', '<', $periodFrom)
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->get()
+                    ->sum(fn($i) => ($i->document_type === 'DN' ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
+
+                $apPayPrior = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
+
+                return $apPrior - $apPayPrior;
+
+            case '3000': // Owner's Capital / Opening Equity (Equity: Credit normal)
+                $banks = DB::table('banks')
+                    ->where(function ($q) use ($companyId) {
+                        $q->where('company_id', $companyId)->orWhere('company_id', 1);
+                    })
+                    ->where('is_active', 1)
+                    ->get();
+                return (float) $banks->sum(fn($b) => $this->toUSD((float) $b->initial_amount, $b->currency));
+
+            case '4000': // Revenue (Nominal account)
+            case '5000': // Expenses (Nominal account)
+                return 0.0;
 
             default:
-                return 0;
+                // Check if this is a custom GL account from journal entries
+                $gl = DB::table('gl_codes')->where('gl_code', $glCode)->first();
+                if ($gl) {
+                    $priorLines = DB::table('journal_entry_lines')
+                        ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
+                        ->where('journal_entry_lines.gl_account_id', $gl->id)
+                        ->whereNull('journal_entries.deleted_at')
+                        ->where('journal_entries.status', '!=', 'VOIDED')
+                        ->where('journal_entries.entry_date', '<', $periodFrom)
+                        ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
+                        ->get();
+                    $dr = (float) $priorLines->sum('local_debit');
+                    $cr = (float) $priorLines->sum('local_credit');
+                    return $dr - $cr;
+                }
+                return 0.0;
         }
     }
 
     /**
-     * Get transactions for an account within the period.
+     * Get transactions for an account within the period and compute running balance.
      */
-    private function getTransactions(string $glCode, string $periodFrom, string $periodTo, ?int $officeId, string $reportType): array
-    {
+    private function getTransactions(
+        string $glCode,
+        string $periodFrom,
+        string $periodTo,
+        ?int $officeId,
+        int $companyId,
+        string $reportType,
+        float $openingBalance,
+        string $accountType
+    ): array {
         $transactions = [];
 
         switch ($glCode) {
-            case '1000': // Cash - show receipts and payments
-                $receipts = AccountingPayment::where('type', 'RECEIVED')
-                    ->where('payment_date', '>=', $periodFrom)
-                    ->where('payment_date', '<=', $periodTo)
+            case '1000': // Cash - show receipts (Debit) and payments (Credit)
+                $receipts = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['tradePartner', 'invoice'])
-                    ->orderBy('payment_date')
+                    ->with(['tradePartner', 'invoice', 'currency'])
                     ->get();
 
                 foreach ($receipts as $p) {
+                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Receipt from ' . ($p->tradePartner?->name ?? 'N/A'),
-                        'debit'       => (float) $p->amount,
-                        'credit'      => 0,
+                        'description' => 'Cash Receipt from ' . ($p->tradePartner?->name ?? 'N/A') . ($p->bank_name ? " [{$p->bank_name}]" : ''),
+                        'debit'       => $amt,
+                        'credit'      => 0.0,
                         'partner'     => $p->tradePartner?->name ?? '',
                         'invoice_no'  => $p->invoice?->invoice_no ?? '',
                         'method'      => $p->payment_method ?? '',
                     ];
                 }
 
-                $payments = AccountingPayment::where('type', 'MADE')
-                    ->where('payment_date', '>=', $periodFrom)
-                    ->where('payment_date', '<=', $periodTo)
+                $payments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['tradePartner', 'invoice'])
-                    ->orderBy('payment_date')
+                    ->with(['tradePartner', 'invoice', 'currency'])
                     ->get();
 
                 foreach ($payments as $p) {
+                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Payment to ' . ($p->tradePartner?->name ?? 'N/A'),
-                        'debit'       => 0,
-                        'credit'      => (float) $p->amount,
+                        'description' => 'Cash Disbursement to ' . ($p->tradePartner?->name ?? 'N/A') . ($p->bank_name ? " [{$p->bank_name}]" : ''),
+                        'debit'       => 0.0,
+                        'credit'      => $amt,
                         'partner'     => $p->tradePartner?->name ?? '',
                         'invoice_no'  => $p->invoice?->invoice_no ?? '',
                         'method'      => $p->payment_method ?? '',
@@ -230,45 +355,47 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
-            case '1200': // AR - show AR invoices and payments received
-                $invoices = Invoice::where('type', 'AR')
-                    ->where('invoice_date', '>=', $periodFrom)
-                    ->where('invoice_date', '<=', $periodTo)
+            case '1200': // AR - show AR invoices (Debit) and payments received (Credit)
+                $invoices = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AR')
+                    ->whereBetween('invoice_date', [$periodFrom, $periodTo])
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['billTo'])
-                    ->orderBy('invoice_date')
+                    ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
                     $isCN = strtoupper($inv->document_type ?? '') === 'CN';
-                    $amount = (float) $inv->total_amount;
+                    $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => ($isCN ? 'Credit Note - ' : 'Invoice - ') . ($inv->billTo?->name ?? 'N/A'),
-                        'debit'       => 0,
-                        'credit'      => $isCN ? -$amount : $amount,
+                        'description' => ($isCN ? 'Credit Note - ' : 'Invoice Billed - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'debit'       => $isCN ? 0.0 : $amt,
+                        'credit'      => $isCN ? $amt : 0.0,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
                     ];
                 }
 
-                $arPayments = AccountingPayment::where('type', 'RECEIVED')
-                    ->where('payment_date', '>=', $periodFrom)
-                    ->where('payment_date', '<=', $periodTo)
+                $arPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['tradePartner'])
-                    ->orderBy('payment_date')
+                    ->with(['tradePartner', 'currency'])
                     ->get();
 
                 foreach ($arPayments as $p) {
+                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Payment received - ' . ($p->tradePartner?->name ?? 'N/A'),
-                        'debit'       => (float) $p->amount,
-                        'credit'      => 0,
+                        'description' => 'Customer Settlement - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => 0.0,
+                        'credit'      => $amt,
                         'partner'     => $p->tradePartner?->name ?? '',
                         'invoice_no'  => '',
                         'method'      => $p->payment_method ?? '',
@@ -276,43 +403,47 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
-            case '2000': // AP - show AP invoices and payments made
-                $invoices = Invoice::where('type', 'AP')
-                    ->where('invoice_date', '>=', $periodFrom)
-                    ->where('invoice_date', '<=', $periodTo)
+            case '2000': // AP - show AP invoices (Credit) and payments made (Debit)
+                $invoices = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AP')
+                    ->whereBetween('invoice_date', [$periodFrom, $periodTo])
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['billTo'])
-                    ->orderBy('invoice_date')
+                    ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
+                    $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+                    $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => 'Invoice - ' . ($inv->billTo?->name ?? 'N/A'),
-                        'debit'       => (float) $inv->total_amount,
-                        'credit'      => 0,
+                        'description' => ($isDN ? 'Debit Note - ' : 'Payable Billed - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'debit'       => $isDN ? $amt : 0.0,
+                        'credit'      => $isDN ? 0.0 : $amt,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
                     ];
                 }
 
-                $apPayments = AccountingPayment::where('type', 'MADE')
-                    ->where('payment_date', '>=', $periodFrom)
-                    ->where('payment_date', '<=', $periodTo)
+                $apPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['tradePartner'])
-                    ->orderBy('payment_date')
+                    ->with(['tradePartner', 'currency'])
                     ->get();
 
                 foreach ($apPayments as $p) {
+                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Payment made - ' . ($p->tradePartner?->name ?? 'N/A'),
-                        'debit'       => 0,
-                        'credit'      => (float) $p->amount,
+                        'description' => 'Vendor Disbursement - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => $amt,
+                        'credit'      => 0.0,
                         'partner'     => $p->tradePartner?->name ?? '',
                         'invoice_no'  => '',
                         'method'      => $p->payment_method ?? '',
@@ -320,24 +451,25 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
-            case '4000': // Revenue - show AR invoices only
-                $invoices = Invoice::where('type', 'AR')
-                    ->where('invoice_date', '>=', $periodFrom)
-                    ->where('invoice_date', '<=', $periodTo)
+            case '4000': // Revenue - show AR invoices (Credit) & CN (Debit)
+                $invoices = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AR')
+                    ->whereBetween('invoice_date', [$periodFrom, $periodTo])
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['billTo'])
-                    ->orderBy('invoice_date')
+                    ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
                     $isCN = strtoupper($inv->document_type ?? '') === 'CN';
-                    $amount = (float) $inv->total_amount;
+                    $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => ($isCN ? 'Credit Note (Contra-Revenue) - ' : 'Revenue - ') . ($inv->billTo?->name ?? 'N/A'),
-                        'debit'       => 0,
-                        'credit'      => $isCN ? -$amount : $amount,
+                        'description' => ($isCN ? 'Credit Note (Contra-Revenue) - ' : 'Operating Revenue - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'debit'       => $isCN ? $amt : 0.0,
+                        'credit'      => $isCN ? 0.0 : $amt,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
@@ -345,22 +477,25 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
-            case '5000': // Expenses - show AP invoices only
-                $invoices = Invoice::where('type', 'AP')
-                    ->where('invoice_date', '>=', $periodFrom)
-                    ->where('invoice_date', '<=', $periodTo)
+            case '5000': // Expenses - show AP invoices (Debit) & DN (Credit)
+                $invoices = Invoice::where('company_id', $companyId)
+                    ->where('type', 'AP')
+                    ->whereBetween('invoice_date', [$periodFrom, $periodTo])
+                    ->where('status', '!=', 'VOID')
+                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-                    ->with(['billTo'])
-                    ->orderBy('invoice_date')
+                    ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
+                    $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+                    $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => 'Expense - ' . ($inv->billTo?->name ?? 'N/A'),
-                        'debit'       => (float) $inv->total_amount,
-                        'credit'      => 0,
+                        'description' => ($isDN ? 'Debit Note (Expense Recovery) - ' : 'Operating Expense - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'debit'       => $isDN ? 0.0 : $amt,
+                        'credit'      => $isDN ? $amt : 0.0,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
@@ -369,15 +504,58 @@ class GeneralLedgerController extends Controller
                 break;
         }
 
-        // Sort by date
+        // Include any manual Journal Entries affecting this GL account
+        $targetGl = DB::table('gl_codes')->where('gl_code', $glCode)->first();
+        if ($targetGl) {
+            $jeLines = DB::table('journal_entry_lines')
+                ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
+                ->leftJoin('trade_partners', 'trade_partners.id', '=', 'journal_entry_lines.trade_partner_id')
+                ->where('journal_entry_lines.gl_account_id', $targetGl->id)
+                ->whereNull('journal_entries.deleted_at')
+                ->where('journal_entries.status', '!=', 'VOIDED')
+                ->whereBetween('journal_entries.entry_date', [$periodFrom, $periodTo])
+                ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
+                ->select(
+                    'journal_entry_lines.*',
+                    'journal_entries.entry_no',
+                    'journal_entries.entry_date',
+                    'journal_entries.description as je_desc',
+                    'trade_partners.name as partner_name'
+                )
+                ->get();
+
+            foreach ($jeLines as $line) {
+                $dr = (float) ($line->local_debit ?? 0);
+                $cr = (float) ($line->local_credit ?? 0);
+                if ($dr <= 0.001 && $cr <= 0.001) continue;
+
+                $transactions[] = [
+                    'date'        => $line->entry_date ? date('Y-m-d', strtotime($line->entry_date)) : '',
+                    'reference'   => $line->entry_no ?? '',
+                    'description' => 'Journal: ' . ($line->description ?: ($line->je_desc ?: 'Journal Adjustment')),
+                    'debit'       => $dr,
+                    'credit'      => $cr,
+                    'partner'     => $line->partner_name ?? '',
+                    'invoice_no'  => '',
+                    'method'      => 'JOURNAL',
+                ];
+            }
+        }
+
+        // Sort chronologically by date
         usort($transactions, fn($a, $b) => strcmp($a['date'], $b['date']));
 
-        // Calculate running balance
-        $running = 0;
+        // Calculate accurate Running Balance starting from Opening Balance
+        $running = $openingBalance;
         foreach ($transactions as &$txn) {
-            $running += ($txn['debit'] - $txn['credit']);
-            $txn['running_balance'] = $running;
+            if ($accountType === 'credit') {
+                $running += ($txn['credit'] - $txn['debit']);
+            } else {
+                $running += ($txn['debit'] - $txn['credit']);
+            }
+            $txn['running_balance'] = round($running, 2);
         }
+        unset($txn);
 
         return $transactions;
     }
@@ -419,7 +597,7 @@ class GeneralLedgerController extends Controller
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
 
             fputcsv($handle, ['General Ledger Report']);
-            fputcsv($handle, ['Period', request()->period_from ?? date('Y-01-01') . ' to ' . (request()->period_to ?? date('Y-m-d'))]);
+            fputcsv($handle, ['Period', (request()->period_from ?? date('Y-01-01')) . ' to ' . (request()->period_to ?? date('Y-m-d'))]);
             fputcsv($handle, []);
 
             foreach ($accounts as $account) {
