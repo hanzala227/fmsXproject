@@ -352,6 +352,85 @@ class AiExtractionController extends Controller
         return $files;
     }
 
+    /**
+     * Normalize extracted source-document data across all bookings:
+     * - Collects and assigns actual booking_no across aliases
+     * - Cross-maps mbl_no and mawb_no
+     * - Prevents blank, 'N/A', 'null', or placeholder assignments
+     * - Normalizes dates to YYYY-MM-DD
+     */
+    protected function normalizeExtractedData(array &$data, string $module): void
+    {
+        if (!isset($data['mbl']) || !is_array($data['mbl'])) {
+            return;
+        }
+
+        $m = &$data['mbl'];
+
+        // Clean blank and invalid placeholder strings
+        $invalidStrings = ['null', 'n/a', 'na', 'none', 'undefined', '-', '--', 'nil'];
+        foreach ($m as $k => $v) {
+            if (is_string($v)) {
+                $trimmed = trim($v);
+                if ($trimmed === '' || in_array(strtolower($trimmed), $invalidStrings, true)) {
+                    $m[$k] = null;
+                } else {
+                    $m[$k] = $trimmed;
+                }
+            }
+        }
+
+        // Booking number normalization across all alias sources
+        if (empty($m['booking_no'])) {
+            $m['booking_no'] = $m['booking_number']
+                ?? $m['booking_ref']
+                ?? $m['bkg_no']
+                ?? $m['booking']
+                ?? $m['carrier_booking_no']
+                ?? $m['airline_booking_ref']
+                ?? $m['so_no']
+                ?? null;
+        }
+
+        // Cross-map MBL and MAWB numbers
+        if (empty($m['mbl_no']) && !empty($m['mawb_no'])) {
+            $m['mbl_no'] = $m['mawb_no'];
+        } elseif (empty($m['mawb_no']) && !empty($m['mbl_no'])) {
+            $m['mawb_no'] = $m['mbl_no'];
+        }
+
+        // Date normalization to standard ISO YYYY-MM-DD
+        $dateFields = ['etd', 'eta', 'atd', 'ata', 'post_date', 'awb_date', 'port_cutoff', 'doc_cutoff', 'vgm_cutoff'];
+        foreach ($dateFields as $df) {
+            if (!empty($m[$df])) {
+                try {
+                    $m[$df] = \Carbon\Carbon::parse($m[$df])->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // keep original if parsing fails
+                }
+            }
+        }
+
+        // Clean HBLs if present
+        if (isset($data['hbls']) && is_array($data['hbls'])) {
+            foreach ($data['hbls'] as &$hbl) {
+                if (is_array($hbl)) {
+                    foreach ($hbl as $hk => $hv) {
+                        if (is_string($hv)) {
+                            $trimmed = trim($hv);
+                            if ($trimmed === '' || in_array(strtolower($trimmed), $invalidStrings, true)) {
+                                $hbl[$hk] = null;
+                            } else {
+                                $hbl[$hk] = $trimmed;
+                            }
+                        }
+                    }
+                }
+            }
+            unset($hbl);
+        }
+    }
+
     public function extractOceanImport(Request $request)
     {
         try {
@@ -368,6 +447,7 @@ class AiExtractionController extends Controller
             }
 
             $data = $this->aiService->extractData($files, 'ocean_import');
+            $this->normalizeExtractedData($data, 'ocean_import');
 
             // --- Database Mapping (Jugaar) ---
             if (isset($data['mbl'])) {
@@ -478,6 +558,7 @@ class AiExtractionController extends Controller
             }
 
             $data = $this->aiService->extractData($files, 'ocean_export');
+            $this->normalizeExtractedData($data, 'ocean_export');
 
             // --- Database Mapping (Jugaar) ---
             if (isset($data['mbl'])) {
@@ -600,6 +681,7 @@ class AiExtractionController extends Controller
             }
 
             $data = $this->aiService->extractData($files, 'air_import');
+            $this->normalizeExtractedData($data, 'air_import');
 
             if (isset($data['mbl'])) {
                 // Normalize MAWB / MBL number & IATA 11-digit format (xxx-xxxxxxxx)
@@ -823,6 +905,7 @@ class AiExtractionController extends Controller
             }
 
             $data = $this->aiService->extractData($files, 'air_export');
+            $this->normalizeExtractedData($data, 'air_export');
 
             if (isset($data['mbl'])) {
                 // Normalize MAWB / MBL number & IATA 11-digit format (xxx-xxxxxxxx)

@@ -783,6 +783,7 @@
                                 const m = result.data.mbl;
                                 const mblMap = [
                                     { label: 'MB/L No.', key: 'mbl_no', val: m.mbl_no },
+                                    { label: 'Booking No.', key: 'booking_no', val: m.booking_no },
                                     { label: 'Vessel Name', key: 'vessel_name', val: m.vessel_name },
                                     { label: 'Voyage No.', key: 'voyage', val: m.voyage },
                                     { label: 'Port of Loading', key: 'pol_id', val: m.pol_id, display: m.pol_name, nameKey: 'pol_name' },
