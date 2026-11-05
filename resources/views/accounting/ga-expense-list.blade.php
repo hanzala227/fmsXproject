@@ -248,7 +248,12 @@
                                         <td class="sticky-col" style="width:25px;left:25px;text-align:center;" onclick="event.stopPropagation()">
                                             <i class="fa {{ $expense->status === 'POSTED' || $expense->status === 'PAID' ? 'fa-lock' : 'fa-unlock' }}" style="color:#94a3b8;cursor:pointer;font-size:10px;" title="Lock status" onclick="toggleLock(this)"></i>
                                         </td>
-                                        <td class="sticky-col" style="width:150px;left:50px;">{{ $expense->billTo ? Str::limit($expense->billTo->name, 18) : '--' }}</td>
+                                        <td class="sticky-col" style="width:150px;left:50px;">
+                                            {{ $expense->billTo ? Str::limit($expense->billTo->name, 18) : '--' }}
+                                            @if($expense->payable_to)
+                                                <br><span style="font-size:9px;color:#2563eb;font-weight:600;">[{{ $expense->payable_to }}]</span>
+                                            @endif
+                                        </td>
                                         <td class="sticky-col" style="width:120px;left:200px;">
                                             <a href="{{ route('accounting.ga-expense.show', $expense->id) }}" class="col-link">{{ $expense->invoice_no }}</a>
                                         </td>

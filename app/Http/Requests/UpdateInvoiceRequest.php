@@ -39,6 +39,7 @@ class UpdateInvoiceRequest extends FormRequest
             'balance_amount' => 'nullable|numeric',
             'status' => 'nullable|in:DRAFT,POSTED,PAID,PARTIAL,VOID',
             'type' => 'required|in:AR,AP',
+            'payable_to' => 'nullable|string|max:50',
             'office_id' => 'nullable|exists:offices,id',
             'issued_by' => 'nullable|exists:users,id',
             'discount_pct' => 'nullable|numeric|min:0|max:100',

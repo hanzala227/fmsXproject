@@ -41,6 +41,7 @@ class StoreInvoiceRequest extends FormRequest
             'related_invoice_id' => 'nullable|integer|exists:invoices,id',
             'exchange_rate' => 'nullable|numeric|min:0.000001',
             'type' => 'required|in:AR,AP',
+            'payable_to' => 'nullable|string|max:50',
             'office_id' => 'nullable|exists:offices,id',
             'issued_by' => 'nullable|exists:users,id',
             'discount_pct' => 'nullable|numeric|min:0|max:100',

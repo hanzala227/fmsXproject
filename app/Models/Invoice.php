@@ -31,6 +31,7 @@ class Invoice extends Model
         'balance_amount',
         'status',
         'type',
+        'payable_to',
         'office_id',
         'issued_by',
         'discount_pct',

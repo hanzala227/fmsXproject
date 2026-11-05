@@ -83,6 +83,12 @@
             <div class="detail-card-body">
                 <div class="detail-grid">
                     <div class="detail-field">
+                        <div class="detail-label">Payable To</div>
+                        <div class="detail-value">
+                            <span style="font-weight:600;color:#2563eb;">{{ $ga_expense->payable_to ?? '--' }}</span>
+                        </div>
+                    </div>
+                    <div class="detail-field">
                         <div class="detail-label">Party</div>
                         <div class="detail-value">{{ $ga_expense->billTo->name ?? '--' }}</div>
                     </div>

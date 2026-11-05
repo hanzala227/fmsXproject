@@ -109,6 +109,16 @@
                     <div class="form-grid-4">
                         <!-- Column 1 -->
                         <div>
+                            <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Payable To</label>
+                                <div class="form-input-container">
+                                    <select name="payable_to" class="form-control-gf" x-model="form.payable_to" required>
+                                        <option value="">Select...</option>
+                                        <option value="Person">Person</option>
+                                        <option value="Company">Company</option>
+                                        <option value="Towards Current Liability">Towards Current Liability</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="form-group-gf"><label class="form-label-gf"><span style="color:red;">*</span> Vendor</label>
                                 <div class="form-input-container">
                                     <select name="bill_to_id" class="form-control-gf" x-model="form.bill_to_id" required>
@@ -399,6 +409,7 @@
                 isSaved: {{ $editMode ? 'true' : 'false' }},
 
                 form: {
+                    payable_to: '{{ old("payable_to", $editMode ? ($ga_expense->payable_to ?? "") : "") }}',
                     bill_to_id: '{{ old("bill_to_id", $editMode ? ($ga_expense->bill_to_id ?? "") : "") }}',
                     invoice_no: '{{ old("invoice_no", $editMode ? ($ga_expense->invoice_no ?? "") : "INF-" . date("ymdHis")) }}',
                     invoice_date: '{{ old("invoice_date", $editMode && $ga_expense->invoice_date ? $ga_expense->invoice_date->format("Y-m-d") : date("Y-m-d")) }}',
@@ -466,6 +477,7 @@
                 validateForm() {
                     let valid = true;
                     let missing = [];
+                    if (!this.form.payable_to) { missing.push('Payable To'); valid = false; }
                     if (!this.form.bill_to_id) { missing.push('Vendor'); valid = false; }
                     if (!this.form.invoice_no || !this.form.invoice_no.trim()) { missing.push('Invoice No.'); valid = false; }
                     if (!this.form.invoice_date) { missing.push('Post Date'); valid = false; }

@@ -119,6 +119,7 @@ class GaExpenseController extends Controller
     {
         $data = $request->validated();
         $data['type'] = 'AP';
+        $data['payable_to'] = $request->input('payable_to');
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
@@ -213,6 +214,7 @@ class GaExpenseController extends Controller
 
         $data = $request->validated();
         $data['type'] = 'AP';
+        $data['payable_to'] = $request->input('payable_to');
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
