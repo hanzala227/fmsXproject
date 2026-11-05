@@ -104,6 +104,40 @@ class BalanceSheetController extends Controller
             ];
         }
 
+        // ── 2. Total Payments / Receipts as of date across all channels ──
+        $allPayments = AccountingPayment::with('currency')
+            ->where('payment_date', '<=', $asOfDate)
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->get();
+
+        $totalRecUSD = 0.0;
+        $totalPayUSD = 0.0;
+
+        foreach ($allPayments as $p) {
+            $rate = (float)($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
+            if ($rate <= 0) $rate = 1.0;
+            $baseAmount = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
+            if ($p->type === 'RECEIVED') {
+                $totalRecUSD += $baseAmount;
+            } elseif ($p->type === 'MADE') {
+                $totalPayUSD += $baseAmount;
+            }
+        }
+
+        // Reconcile unallocated bank / cash-on-hand settlements into Cash & Cash Equivalents
+        $otherCashUSD = round(($totalRecUSD - $totalPayUSD) - ($totalCashUSD - $initialCapitalUSD), 2);
+        if (abs($otherCashUSD) >= 0.01) {
+            $cashLines[] = [
+                'label'  => 'Undeposited Funds / Cash on Hand',
+                'detail' => 'Cash and clearing settlements across all payment channels',
+                'amount' => $otherCashUSD,
+                'is_sub' => true,
+            ];
+            $totalCashUSD = round($totalCashUSD + $otherCashUSD, 2);
+        }
+
         $cashLines[] = [
             'label'    => 'Total Cash & Cash Equivalents',
             'detail'   => '',
@@ -111,7 +145,7 @@ class BalanceSheetController extends Controller
             'is_total' => true,
         ];
 
-        // ── 2. Invoices (AR & AP) ──
+        // ── 3. Invoices (AR & AP) ──
         $invoices = Invoice::with('currency')
             ->where('invoice_date', '<=', $asOfDate)
             ->where('status', '!=', 'VOID')
@@ -132,28 +166,6 @@ class BalanceSheetController extends Controller
                 $totalARRevenue += ($isCN ? -$baseAmount : $baseAmount);
             } elseif ($inv->type === 'AP') {
                 $totalAPExpenses += ($isDN ? -$baseAmount : $baseAmount);
-            }
-        }
-
-        // ── 3. Total Payments / Receipts as of date ──
-        $allPayments = AccountingPayment::with('currency')
-            ->where('payment_date', '<=', $asOfDate)
-            ->whereNull('deleted_at')
-            ->whereNull('cancelled_at')
-            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get();
-
-        $totalRecUSD = 0.0;
-        $totalPayUSD = 0.0;
-
-        foreach ($allPayments as $p) {
-            $rate = (float)($p->exchange_rate ?? $p->currency?->exchange_rate ?? 1.0);
-            if ($rate <= 0) $rate = 1.0;
-            $baseAmount = ($rate != 1.0) ? round(((float)$p->amount) / $rate, 2) : (float)$p->amount;
-            if ($p->type === 'RECEIVED') {
-                $totalRecUSD += $baseAmount;
-            } elseif ($p->type === 'MADE') {
-                $totalPayUSD += $baseAmount;
             }
         }
 

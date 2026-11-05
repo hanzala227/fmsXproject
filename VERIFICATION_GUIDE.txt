@@ -241,3 +241,4 @@ CR-030 | High | Reports - Journal Report
 - Expected Result: Debits equal Credits with green balanced indicator; search filters
   by GL code/name, Ref No, and partner; Print and Download Excel work cleanly.
 ================================================================================
+

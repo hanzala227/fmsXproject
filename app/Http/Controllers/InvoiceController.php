@@ -700,6 +700,13 @@ class InvoiceController extends Controller
         $ids = $request->input('ids');
         $status = $request->input('status');
 
+        if ($status === 'VOID' || $status === 'CANCELLED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Prohibited: Cancellation requires an Administrator to provide a mandatory cancellation reason using the Cancel action.'
+            ], 403);
+        }
+
         if ($status === 'DRAFT') {
             $hasSettlements = Invoice::whereIn('id', $ids)
                 ->where(function($q) {

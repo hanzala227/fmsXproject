@@ -86,7 +86,6 @@
                     <option value="DRAFT">Draft</option>
                     <option value="POSTED">Posted</option>
                     <option value="PAID">Paid</option>
-                    <option value="VOID">Void</option>
                 </select>
             </div>
             <div class="confirm-actions">
@@ -1334,7 +1333,16 @@
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const statusVal = urlParams.get('status');
-        if (statusVal) document.getElementById('status-filter').value = statusVal;
+        if (statusVal) {
+            const selectEl = document.getElementById('status-filter');
+            if (selectEl) {
+                if (statusVal.toUpperCase() === 'CANCELLED' || statusVal.toUpperCase() === 'VOID') {
+                    selectEl.value = 'VOID';
+                } else {
+                    selectEl.value = statusVal;
+                }
+            }
+        }
     });
     </script>
     @endpush
