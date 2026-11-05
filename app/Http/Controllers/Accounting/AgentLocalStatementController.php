@@ -365,7 +365,9 @@ class AgentLocalStatementController extends Controller
         }
 
         $list = array_values($grouped);
-        foreach ($list as &$item) {
+        $asOfStr = date('ymd', strtotime($request->as_of_date ?? now()));
+        foreach ($list as $idx => &$item) {
+            $item['document_id'] = 'DOC-' . $asOfStr . '-' . str_pad($idx + 1, 4, '0', STR_PAD_LEFT);
             $item['transaction_type'] = implode(', ', $item['transaction_type']);
             $item['total_amount_str'] = '';
             $item['balance_str'] = '';

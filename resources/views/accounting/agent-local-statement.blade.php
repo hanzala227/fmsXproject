@@ -249,6 +249,7 @@
                             <div id="col-toggles"></div>
                         </div>
                     </div>
+                    <button class="btn-action-round green" type="button" id="btnGenerateDocs" title="Generate Docs"><i class="fa fa-file-text-o"></i> Generate Docs</button>
                     <button class="btn-action-round secondary" type="button" id="btnPrint"><i class="fa fa-print"></i></button>
                     <button class="btn-action-round secondary" type="button" id="btnExport"><i class="fa fa-file-excel-o"></i></button>
                 </div>
@@ -332,7 +333,10 @@
             <div style="margin-top:20px;">
                 <div class="doc-list-header">
                     <h6>GENERATED DOCUMENT LIST</h6>
-                    <button class="btn-action-round" type="button" id="btnFilterGenerated"><i class="fa fa-filter"></i> Filter</button>
+                    <div style="display:flex;gap:4px;">
+                        <button class="btn-action-round green" type="button" id="btnGenerateDocsHeader" title="Generate Docs"><i class="fa fa-file-text-o"></i> Generate Docs</button>
+                        <button class="btn-action-round" type="button" id="btnFilterGenerated"><i class="fa fa-filter"></i> Filter</button>
+                    </div>
                 </div>
                 <div class="grid-container" style="border:1px solid #e2e8f0;border-top:none;">
                     <table class="grid-table" id="generatedTable">
@@ -553,6 +557,39 @@
             })
             .catch(function(err) { console.error('Search error:', err); });
         });
+
+        function handleGenerateDocs() {
+            var selectedRows = document.querySelectorAll('#resultsTable tbody input.row-select:checked');
+            var targetPartner = '';
+            var targetOffice = '';
+            if (selectedRows.length > 0) {
+                var firstIdx = parseInt(selectedRows[0].value);
+                var row = allResults[firstIdx];
+                if (row) {
+                    targetPartner = row.partner_name;
+                    targetOffice = row.office;
+                }
+            } else if (allResults.length > 0) {
+                targetPartner = allResults[0].partner_name;
+                targetOffice = allResults[0].office;
+            } else {
+                alert('No statement records available to generate documents.');
+                return;
+            }
+
+            var params = new URLSearchParams();
+            params.set('as_of_date', document.getElementById('asOfDate').value);
+            if (targetPartner) params.set('filter_partner', targetPartner);
+            if (targetOffice) params.set('filter_office', targetOffice);
+            params.set('show_aging', document.getElementById('showAging').checked ? '1' : '0');
+
+            window.open('{{ route("accounting.report.agent-local-statement.print") }}?' + params.toString(), '_blank');
+        }
+
+        var btnGenDocs = document.getElementById('btnGenerateDocs');
+        if (btnGenDocs) btnGenDocs.addEventListener('click', handleGenerateDocs);
+        var btnGenDocsHdr = document.getElementById('btnGenerateDocsHeader');
+        if (btnGenDocsHdr) btnGenDocsHdr.addEventListener('click', handleGenerateDocs);
 
         document.getElementById('btnPrint').addEventListener('click', function() {
             var params = new URLSearchParams();
