@@ -143,6 +143,12 @@
                         </td>
                     </tr>
                     <tr>
+                        <td class="flabel">Customer / Partner Name</td>
+                        <td class="finput" colspan="5">
+                            <input type="text" id="customer_name" class="form-control-gf" style="width:260px;" placeholder="Search by Customer or Carrier Name...">
+                        </td>
+                    </tr>
+                    <tr>
                         <td class="flabel"><span class="text-danger">*</span>Ending Date</td>
                         <td class="finput">
                             <div style="display:flex;flex-direction:column;gap:3px;">
@@ -312,6 +318,7 @@
         fd.append('as_of_date',asOfDate);fd.append('office_id',officeId);
         fd.append('report_type',getRadioVal('report_type'));fd.append('aging_type',getAgingType());
         fd.append('trade_partner_type',getRadioVal('tp_type'));fd.append('group_by',getRadioVal('group_by'));
+        fd.append('customer_name',document.getElementById('customer_name')?document.getElementById('customer_name').value:'');
         fd.append('sort_by',getRadioVal('sort_by'));fd.append('ending_date_type',getRadioVal('ending_date_type'));
         fd.append('payment_data',getRadioVal('payment_data'));
         fd.append('include_prepaid',document.getElementById('include_prepaid').checked?'1':'0');
@@ -440,8 +447,8 @@
         }
     });
 
-    function printReport(){var d=document.getElementById('as_of_date').value;if(!d){showToast('error','Please select an As of Date.');return}window.open('{{route("accounting.report.aging-report.print")}}?as_of_date='+encodeURIComponent(d)+'&office_id='+encodeURIComponent(document.getElementById('office_id').value)+'&aging_type='+encodeURIComponent(getAgingType())+'&trade_partner_type='+encodeURIComponent(getRadioVal('tp_type'))+'&group_by='+encodeURIComponent(getRadioVal('group_by'))+'&sort_by='+encodeURIComponent(getRadioVal('sort_by'))+'&report_type='+encodeURIComponent(getRadioVal('report_type'))+'&ending_date_type='+encodeURIComponent(getRadioVal('ending_date_type')),'_blank')}
-    function exportExcel(){var d=document.getElementById('as_of_date').value;if(!d){showToast('error','Please select an As of Date.');return}window.location.href='{{route("accounting.report.aging-report.export-excel")}}?as_of_date='+encodeURIComponent(d)+'&office_id='+encodeURIComponent(document.getElementById('office_id').value)+'&aging_type='+encodeURIComponent(getAgingType())+'&trade_partner_type='+encodeURIComponent(getRadioVal('tp_type'))+'&group_by='+encodeURIComponent(getRadioVal('group_by'))+'&sort_by='+encodeURIComponent(getRadioVal('sort_by'))+'&report_type='+encodeURIComponent(getRadioVal('report_type'))+'&ending_date_type='+encodeURIComponent(getRadioVal('ending_date_type'))}
+    function printReport(){var d=document.getElementById('as_of_date').value;if(!d){showToast('error','Please select an As of Date.');return}var cn=document.getElementById('customer_name')?document.getElementById('customer_name').value:'';window.open('{{route("accounting.report.aging-report.print")}}?as_of_date='+encodeURIComponent(d)+'&office_id='+encodeURIComponent(document.getElementById('office_id').value)+'&aging_type='+encodeURIComponent(getAgingType())+'&trade_partner_type='+encodeURIComponent(getRadioVal('tp_type'))+'&customer_name='+encodeURIComponent(cn)+'&group_by='+encodeURIComponent(getRadioVal('group_by'))+'&sort_by='+encodeURIComponent(getRadioVal('sort_by'))+'&report_type='+encodeURIComponent(getRadioVal('report_type'))+'&ending_date_type='+encodeURIComponent(getRadioVal('ending_date_type')),'_blank')}
+    function exportExcel(){var d=document.getElementById('as_of_date').value;if(!d){showToast('error','Please select an As of Date.');return}var cn=document.getElementById('customer_name')?document.getElementById('customer_name').value:'';window.location.href='{{route("accounting.report.aging-report.export-excel")}}?as_of_date='+encodeURIComponent(d)+'&office_id='+encodeURIComponent(document.getElementById('office_id').value)+'&aging_type='+encodeURIComponent(getAgingType())+'&trade_partner_type='+encodeURIComponent(getRadioVal('tp_type'))+'&customer_name='+encodeURIComponent(cn)+'&group_by='+encodeURIComponent(getRadioVal('group_by'))+'&sort_by='+encodeURIComponent(getRadioVal('sort_by'))+'&report_type='+encodeURIComponent(getRadioVal('report_type'))+'&ending_date_type='+encodeURIComponent(getRadioVal('ending_date_type'))}
     </script>
     @endpush
 </x-layout>

@@ -36,6 +36,8 @@ class AgingReportController extends Controller
             'report_type'        => 'nullable|in:summary,detail',
             'aging_type'         => 'nullable|string',
             'trade_partner_type' => 'nullable|string',
+            'customer_name'      => 'nullable|string',
+            'partner_name'       => 'nullable|string',
             'group_by'           => 'nullable|in:trade_partner,sales_invoice,account_group',
             'sort_by'            => 'nullable|in:due_date,etd,eta',
             'ending_date_type'   => 'nullable|in:post_date,invoice_date,etd,eta',
@@ -56,6 +58,7 @@ class AgingReportController extends Controller
         $reportType       = $request->input('report_type', 'summary');
         $agingType        = $request->input('aging_type', 'ar,ap');
         $tradePartnerType = $request->input('trade_partner_type', 'all');
+        $customerName     = trim($request->input('customer_name', $request->input('partner_name', $request->input('search', ''))));
         $groupBy          = $request->input('group_by', 'trade_partner');
         $sortBy           = $request->input('sort_by', 'due_date');
         $endingDateType   = $request->input('ending_date_type', 'invoice_date');
@@ -65,6 +68,7 @@ class AgingReportController extends Controller
         $hideZeroBal      = $request->input('opt_hide_zero_bal', '0');
         $hideNegative     = $request->input('opt_hide_negative', '0');
         $filterCredit     = $request->input('opt_filter_credit', '0');
+        $companyId        = auth()->user()->company_id ?? 1;
 
         $asOfCarbon = Carbon::parse($asOfDate);
 
@@ -75,15 +79,18 @@ class AgingReportController extends Controller
             $invoiceTypes = ['AR', 'AP'];
         }
 
-        $invoices = Invoice::whereIn('type', $invoiceTypes)
+        $invoices = Invoice::where('company_id', $companyId)
+            ->whereIn('type', $invoiceTypes)
             ->where('invoice_date', '<=', $asOfDate)
+            ->where('status', '!=', 'VOID')
+            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->with(['billTo', 'currency', 'payments'])
+            ->with(['billTo', 'currency', 'payments', 'invoiceable'])
             ->get();
 
         $grouped = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->sum('amount');
+            $totalPaid = (float) $invoice->payments->whereNull('void_date')->sum('amount');
             $isCN      = strtoupper($invoice->document_type ?? '') === 'CN';
             $balance   = ($invoice->status === 'PAID' || (float)$invoice->balance_amount <= 0.001) 
                 ? 0.0 
@@ -104,24 +111,64 @@ class AgingReportController extends Controller
 
             $partnerId   = $invoice->bill_to_id ?? 0;
             $partnerName = $invoice->billTo?->name ?? 'N/A';
-            $partnerType = $invoice->billTo?->type ?? '';
+            $partnerCode = $invoice->billTo?->code ?? '';
+            $partnerType = strtoupper(trim($invoice->billTo?->type ?? ''));
             $invoiceDate = $invoice->invoice_date;
             $dueDate     = $invoice->due_date;
 
-            if ($tradePartnerType === 'customer' && $partnerType !== 'Customer') {
-                continue;
+            // Customer Name / Partner Name filter
+            if ($customerName !== '') {
+                $matchesName = (stripos($partnerName, $customerName) !== false) ||
+                               (stripos($partnerCode, $customerName) !== false) ||
+                               (stripos($invoice->billTo?->alias ?? '', $customerName) !== false);
+                if (!$matchesName) {
+                    continue;
+                }
             }
-            if ($tradePartnerType === 'oversea_agent' && $partnerType !== 'Oversea Agent') {
-                continue;
-            }
-            if ($tradePartnerType === 'exclude_oversea_agent' && $partnerType === 'Oversea Agent') {
-                continue;
-            }
-            if ($tradePartnerType === 'ocean_carrier' && $partnerType !== 'Ocean Carrier') {
-                continue;
-            }
-            if ($tradePartnerType === 'air_carrier' && $partnerType !== 'Air Carrier') {
-                continue;
+
+            // Customer Type filter
+            if ($tradePartnerType === 'customer') {
+                $isCustomer = in_array($partnerType, ['CS', 'CUSTOMER', 'CLIENT', 'CO']) || ($invoice->type === 'AR' && !in_array($partnerType, ['CR', 'CARRIER', 'AIR CARRIER', 'AIRLINE']));
+                if (!$isCustomer) {
+                    continue;
+                }
+            } elseif ($tradePartnerType === 'ocean_carrier') {
+                $isAirline = str_contains(strtoupper($partnerName), 'AIRLINE') || str_contains(strtoupper($partnerName), 'AIR CARRIER') || in_array($partnerType, ['AIR CARRIER', 'AIR_CARRIER']);
+                $isOcean = !$isAirline && (
+                    in_array($partnerType, ['OCEAN CARRIER', 'OCEAN_CARRIER']) 
+                    || (in_array($partnerType, ['CR', 'CARRIER']) && (
+                        str_contains(strtoupper($partnerName), 'SHIPPING') || 
+                        preg_match('/\bLINES?\b/i', $partnerName) || 
+                        str_contains(strtoupper($partnerName), 'ZIM') || 
+                        str_contains(strtoupper($partnerName), 'COSCO') || 
+                        str_contains(strtoupper($partnerName), 'MAERSK') || 
+                        str_contains(strtoupper($partnerName), 'WESTWOOD') || 
+                        str_contains($invoice->invoiceable_type ?? '', 'Ocean')
+                    ))
+                );
+                if (!$isOcean) {
+                    continue;
+                }
+            } elseif ($tradePartnerType === 'air_carrier') {
+                $isAir = in_array($partnerType, ['AIR CARRIER', 'AIR_CARRIER']) 
+                    || (in_array($partnerType, ['CR', 'CARRIER']) && (
+                        str_contains(strtoupper($partnerName), 'AIR') || 
+                        str_contains(strtoupper($partnerName), 'AIRLINE') || 
+                        str_contains($invoice->invoiceable_type ?? '', 'Air')
+                    ));
+                if (!$isAir) {
+                    continue;
+                }
+            } elseif ($tradePartnerType === 'oversea_agent') {
+                $isAgent = in_array($partnerType, ['AGENT', 'OVERSEA AGENT', 'OVERSEA_AGENT', 'OVERSEAS AGENT']);
+                if (!$isAgent) {
+                    continue;
+                }
+            } elseif ($tradePartnerType === 'exclude_oversea_agent') {
+                $isAgent = in_array($partnerType, ['AGENT', 'OVERSEA AGENT', 'OVERSEA_AGENT', 'OVERSEAS AGENT']);
+                if ($isAgent) {
+                    continue;
+                }
             }
 
             $daysOverdue = 0;
