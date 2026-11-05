@@ -111,7 +111,7 @@
                                 <select id="bank_account_id" class="form-control-gf" style="max-width:220px;">
                                     <option value="">All Banks</option>
                                     @foreach($bankAccounts as $bank)
-                                        <option value="{{ $bank->id }}">{{ $bank->name }}{{ $bank->account_no ? ' (' . $bank->account_no . ')' : '' }}</option>
+                                        <option value="{{ $bank->id }}">{{ $bank->bank_name ?? $bank->name }}{{ !empty($bank->gl_no) ? ' (' . $bank->gl_no . ')' : (!empty($bank->account_no) ? ' (' . $bank->account_no . ')' : '') }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -136,6 +136,7 @@
                         <div class="form-group-row">
                             <div class="form-label-box">Type</div>
                             <div class="form-input-box">
+                                <label class="radio-item"><input type="radio" name="type" value="all"> All</label>
                                 <label class="radio-item"><input type="radio" name="type" value="Bank" checked> Bank</label>
                                 <label class="radio-item"><input type="radio" name="type" value="Book"> Book</label>
                             </div>
@@ -339,13 +340,14 @@
             // Detail transactions for this bank
             if (reportType === 'Detail' && row.transactions && row.transactions.length) {
                 row.transactions.forEach(txn => {
-                    html += '<tr style="background:#fafafa;">';
+                    html += '<tr style="background:#f8fafc;border-left:3px solid #3b82f6;">';
                     html += `<td style="padding-left:20px;font-size:10px;color:#64748b;">&nbsp;&nbsp;&nbsp;${escapeHtml(txn.date)}</td>`;
-                    html += `<td colspan="2" style="font-size:10px;color:#64748b;">${escapeHtml(txn.description)}</td>`;
-                    html += `<td class="num" style="font-size:10px;">${txn.debit > 0 ? fmt(txn.debit) : ''}</td>`;
-                    html += `<td class="num" style="font-size:10px;">${txn.credit > 0 ? fmt(txn.credit) : ''}</td>`;
-                    html += `<td class="num" style="font-size:10px;">${fmt(txn.balance)}</td>`;
-                    html += '<td colspan="4"></td>';
+                    html += `<td colspan="2" style="font-size:10px;color:#334155;">${escapeHtml(txn.description)}</td>`;
+                    html += `<td class="num" style="font-size:10px;color:#94a3b8;">--</td>`;
+                    html += `<td class="num" style="font-size:10px;color:#16a34a;">${txn.debit > 0 ? fmt(txn.debit) : ''}</td>`;
+                    html += `<td class="num" style="font-size:10px;color:#dc2626;">${txn.credit > 0 ? fmt(txn.credit) : ''}</td>`;
+                    html += `<td class="num fw-600" style="font-size:10px;">${fmt(txn.balance)}</td>`;
+                    html += '<td colspan="3"></td>';
                     html += '</tr>';
                 });
             }

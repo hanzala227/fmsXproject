@@ -88,6 +88,19 @@
                         <td class="num">{{ number_format($row['difference'], 2) }}</td>
                         <td><span class="{{ $row['status'] === 'active' ? 'badge-active' : 'badge-inactive' }}">{{ $row['status'] }}</span></td>
                     </tr>
+                    @if(($reportType ?? 'Summary') === 'Detail' && !empty($row['transactions']))
+                        @foreach($row['transactions'] as $txn)
+                        <tr style="background:#f8fafc;font-size:10px;">
+                            <td style="padding-left:18px;color:#64748b;">&nbsp;&nbsp;{{ $txn['date'] }}</td>
+                            <td colspan="2" style="color:#334155;">{{ $txn['description'] }}</td>
+                            <td class="num" style="color:#94a3b8;">--</td>
+                            <td class="num" style="color:#16a34a;">{{ $txn['debit'] > 0 ? number_format($txn['debit'], 2) : '' }}</td>
+                            <td class="num" style="color:#dc2626;">{{ $txn['credit'] > 0 ? number_format($txn['credit'], 2) : '' }}</td>
+                            <td class="num" style="font-weight:600;">{{ number_format($txn['balance'], 2) }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                        @endforeach
+                    @endif
                     @endif
                 @endforeach
                 <tr class="total-row">
