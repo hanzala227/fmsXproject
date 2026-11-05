@@ -165,7 +165,7 @@
                                     <th data-col="type" style="width:90px;">Type</th>
                                     <th data-col="ref_no" style="width:100px;">Ref No.</th>
                                     <th data-col="bank" style="width:100px;">Bank</th>
-                                    <th data-col="amount" style="width:100px;text-align:right;">Received (CAD)</th>
+                                    <th data-col="amount" style="width:100px;text-align:right;">Received (USD)</th>
                                     <th data-col="bank_cur" style="width:130px;text-align:right;">Received (Bank Cur.)</th>
                                     <th data-col="deposit" style="width:85px;">Deposit Date</th>
                                     <th data-col="void" style="width:40px;text-align:center;">Void</th>

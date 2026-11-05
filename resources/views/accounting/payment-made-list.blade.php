@@ -165,7 +165,7 @@
                                     <th data-col="type" style="width:90px;">Type</th>
                                     <th data-col="ref_no" style="width:100px;">Ref No.</th>
                                     <th data-col="bank" style="width:100px;">Bank</th>
-                                    <th data-col="amount" style="width:100px;text-align:right;">Paid (CAD)</th>
+                                    <th data-col="amount" style="width:100px;text-align:right;">Paid (USD)</th>
                                     <th data-col="bank_cur" style="width:130px;text-align:right;">Paid (Bank Cur.)</th>
                                     <th data-col="clear_date" style="width:85px;">Clear Date</th>
                                     <th data-col="void" style="width:40px;text-align:center;">Void</th>

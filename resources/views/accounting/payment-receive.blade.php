@@ -384,8 +384,7 @@
                                         <th data-col="invoice_amt" style="width:110px;text-align:right;background:#4a5568;cursor:pointer;" @click="sortBy('total_amount')">Invoice AMT <i class="fa" :class="sortCol === 'total_amount' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="balance_amt" style="width:110px;text-align:right;background:#4a5568;cursor:pointer;" @click="sortBy('balance_amount')">Balance AMT <i class="fa" :class="sortCol === 'balance_amount' ? (sortDir === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'" style="font-size:8px;opacity:0.6;"></i></th>
                                         <th data-col="select" style="width:30px;text-align:center;background:#4a5568;"><i class="fa fa-check-square-o" style="font-size:9px;opacity:0.6;"></i></th>
-                                        <th data-col="payment" style="width:110px;text-align:right;background:#4a5568;">Payment</th>
-                                        <th data-col="payment_rmb" style="width:110px;text-align:right;background:#4a5568;">Payment (RMB)</th>
+                                        <th data-col="payment" style="width:110px;text-align:right;background:#4a5568;">Payment (USD)</th>
                                         <th data-col="description" style="width:150px;background:#4a5568;">Invoice Description</th>
                                         <th data-col="file_no" style="width:100px;background:#4a5568;">Booking No.</th>
                                         <th data-col="mbl_no" style="width:110px;background:#4a5568;">MBL No.</th>
@@ -418,11 +417,6 @@
                                                 style="height:20px;font-size:9px;width:90px;min-width:70px;max-width:110px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
                                                 x-model="allocationAmounts[{{ $inv->id }}]"
                                                 @input="updateAllocation({{ $inv->id }})">
-                                        </td>
-                                        <td data-col="payment_rmb" style="text-align:right;padding-right:6px;">
-                                            <input type="number" step="0.01" min="0" class="form-control-gf input-number"
-                                                style="height:20px;font-size:9px;width:90px;min-width:70px;max-width:110px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
-                                                x-model="allocationRMB[{{ $inv->id }}]">
                                         </td>
                                         <td data-col="description" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">{{ $inv->internal_remark ?? '' }}</td>
                                         <td data-col="file_no">
@@ -721,8 +715,7 @@
                     { key: 'invoice_amt', label: 'Invoice AMT', visible: true },
                     { key: 'balance_amt', label: 'Balance AMT', visible: true },
                     { key: 'select', label: 'Select', visible: true },
-                    { key: 'payment', label: 'Payment', visible: true },
-                    { key: 'payment_rmb', label: 'Payment (RMB)', visible: true },
+                    { key: 'payment', label: 'Payment (USD)', visible: true },
                     { key: 'description', label: 'Invoice Description', visible: true },
                     { key: 'file_no', label: 'Booking No.', visible: true },
                     { key: 'mbl_no', label: 'MBL No.', visible: true },

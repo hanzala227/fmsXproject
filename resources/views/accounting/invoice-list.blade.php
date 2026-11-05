@@ -385,11 +385,11 @@
                                         <th data-col="inv_date" style="width:80px;cursor:pointer;" onclick="doSort('invoice_date')">Invoice Date <i class="fa fa-sort" id="sort-invoice_date2"></i></th>
                                         <th data-col="due_date" style="width:80px;cursor:pointer;" onclick="doSort('due_date')">Due Date <i class="fa fa-sort" id="sort-due_date"></i></th>
                                         <th data-col="amount" style="width:110px;cursor:pointer;" onclick="doSort('total_amount')">Amount <i class="fa fa-sort" id="sort-total_amount"></i></th>
-                                        <th data-col="amount_ac" style="width:90px;text-align:right;">Amount (A.C.)</th>
+                                        <th data-col="amount_ac" style="width:90px;text-align:right;">Amount (USD)</th>
                                         <th data-col="paid" style="width:110px;cursor:pointer;" onclick="doSort('paid_amount')">Paid Amount <i class="fa fa-sort" id="sort-paid_amount"></i></th>
-                                        <th data-col="paid_ac" style="width:90px;text-align:right;">Paid (A.C.)</th>
+                                        <th data-col="paid_ac" style="width:90px;text-align:right;">Paid (USD)</th>
                                         <th data-col="balance" style="width:110px;cursor:pointer;" onclick="doSort('balance_amount')">Balance <i class="fa fa-sort" id="sort-balance_amount"></i></th>
-                                        <th data-col="balance_ac" style="width:90px;text-align:right;">Balance (A.C.)</th>
+                                        <th data-col="balance_ac" style="width:90px;text-align:right;">Balance (USD)</th>
                                         <th data-col="last_paid" style="width:85px;">Last Paid Date</th>
                                         <th data-col="overdue" style="width:55px;text-align:center;">Over Due</th>
                                         <th data-col="office" style="width:55px;">Office</th>

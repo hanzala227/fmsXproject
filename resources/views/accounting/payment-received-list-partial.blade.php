@@ -32,7 +32,7 @@
         <td>{{ $payment->bank_name ?? '' }}</td>
         <td style="text-align:right;">{{ number_format($payment->amount, 2) }}</td>
         <td style="text-align:right;">
-            <span style="color:#999;">{{ $payment->bankCurrency?->code ?? $payment->currency?->code ?? 'CAD' }}</span>
+            <span style="color:#999;">{{ $payment->bankCurrency?->code ?? $payment->currency?->code ?? 'USD' }}</span>
             <span style="margin-left:6px;">{{ number_format($payment->amount, 2) }}</span>
         </td>
         <td>{{ $payment->clear_date?->format('m-d-Y') ?? '' }}</td>
