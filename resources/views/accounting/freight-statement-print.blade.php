@@ -60,23 +60,25 @@
     <table>
         <thead>
             <tr>
-                <th style="width:10%;">ETD</th>
-                <th style="width:14%;">Booking No.</th>
+                <th style="width:9%;">Post Date</th>
+                <th style="width:9%;">ETD</th>
+                <th style="width:13%;">Invoice No.</th>
                 @if($showBookingNumber === '1')
                 <th style="width:12%;">Booking No.</th>
                 @endif
-                <th style="width:14%;">MB/L No.</th>
-                <th style="width:14%;">HB/L No.</th>
-                <th style="width:6%;">CUR.</th>
-                <th style="width:10%;text-align:right;">DRI/AR(+)</th>
-                <th style="width:10%;text-align:right;">CRI/AP(-)</th>
-                <th style="width:10%;text-align:right;">Paid</th>
-                <th style="width:10%;text-align:right;">Balance</th>
+                <th style="width:13%;">MB/L No.</th>
+                <th style="width:13%;">HB/L No.</th>
+                <th style="width:5%;">CUR.</th>
+                <th style="width:9%;text-align:right;">DRI/AR(+)</th>
+                <th style="width:9%;text-align:right;">CRI/AP(-)</th>
+                <th style="width:9%;text-align:right;">Paid</th>
+                <th style="width:9%;text-align:right;">Balance</th>
             </tr>
         </thead>
         <tbody>
             @forelse($results as $row)
                 <tr>
+                    <td>{{ $row['invoice_date'] }}</td>
                     <td>{{ $row['etd'] }}</td>
                     <td>{{ $row['invoice_no'] }}</td>
                     @if($showBookingNumber === '1')
@@ -92,11 +94,11 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $showBookingNumber === '1' ? 10 : 9 }}" style="text-align:center;color:#94a3b8;padding:30px;">No records found.</td>
+                    <td colspan="{{ $showBookingNumber === '1' ? 11 : 10 }}" style="text-align:center;color:#94a3b8;padding:30px;">No records found.</td>
                 </tr>
             @endforelse
             <tr class="grand-total">
-                <td colspan="{{ $showBookingNumber === '1' ? 5 : 4 }}" style="text-align:right;">TOTAL (BALANCE)</td>
+                <td colspan="{{ $showBookingNumber === '1' ? 6 : 5 }}" style="text-align:right;">TOTAL (BALANCE)</td>
                 <td></td>
                 <td class="num">{{ number_format($summary['total_dr'] ?? 0, 2) }}</td>
                 <td class="num">{{ number_format($summary['total_cr'] ?? 0, 2) }}</td>

@@ -36,7 +36,7 @@
         <thead>
             <tr>
                 <th style="width:12%;">Invoice No</th>
-                <th style="width:9%;">Invoice Date</th>
+                <th style="width:9%;">Post Date</th>
                 <th style="width:9%;">Due Date</th>
                 <th style="width:14%;">Partner</th>
                 <th style="width:10%;">Office</th>

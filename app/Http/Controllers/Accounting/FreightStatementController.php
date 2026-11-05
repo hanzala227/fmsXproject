@@ -244,13 +244,13 @@ class FreightStatementController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, [
-                'ETD', 'Invoice No.', 'MB/L No.', 'HB/L No.', 'Cur.',
+                'Post Date', 'ETD', 'Invoice No.', 'MB/L No.', 'HB/L No.', 'Cur.',
                 'DRI/AR (+)', 'CRI/AP (-)', 'Paid', 'Balance',
             ]);
 
             foreach ($results as $row) {
                 fputcsv($handle, [
-                    $row['etd'], $row['invoice_no'], $row['mbl_no'], $row['hbl_no'], $row['currency'],
+                    $row['invoice_date'], $row['etd'], $row['invoice_no'], $row['mbl_no'], $row['hbl_no'], $row['currency'],
                     number_format($row['dr_amount'], 2),
                     number_format($row['cr_amount'], 2),
                     number_format($row['paid_amount'], 2),
