@@ -58,6 +58,7 @@ class AgentLocalStatementController extends Controller
             'group_department'   => 'nullable|in:0,1',
             'show_credit_limit'  => 'nullable|in:0,1',
             'invoice_local_received' => 'nullable|in:0,1',
+            'partner_name'       => 'nullable|string',
             'filter_partner'     => 'nullable|string',
             'filter_office'      => 'nullable|string',
         ]);
@@ -90,7 +91,7 @@ class AgentLocalStatementController extends Controller
         $groupDepartment   = $request->input('group_department', '0');
         $showCreditLimit   = $request->input('show_credit_limit', '1');
         $invoiceLocalReceived = $request->input('invoice_local_received', '0');
-        $filterPartner        = $request->input('filter_partner', '');
+        $filterPartner        = $request->input('filter_partner') ?: $request->input('partner_name', '');
         $filterOffice         = $request->input('filter_office', '');
 
         $asOfCarbon = Carbon::parse($asOfDate);
@@ -100,8 +101,10 @@ class AgentLocalStatementController extends Controller
             ->when($salesPersonId, fn($q) => $q->where('issued_by', $salesPersonId))
             ->with(['billTo', 'currency', 'office', 'payments', 'invoiceable']);
 
-        // Filter by partner (agent_customer by ID, account_group by name)
-        if ($partnerType === 'account_group') {
+        // Filter by partner (filter_partner / partner_name, account_group, or bill_to_id)
+        if ($filterPartner) {
+            $query->whereHas('billTo', fn($q) => $q->where('name', 'like', "%{$filterPartner}%"));
+        } elseif ($partnerType === 'account_group') {
             if ($accountGroup) {
                 $query->whereHas('billTo', fn($q) => $q->where('credit_limit_group_name', $accountGroup));
             }
@@ -268,7 +271,7 @@ class AgentLocalStatementController extends Controller
 
         // Filter by partner_name and office for row-level actions (Download PDF / Reload Report)
         if ($filterPartner) {
-            $results = array_filter($results, fn($r) => strcasecmp($r['partner_name'], $filterPartner) === 0);
+            $results = array_filter($results, fn($r) => stripos($r['partner_name'], $filterPartner) !== false || strcasecmp($r['partner_name'], $filterPartner) === 0);
         }
         if ($filterOffice) {
             $results = array_filter($results, fn($r) => strcasecmp($r['office'], $filterOffice) === 0);

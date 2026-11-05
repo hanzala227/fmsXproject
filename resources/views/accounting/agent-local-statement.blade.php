@@ -95,6 +95,7 @@
                                 <label><input type="radio" name="partner_type" value="agent_customer" checked id="partnerTypeAC"> Agent/Customer</label>
                                 <label><input type="radio" name="partner_type" value="account_group" id="partnerTypeAG"> Account Group</label>
                             </div>
+                            <input type="text" id="partnerSearchInput" class="gf-input" placeholder="Type partner name to filter..." style="width:220px;margin-bottom:3px;font-size:10px;height:22px;padding:2px 5px;display:block;" oninput="filterPartnerDropdown(this.value)">
                             <select id="billToId" class="gf-select" style="width:220px;">
                                 <option value="">Select...</option>
                                 @foreach($tradePartners as $tp)<option value="{{ $tp->id }}">{{ $tp->name }}</option>@endforeach
@@ -407,14 +408,38 @@
         var accountGroupIdSel = document.getElementById('accountGroupId');
 
         function togglePartnerType() {
+            var psi = document.getElementById('partnerSearchInput');
             if (partnerTypeAG.checked) {
+                if (psi) psi.style.display = 'none';
                 billToIdSel.style.display = 'none';
                 billToIdSel.value = '';
                 accountGroupIdSel.style.display = '';
             } else {
+                if (psi) psi.style.display = 'block';
                 accountGroupIdSel.style.display = 'none';
                 accountGroupIdSel.value = '';
                 billToIdSel.style.display = '';
+            }
+            triggerAutoSearch();
+        }
+
+        function filterPartnerDropdown(val) {
+            var filter = val.toLowerCase().trim();
+            var select = document.getElementById('billToId');
+            var options = select.options;
+            var firstMatch = null;
+            for (var i = 1; i < options.length; i++) {
+                var txt = options[i].text.toLowerCase();
+                var match = !filter || txt.indexOf(filter) !== -1;
+                options[i].hidden = !match;
+                if (match && !firstMatch) firstMatch = options[i];
+            }
+            if (filter && firstMatch) {
+                select.value = firstMatch.value;
+                triggerAutoSearch();
+            } else if (!filter) {
+                select.value = '';
+                triggerAutoSearch();
             }
         }
         partnerTypeAC.addEventListener('change', togglePartnerType);
@@ -531,6 +556,13 @@
             var params = new URLSearchParams();
             params.set('as_of_date', document.getElementById('asOfDate').value);
             params.set('show_aging', document.getElementById('showAging').checked ? '1' : '0');
+            var pt = partnerTypeAG.checked ? 'account_group' : 'agent_customer';
+            params.set('partner_type', pt);
+            if (pt === 'account_group') {
+                if (accountGroupIdSel.value) params.set('account_group', accountGroupIdSel.value);
+            } else {
+                if (billToIdSel.value) params.set('bill_to_id', billToIdSel.value);
+            }
             window.open('{{ route("accounting.report.agent-local-statement.print") }}?' + params.toString(), '_blank');
         });
 
@@ -538,6 +570,13 @@
             var params = new URLSearchParams();
             params.set('as_of_date', document.getElementById('asOfDate').value);
             params.set('show_aging', document.getElementById('showAging').checked ? '1' : '0');
+            var pt = partnerTypeAG.checked ? 'account_group' : 'agent_customer';
+            params.set('partner_type', pt);
+            if (pt === 'account_group') {
+                if (accountGroupIdSel.value) params.set('account_group', accountGroupIdSel.value);
+            } else {
+                if (billToIdSel.value) params.set('bill_to_id', billToIdSel.value);
+            }
             window.location = '{{ route("accounting.report.agent-local-statement.export-excel") }}?' + params.toString();
         });
 
@@ -770,6 +809,8 @@
                     if (!g) return;
                     document.querySelectorAll('.action-dropdown-menu').forEach(function(m) { m.classList.remove('show'); });
                     var fd = buildSearchFD();
+                    fd.delete('bill_to_id');
+                    fd.set('partner_type', 'agent_customer');
                     fd.set('filter_partner', g.partner || '');
                     fd.set('filter_office', g.invoice_office || '');
                     fetch('{{ route("accounting.report.agent-local-statement.view") }}', {
