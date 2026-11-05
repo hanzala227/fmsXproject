@@ -33,23 +33,33 @@
         <div class="period">Period: {{ $periodFrom }} to {{ $periodTo }}</div>
     </div>
 
+    @php $isDC = ($format === 'debit_credit'); @endphp
     <table>
         <thead>
             <tr>
                 <th>Code</th>
                 <th>Account Name</th>
                 <th>Group</th>
-                <th class="num">Opening Balance</th>
-                <th class="num">Debit</th>
-                <th class="num">Credit</th>
-                <th class="num">Closing Balance</th>
+                @if($isDC)
+                    <th class="num">Opening (Dr)</th>
+                    <th class="num">Opening (Cr)</th>
+                    <th class="num">Debit</th>
+                    <th class="num">Credit</th>
+                    <th class="num">Closing (Dr)</th>
+                    <th class="num">Closing (Cr)</th>
+                @else
+                    <th class="num">Opening Balance</th>
+                    <th class="num">Debit</th>
+                    <th class="num">Credit</th>
+                    <th class="num">Closing Balance</th>
+                @endif
             </tr>
         </thead>
         <tbody>
             @if($groupBySub && !empty($grouped))
                 @foreach($grouped as $grp)
                     <tr class="group-header">
-                        <td colspan="7">{{ strtoupper($grp['group']) }} / {{ $grp['sub_group'] }}</td>
+                        <td colspan="{{ $isDC ? 9 : 7 }}">{{ strtoupper($grp['group']) }} / {{ $grp['sub_group'] }}</td>
                     </tr>
 
                     @foreach($grp['accounts'] as $acc)
@@ -57,20 +67,38 @@
                             <td>{{ $acc['code'] }}</td>
                             <td>{{ $acc['name'] }}</td>
                             <td>{{ $acc['group'] }}</td>
-                            <td class="num">{{ number_format($acc['opening_balance'], 2) }}</td>
-                            <td class="num">{{ number_format($acc['debit'], 2) }}</td>
-                            <td class="num">{{ number_format($acc['credit'], 2) }}</td>
-                            <td class="num">{{ number_format($acc['closing_balance'], 2) }}</td>
+                            @if($isDC)
+                                <td class="num">{{ number_format($acc['opening_debit'] ?? 0, 2) }}</td>
+                                <td class="num">{{ number_format($acc['opening_credit'] ?? 0, 2) }}</td>
+                                <td class="num">{{ number_format($acc['debit'], 2) }}</td>
+                                <td class="num">{{ number_format($acc['credit'], 2) }}</td>
+                                <td class="num">{{ number_format($acc['closing_debit'] ?? 0, 2) }}</td>
+                                <td class="num">{{ number_format($acc['closing_credit'] ?? 0, 2) }}</td>
+                            @else
+                                <td class="num">{{ number_format($acc['opening_balance'], 2) }}</td>
+                                <td class="num">{{ number_format($acc['debit'], 2) }}</td>
+                                <td class="num">{{ number_format($acc['credit'], 2) }}</td>
+                                <td class="num">{{ number_format($acc['closing_balance'], 2) }}</td>
+                            @endif
                         </tr>
                     @endforeach
 
                     <tr class="subgroup-total">
                         <td colspan="2">Subtotal {{ $grp['sub_group'] }}</td>
                         <td></td>
-                        <td class="num">{{ number_format($grp['opening_balance'], 2) }}</td>
-                        <td class="num">{{ number_format($grp['debit'], 2) }}</td>
-                        <td class="num">{{ number_format($grp['credit'], 2) }}</td>
-                        <td class="num">{{ number_format($grp['closing_balance'], 2) }}</td>
+                        @if($isDC)
+                            <td class="num">{{ number_format($grp['opening_debit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($grp['opening_credit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($grp['debit'], 2) }}</td>
+                            <td class="num">{{ number_format($grp['credit'], 2) }}</td>
+                            <td class="num">{{ number_format($grp['closing_debit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($grp['closing_credit'] ?? 0, 2) }}</td>
+                        @else
+                            <td class="num">{{ number_format($grp['opening_balance'], 2) }}</td>
+                            <td class="num">{{ number_format($grp['debit'], 2) }}</td>
+                            <td class="num">{{ number_format($grp['credit'], 2) }}</td>
+                            <td class="num">{{ number_format($grp['closing_balance'], 2) }}</td>
+                        @endif
                     </tr>
                 @endforeach
             @else
@@ -79,20 +107,38 @@
                         <td>{{ $acc['code'] }}</td>
                         <td>{{ $acc['name'] }}</td>
                         <td>{{ $acc['group'] }}</td>
-                        <td class="num">{{ number_format($acc['opening_balance'], 2) }}</td>
-                        <td class="num">{{ number_format($acc['debit'], 2) }}</td>
-                        <td class="num">{{ number_format($acc['credit'], 2) }}</td>
-                        <td class="num">{{ number_format($acc['closing_balance'], 2) }}</td>
+                        @if($isDC)
+                            <td class="num">{{ number_format($acc['opening_debit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($acc['opening_credit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($acc['debit'], 2) }}</td>
+                            <td class="num">{{ number_format($acc['credit'], 2) }}</td>
+                            <td class="num">{{ number_format($acc['closing_debit'] ?? 0, 2) }}</td>
+                            <td class="num">{{ number_format($acc['closing_credit'] ?? 0, 2) }}</td>
+                        @else
+                            <td class="num">{{ number_format($acc['opening_balance'], 2) }}</td>
+                            <td class="num">{{ number_format($acc['debit'], 2) }}</td>
+                            <td class="num">{{ number_format($acc['credit'], 2) }}</td>
+                            <td class="num">{{ number_format($acc['closing_balance'], 2) }}</td>
+                        @endif
                     </tr>
                 @endforeach
             @endif
 
             <tr class="total-row">
                 <td colspan="3">GRAND TOTAL</td>
-                <td class="num">{{ number_format($summary['total_opening_balance'] ?? 0, 2) }}</td>
-                <td class="num">{{ number_format($summary['total_debit'] ?? 0, 2) }}</td>
-                <td class="num">{{ number_format($summary['total_credit'] ?? 0, 2) }}</td>
-                <td class="num">{{ number_format($summary['total_closing_balance'] ?? 0, 2) }}</td>
+                @if($isDC)
+                    <td class="num">{{ number_format($summary['total_opening_debit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_opening_credit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_debit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_credit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_closing_debit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_closing_credit'] ?? 0, 2) }}</td>
+                @else
+                    <td class="num">{{ number_format($summary['total_opening_balance'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_debit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_credit'] ?? 0, 2) }}</td>
+                    <td class="num">{{ number_format($summary['total_closing_balance'] ?? 0, 2) }}</td>
+                @endif
             </tr>
         </tbody>
     </table>

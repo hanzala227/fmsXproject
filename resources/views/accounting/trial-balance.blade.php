@@ -287,21 +287,31 @@
         let html = '<div class="grid-container"><table class="grid-table">';
 
         // Table Header
+        const isDC = (format === 'debit_credit');
         html += '<thead><tr>';
         html += '<th>Code</th>';
         html += '<th>Account Name</th>';
         html += '<th>Group</th>';
-        html += '<th class="num">Opening Balance</th>';
-        html += '<th class="num">Debit</th>';
-        html += '<th class="num">Credit</th>';
-        html += '<th class="num">Closing Balance</th>';
+        if (isDC) {
+            html += '<th class="num">Opening (Dr)</th>';
+            html += '<th class="num">Opening (Cr)</th>';
+            html += '<th class="num">Debit</th>';
+            html += '<th class="num">Credit</th>';
+            html += '<th class="num">Closing (Dr)</th>';
+            html += '<th class="num">Closing (Cr)</th>';
+        } else {
+            html += '<th class="num">Opening Balance</th>';
+            html += '<th class="num">Debit</th>';
+            html += '<th class="num">Credit</th>';
+            html += '<th class="num">Closing Balance</th>';
+        }
         html += '</tr></thead><tbody>';
 
         if (groupBySub && grouped.length) {
             // Grouped rendering
             grouped.forEach(grp => {
                 html += '<tr class="group-header">';
-                html += `<td colspan="7">${escapeHtml(grp.group)} / ${escapeHtml(grp.sub_group)}</td>`;
+                html += `<td colspan="${isDC ? 9 : 7}">${escapeHtml(grp.group)} / ${escapeHtml(grp.sub_group)}</td>`;
                 html += '</tr>';
 
                 grp.accounts.forEach(acc => {
@@ -309,20 +319,38 @@
                     html += `<td>${escapeHtml(acc.code)}</td>`;
                     html += `<td class="fw-600" style="padding-left:20px;">${escapeHtml(acc.name)}</td>`;
                     html += `<td>${escapeHtml(acc.group)}</td>`;
-                    html += `<td class="num">${fmt(acc.opening_balance)}</td>`;
-                    html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
-                    html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
-                    html += `<td class="num fw-600">${fmt(acc.closing_balance)}</td>`;
+                    if (isDC) {
+                        html += `<td class="num">${acc.opening_debit > 0 ? fmt(acc.opening_debit) : '0.00'}</td>`;
+                        html += `<td class="num">${acc.opening_credit > 0 ? fmt(acc.opening_credit) : '0.00'}</td>`;
+                        html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
+                        html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
+                        html += `<td class="num fw-600">${acc.closing_debit > 0 ? fmt(acc.closing_debit) : '0.00'}</td>`;
+                        html += `<td class="num fw-600">${acc.closing_credit > 0 ? fmt(acc.closing_credit) : '0.00'}</td>`;
+                    } else {
+                        html += `<td class="num">${fmt(acc.opening_balance)}</td>`;
+                        html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
+                        html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
+                        html += `<td class="num fw-600">${fmt(acc.closing_balance)}</td>`;
+                    }
                     html += '</tr>';
                 });
 
                 html += '<tr class="subgroup-total">';
                 html += `<td colspan="2">Subtotal ${escapeHtml(grp.sub_group)}</td>`;
                 html += `<td></td>`;
-                html += `<td class="num">${fmt(grp.opening_balance)}</td>`;
-                html += `<td class="num">${fmt(grp.debit)}</td>`;
-                html += `<td class="num">${fmt(grp.credit)}</td>`;
-                html += `<td class="num">${fmt(grp.closing_balance)}</td>`;
+                if (isDC) {
+                    html += `<td class="num">${fmt(grp.opening_debit)}</td>`;
+                    html += `<td class="num">${fmt(grp.opening_credit)}</td>`;
+                    html += `<td class="num">${fmt(grp.debit)}</td>`;
+                    html += `<td class="num">${fmt(grp.credit)}</td>`;
+                    html += `<td class="num">${fmt(grp.closing_debit)}</td>`;
+                    html += `<td class="num">${fmt(grp.closing_credit)}</td>`;
+                } else {
+                    html += `<td class="num">${fmt(grp.opening_balance)}</td>`;
+                    html += `<td class="num">${fmt(grp.debit)}</td>`;
+                    html += `<td class="num">${fmt(grp.credit)}</td>`;
+                    html += `<td class="num">${fmt(grp.closing_balance)}</td>`;
+                }
                 html += '</tr>';
             });
         } else {
@@ -332,10 +360,19 @@
                 html += `<td>${escapeHtml(acc.code)}</td>`;
                 html += `<td class="fw-600">${escapeHtml(acc.name)}</td>`;
                 html += `<td>${escapeHtml(acc.group)}</td>`;
-                html += `<td class="num">${fmt(acc.opening_balance)}</td>`;
-                html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
-                html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
-                html += `<td class="num fw-600">${fmt(acc.closing_balance)}</td>`;
+                if (isDC) {
+                    html += `<td class="num">${acc.opening_debit > 0 ? fmt(acc.opening_debit) : '0.00'}</td>`;
+                    html += `<td class="num">${acc.opening_credit > 0 ? fmt(acc.opening_credit) : '0.00'}</td>`;
+                    html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
+                    html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
+                    html += `<td class="num fw-600">${acc.closing_debit > 0 ? fmt(acc.closing_debit) : '0.00'}</td>`;
+                    html += `<td class="num fw-600">${acc.closing_credit > 0 ? fmt(acc.closing_credit) : '0.00'}</td>`;
+                } else {
+                    html += `<td class="num">${fmt(acc.opening_balance)}</td>`;
+                    html += `<td class="num" style="color:#3b82f6;">${acc.debit > 0 ? fmt(acc.debit) : '0.00'}</td>`;
+                    html += `<td class="num" style="color:#ef4444;">${acc.credit > 0 ? fmt(acc.credit) : '0.00'}</td>`;
+                    html += `<td class="num fw-600">${fmt(acc.closing_balance)}</td>`;
+                }
                 html += '</tr>';
             });
         }
@@ -343,10 +380,19 @@
         // Grand Total Row
         html += '<tr class="total-row">';
         html += '<td colspan="3">GRAND TOTAL</td>';
-        html += `<td class="num">${fmt(summary.total_opening_balance)}</td>`;
-        html += `<td class="num">${fmt(summary.total_debit)}</td>`;
-        html += `<td class="num">${fmt(summary.total_credit)}</td>`;
-        html += `<td class="num">${fmt(summary.total_closing_balance)}</td>`;
+        if (isDC) {
+            html += `<td class="num">${fmt(summary.total_opening_debit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_opening_credit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_debit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_credit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_closing_debit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_closing_credit)}</td>`;
+        } else {
+            html += `<td class="num">${fmt(summary.total_opening_balance)}</td>`;
+            html += `<td class="num">${fmt(summary.total_debit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_credit)}</td>`;
+            html += `<td class="num">${fmt(summary.total_closing_balance)}</td>`;
+        }
         html += '</tr>';
 
         html += '</tbody></table></div>';
