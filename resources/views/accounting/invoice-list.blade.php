@@ -245,16 +245,9 @@
                             <span style="background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:0.4px;white-space:nowrap;">
                                 AR TOTAL
                             </span>
-                            <form action="{{ request()->url() }}" method="GET" style="display:inline-block;margin:0;">
-                                @foreach(request()->except(['base_currency', 'page']) as $key => $value)
-                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                                @endforeach
-                                <select name="base_currency" onchange="this.form.submit()" title="Change Base Currency" style="border:1px solid #bfdbfe;background:#eff6ff;font-weight:700;color:#1d4ed8;font-size:10px;height:22px;padding:0 6px;border-radius:3px;cursor:pointer;outline:none;">
-                                    @foreach($availableCurrencies as $cur)
-                                        <option value="{{ $cur->code }}" {{ $baseCurrencyCode === $cur->code ? 'selected' : '' }}>{{ $cur->code }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
+                            <span style="border:1px solid #bfdbfe;background:#eff6ff;font-weight:700;color:#1d4ed8;font-size:10px;height:22px;line-height:20px;padding:0 6px;border-radius:3px;display:inline-flex;align-items:center;box-sizing:border-box;">
+                                USD
+                            </span>
                             <div style="display:flex;align-items:center;gap:10px;font-size:11px;white-space:nowrap;">
                                 <span style="color:#64748b;">Inv: <strong style="color:#0f172a;font-weight:700;">{{ number_format($grandTotalInvoiceAR, 2) }}</strong></span>
                                 <span style="color:#64748b;">Paid: <strong style="color:#16a34a;font-weight:700;">{{ number_format($grandTotalPaidAR, 2) }}</strong></span>

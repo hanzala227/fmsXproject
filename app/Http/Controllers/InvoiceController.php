@@ -99,7 +99,8 @@ class InvoiceController extends Controller
         $pageSize = $request->input('limit', 15);
         $invoices = $query->orderBy($sortField, $sortDir)->paginate($pageSize)->withQueryString();
 
-        $baseCurrencyCode = $request->input('base_currency', 'USD');
+        // Base currency is strictly locked to USD per CR-004 & CR-005
+        $baseCurrencyCode = 'USD';
         
         // Sum totals grouped by currency_id and type (AR vs AP), handling CN as negative
         $totalsGrouped = $totalsQuery->where('status', '!=', 'VOID')
