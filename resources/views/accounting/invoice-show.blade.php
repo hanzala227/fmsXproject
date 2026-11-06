@@ -158,6 +158,7 @@
         @endif
         @php
             $shipment = $invoice->invoiceable;
+            $shipmentMode = $shipment?->ship_mode ?? ($shipment?->shipment_mode ?? (class_basename($invoice->invoiceable_type) ? preg_replace('/(?<!^)[A-Z]/', ' $0', class_basename($invoice->invoiceable_type)) : '--'));
             $mblNo = $invoice->mbl_no ?? $shipment?->mbl_no ?? $shipment?->mawb_no ?? $shipment?->file_no ?? '--';
             $fileNo = $shipment?->file_no ?? $shipment?->bkg_no ?? '--';
             $vessel = $shipment?->vessel?->name ?? $shipment?->vessel_name ?? '--';
@@ -192,6 +193,10 @@
                                 {{ $fileNo }}
                             @endif
                         </span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Shipment Mode</span>
+                        <span class="detail-value" style="font-weight:600;color:#2563eb;">{{ $shipmentMode }}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Invoice Date</span>
