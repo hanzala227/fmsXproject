@@ -426,21 +426,21 @@
                                             <input type="number" step="0.01" min="0" class="form-control-gf input-number"
                                                 style="height:20px;font-size:9px;width:90px;min-width:70px;max-width:110px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
                                                 x-model="allocationAmounts[{{ $inv->id }}]"
-                                                @input="updateAllocation({{ $inv->id }})">
+                                                @input="updatePayment({{ $inv->id }})">
                                         </td>
                                         <td data-col="tds_tax" style="text-align:right;padding-right:6px;">
                                             <input type="number" step="0.01" min="0" class="form-control-gf input-number"
                                                 style="height:20px;font-size:9px;width:70px;min-width:60px;max-width:90px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
                                                 placeholder="0.00"
                                                 x-model="allocationTds[{{ $inv->id }}]"
-                                                @input="updateAllocation({{ $inv->id }})">
+                                                @input="updateDeduction({{ $inv->id }})">
                                         </td>
                                         <td data-col="discount" style="text-align:right;padding-right:6px;">
                                             <input type="number" step="0.01" min="0" class="form-control-gf input-number"
                                                 style="height:20px;font-size:9px;width:70px;min-width:60px;max-width:90px;text-align:right;border:1px solid #cbd5e1;border-radius:3px;padding:2px 4px;"
                                                 placeholder="0.00"
                                                 x-model="allocationDiscount[{{ $inv->id }}]"
-                                                @input="updateAllocation({{ $inv->id }})">
+                                                @input="updateDeduction({{ $inv->id }})">
                                         </td>
                                         <td data-col="description" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">{{ $inv->internal_remark ?? '' }}</td>
                                         <td data-col="file_no">
@@ -857,6 +857,8 @@
                     if (this.selectedInvoices.length === 1) {
                         const invId = this.selectedInvoices[0].id;
                         this.allocationAmounts[invId] = this.form.amount;
+                        this.updatePayment(invId);
+                    } else {
                         let total = 0;
                         Object.values(this.allocationAmounts).forEach(val => { total += parseFloat(val) || 0; });
                         this.totalAllocated = total;
@@ -933,7 +935,54 @@
                     }
                     this.recalcTotal();
                 },
-                updateAllocation(id) { this.recalcTotal(); },
+                updatePayment(id) {
+                    const allInvoices = @json($invoices);
+                    const inv = allInvoices.find(i => Number(i.id) === Number(id));
+                    if (inv) {
+                        const balance = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined && Number(inv.balance_amount) > 0 ? inv.balance_amount : inv.total_amount) || 0;
+                        const tds = parseFloat(this.allocationTds[id]) || 0;
+                        const disc = parseFloat(this.allocationDiscount[id]) || 0;
+                        const maxPayable = Math.max(0, balance - tds - disc);
+                        let val = parseFloat(this.allocationAmounts[id]) || 0;
+                        if (val > maxPayable && maxPayable > 0) {
+                            this.allocationAmounts[id] = maxPayable.toFixed(2);
+                        }
+                    }
+                    this.recalcTotal();
+                },
+
+                updateDeduction(id) {
+                    const allInvoices = @json($invoices);
+                    const inv = allInvoices.find(i => Number(i.id) === Number(id));
+                    if (inv) {
+                        const balance = parseFloat(inv.balance_amount !== null && inv.balance_amount !== undefined && Number(inv.balance_amount) > 0 ? inv.balance_amount : inv.total_amount) || 0;
+                        let tds = parseFloat(this.allocationTds[id]) || 0;
+                        let disc = parseFloat(this.allocationDiscount[id]) || 0;
+
+                        // Ensure deductions do not exceed remaining balance
+                        if (tds + disc > balance) {
+                            if (tds > balance) {
+                                tds = balance;
+                                disc = 0;
+                                this.allocationTds[id] = tds.toFixed(2);
+                                this.allocationDiscount[id] = '0.00';
+                            } else {
+                                disc = balance - tds;
+                                this.allocationDiscount[id] = disc.toFixed(2);
+                            }
+                        }
+
+                        // Auto-balance: Payment (USD) reduces so Total Settlement = Balance
+                        const netPayment = Math.max(0, balance - tds - disc);
+                        this.allocationAmounts[id] = netPayment.toFixed(2);
+                    }
+                    this.recalcTotal();
+                },
+
+                updateAllocation(id) { 
+                    this.updateDeduction(id); 
+                },
+
                 recalcTotal() {
                     let totalPaid = 0;
                     let totalTds = 0;
@@ -944,7 +993,7 @@
                     this.totalAllocated = totalPaid;
                     this.totalTds = totalTds;
                     this.totalDiscount = totalDisc;
-                    if (totalPaid > 0) this.form.amount = totalPaid.toFixed(2);
+                    this.form.amount = totalPaid.toFixed(2);
                 },
                 toggleAllInvoices(e) {
                     const checked = e.target.checked;
