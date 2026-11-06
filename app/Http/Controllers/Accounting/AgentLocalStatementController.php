@@ -422,7 +422,7 @@ class AgentLocalStatementController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, [
-                'Invoice No', 'Invoice Date', 'Due Date', 'Partner', 'Office', 'Shipment Mode',
+                'Invoice No', 'Post Date', 'Due Date', 'Partner', 'Office', 'Shipment Mode',
                 'Cur.', 'Type', 'MB/L No.', 'HB/L No.', 'POL', 'POD',
                 'DR/AR (+)', 'CR/AP (-)', 'Paid Amount', 'Balance', 'Last Paid Date',
             ]);
