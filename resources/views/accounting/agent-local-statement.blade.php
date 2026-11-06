@@ -95,13 +95,13 @@
                                 <label><input type="radio" name="partner_type" value="agent_customer" checked id="partnerTypeAC"> Agent/Customer</label>
                                 <label><input type="radio" name="partner_type" value="account_group" id="partnerTypeAG"> Account Group</label>
                             </div>
-                            <input type="text" id="partnerSearchInput" class="gf-input" placeholder="Type partner name to filter..." style="width:220px;margin-bottom:3px;font-size:10px;height:22px;padding:2px 5px;display:block;" oninput="filterPartnerDropdown(this.value)">
-                            <select id="billToId" class="gf-select" style="width:220px;">
-                                <option value="">Select...</option>
+                            <input type="hidden" id="partnerSearchInput" value="">
+                            <select id="billToId" class="gf-select" style="width:240px;">
+                                <option value="">Select Partner...</option>
                                 @foreach($tradePartners as $tp)<option value="{{ $tp->id }}">{{ $tp->name }}</option>@endforeach
                             </select>
-                            <select id="accountGroupId" class="gf-select" style="width:220px;display:none;">
-                                <option value="">Select...</option>
+                            <select id="accountGroupId" class="gf-select" style="width:240px;display:none !important;">
+                                <option value="">Select Account Group...</option>
                                 @foreach($accountGroups as $ag)<option value="{{ $ag }}">{{ $ag }}</option>@endforeach
                             </select>
                         </td>
@@ -413,21 +413,21 @@
         var billToIdSel = document.getElementById('billToId');
         var accountGroupIdSel = document.getElementById('accountGroupId');
 
-        function togglePartnerType() {
-            var psi = document.getElementById('partnerSearchInput');
+        function togglePartnerType(triggerSearch = true) {
             if (partnerTypeAG.checked) {
-                if (psi) psi.style.display = 'none';
-                billToIdSel.style.display = 'none';
+                billToIdSel.style.setProperty('display', 'none', 'important');
                 billToIdSel.value = '';
-                accountGroupIdSel.style.display = '';
+                accountGroupIdSel.style.setProperty('display', 'inline-block', 'important');
             } else {
-                if (psi) psi.style.display = 'block';
-                accountGroupIdSel.style.display = 'none';
+                accountGroupIdSel.style.setProperty('display', 'none', 'important');
                 accountGroupIdSel.value = '';
-                billToIdSel.style.display = '';
+                billToIdSel.style.setProperty('display', 'inline-block', 'important');
             }
-            triggerAutoSearch();
+            if (triggerSearch) {
+                triggerAutoSearch();
+            }
         }
+        togglePartnerType(false);
 
         function filterPartnerDropdown(val) {
             var filter = val.toLowerCase().trim();
