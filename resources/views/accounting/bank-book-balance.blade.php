@@ -160,7 +160,7 @@
                 </div>
 
                 <div class="button-row">
-                    <button class="btn-action-round primary" onclick="viewReport()"><i class="fa fa-search"></i> View</button>
+                    <button class="btn-action-round primary" onclick="viewReport()" id="btnViewReport"><i class="fa fa-search"></i> Search / View</button>
                     <button class="btn-action-round" onclick="printReport()"><i class="fa fa-print"></i> Print</button>
                     <button class="btn-action-round green" onclick="exportExcel()"><i class="fa fa-file-excel-o"></i> Download Excel</button>
                 </div>
@@ -438,6 +438,10 @@
         div.textContent = text;
         return div.innerHTML;
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        viewReport();
+    });
     </script>
     @endpush
 </x-layout>
