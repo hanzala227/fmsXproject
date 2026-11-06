@@ -29,8 +29,9 @@ class RevenueCostController extends Controller
 
     public function index()
     {
+        $companyId     = auth()->user()?->company_id;
         $offices       = Office::where('is_active', true)->orderBy('name')->get();
-        $users         = User::orderBy('name')->get();
+        $users         = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $tradePartners = TradePartner::orderBy('name')->get();
 
         return view('accounting.revenue-cost', compact('offices', 'users', 'tradePartners'));

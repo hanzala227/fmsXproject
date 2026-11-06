@@ -189,7 +189,8 @@ class InvoiceController extends Controller
         $tradePartners = TradePartner::all();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $defaultType = $request->input('type', 'AR');
         
         $invoiceableType = $request->input('invoiceable_type');
@@ -777,7 +778,8 @@ class InvoiceController extends Controller
         $tradePartners = TradePartner::all();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         return view('accounting.invoice-create', compact('invoice', 'tradePartners', 'currencies', 'offices', 'users'));
     }
 
@@ -923,7 +925,8 @@ class InvoiceController extends Controller
         $tradePartners = TradePartner::all();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         // Generate a unique invoice_no for the copy
         $invoice->invoice_no = $invoice->invoice_no . '-COPY-' . time();

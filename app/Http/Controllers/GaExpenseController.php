@@ -108,7 +108,8 @@ class GaExpenseController extends Controller
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         return view('accounting.create-ga-expense', compact('tradePartners', 'currencies', 'offices', 'users'));
     }
 
@@ -199,7 +200,8 @@ class GaExpenseController extends Controller
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         return view('accounting.create-ga-expense', compact('ga_expense', 'tradePartners', 'currencies', 'offices', 'users'));
     }
 
@@ -414,7 +416,8 @@ class GaExpenseController extends Controller
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         $ga_expense->invoice_no = $ga_expense->invoice_no . '-COPY-' . time();
 

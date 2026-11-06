@@ -96,14 +96,18 @@
                                 <label><input type="radio" name="partner_type" value="account_group" id="partnerTypeAG"> Account Group</label>
                             </div>
                             <input type="hidden" id="partnerSearchInput" value="">
-                            <select id="billToId" class="gf-select" style="width:240px;">
-                                <option value="">Select Partner...</option>
-                                @foreach($tradePartners as $tp)<option value="{{ $tp->id }}">{{ $tp->name }}</option>@endforeach
-                            </select>
-                            <select id="accountGroupId" class="gf-select" style="width:240px;display:none !important;">
-                                <option value="">Select Account Group...</option>
-                                @foreach($accountGroups as $ag)<option value="{{ $ag }}">{{ $ag }}</option>@endforeach
-                            </select>
+                            <div id="partnerSelectBox" style="display:block;">
+                                <select id="billToId" class="gf-select" style="width:240px;">
+                                    <option value="">Select Partner...</option>
+                                    @foreach($tradePartners as $tp)<option value="{{ $tp->id }}">{{ $tp->name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div id="accountGroupSelectBox" style="display:none;">
+                                <select id="accountGroupId" class="gf-select" style="width:240px;">
+                                    <option value="">Select Account Group...</option>
+                                    @foreach($accountGroups as $ag)<option value="{{ $ag }}">{{ $ag }}</option>@endforeach
+                                </select>
+                            </div>
                         </td>
                         <td class="flabel">Accounting mode</td>
                         <td class="finput" colspan="2">
@@ -412,16 +416,18 @@
         var partnerTypeAG = document.getElementById('partnerTypeAG');
         var billToIdSel = document.getElementById('billToId');
         var accountGroupIdSel = document.getElementById('accountGroupId');
+        var partnerSelectBox = document.getElementById('partnerSelectBox');
+        var accountGroupSelectBox = document.getElementById('accountGroupSelectBox');
 
         function togglePartnerType(triggerSearch = true) {
-            if (partnerTypeAG.checked) {
-                billToIdSel.style.setProperty('display', 'none', 'important');
-                billToIdSel.value = '';
-                accountGroupIdSel.style.setProperty('display', 'inline-block', 'important');
+            if (partnerTypeAG && partnerTypeAG.checked) {
+                if (partnerSelectBox) partnerSelectBox.style.display = 'none';
+                if (accountGroupSelectBox) accountGroupSelectBox.style.display = 'block';
+                if (billToIdSel) billToIdSel.value = '';
             } else {
-                accountGroupIdSel.style.setProperty('display', 'none', 'important');
-                accountGroupIdSel.value = '';
-                billToIdSel.style.setProperty('display', 'inline-block', 'important');
+                if (accountGroupSelectBox) accountGroupSelectBox.style.display = 'none';
+                if (partnerSelectBox) partnerSelectBox.style.display = 'block';
+                if (accountGroupIdSel) accountGroupIdSel.value = '';
             }
             if (triggerSearch) {
                 triggerAutoSearch();

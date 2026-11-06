@@ -16,8 +16,9 @@ class AgingReportController extends Controller
 {
     public function index()
     {
+        $companyId     = auth()->user()?->company_id;
         $offices       = Office::where('is_active', true)->orderBy('name')->get();
-        $users         = User::orderBy('name')->get();
+        $users         = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $accountGroups = TradePartner::whereNotNull('credit_limit_group_name')
             ->where('credit_limit_group_name', '!=', '')
             ->distinct()

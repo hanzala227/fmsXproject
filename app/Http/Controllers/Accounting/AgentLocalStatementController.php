@@ -17,11 +17,13 @@ class AgentLocalStatementController extends Controller
 {
     public function index()
     {
+        $companyId     = auth()->user()?->company_id;
         $offices       = Office::where('is_active', true)->orderBy('name')->get();
-        $users         = User::orderBy('name')->get();
-        $tradePartners = TradePartner::orderBy('name')->get();
+        $users         = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
+        $tradePartners = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $currencies    = Currency::orderBy('name')->get();
-        $accountGroups = TradePartner::whereNotNull('credit_limit_group_name')
+        $accountGroups = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->whereNotNull('credit_limit_group_name')
             ->where('credit_limit_group_name', '!=', '')
             ->distinct()
             ->pluck('credit_limit_group_name')
@@ -95,8 +97,10 @@ class AgentLocalStatementController extends Controller
         $filterOffice         = $request->input('filter_office', '');
 
         $asOfCarbon = Carbon::parse($asOfDate);
+        $companyId  = auth()->user()?->company_id;
 
         $query = Invoice::where('invoice_date', '<=', $asOfDate)
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->when($salesPersonId, fn($q) => $q->where('issued_by', $salesPersonId))
             ->with(['billTo', 'currency', 'office', 'payments', 'invoiceable']);
