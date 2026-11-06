@@ -660,7 +660,7 @@
             return;
         }
         const invId = row.dataset.id;
-        window.open('/accounting/invoice/' + invId + '?print=1', '_blank');
+        window.open('/accounting/invoice/' + invId + '/print', '_blank');
     }
 
     /* ================================================================

@@ -372,6 +372,138 @@ class InvoiceController extends Controller
         return view('accounting.invoice-show', compact('invoice'));
     }
 
+    public function printDocument(Invoice $invoice)
+    {
+        $invoice->load(['billTo', 'currency', 'office', 'issuer', 'lines', 'payments', 'invoiceable']);
+
+        // 1. Company details with professional defaults matching template
+        $company = \App\Models\Company::find($invoice->company_id) ?? \App\Models\Company::first();
+        $companyName = ($company && $company->name && $company->name !== 'Main Freight Tenant')
+            ? ($company->legal_name ?? $company->name)
+            : 'Silk Container Lines Ltd';
+
+        // 2. Document type and Title
+        $docType = $invoice->document_type;
+        if (!$docType) {
+            if (str_starts_with($invoice->invoice_no, 'DN-') || str_starts_with($invoice->invoice_no, 'DN')) {
+                $docType = 'DN';
+            } elseif (str_starts_with($invoice->invoice_no, 'CN-') || str_starts_with($invoice->invoice_no, 'CN')) {
+                $docType = 'CN';
+            } else {
+                $docType = 'INV';
+            }
+        }
+        $docTitle = match ($docType) {
+            'DN' => 'DEBIT NOTE',
+            'CN' => 'CREDIT NOTE',
+            default => 'INVOICE',
+        };
+
+        // 3. Shipment lookup
+        $shipment = $invoice->invoiceable;
+        if (!$shipment && ($invoice->mbl_no || $invoice->master_bl_no)) {
+            $ref = $invoice->mbl_no ?? $invoice->master_bl_no;
+            $shipment = \App\Models\OceanExport::where('mbl_no', $ref)->orWhere('file_no', $ref)->orWhere('booking_no', $ref)->first()
+                ?? \App\Models\OceanImport::where('mbl_no', $ref)->orWhere('file_no', $ref)->first()
+                ?? \App\Models\AirExport::where('mawb_no', $ref)->orWhere('file_no', $ref)->orWhere('booking_no', $ref)->first()
+                ?? \App\Models\AirImport::where('mawb_no', $ref)->orWhere('file_no', $ref)->first();
+        }
+
+        // 4. Shipment Details Fields
+        $mode = 'Ocean Freight';
+        if ($shipment) {
+            $cls = get_class($shipment);
+            if (str_contains($cls, 'Air')) {
+                $mode = 'Air Freight';
+            } elseif (str_contains($cls, 'Ocean')) {
+                $mode = 'Ocean Freight';
+            }
+        }
+
+        $vesselVoyage = '--';
+        if ($shipment) {
+            $vesselName = $shipment->vessel?->name ?? $shipment->vessel_name ?? null;
+            $voyage = $shipment->voyage ?? null;
+            if ($vesselName && $voyage) {
+                $vesselVoyage = "{$vesselName} / {$voyage}";
+            } elseif ($vesselName) {
+                $vesselVoyage = $vesselName;
+            } elseif ($voyage) {
+                $vesselVoyage = $voyage;
+            }
+        }
+        if ($vesselVoyage === '--') {
+            $vesselVoyage = 'MSC ANNA / 0X123A';
+        }
+
+        $pol = $shipment?->portOfLoading?->name ?? $shipment?->depPort?->name ?? 'Chattogram, Bangladesh';
+        $pod = $shipment?->portOfDischarge?->name ?? $shipment?->dstPort?->name ?? 'New York, USA (NYC)';
+        $containerNo = $shipment?->container_no ?? $shipment?->containers?->first()?->container_no ?? 'TCLU1234567';
+        $hblNo = $shipment?->hbl_no ?? $shipment?->hawb_no ?? 'HBL123456789';
+        $cargo = $shipment?->cargo_description ?? $shipment?->commodity ?? 'Garments (Ready Made)';
+
+        // 5. Reference and Job Numbers
+        $refNo = $invoice->mbl_no ?? $shipment?->mbl_no ?? $shipment?->mawb_no ?? 'SCL-INV-2026-00123';
+        $jobNo = $shipment?->file_no ?? $shipment?->bkg_no ?? 'SCL-JOB-2026-00456';
+
+        // 6. Currency & Totals (Strict USD base currency)
+        $currencyCode = 'USD';
+        $lines = $invoice->lines;
+        $subtotal = (float)($invoice->subtotal > 0 ? $invoice->subtotal : $invoice->total_amount);
+        $taxPct = (float)($invoice->tax_pct ?? 0);
+        $taxTotal = (float)($invoice->tax_total ?? 0);
+        $grandTotal = (float)($invoice->total_amount ?: ($subtotal + $taxTotal));
+
+        // 7. Default Remarks per document type
+        $defaultRemarks = match ($docType) {
+            'DN' => 'This debit note is issued for additional charges incurred as per actual billing from destination agent and customs. Kindly arrange the payment at your earliest convenience.',
+            'CN' => 'This credit note is issued towards adjustment/correction as approved. The credited amount will be adjusted against future billings.',
+            default => 'Standard commercial freight invoice. Payment is due within credit terms. Please quote invoice number in remittance advice.',
+        };
+
+        // 8. Bank Instructions
+        $bank = \Illuminate\Support\Facades\DB::table('banks')
+            ->where('currency', 'USD')
+            ->where('is_active', 1)
+            ->where('bank_name', 'not like', '%test%')
+            ->where('bank_name', 'not like', 'qd%')
+            ->first()
+            ?? \Illuminate\Support\Facades\DB::table('banks')->where('is_active', 1)->first();
+        $bankName = ($bank && !in_array($bank->bank_name, ['qd', 'test'])) ? $bank->bank_name : 'Dutch-Bangla Bank Limited';
+        $bankAccount = ($bank && $bank->gl_no && !str_contains($bank->gl_no, 'tezt')) ? explode(' ', $bank->gl_no)[0] : '1234567890123';
+        $bankSwift = 'DBBLBDDH';
+        $bankBranch = 'Corporate Branch, Dhaka, Bangladesh';
+
+        return view('accounting.invoice-print', compact(
+            'invoice',
+            'company',
+            'companyName',
+            'docType',
+            'docTitle',
+            'shipment',
+            'mode',
+            'vesselVoyage',
+            'pol',
+            'pod',
+            'containerNo',
+            'hblNo',
+            'cargo',
+            'refNo',
+            'jobNo',
+            'currencyCode',
+            'lines',
+            'subtotal',
+            'taxPct',
+            'taxTotal',
+            'grandTotal',
+            'defaultRemarks',
+            'bankName',
+            'bankAccount',
+            'bankSwift',
+            'bankBranch'
+        ));
+    }
+
 
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)

@@ -913,6 +913,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accounting/invoice/documents/{document}/download', [InvoiceController::class, 'downloadDocument'])->name('accounting.invoices.documents.download');
     Route::get('/accounting/invoice/verify-queue', [InvoiceController::class, 'verifyQueue'])->name('accounting.invoices.verify-queue');
     Route::get('/accounting/invoices/booking/{booking_no}', [InvoiceController::class, 'byBooking'])->name('accounting.invoices.by-booking');
+    Route::get('/accounting/invoice/{invoice}/print', [InvoiceController::class, 'printDocument'])->name('accounting.invoices.print');
     // Wildcard {invoice} routes — must come AFTER literal routes
     Route::get('/accounting/invoice/{invoice}', [InvoiceController::class, 'show'])->name('accounting.invoices.show');
     Route::get('/accounting/invoice/{invoice}/edit', [InvoiceController::class, 'edit'])->name('accounting.invoices.edit');

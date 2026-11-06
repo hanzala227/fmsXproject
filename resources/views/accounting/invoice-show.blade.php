@@ -126,7 +126,7 @@
                 @else
                     <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="btn-freightx" target="_blank"><i class="fa fa-pencil"></i> EDIT</a>
                 @endif
-                <a href="javascript:window.print()" class="btn-default-gf"><i class="fa fa-print"></i> PRINT</a>
+                <a href="{{ route('accounting.invoices.print', $invoice) }}" target="_blank" class="btn-default-gf" title="Print document via window.print"><i class="fa fa-print"></i> PRINT</a>
                 @if(!$isApproved)
                 <form action="{{ route('accounting.invoices.destroy', $invoice) }}" method="POST" onsubmit="return confirmDelete()" style="display:inline;">
                     @csrf
