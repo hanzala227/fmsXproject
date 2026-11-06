@@ -239,6 +239,17 @@ class Invoice extends Model
             }
 
             if (!$id || !$type) {
+                $ref = $this->mbl_no ?? $this->master_bl_no ?? null;
+                if ($ref) {
+                    $oe = \App\Models\OceanExport::where('mbl_no', $ref)->orWhere('file_no', $ref)->orWhere('booking_no', $ref)->first();
+                    if ($oe) return route('ocean-export.edit', $oe->id);
+                    $oi = \App\Models\OceanImport::where('mbl_no', $ref)->orWhere('file_no', $ref)->first();
+                    if ($oi) return route('ocean-import.edit', $oi->id);
+                    $ae = \App\Models\AirExport::where('mawb_no', $ref)->orWhere('file_no', $ref)->orWhere('booking_no', $ref)->first();
+                    if ($ae) return route('air-export.edit', $ae->id);
+                    $ai = \App\Models\AirImport::where('mawb_no', $ref)->orWhere('file_no', $ref)->first();
+                    if ($ai) return route('air-import.edit', $ai->id);
+                }
                 return null;
             }
 

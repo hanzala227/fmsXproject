@@ -456,7 +456,7 @@
                                         {{-- Party --}}
                                         <td class="sticky-col" style="width:130px;left:50px;">{{ $invoice->billTo ? Str::limit($invoice->billTo->name, 18) : '' }}</td>
                                         {{-- Booking No. --}}
-                                        <td class="sticky-col" style="width:90px;left:180px;">
+                                        <td class="sticky-col" style="width:90px;left:180px;" onclick="event.stopPropagation()">
                                             @php
                                                 $relatedShipment = null;
                                                 try {
@@ -468,9 +468,13 @@
                                                 $shipmentUrl = $invoice->shipment_url;
                                             @endphp
                                             @if($bookingFileNo)
-                                                <a href="{{ route('accounting.invoices.by-booking', urlencode($bookingFileNo)) }}" class="col-link" title="Open related documents for {{ $bookingFileNo }}" style="color:#2563eb;font-weight:600;">
-                                                    {{ Str::limit($bookingFileNo, 14) }}
-                                                </a>
+                                                @if($shipmentUrl)
+                                                    <a href="{{ $shipmentUrl }}" class="col-link" title="Open Booking View ({{ $bookingFileNo }})" style="color:#2563eb;font-weight:600;">
+                                                        {{ Str::limit($bookingFileNo, 14) }}
+                                                    </a>
+                                                @else
+                                                    <span style="font-weight:600;color:#64748b;" title="{{ $bookingFileNo }}">{{ Str::limit($bookingFileNo, 14) }}</span>
+                                                @endif
                                             @endif
                                         </td>
                                         {{-- Invoice No. --}}
