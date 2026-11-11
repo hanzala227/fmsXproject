@@ -46,17 +46,18 @@ class ShipmentBeatWebhookController extends Controller
         $eventType = $payload['type'] ?? ($payload['event'] ?? null);
         $data = $payload['data'] ?? $payload;
 
-        $trackingNumber = $data['container_number'] 
-            ?? $data['tracking_number'] 
-            ?? $data['shipment_id'] 
-            ?? $data['bill_of_lading'] 
-            ?? null;
+        $trackingNumber = $data['trackingNumber']
+            ?? ($data['container_number'] 
+            ?? ($data['tracking_number'] 
+            ?? ($data['shipment_id'] 
+            ?? ($data['bill_of_lading'] 
+            ?? null))));
 
         if ($trackingNumber) {
             $tracking = ShipmentTracking::where('tracking_number', strtoupper(trim($trackingNumber)))->first();
 
             if ($tracking) {
-                $status = $data['status'] ?? $tracking->current_status;
+                $status = $data['trackingStatus'] ?? ($data['status'] ?? $tracking->current_status);
                 $eta = isset($data['eta']) ? date('Y-m-d H:i:s', strtotime($data['eta'])) : $tracking->eta;
                 $etd = isset($data['etd']) ? date('Y-m-d H:i:s', strtotime($data['etd'])) : $tracking->etd;
 

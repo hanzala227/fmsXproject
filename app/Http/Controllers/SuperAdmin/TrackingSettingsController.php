@@ -19,24 +19,26 @@ class TrackingSettingsController extends Controller
         $carriers = CarrierApiConfig::all()->keyBy('carrier_code');
 
         // Ensure default records exist
-        $defaults = ['hapag_lloyd', 'maersk', 'dcsa'];
+        $defaults = ['shipmentbeat', 'hapag_lloyd', 'maersk', 'dcsa'];
         foreach ($defaults as $code) {
             if (!$carriers->has($code)) {
                 $created = CarrierApiConfig::create([
                     'carrier_code' => $code,
                     'name' => match ($code) {
+                        'shipmentbeat' => 'ShipmentBeat (Ocean Container Visibility)',
                         'hapag_lloyd' => 'Hapag-Lloyd (DCSA v2/v3)',
                         'maersk' => 'Maersk (DCSA Track & Trace)',
                         default => 'Generic DCSA Gateway',
                     },
                     'base_url' => match ($code) {
+                        'shipmentbeat' => 'https://api.shipmentbeat.com',
                         'hapag_lloyd' => 'https://api.hlag.com',
                         'maersk' => 'https://api.maersk.com',
                         default => 'https://api.dcsa.org',
                     },
-                    'environment' => 'sandbox',
+                    'environment' => 'production',
                     'is_active' => true,
-                    'enable_simulation' => true,
+                    'enable_simulation' => false,
                 ]);
                 $carriers->put($code, $created);
             }
@@ -55,7 +57,7 @@ class TrackingSettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'carrier_code' => 'required|string|in:hapag_lloyd,maersk,dcsa',
+            'carrier_code' => 'required|string|in:shipmentbeat,hapag_lloyd,maersk,dcsa',
             'base_url' => 'nullable|string',
             'client_id' => 'nullable|string',
             'client_secret' => 'nullable|string',
@@ -86,7 +88,7 @@ class TrackingSettingsController extends Controller
     public function testConnection(Request $request)
     {
         $request->validate([
-            'carrier_code' => 'required|string|in:hapag_lloyd,maersk,dcsa',
+            'carrier_code' => 'required|string|in:shipmentbeat,hapag_lloyd,maersk,dcsa',
         ]);
 
         try {

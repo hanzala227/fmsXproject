@@ -10,7 +10,7 @@
                 <i class="fa fa-ship" style="color: #405189;"></i> Carrier Tracking API Integrations
             </h2>
             <p style="margin: 0; font-size: 13px; color: #64748b;">
-                Configure Hapag-Lloyd, Maersk, and generic DCSA container tracking endpoints with live connection diagnostics.
+                Unified ShipmentBeat multi-carrier tracking gateway covering 18 major ocean lines (MSC, Maersk, Hapag-Lloyd, COSCO, ONE, etc.).
             </p>
         </div>
         <div style="display: flex; gap: 8px;">
@@ -29,35 +29,109 @@
     <!-- Carrier Selection Tabs -->
     <div style="display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
         <button type="button" 
-                @click="activeCarrier = 'hapag_lloyd'"
-                :style="activeCarrier === 'hapag_lloyd' ? 'background:#405189; color:#fff; font-weight:600;' : 'background:#fff; color:#475569; border:1px solid #cbd5e1;'"
+                @click="activeCarrier = 'shipmentbeat'"
+                :style="activeCarrier === 'shipmentbeat' ? 'background:#405189; color:#fff; font-weight:600;' : 'background:#fff; color:#475569; border:1px solid #cbd5e1;'"
                 style="padding: 10px 18px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: all 0.2s;">
-            <i class="fa fa-anchor"></i> Hapag-Lloyd (DCSA v2/v3)
-            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.25);">FREE</span>
-        </button>
-
-        <button type="button" 
-                @click="activeCarrier = 'maersk'"
-                :style="activeCarrier === 'maersk' ? 'background:#405189; color:#fff; font-weight:600;' : 'background:#fff; color:#475569; border:1px solid #cbd5e1;'"
-                style="padding: 10px 18px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: all 0.2s;">
-            <i class="fa fa-star"></i> Maersk Line (Track & Trace)
-            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.25);">Consumer Key</span>
-        </button>
-
-        <button type="button" 
-                @click="activeCarrier = 'dcsa'"
-                :style="activeCarrier === 'dcsa' ? 'background:#405189; color:#fff; font-weight:600;' : 'background:#fff; color:#475569; border:1px solid #cbd5e1;'"
-                style="padding: 10px 18px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: all 0.2s;">
-            <i class="fa fa-cubes"></i> Generic DCSA Gateway
-            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.25);">Standard</span>
+            <i class="fa fa-globe"></i> ShipmentBeat (Unified Multi-Carrier)
+            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.25);">PRIMARY</span>
         </button>
     </div>
 
     <!-- Carrier Config Form Cards -->
-    @foreach(['hapag_lloyd', 'maersk', 'dcsa'] as $code)
+    @foreach(['shipmentbeat'] as $code)
         @php
             $c = $carriers[$code] ?? null;
         @endphp
+        <div x-show="activeCarrier === '{{ $code }}'" x-cloak style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; overflow: hidden;">
+            
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #1e293b;">
+                        {{ $c->name ?? 'ShipmentBeat' }} Configuration
+                    </h3>
+                    <span style="font-size: 12px; color: #64748b;">
+                        Developer portal & documentation: <a href="https://www.shipmentbeat.com/developers/docs" target="_blank" style="color: #3b82f6;">shipmentbeat.com/developers/docs</a> (18 ocean carriers supported)
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600; {{ ($c->is_active ?? true) ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#991b1b;' }}">
+                        {{ ($c->is_active ?? true) ? 'ACTIVE' : 'DISABLED' }}
+                    </span>
+                    <button type="button" 
+                            @click="runTestConnection('{{ $code }}')"
+                            :disabled="testingCarrier === '{{ $code }}'"
+                            style="padding: 7px 14px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa fa-plug" :class="testingCarrier === '{{ $code }}' ? 'fa-spin' : ''"></i>
+                        <span x-text="testingCarrier === '{{ $code }}' ? 'Testing...' : 'Test Connection'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <form action="{{ route('super-admin.carrier-tracking.update') }}" method="POST" style="padding: 24px;">
+                @csrf
+                <input type="hidden" name="carrier_code" value="{{ $code }}">
+
+                <!-- Live Webhook Notification Banner -->
+                <div style="margin-bottom: 20px; padding: 14px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534;">
+                    <strong><i class="fa fa-link"></i> Live Webhook Endpoint:</strong>
+                    <code style="background: #dcfce7; padding: 3px 8px; border-radius: 4px; margin-left: 8px; font-size: 12px;">{{ url('/api/webhooks/shipmentbeat') }}</code>
+                    <span style="margin-left: 10px; color: #15803d;">(Registered in ShipmentBeat Developer Dashboard for automatic event delivery)</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: 18px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">
+                            Base API URL <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" 
+                               name="base_url" 
+                               value="{{ old('base_url', $c->base_url ?? 'https://api.shipmentbeat.com') }}"
+                               placeholder="https://api.shipmentbeat.com"
+                               style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">
+                            Environment
+                        </label>
+                        <select name="environment" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                            <option value="production" {{ ($c->environment ?? 'production') === 'production' ? 'selected' : '' }}>Production (Live Carriers)</option>
+                            <option value="sandbox" {{ ($c->environment ?? '') === 'sandbox' ? 'selected' : '' }}>Sandbox / Test</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 18px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">
+                        ShipmentBeat Live Bearer API Key <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" 
+                           name="api_key" 
+                           value="{{ old('api_key', $c->api_key ?? '') }}"
+                           placeholder="sb_live_..."
+                           style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; box-sizing: border-box;">
+                </div>
+
+                <div style="display: flex; gap: 24px; padding: 14px 0; border-top: 1px solid #f1f5f9; margin-top: 18px; align-items: center;">
+                    <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="is_active" value="1" {{ ($c->is_active ?? true) ? 'checked' : '' }}>
+                        Enable Live Tracking Sync
+                    </label>
+
+                    <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="enable_simulation" value="1" {{ ($c->enable_simulation ?? false) ? 'checked' : '' }}>
+                        Allow Fallback Simulation if Carrier Down
+                    </label>
+
+                    <div style="margin-left: auto;">
+                        <button type="submit" style="padding: 8px 20px; background: #405189; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                            <i class="fa fa-save"></i> Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    @endforeach
         <div x-show="activeCarrier === '{{ $code }}'" x-cloak style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; overflow: hidden;">
             
             <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
@@ -294,7 +368,7 @@
 <script>
 function carrierTrackingAdmin() {
     return {
-        activeCarrier: 'hapag_lloyd',
+        activeCarrier: 'shipmentbeat',
         testingCarrier: null,
         showDiagnosticModal: false,
         diagnosticResult: {},

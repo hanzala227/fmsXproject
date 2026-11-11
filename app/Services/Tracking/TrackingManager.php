@@ -9,9 +9,7 @@ use App\Models\OceanExport;
 use App\Models\ShipmentTracking;
 use App\Models\TrackingEvent;
 use App\Services\Tracking\Contracts\CarrierTrackingInterface;
-use App\Services\Tracking\Drivers\DcsaDriver;
-use App\Services\Tracking\Drivers\HapagLloydDriver;
-use App\Services\Tracking\Drivers\MaerskDriver;
+use App\Services\Tracking\Drivers\ShipmentBeatDriver;
 use App\Services\Tracking\DTO\TrackingResultDTO;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -19,28 +17,13 @@ use Illuminate\Database\Eloquent\Model;
 class TrackingManager
 {
     /**
-     * Resolve the appropriate carrier driver.
+     * Resolve the appropriate carrier driver (ShipmentBeat as unified ocean aggregator).
      */
     public static function driver(?string $carrierCode = null, ?string $trackingNumber = null): CarrierTrackingInterface
     {
-        $code = strtolower((string) $carrierCode);
+        $config = CarrierApiConfig::getCarrier('shipmentbeat');
 
-        // Auto-detect from container prefix if not explicitly specified
-        if (empty($code) && !empty($trackingNumber)) {
-            $code = static::detectCarrierFromPrefix($trackingNumber);
-        }
-
-        if (empty($code)) {
-            $code = 'dcsa';
-        }
-
-        $config = CarrierApiConfig::getCarrier($code);
-
-        return match ($code) {
-            'hapag_lloyd', 'hlag', 'hapag' => new HapagLloydDriver($config),
-            'maersk', 'maeu', 'msku' => new MaerskDriver($config),
-            default => new DcsaDriver($config),
-        };
+        return new ShipmentBeatDriver($config);
     }
 
     /**
