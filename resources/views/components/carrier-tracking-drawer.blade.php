@@ -56,13 +56,9 @@
         <div style="padding: 12px 20px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
             
             <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 260px;">
-                <!-- Carrier dropdown -->
-                <select x-model="selectedCarrier" style="height: 32px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; background: #fff; color: #334155; font-weight: 600;">
-                    <option value="">Auto Detect Carrier</option>
-                    <option value="hapag_lloyd">Hapag-Lloyd</option>
-                    <option value="maersk">Maersk Line</option>
-                    <option value="dcsa">Generic DCSA</option>
-                </select>
+                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap;">
+                    <i class="fa fa-globe"></i> ShipmentBeat
+                </span>
 
                 <!-- Input or Active Containers List -->
                 <template x-if="availableContainers.length > 1">
@@ -316,7 +312,7 @@ function carrierTrackingDrawer() {
 
         openTracking(opts = {}) {
             this.trackingNumber = (opts.number || opts.trackingNumber || '').trim();
-            this.selectedCarrier = opts.carrier || '';
+            this.selectedCarrier = opts.carrier || 'shipmentbeat';
             this.shipmentId = opts.shipmentId || null;
             this.shipmentType = opts.shipmentType || null;
             this.availableContainers = opts.containers || (this.trackingNumber ? [this.trackingNumber] : []);

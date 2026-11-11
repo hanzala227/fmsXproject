@@ -8,7 +8,7 @@
                 <i class="fa fa-map-marker" style="color: #3b82f6;"></i> Carrier Track & Trace Center
             </h2>
             <p style="margin: 0; font-size: 13px; color: #64748b;">
-                Real-time visibility across Hapag-Lloyd, Maersk Line, and global DCSA container shipments.
+                Real-time ocean container visibility powered by ShipmentBeat.
             </p>
         </div>
 
@@ -69,13 +69,6 @@
                    value="{{ request('search') }}" 
                    placeholder="Filter by Container, Vessel, Port..." 
                    style="height: 32px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; min-width: 220px;">
-
-            <select name="carrier" style="height: 32px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; color: #334155;">
-                <option value="">All Carriers</option>
-                <option value="hapag_lloyd" {{ request('carrier') === 'hapag_lloyd' ? 'selected' : '' }}>Hapag-Lloyd</option>
-                <option value="maersk" {{ request('carrier') === 'maersk' ? 'selected' : '' }}>Maersk Line</option>
-                <option value="dcsa" {{ request('carrier') === 'dcsa' ? 'selected' : '' }}>Generic DCSA</option>
-            </select>
 
             <select name="status" style="height: 32px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; color: #334155;">
                 <option value="">All Statuses</option>
