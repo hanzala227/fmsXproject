@@ -92,6 +92,19 @@
                 showToolsMenu: false,
                 showTrackTraceModal: false,
                 showAiModal: false,
+                frexoAiCredits: {{ (float) (auth()->user()?->company?->frexo_ai_credits ?? 0) }},
+                frexoAiUnlimited: {{ auth()->user()?->company?->frexo_ai_unlimited ? 'true' : 'false' }},
+                lastCreditsDeducted: null,
+                refreshAiCredits() {
+                    fetch('/api/ai/credits/balance')
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.frexoAiCredits = res.balance;
+                                this.frexoAiUnlimited = res.unlimited;
+                            }
+                        }).catch(() => {});
+                },
                 aiLoading: false,
                 isAiProcessing: false,
                 aiPreviewMode: false,
@@ -144,21 +157,22 @@
                                 selected: false,
                                 party: c.party || (c.type === 'AP' ? 'Agent' : 'Custom'),
                                 party_name: c.party_name || '',
-                                party_name_id: c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || ''),
+                                party_name_id: c.party_name_id || (c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || '')),
                                 sal: c.sal || 'Sea',
-                                pr: c.type === 'AP' ? 'Pay' : 'Rec',
-                                ppc: c.pc === 'PREPAID' ? 'Prepaid' : 'Colle',
-                                chrg_code: c.charge_code || '',
-                                currency: (c.currency && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
+                                pr: c.pr || (c.type === 'AP' ? 'Pay' : 'Rec'),
+                                ppc: c.ppc || (c.pc === 'PREPAID' ? 'Prepaid' : 'Colle'),
+                                chrg_code: c.chrg_code || c.charge_code || '',
+                                charge_name: c.charge_name || c.chrg_code || c.charge_code || '',
+                                currency: (c.currency && typeof c.currency === 'object' && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
                                 rate: parseFloat(c.rate) || 0,
                                 qty: parseFloat(c.qty) || 1,
-                                qty_type: c.unit || 'B/L',
+                                qty_type: c.qty_type || c.unit || 'B/L',
                                 roe: parseFloat(c.roe) || 1.0,
-                                vat: parseFloat(c.vat) || 0,
-                                inv_no: c.invoice_no || '',
-                                financial_date: c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0],
-                                eq_bl_no: c.remark || '',
-                                remark: !!c.remark,
+                                vat: parseFloat(c.vat ?? c.tax_percent ?? 0) || 0,
+                                inv_no: c.inv_no || c.invoice_no || '',
+                                financial_date: c.financial_date || (c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0]),
+                                eq_bl_no: c.eq_bl_no ?? c.remark ?? '',
+                                remark: !!(c.remark || c.eq_bl_no),
                                 mbl_no: c.mbl_no || '',
                                 is_invoiced: !!c.is_invoiced
                             };
@@ -776,6 +790,10 @@
                     .then(result => {
                         this.aiLoading = false;
                         if (result.success && result.data) {
+                            if (result.credit_info && result.credit_info.balance_after !== undefined) {
+                                this.frexoAiCredits = result.credit_info.balance_after;
+                                this.lastCreditsDeducted = result.credit_info.credits_deducted;
+                            }
                             this.extractedData = [];
                             
                             // Parse MBL fields
@@ -2585,7 +2603,7 @@
                 </template>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-               <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
+               <button type="button" @click="showAiModal = true; refreshAiCredits()" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
                    <i class="fa fa-bolt"></i> Frexo AI
                </button>
                <button type="button" @click="if(validateForm()) $el.closest('form').submit()"

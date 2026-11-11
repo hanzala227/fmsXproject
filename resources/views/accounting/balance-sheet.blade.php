@@ -50,14 +50,15 @@
         .grid-table .group-total td { background: #f0f9ff !important; font-weight: 600; color: #1e40af; border-top: 1px solid #93c5fd; }
         .grid-table .indent td:first-child { padding-left: 24px; }
 
-        /* Balance indicator */
-        .balance-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-        .balance-indicator.balanced { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-        .balance-indicator.unbalanced { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-
-        /* Info box */
-        .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 12px 16px; margin-top: 15px; font-size: 11px; color: #1e40af; line-height: 1.6; }
-        .info-box strong { color: #1e3a8a; }
+        /* Integrity checks box */
+        .checks-panel { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px 14px; margin-top: 15px; margin-bottom: 15px; }
+        .checks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+        .check-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 3px; padding: 8px 10px; }
+        .check-card.pass { border-left: 3px solid #22c55e; }
+        .check-card.fail { border-left: 3px solid #ef4444; background: #fffaf0; }
+        .check-card .check-title { font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; }
+        .check-card .check-val { font-size: 12px; font-family: 'Courier New', monospace; font-weight: 700; margin-top: 2px; }
+        .check-card .check-diff { font-size: 10px; margin-top: 2px; }
 
         /* Empty State */
         .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
@@ -78,13 +79,14 @@
 
         /* Summary Cards */
         .summary-row { display: flex; gap: 12px; margin-top: 15px; flex-wrap: wrap; }
-        .summary-card { flex: 1; min-width: 180px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .summary-card { flex: 1; min-width: 170px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
         .summary-card .label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-        .summary-card .value { font-size: 14px; font-weight: 700; color: #0f172a; font-family: 'Courier New', monospace; }
+        .summary-card .value { font-size: 13px; font-weight: 700; color: #0f172a; font-family: 'Courier New', monospace; }
         .summary-card.assets { border-left: 3px solid #3b82f6; }
         .summary-card.liabilities { border-left: 3px solid #ef4444; }
         .summary-card.equity { border-left: 3px solid #22c55e; }
         .summary-card.total { border-left: 3px solid #8b5cf6; }
+        .summary-card.variance-card { border-left: 3px solid #f59e0b; }
     </style>
     @endpush
 
@@ -104,8 +106,10 @@
 
         <div class="portlet light">
             <div class="portlet-title">
-                <span class="caption-subject"><i class="fa fa-balance-scale" style="color:#3b82f6;margin-right:6px;"></i>Balance Sheet</span>
-                <div id="balance-badge" style="display:none;"></div>
+                <span class="caption-subject">
+                    <i class="fa fa-balance-scale" style="color:#3b82f6;margin-right:6px;"></i>Management Balance Sheet
+                    <span style="font-size:10px;color:#64748b;font-weight:normal;text-transform:none;">(based on invoices and payments, unaudited)</span>
+                </span>
             </div>
             <div class="portlet-body">
                 <div class="report-grid">
@@ -135,7 +139,7 @@
                 </div>
 
                 <div class="button-row">
-                    <button class="btn-action-round primary" onclick="viewReport()"><i class="fa fa-search"></i> Search / Preview</button>
+                    <button class="btn-action-round primary" onclick="viewReport()" id="btnPreviewReport"><i class="fa fa-search"></i> Preview</button>
                     <button class="btn-action-round" onclick="printReport()"><i class="fa fa-print"></i> Print</button>
                     <button class="btn-action-round green" onclick="exportExcel()"><i class="fa fa-file-excel-o"></i> Download Excel</button>
                 </div>
@@ -144,10 +148,9 @@
                 <div id="report-results">
                     <div class="empty-state" id="empty-state">
                         <i class="fa fa-balance-scale"></i>
-                        <div>Select report options and click <strong>Preview</strong> to generate the Balance Sheet.</div>
+                        <div>Select report options and click <strong>Preview</strong> to generate the Management Balance Sheet.</div>
                     </div>
                 </div>
-
 
             </div>
         </div>
@@ -188,7 +191,7 @@
         }
 
         const resultsDiv = document.getElementById('report-results');
-        resultsDiv.innerHTML = '<div class="loading-overlay"><i class="fa fa-spinner"></i><div style="margin-top:8px;">Generating Balance Sheet...</div></div>';
+        resultsDiv.innerHTML = '<div class="loading-overlay"><i class="fa fa-spinner"></i><div style="margin-top:8px;">Generating Management Balance Sheet...</div></div>';
 
         const formData = new FormData();
         formData.append('as_of_date', asOfDate);
@@ -228,29 +231,69 @@
         _lastReportData = data;
         const sections = data.sections || [];
         const summary = data.summary || {};
+        const checks = data.reconciliation_checks || {};
 
         const resultsDiv = document.getElementById('report-results');
-
-        // Balance badge
-        const badge = document.getElementById('balance-badge');
-        if (summary.is_balanced) {
-            badge.innerHTML = '<span class="balance-indicator balanced"><i class="fa fa-check-circle"></i> Balanced</span>';
-        } else {
-            badge.innerHTML = '<span class="balance-indicator unbalanced"><i class="fa fa-exclamation-triangle"></i> Unbalanced</span>';
-        }
-        badge.style.display = 'inline-block';
 
         if (!sections.length) {
             resultsDiv.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i><div>No data found for the selected criteria.</div></div>';
             return;
         }
 
-        let html = '<div class="grid-container"><table class="grid-table">';
+        let html = '';
+
+        // ── Reconciliation & Integrity Checks Panel ──
+        html += '<div class="checks-panel">';
+        html += '<div style="font-size:11px;font-weight:700;color:#1e293b;display:flex;align-items:center;justify-content:space-between;">';
+        html += '<span><i class="fa fa-shield" style="color:#3b82f6;margin-right:6px;"></i>Subledger Integrity & Reconciliation Checks</span>';
+        html += `<span style="font-size:10px;font-weight:600;color:${summary.is_balanced ? '#16a34a' : '#dc2626'};">${summary.is_balanced ? 'EQUATION BALANCED' : 'VARIANCE DETECTED (NO BALANCING PLUG)'}</span>`;
+        html += '</div>';
+
+        html += '<div class="checks-grid">';
+        
+        // Check 1: Cash vs Bank Book
+        const cCash = checks.cash || {};
+        html += `<div class="check-card ${cCash.is_match ? 'pass' : 'fail'}">`;
+        html += `<div class="check-title">${escapeHtml(cCash.label || 'Cash Reconciliation')}</div>`;
+        html += `<div class="check-val" style="color:${cCash.is_match ? '#16a34a' : '#dc2626'};">$${fmt(cCash.bs_amount)}</div>`;
+        html += `<div class="check-diff" style="color:${cCash.is_match ? '#16a34a' : '#dc2626'}; font-weight:600;">`;
+        html += cCash.is_match ? '<i class="fa fa-check-circle"></i> Tied to Bank Book ($0.00 diff)' : `<i class="fa fa-exclamation-circle"></i> Diff: $${fmt(cCash.variance)}`;
+        html += '</div></div>';
+
+        // Check 2: AR vs Aging
+        const cAR = checks.ar || {};
+        html += `<div class="check-card ${cAR.is_match ? 'pass' : 'fail'}">`;
+        html += `<div class="check-title">${escapeHtml(cAR.label || 'AR Reconciliation')}</div>`;
+        html += `<div class="check-val" style="color:${cAR.is_match ? '#16a34a' : '#dc2626'};">$${fmt(cAR.bs_amount)}</div>`;
+        html += `<div class="check-diff" style="color:${cAR.is_match ? '#16a34a' : '#dc2626'}; font-weight:600;">`;
+        html += cAR.is_match ? '<i class="fa fa-check-circle"></i> Tied to AR Aging ($0.00 diff)' : `<i class="fa fa-exclamation-circle"></i> Diff: $${fmt(cAR.variance)}`;
+        html += '</div></div>';
+
+        // Check 3: AP vs Aging
+        const cAP = checks.ap || {};
+        html += `<div class="check-card ${cAP.is_match ? 'pass' : 'fail'}">`;
+        html += `<div class="check-title">${escapeHtml(cAP.label || 'AP Reconciliation')}</div>`;
+        html += `<div class="check-val" style="color:${cAP.is_match ? '#16a34a' : '#dc2626'};">$${fmt(cAP.bs_amount)}</div>`;
+        html += `<div class="check-diff" style="color:${cAP.is_match ? '#16a34a' : '#dc2626'}; font-weight:600;">`;
+        html += cAP.is_match ? '<i class="fa fa-check-circle"></i> Tied to AP Aging ($0.00 diff)' : `<i class="fa fa-exclamation-circle"></i> Diff: $${fmt(cAP.variance)}`;
+        html += '</div></div>';
+
+        // Check 4: Accounting Equation
+        const cEq = checks.equation || {};
+        html += `<div class="check-card ${cEq.is_match ? 'pass' : 'fail'}">`;
+        html += `<div class="check-title">${escapeHtml(cEq.label || 'Assets = L + E')}</div>`;
+        html += `<div class="check-val" style="color:${cEq.is_match ? '#16a34a' : '#dc2626'};">$${fmt(cEq.bs_amount)}</div>`;
+        html += `<div class="check-diff" style="color:${cEq.is_match ? '#16a34a' : '#dc2626'}; font-weight:600;">`;
+        html += cEq.is_match ? '<i class="fa fa-check-circle"></i> Assets equal L + E' : `<i class="fa fa-exclamation-triangle"></i> Variance: $${fmt(cEq.variance)}`;
+        html += '</div></div>';
+
+        html += '</div></div>';
 
         // Table Header
+        html += '<div class="grid-container"><table class="grid-table">';
         html += '<thead><tr>';
-        html += '<th style="width:50%;">Description</th>';
-        html += '<th style="width:50%;text-align:right;">Amount</th>';
+        html += '<th style="width:65%;">Description</th>';
+        html += '<th style="width:35%;text-align:right;">Amount (USD)</th>';
         html += '</tr></thead><tbody>';
 
         // Render each section (Assets, Liabilities, Equity)
@@ -274,14 +317,19 @@
                         html += `<td>${escapeHtml(line.label)}</td>`;
                         html += `<td class="num">${fmt(line.amount)}</td>`;
                         html += '</tr>';
+                    } else if (line.is_alert) {
+                        html += '<tr style="background:#fef2f2;border-left:3px solid #ef4444;">';
+                        html += `<td style="font-weight:600;color:#dc2626;padding-left:32px;"><i class="fa fa-exclamation-triangle" style="margin-right:4px;"></i>${escapeHtml(line.label)} ${line.detail ? '<span style="font-size:10px;color:#991b1b;font-weight:normal;">(' + escapeHtml(line.detail) + ')</span>' : ''}</td>`;
+                        html += `<td class="num" style="font-weight:700;color:#dc2626;">${fmt(line.amount)}</td>`;
+                        html += '</tr>';
                     } else if (line.is_sub) {
                         html += '<tr style="background:#f0f9ff;">';
-                        html += `<td style="font-weight:600;color:#1e40af;font-style:italic;padding-left:32px;">${escapeHtml(line.label)}</td>`;
+                        html += `<td style="font-weight:600;color:#1e40af;font-style:italic;padding-left:32px;">${escapeHtml(line.label)} <span style="font-size:10px;color:#64748b;font-weight:normal;">[${escapeHtml(line.detail || '')}]</span></td>`;
                         html += `<td class="num" style="font-weight:600;color:#1e40af;">${fmt(line.amount)}</td>`;
                         html += '</tr>';
                     } else {
                         html += '<tr class="indent">';
-                        html += `<td>${escapeHtml(line.label)}${line.detail ? ' <span style="color:#94a3b8;font-size:10px;">(' + escapeHtml(line.detail) + ')</span>' : ''}</td>`;
+                        html += `<td>${escapeHtml(line.label)}${line.detail ? ' <span style="color:#64748b;font-size:10px;">(' + escapeHtml(line.detail) + ')</span>' : ''}</td>`;
                         html += `<td class="num">${fmt(line.amount)}</td>`;
                         html += '</tr>';
                     }
@@ -302,7 +350,7 @@
         });
 
         // Final Total Row (Total Liabilities & Equity)
-        html += '<tr style="background:#f0fdf4;">';
+        html += '<tr style="background:#f8fafc;border-top:2px solid #0f172a;">';
         html += '<td style="font-weight:700;color:#0f172a;font-size:12px;">TOTAL LIABILITIES & EQUITY</td>';
         html += `<td class="num" style="font-weight:700;color:#0f172a;font-size:12px;">${fmt(summary.total_liabilities_and_equity || 0)}</td>`;
         html += '</tr>';
@@ -314,16 +362,23 @@
         html += `<div class="summary-card assets"><div class="label">Total Assets</div><div class="value">${fmt(summary.total_assets || 0)}</div></div>`;
         html += `<div class="summary-card liabilities"><div class="label">Total Liabilities</div><div class="value">${fmt(summary.total_liabilities || 0)}</div></div>`;
         html += `<div class="summary-card equity"><div class="label">Total Equity</div><div class="value">${fmt(summary.total_equity || 0)}</div></div>`;
-        html += `<div class="summary-card total"><div class="label">L & E Total</div><div class="value">${fmt(summary.total_liabilities_and_equity || 0)}</div></div>`;
+        html += `<div class="summary-card total"><div class="label">Liabilities & Equity</div><div class="value">${fmt(summary.total_liabilities_and_equity || 0)}</div></div>`;
+        
+        const varianceVal = parseFloat(summary.variance || 0);
+        html += `<div class="summary-card variance-card" style="${Math.abs(varianceVal) > 0.01 ? 'border-left-color:#ef4444;background:#fffaf0;' : 'border-left-color:#22c55e;'}">`;
+        html += `<div class="label" style="color:${Math.abs(varianceVal) > 0.01 ? '#dc2626' : '#16a34a'};">Equation Variance</div>`;
+        html += `<div class="value" style="color:${Math.abs(varianceVal) > 0.01 ? '#dc2626' : '#16a34a'};">$${fmt(varianceVal)}</div>`;
+        html += '</div>';
+
         html += '</div>';
 
         // Footer info
         html += `<div style="margin-top:8px;font-size:10px;color:#64748b;text-align:right;">
-            As of ${escapeHtml(data.as_of_date)} &middot; Generated ${new Date().toLocaleString()}
+            As of ${escapeHtml(data.as_of_date)} &middot; Unaudited Management Report &middot; Generated ${new Date().toLocaleString()}
         </div>`;
 
         resultsDiv.innerHTML = html;
-        showToast('success', 'Balance Sheet generated successfully');
+        showToast('success', 'Management Balance Sheet generated successfully');
     }
 
     /* ================================================================
@@ -373,10 +428,6 @@
         div.textContent = text;
         return div.innerHTML;
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        viewReport();
-    });
     </script>
     @endpush
 </x-layout>

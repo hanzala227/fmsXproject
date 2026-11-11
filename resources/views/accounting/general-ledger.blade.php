@@ -270,9 +270,10 @@
         // Balance badge
         var badge = document.getElementById('balance-badge');
         if (summary.is_balanced) {
-            badge.innerHTML = '<span class="balance-indicator balanced"><i class="fa fa-check-circle"></i> Balanced</span>';
+            badge.innerHTML = '<span class="balance-indicator balanced"><i class="fa fa-check-circle"></i> Balanced (3-Way Verified)</span>';
         } else {
-            badge.innerHTML = '<span class="balance-indicator unbalanced"><i class="fa fa-exclamation-triangle"></i> Unbalanced</span>';
+            var diff = summary.closing_variance || summary.opening_variance || 0;
+            badge.innerHTML = '<span class="balance-indicator unbalanced"><i class="fa fa-exclamation-triangle"></i> Unbalanced (Diff: $' + fmt(diff) + ')</span>';
         }
         badge.style.display = 'inline-block';
 
@@ -281,64 +282,99 @@
             return;
         }
 
+        var isSummary = (data.report_type === 'summary');
         var html = '<div class="grid-container"><table class="grid-table">';
 
-        html += '<thead><tr>';
-        html += '<th style="width:14%;">Date</th>';
-        html += '<th style="width:12%;">Reference</th>';
-        html += '<th style="width:30%;">Description</th>';
-        html += '<th style="width:14%;text-align:right;">Debit</th>';
-        html += '<th style="width:14%;text-align:right;">Credit</th>';
-        html += '<th style="width:16%;text-align:right;">Balance</th>';
-        html += '</tr></thead><tbody>';
+        if (isSummary) {
+            html += '<thead><tr>';
+            html += '<th style="width:10%;">Code</th>';
+            html += '<th style="width:28%;">Account Name</th>';
+            html += '<th style="width:10%;">Type</th>';
+            html += '<th style="width:17%;text-align:right;">Opening Balance</th>';
+            html += '<th style="width:12%;text-align:right;">Debit</th>';
+            html += '<th style="width:12%;text-align:right;">Credit</th>';
+            html += '<th style="width:17%;text-align:right;">Closing Balance</th>';
+            html += '</tr></thead><tbody>';
 
-        accounts.forEach(function(account) {
-            // Account Header
-            html += '<tr class="account-header"><td colspan="6">[' + escapeHtml(account.code) + '] ' + escapeHtml(account.name) + '</td></tr>';
+            accounts.forEach(function(account) {
+                html += '<tr>';
+                html += '<td><strong>' + escapeHtml(account.code) + '</strong></td>';
+                html += '<td>' + escapeHtml(account.name) + '</td>';
+                html += '<td><span style="text-transform:uppercase;font-size:10px;font-weight:600;color:#64748b;">' + escapeHtml(account.type || 'debit') + '</span></td>';
+                html += '<td class="num">' + fmt(Math.abs(account.opening_balance)) + ' <span style="font-size:9px;color:#64748b;">' + (account.opening_type || '') + '</span></td>';
+                html += '<td class="num" style="color:#2563eb;">' + (account.total_debit > 0 ? fmt(account.total_debit) : '-') + '</td>';
+                html += '<td class="num" style="color:#dc2626;">' + (account.total_credit > 0 ? fmt(account.total_credit) : '-') + '</td>';
+                html += '<td class="num fw-600">' + fmt(Math.abs(account.closing_balance)) + ' <span style="font-size:9px;color:#64748b;">' + (account.closing_type || '') + '</span></td>';
+                html += '</tr>';
+            });
 
-            // Opening Balance
-            html += '<tr class="opening-row"><td colspan="3">Opening Balance</td><td class="num">' + fmt(account.opening_balance) + '</td><td></td><td class="num">' + fmt(account.opening_balance) + '</td></tr>';
-
-            if (!account.transactions || account.transactions.length === 0) {
-                html += '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:10px;font-style:italic;">No transactions in this period</td></tr>';
-            } else {
-                account.transactions.forEach(function(txn) {
-                    html += '<tr class="txn-row">';
-                    html += '<td>' + escapeHtml(txn.date) + '</td>';
-                    html += '<td>' + escapeHtml(txn.reference) + '</td>';
-                    html += '<td>' + escapeHtml(txn.description) + '</td>';
-                    html += '<td class="num">' + (txn.debit > 0 ? fmt(txn.debit) : '') + '</td>';
-                    html += '<td class="num">' + (txn.credit > 0 ? fmt(txn.credit) : '') + '</td>';
-                    html += '<td class="num">' + fmt(txn.running_balance) + '</td>';
-                    html += '</tr>';
-                });
-            }
-
-            // Account Total
-            html += '<tr class="closing-row">';
-            html += '<td colspan="3">Closing Balance</td>';
-            html += '<td class="num">' + fmt(account.total_debit) + '</td>';
-            html += '<td class="num">' + fmt(account.total_credit) + '</td>';
-            html += '<td class="num">' + fmt(account.closing_balance) + '</td>';
+            html += '<tr class="total-row">';
+            html += '<td colspan="3">TOTAL DEBITS &amp; CREDITS (USD)</td>';
+            html += '<td class="num">Dr ' + fmt(summary.total_opening_debit || 0) + '<br><span style="font-size:9px;opacity:0.8;">Cr ' + fmt(summary.total_opening_credit || 0) + '</span></td>';
+            html += '<td class="num">' + fmt(summary.grand_total_debit || 0) + '</td>';
+            html += '<td class="num">' + fmt(summary.grand_total_credit || 0) + '</td>';
+            html += '<td class="num">Dr ' + fmt(summary.total_closing_debit || 0) + '<br><span style="font-size:9px;opacity:0.8;">Cr ' + fmt(summary.total_closing_credit || 0) + '</span></td>';
             html += '</tr>';
+        } else {
+            html += '<thead><tr>';
+            html += '<th style="width:14%;">Date</th>';
+            html += '<th style="width:12%;">Reference</th>';
+            html += '<th style="width:30%;">Description</th>';
+            html += '<th style="width:14%;text-align:right;">Debit</th>';
+            html += '<th style="width:14%;text-align:right;">Credit</th>';
+            html += '<th style="width:16%;text-align:right;">Balance</th>';
+            html += '</tr></thead><tbody>';
 
-            // Spacer
-            html += '<tr><td colspan="6" style="padding:0;height:8px;border:none;"></td></tr>';
-        });
+            accounts.forEach(function(account) {
+                var hasTxns = account.transactions && account.transactions.length > 0;
 
-        // Grand Total
-        html += '<tr class="total-row"><td colspan="3">GRAND TOTAL</td>';
-        html += '<td class="num">' + fmt(summary.grand_total_debit || 0) + '</td>';
-        html += '<td class="num">' + fmt(summary.grand_total_credit || 0) + '</td>';
-        html += '<td class="num">' + fmt(summary.grand_closing || 0) + '</td></tr>';
+                // Account Header
+                html += '<tr class="account-header"><td colspan="6">[' + escapeHtml(account.code) + '] ' + escapeHtml(account.name) + '</td></tr>';
+
+                // Opening Balance
+                html += '<tr class="opening-row"><td colspan="3">Opening Balance</td><td class="num">-</td><td></td><td class="num">' + fmt(Math.abs(account.opening_balance)) + ' <span style="font-size:9px;color:#64748b;">' + (account.opening_type || '') + '</span></td></tr>';
+
+                if (!hasTxns) {
+                    html += '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic;">No transactions in this period (Balance: ' + fmt(Math.abs(account.closing_balance)) + ' ' + (account.closing_type || '') + ')</td></tr>';
+                } else {
+                    account.transactions.forEach(function(txn) {
+                        html += '<tr class="txn-row">';
+                        html += '<td>' + escapeHtml(txn.date) + '</td>';
+                        html += '<td>' + escapeHtml(txn.reference) + '</td>';
+                        html += '<td>' + escapeHtml(txn.description) + '</td>';
+                        html += '<td class="num" style="color:#2563eb;">' + (txn.debit > 0 ? fmt(txn.debit) : '') + '</td>';
+                        html += '<td class="num" style="color:#dc2626;">' + (txn.credit > 0 ? fmt(txn.credit) : '') + '</td>';
+                        html += '<td class="num">' + fmt(Math.abs(txn.running_balance)) + ' <span style="font-size:9px;color:#64748b;">' + (txn.balance_type || '') + '</span></td>';
+                        html += '</tr>';
+                    });
+                }
+
+                // Account Total
+                html += '<tr class="closing-row">';
+                html += '<td colspan="3">Closing Balance' + (hasTxns ? ' &middot; ' + account.transactions.length + ' transaction(s)' : '') + '</td>';
+                html += '<td class="num">' + fmt(account.total_debit) + '</td>';
+                html += '<td class="num">' + fmt(account.total_credit) + '</td>';
+                html += '<td class="num fw-600">' + fmt(Math.abs(account.closing_balance)) + ' <span style="font-size:9px;color:#64748b;">' + (account.closing_type || '') + '</span></td>';
+                html += '</tr>';
+
+                // Spacer
+                html += '<tr><td colspan="6" style="padding:0;height:8px;border:none;"></td></tr>';
+            });
+
+            // Grand Total
+            html += '<tr class="total-row"><td colspan="3">TOTAL DEBITS &amp; CREDITS (USD)</td>';
+            html += '<td class="num">' + fmt(summary.grand_total_debit || 0) + '</td>';
+            html += '<td class="num">' + fmt(summary.grand_total_credit || 0) + '</td>';
+            html += '<td class="num">Dr ' + fmt(summary.total_closing_debit || 0) + '<br><span style="font-size:9px;opacity:0.8;">Cr ' + fmt(summary.total_closing_credit || 0) + '</span></td></tr>';
+        }
 
         html += '</tbody></table></div>';
 
         // Summary cards
         html += '<div class="summary-row">';
-        html += '<div class="summary-card debit"><div class="label">Total Debit</div><div class="value">' + fmt(summary.grand_total_debit || 0) + '</div></div>';
-        html += '<div class="summary-card credit"><div class="label">Total Credit</div><div class="value">' + fmt(summary.grand_total_credit || 0) + '</div></div>';
-        html += '<div class="summary-card balanced"><div class="label">Is Balanced</div><div class="value">' + (summary.is_balanced ? 'Yes' : 'No') + '</div></div>';
+        html += '<div class="summary-card debit"><div class="label">Total Debit Movement</div><div class="value">' + fmt(summary.grand_total_debit || 0) + '</div></div>';
+        html += '<div class="summary-card credit"><div class="label">Total Credit Movement</div><div class="value">' + fmt(summary.grand_total_credit || 0) + '</div></div>';
+        html += '<div class="summary-card balanced"><div class="label">3-Way Audit Status</div><div class="value" style="font-size:12px;color:' + (summary.is_balanced ? '#16a34a' : '#dc2626') + ';">' + (summary.is_balanced ? 'BALANCED' : 'UNBALANCED ($' + fmt(summary.closing_variance || 0) + ')') + '</div></div>';
         html += '<div class="summary-card txns"><div class="label">Total Transactions</div><div class="value">' + (summary.total_transactions || 0) + '</div></div>';
         html += '</div>';
 

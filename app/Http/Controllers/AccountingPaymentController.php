@@ -81,6 +81,13 @@ class AccountingPaymentController extends Controller
 
         $payment = AccountingPayment::findOrFail($id);
 
+        if ($payment->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($payment->payment_date, $payment->office_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access Control: Cannot cancel a payment in a blocked accounting period.'
+            ], 403);
+        }
+
         if ($payment->void_date) {
             return response()->json([
                 'success' => false,
@@ -487,42 +494,67 @@ class AccountingPaymentController extends Controller
         $companyId = auth()->user()->company_id ?? 1;
         $data['company_id'] = $companyId;
 
-        // Concurrency Lock and Duplicate Prevention inside an isolated DB transaction
-        return DB::transaction(function () use ($request, $data, $companyId) {
-            if (!empty($data['invoice_id'])) {
-                // Serialized pessimistic lock on invoice
-                $invoice = Invoice::where('id', $data['invoice_id'])->lockForUpdate()->first();
-                if ($invoice) {
-                    // Test 1 & 6: Duplicate payment guard
-                    if (!empty($data['reference_no'])) {
-                        $duplicate = AccountingPayment::where('company_id', $companyId)
-                            ->where('invoice_id', $invoice->id)
-                            ->where('reference_no', $data['reference_no'])
-                            ->where('amount', $data['amount'])
-                            ->exists();
+        if (\App\Models\AccountingBlockDate::isDateBlocked($data['payment_date'] ?? null, $data['office_id'] ?? null, $companyId)) {
+            $msg = 'Access Control: Cannot record a payment in a blocked accounting period.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return back()->withInput()->withErrors(['payment_date' => $msg]);
+        }
 
-                        if ($duplicate) {
-                            $msg = "Duplicate payment rejected: A payment with reference '{$data['reference_no']}' for \${$data['amount']} has already been processed for this invoice.";
-                            if ($request->ajax()) {
-                                return response()->json(['success' => false, 'message' => $msg, 'errors' => ['reference_no' => [$msg]]], 422);
-                            }
-                            return back()->withInput()->withErrors(['reference_no' => $msg]);
-                        }
+        // Concurrency Lock and Duplicate/Overpayment Prevention inside an isolated DB transaction
+        $allocations = collect($request->input('allocations', []))
+            ->filter(fn ($row) => !empty($row['invoice_id']) && (
+                (float) ($row['amount'] ?? 0) + (float) ($row['tds_tax'] ?? 0) + (float) ($row['discount'] ?? 0) > 0
+            ))
+            ->values();
+
+        if ($allocations->count() === 1) {
+            $singleAlloc = $allocations->first();
+            $data['invoice_id'] = (int) $singleAlloc['invoice_id'];
+            $data['amount'] = (float) ($singleAlloc['amount'] ?? $data['amount']);
+            $data['tds_tax'] = (float) ($singleAlloc['tds_tax'] ?? $data['tds_tax']);
+            $data['discount'] = (float) ($singleAlloc['discount'] ?? $data['discount']);
+        }
+
+        $txResult = DB::transaction(function () use ($request, $data, $companyId, $allocations) {
+            if ($allocations->count() > 1) {
+                $baseNo = $data['payment_no'];
+                $rowPayloads = [];
+
+                foreach ($allocations as $idx => $alloc) {
+                    $rowNo = $baseNo . '-' . ($idx + 1);
+                    while (AccountingPayment::withoutGlobalScopes()->withTrashed()->where('payment_no', $rowNo)->exists()) {
+                        $rowNo .= '-' . random_int(10, 99);
                     }
 
-                    // Test 2: Guard against overpayments exceeding remaining invoice balance
-                    if ((float) $invoice->total_amount > 0) {
-                        $remainingBalance = max(0, round((float) $invoice->balance_amount, 2));
-                        $totalSettlement = (float) $data['amount'] + (float) ($data['tds_tax'] ?? 0) + (float) ($data['discount'] ?? 0);
-                        if ($totalSettlement > $remainingBalance + 0.001) {
-                            $msg = "Total settlement (\${$totalSettlement}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.";
-                            if ($request->ajax()) {
-                                return response()->json(['success' => false, 'message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
-                            }
-                            return back()->withInput()->withErrors(['amount' => $msg]);
-                        }
+                    $rowPayload = array_merge($data, [
+                        'payment_no' => $rowNo,
+                        'invoice_id' => (int) $alloc['invoice_id'],
+                        'amount' => (float) ($alloc['amount'] ?? 0),
+                        'tds_tax' => (float) ($alloc['tds_tax'] ?? 0),
+                        'discount' => (float) ($alloc['discount'] ?? 0),
+                    ]);
+
+                    if ($err = $this->guardInvoiceSettlement($companyId, $rowPayload)) {
+                        return ['error' => $err];
                     }
+
+                    $rowPayloads[] = $rowPayload;
                 }
+
+                $createdPayments = collect();
+                foreach ($rowPayloads as $rowPayload) {
+                    $created = AccountingPayment::create($rowPayload);
+                    self::syncInvoiceBalance($created->invoice_id);
+                    $createdPayments->push($created);
+                }
+
+                return ['payments' => $createdPayments];
+            }
+
+            if ($err = $this->guardInvoiceSettlement($companyId, $data)) {
+                return ['error' => $err];
             }
 
             $payment = AccountingPayment::create($data);
@@ -531,28 +563,43 @@ class AccountingPaymentController extends Controller
                 self::syncInvoiceBalance($payment->invoice_id);
             }
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Payment saved successfully.',
-                    'payment' => $payment->fresh(),
-                    'redirect' => route('accounting.payment.edit', $payment->id),
-                ]);
-            }
-
-            $saveAction = $request->input('save_action', 'save_close');
-            if ($saveAction === 'save_new') {
-                $redirectRoute = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
-                return redirect()->route($redirectRoute)
-                    ->with('success', 'Payment recorded successfully. Create another.');
-            }
-
-            return redirect()->route('accounting.payment.edit', $payment->id)
-                ->with('success', 'Payment recorded successfully.');
+            return ['payments' => collect([$payment])];
         });
 
+        if (isset($txResult['error'])) {
+            [$field, $msg] = $txResult['error'];
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg, 'errors' => [$field => [$msg]]], 422);
+            }
+            return back()->withInput()->withErrors([$field => $msg]);
+        }
+
+        $createdPayments = $txResult['payments'];
+        $payment = $createdPayments->first();
+        $isBatch = $createdPayments->count() > 1;
+        $successMsg = $isBatch
+            ? "Payment recorded across {$createdPayments->count()} invoices successfully."
+            : 'Payment saved successfully.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMsg,
+                'payment' => $payment->fresh(),
+                'payment_ids' => $createdPayments->pluck('id')->values(),
+                'redirect' => route('accounting.payment.edit', $payment->id),
+            ]);
+        }
+
+        $saveAction = $request->input('save_action', 'save_close');
+        if ($saveAction === 'save_new') {
+            $redirectRoute = $payment->type === 'MADE' ? 'accounting.payment-make' : 'accounting.payment-receive';
+            return redirect()->route($redirectRoute)
+                ->with('success', $successMsg . ' Create another.');
+        }
+
         return redirect()->route('accounting.payment.edit', $payment->id)
-            ->with('success', 'Payment saved successfully. You can now manage documents and memos.');
+            ->with('success', $successMsg);
     }
 
     public function edit(AccountingPayment $payment)
@@ -631,7 +678,13 @@ class AccountingPaymentController extends Controller
 
     public function update(Request $request, AccountingPayment $payment)
     {
-        if ($payment->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($payment->payment_date, $payment->office_id)) {
+        $newDate = $request->input('payment_date', $payment->payment_date);
+        $newOfficeId = $request->input('office_id', $payment->office_id);
+        if (
+            $payment->is_blocked
+            || \App\Models\AccountingBlockDate::isDateBlocked($payment->payment_date, $payment->office_id)
+            || \App\Models\AccountingBlockDate::isDateBlocked($newDate, $newOfficeId)
+        ) {
             $msg = 'Access Control: This payment cannot be modified because the record or accounting period is blocked.';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msg], 403);
@@ -655,7 +708,10 @@ class AccountingPaymentController extends Controller
             'payment_date' => 'required|date',
             'trade_partner_id' => 'required|exists:trade_partners,id',
             'currency_id' => 'required|exists:currencies,id',
+            'exchange_rate' => 'nullable|numeric|min:0',
             'amount' => 'required|numeric|min:0',
+            'tds_tax' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|string|max:50',
             'reference_no' => 'nullable|string|max:255',
             'remark' => 'nullable|string',
@@ -676,17 +732,26 @@ class AccountingPaymentController extends Controller
         $data['reference_no'] = $data['reference_no'] ?? '';
         $data['remark'] = $data['remark'] ?? '';
         $data['amount'] = $data['amount'] ?? 0;
-        $data['tds_tax'] = (float) ($request->input('tds_tax', 0));
-        $data['discount'] = (float) ($request->input('discount', 0));
+        $data['tds_tax'] = (float) ($data['tds_tax'] ?? $request->input('tds_tax', 0));
+        $data['discount'] = (float) ($data['discount'] ?? $request->input('discount', 0));
         $data['show_party_on_check'] = $request->boolean('show_party_on_check');
 
-        // If clear/void checkboxes are unchecked, null the dates
-        if (!$request->boolean('has_clear')) $data['clear_date'] = null;
-        if (!$request->boolean('has_void')) $data['void_date'] = null;
+        if (empty($data['exchange_rate'])) {
+            $curr = Currency::find($data['currency_id'] ?? $payment->currency_id ?? 1);
+            $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? 1.0);
+        }
+
+        // If clear/void checkboxes are unchecked, null the dates (while preserving explicit void_date when sent without checkbox flag)
+        if ($request->has('has_clear') && !$request->boolean('has_clear')) $data['clear_date'] = null;
+        if ($request->has('has_void') && !$request->boolean('has_void')) $data['void_date'] = null;
 
         $oldInvoiceId = $payment->invoice_id;
 
-        DB::transaction(function() use ($payment, $data, $oldInvoiceId) {
+        $txResult = DB::transaction(function () use ($request, $payment, $data, $oldInvoiceId, $companyId) {
+            if ($err = $this->guardInvoiceSettlement($companyId, $data, $payment->id)) {
+                return $err;
+            }
+
             $payment->update($data);
 
             if ($payment->invoice_id) {
@@ -696,9 +761,19 @@ class AccountingPaymentController extends Controller
             if ($oldInvoiceId && $oldInvoiceId != $payment->invoice_id) {
                 self::syncInvoiceBalance($oldInvoiceId);
             }
+
+            return null;
         });
 
-        if ($request->ajax()) {
+        if ($txResult !== null) {
+            [$field, $msg] = $txResult;
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg, 'errors' => [$field => [$msg]]], 422);
+            }
+            return back()->withInput()->withErrors([$field => $msg]);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Payment updated successfully.',
@@ -708,6 +783,84 @@ class AccountingPaymentController extends Controller
 
         return redirect()->route('accounting.payment.edit', $payment->id)
             ->with('success', 'Payment updated successfully.');
+    }
+
+    /**
+     * Guard against duplicate reference+amount and cash+TDS+discount overpayment on invoice settlement.
+     */
+    private function guardInvoiceSettlement(int $companyId, array $data, ?int $ignorePaymentId = null): ?array
+    {
+        if (empty($data['invoice_id']) || !empty($data['void_date'])) {
+            return null;
+        }
+
+        $invoice = Invoice::withoutGlobalScopes()
+            ->where('id', $data['invoice_id'])
+            ->where('company_id', $companyId)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$invoice) {
+            return ['invoice_id', 'The selected invoice is invalid or does not belong to your organization.'];
+        }
+
+        if (!in_array(strtoupper($invoice->status), ['POSTED', 'PARTIAL', 'PARTIALLY_PAID']) || $invoice->verification_status !== 'Verified') {
+            return ['invoice_id', "Invoice {$invoice->invoice_no} must be verified and posted before payments can be applied."];
+        }
+
+        if (isset($data['type'])) {
+            if ($data['type'] === 'RECEIVED' && $invoice->type === 'AP') {
+                return ['type', "Cannot record a RECEIVED payment against an Accounts Payable bill ({$invoice->invoice_no})."];
+            }
+            if ($data['type'] === 'MADE' && $invoice->type === 'AR') {
+                return ['type', "Cannot record a MADE payment against an Accounts Receivable invoice ({$invoice->invoice_no})."];
+            }
+        }
+
+        if (!empty($data['currency_id']) && $invoice->currency_id && (int) $data['currency_id'] !== (int) $invoice->currency_id) {
+            return ['currency_id', "Payment currency must match invoice currency ({$invoice->currency?->code})."];
+        }
+
+        if (!empty($data['reference_no'])) {
+            $duplicate = AccountingPayment::where('company_id', $companyId)
+                ->where('invoice_id', $invoice->id)
+                ->where('reference_no', $data['reference_no'])
+                ->where('amount', $data['amount'])
+                ->whereNull('void_date')
+                ->whereNull('cancelled_at')
+                ->when($ignorePaymentId, fn($q) => $q->where('id', '!=', $ignorePaymentId))
+                ->exists();
+
+            if ($duplicate) {
+                return [
+                    'reference_no',
+                    "Duplicate payment rejected: A payment with reference '{$data['reference_no']}' for \${$data['amount']} has already been processed for this invoice.",
+                ];
+            }
+        }
+
+        if ((float) $invoice->total_amount > 0) {
+            $otherSettled = (float) (DB::table('payments')
+                ->where('invoice_id', $invoice->id)
+                ->whereNull('deleted_at')
+                ->whereNull('void_date')
+                ->whereNull('cancelled_at')
+                ->when($ignorePaymentId, fn($q) => $q->where('id', '!=', $ignorePaymentId))
+                ->selectRaw('COALESCE(SUM(amount + COALESCE(tds_tax, 0) + COALESCE(discount, 0)), 0) as settled')
+                ->value('settled') ?? 0);
+
+            $remainingBalance = max(0, round((float) $invoice->total_amount - $otherSettled, 2));
+            $totalSettlement = (float) $data['amount'] + (float) ($data['tds_tax'] ?? 0) + (float) ($data['discount'] ?? 0);
+
+            if ($totalSettlement > $remainingBalance + 0.001) {
+                return [
+                    'amount',
+                    "Total settlement (\${$totalSettlement}) exceeds remaining invoice balance (\${$remainingBalance}). Overpayments must be logged as Customer Advance.",
+                ];
+            }
+        }
+
+        return null;
     }
 
     // === Document Methods ===
@@ -810,13 +963,14 @@ class AccountingPaymentController extends Controller
     {
         if (!$invoiceId) return;
 
-        $invoice = Invoice::find($invoiceId);
-        if (!$invoice) return;
+        $invoice = Invoice::withoutGlobalScopes()->find($invoiceId);
+        if (!$invoice || strtoupper($invoice->status ?? '') === 'VOID') return;
 
         $paymentsQuery = DB::table('payments')
             ->where('invoice_id', $invoice->id)
             ->whereNull('deleted_at')
-            ->whereNull('void_date');
+            ->whereNull('void_date')
+            ->whereNull('cancelled_at');
 
         $totalPaid = (float) (clone $paymentsQuery)->sum('amount');
         $totalTds = (float) (clone $paymentsQuery)->sum('tds_tax');
@@ -830,7 +984,7 @@ class AccountingPaymentController extends Controller
             $invoice->status = 'PAID';
         } elseif ($totalSettled > 0) {
             $invoice->status = 'PARTIAL';
-        } else {
+        } elseif (strtoupper($invoice->status ?? '') !== 'DRAFT') {
             $invoice->status = 'POSTED';
         }
 

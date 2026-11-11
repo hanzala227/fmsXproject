@@ -16,7 +16,9 @@ class GeneralJournalController extends Controller
             return $this->ajaxGrid($request);
         }
 
-        $query = AccountingJournal::with(['office', 'creator', 'lines']);
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator', 'lines']);
         $query = $this->applyFilters($query, $request);
         $entries = $query->orderByDesc('entry_date')->orderByDesc('id')->paginate(25);
 
@@ -27,7 +29,9 @@ class GeneralJournalController extends Controller
 
     private function ajaxGrid(Request $request)
     {
-        $query = AccountingJournal::with(['office', 'creator', 'lines']);
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator', 'lines']);
         $query = $this->applyFilters($query, $request);
         $entries = $query->orderByDesc('entry_date')->orderByDesc('id')->paginate(25);
 
@@ -123,7 +127,9 @@ class GeneralJournalController extends Controller
             return response()->json(['success' => false, 'message' => 'No entries selected.']);
         }
 
-        $entries = AccountingJournal::whereIn('id', $ids)->get();
+        $companyId = auth()->user()->company_id ?? null;
+        $entries = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->whereIn('id', $ids)->get();
         foreach ($entries as $entry) {
             $status = strtoupper($entry->status ?? 'POSTED');
             if (in_array($status, ['POSTED', 'APPROVED'])) {
@@ -144,7 +150,9 @@ class GeneralJournalController extends Controller
 
     private function getEntries(Request $request)
     {
-        $query = AccountingJournal::with(['office', 'creator', 'lines']);
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator', 'lines']);
         $query = $this->applyFilters($query, $request);
         $entries = $query->orderByDesc('entry_date')->orderByDesc('id')->get();
         return compact('entries');

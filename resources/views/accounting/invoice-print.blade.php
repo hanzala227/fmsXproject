@@ -477,7 +477,7 @@
 
                     {{-- Column 3: Reference & Types --}}
                     <td>
-                        <div class="field-row"><span class="field-label">Invoice No.:</span> {{ $invoice->related_invoice_id ? 'INV-' . $invoice->related_invoice_id : $invoice->invoice_no }}</div>
+                        <div class="field-row"><span class="field-label">Invoice No.:</span> {{ $invoice->relatedInvoice?->invoice_no ?? $invoice->invoice_no }}</div>
                         <div class="field-row"><span class="field-label">Invoice Date:</span> {{ $invoice->invoice_date ? $invoice->invoice_date->format('d M Y') : date('d M Y') }}</div>
                         <div class="field-row"><span class="field-label">Job No.:</span> {{ $jobNo }}</div>
                         <div style="margin-top:6px;padding-top:4px;border-top:1px dashed #b8c8d5;">

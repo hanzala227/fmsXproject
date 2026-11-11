@@ -98,7 +98,7 @@
                             <th>Updated By</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="blockRecordsBody">
                         @forelse(($latestRecords ?? $lastBlockDates ?? []) as $record)
                             <tr>
                                 <td><strong>{{ $record->office?->code ?? 'All Offices' }}</strong></td>
@@ -174,8 +174,21 @@
             .then(function(resp) {
                 hideLdg();
                 if (!resp.success) { toast('error', resp.message || 'Failed.'); return; }
+                if (Array.isArray(resp.records)) {
+                    var tbody = document.getElementById('blockRecordsBody');
+                    if (tbody) {
+                        tbody.innerHTML = resp.records.length === 0
+                            ? '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">No block records found.</td></tr>'
+                            : resp.records.map(function(rec) {
+                                var badge = rec.action === 'BLOCK'
+                                    ? '<span style="color:#ef4444;font-weight:700;"><i class="fa fa-lock"></i> BLOCKED</span>'
+                                    : '<span style="color:#16a34a;font-weight:700;"><i class="fa fa-unlock"></i> UNBLOCKED</span>';
+                                var esc = function(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+                                return '<tr><td><strong>' + esc(rec.office_code) + '</strong></td><td>' + esc(rec.block_date) + '</td><td>' + badge + '</td><td style="color:#64748b;font-size:10px;">' + esc(rec.updated_by) + '</td></tr>';
+                            }).join('');
+                    }
+                }
                 toast('success', resp.message || 'Applied!');
-                setTimeout(function() { window.location.reload(); }, 1000);
             })
             .catch(function() { hideLdg(); toast('error', 'Network error.'); });
         });

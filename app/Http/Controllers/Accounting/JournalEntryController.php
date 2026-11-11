@@ -17,9 +17,10 @@ class JournalEntryController extends Controller
 {
     public function index(Request $request)
     {
+        $companyId    = auth()->user()->company_id ?? null;
         $offices      = Office::where('is_active', true)->orderBy('name')->get();
         $currencies   = Currency::orderBy('code')->get();
-        $partners     = TradePartner::where('status', '!=', 'INACTIVE')->orderBy('name')->get();
+        $partners     = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))->where('status', '!=', 'INACTIVE')->orderBy('name')->get();
         $glAccounts   = GlAccount::active()->orderBy('code')->get(['id', 'code', 'name']);
         $nextEntryNo  = AccountingJournal::generateEntryNo();
 
@@ -53,9 +54,13 @@ class JournalEntryController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
+        $companyId = auth()->user()->company_id ?? null;
         if ($request->filled('entry_id')) {
-            $existing = AccountingJournal::find($request->entry_id);
-            if ($existing && ($existing->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($existing->entry_date, $existing->office_id))) {
+            $existing = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))->find($request->entry_id);
+            if (!$existing) {
+                return response()->json(['success' => false, 'message' => 'Journal entry not found.'], 404);
+            }
+            if ($existing->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($existing->entry_date, $existing->office_id)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Access Control: This journal entry cannot be updated because the record or accounting period is blocked.'
@@ -69,8 +74,12 @@ class JournalEntryController extends Controller
             ], 403);
         }
 
-        $totalDebit  = collect($request->lines)->sum('local_debit');
-        $totalCredit = collect($request->lines)->sum('local_credit');
+        $totalDebit  = (float) collect($request->lines)->sum('local_debit');
+        $totalCredit = (float) collect($request->lines)->sum('local_credit');
+
+        if ($totalDebit <= 0.001 || $totalCredit <= 0.001) {
+            return response()->json(['success' => false, 'message' => 'Journal entry lines must have positive debit and credit amounts.'], 422);
+        }
 
         if (abs($totalDebit - $totalCredit) > 0.01) {
             return response()->json(['success' => false, 'message' => 'Total debit must equal total credit.'], 422);
@@ -80,7 +89,14 @@ class JournalEntryController extends Controller
             DB::beginTransaction();
 
             if ($request->filled('entry_id')) {
-                $entry = AccountingJournal::findOrFail($request->entry_id);
+                $entry = AccountingJournal::when($companyId, fn($q) => $q->where('company_id', $companyId))->findOrFail($request->entry_id);
+                if ($entry->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($entry->entry_date, $entry->office_id)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Access Control: This journal entry cannot be edited because the record or original accounting period is blocked.'
+                    ], 403);
+                }
                 $entry->update([
                     'entry_date'  => $request->entry_date,
                     'description' => $request->description,
@@ -92,6 +108,7 @@ class JournalEntryController extends Controller
                 $entry->lines()->delete();
             } else {
                 $entry = AccountingJournal::create([
+                    'company_id'  => $companyId,
                     'entry_no'    => AccountingJournal::generateEntryNo(),
                     'entry_date'  => $request->entry_date,
                     'description' => $request->description,
@@ -104,6 +121,7 @@ class JournalEntryController extends Controller
 
             foreach ($request->lines as $idx => $line) {
                 $entry->lines()->create([
+                    'company_id'       => $entry->company_id ?? $companyId,
                     'line_no'          => $idx + 1,
                     'gl_account_id'    => $line['gl_account_id'],
                     'sub'              => $line['sub'] ?? null,
@@ -144,7 +162,8 @@ class JournalEntryController extends Controller
     public function destroy($id)
     {
         try {
-            $entry = AccountingJournal::findOrFail($id);
+            $companyId = auth()->user()->company_id ?? null;
+            $entry = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))->findOrFail($id);
             if ($entry->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($entry->entry_date, $entry->office_id)) {
                 return response()->json([
                     'success' => false,
@@ -189,7 +208,9 @@ class JournalEntryController extends Controller
 
     public function list(Request $request)
     {
-        $query = AccountingJournal::with(['office', 'creator', 'lines'])
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator', 'lines'])
             ->when($request->search, function ($q) use ($request) {
                 $term = $request->search;
                 $q->where(function ($qq) use ($term) {
@@ -235,7 +256,9 @@ class JournalEntryController extends Controller
             return redirect()->route('accounting.journal.entry', ['id' => $id]);
         }
 
-        $entry = AccountingJournal::with(['lines.glAccount', 'lines.tradePartner', 'lines.office', 'lines.currency', 'office', 'creator'])
+        $companyId = auth()->user()->company_id ?? null;
+        $entry = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['lines.glAccount', 'lines.tradePartner', 'lines.office', 'lines.currency', 'office', 'creator'])
             ->findOrFail($id);
 
         return response()->json($entry);
@@ -243,7 +266,9 @@ class JournalEntryController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $query = AccountingJournal::with(['office', 'creator', 'lines.glAccount', 'lines.tradePartner']);
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator', 'lines.glAccount', 'lines.tradePartner']);
 
         if ($request->filled('search')) {
             $term = $request->search;

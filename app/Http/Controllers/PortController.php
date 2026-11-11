@@ -47,35 +47,61 @@ class PortController extends Controller
         ], 201);
     }
 
-public function search(Request $request)
-{
-    $q = trim($request->query('q', ''));
-    $type = strtoupper(trim($request->query('type', '')));
+    public function search(Request $request)
+    {
+        $q = trim($request->query('q', ''));
+        $type = strtoupper(trim($request->query('type', '')));
 
-    $query = Port::query();
+        $query = Port::query()->with('country')->whereNull('deleted_at');
 
-    // Agar type AIR ya SEA specify ki ho to filter karo, warna fallback to SEA default ya all
-    if (in_array($type, ['AIR', 'SEA'], true)) {
-        $query->where('type', $type);
-    }
-
-    // Port name se search
-    if ($q !== '') {
-        if (mb_strlen($q) < 2) {
-            return response()->json([]);
+        // Filter by AIR or SEA if specified
+        if (in_array($type, ['AIR', 'SEA'], true)) {
+            $query->where('type', $type);
         }
 
-        $query->where('name', 'like', '%' . $q . '%');
+        // Search by Code, City, Name, or Country
+        if ($q !== '') {
+            if (mb_strlen($q) < 2) {
+                return response()->json([]);
+            }
+
+            $query->where(function ($sub) use ($q) {
+                $sub->where('ports.code', 'like', $q . '%')
+                    ->orWhere('ports.city', 'like', $q . '%')
+                    ->orWhere('ports.name', 'like', '%' . $q . '%')
+                    ->orWhereHas('country', fn($cq) => $cq->where('name', 'like', $q . '%'));
+            });
+
+            // Priority: Exact Code Match > Code Prefix > City Prefix > Name Prefix > Substring
+            $query->orderByRaw("CASE 
+                WHEN ports.code = ? THEN 1 
+                WHEN ports.code LIKE ? THEN 2 
+                WHEN ports.city LIKE ? THEN 3 
+                WHEN ports.name LIKE ? THEN 4 
+                ELSE 5 
+            END", [$q, "{$q}%", "{$q}%", "{$q}%"])
+            ->orderBy('ports.name');
+        } else {
+            $query->orderByDesc('ports.id');
+        }
+
+        // Return max 30 records with standard rich label: [CODE] Name (City, Country)
+        $ports = $query->limit(30)->get()->map(function ($p) {
+            $country = $p->country?->name ?? '';
+            $city = $p->city ?? '';
+            $locationParts = array_filter([$city, $country]);
+            $locStr = !empty($locationParts) ? ' (' . implode(', ', $locationParts) . ')' : '';
+            $label = ($p->code ? "[{$p->code}] " : '') . $p->name . $locStr;
+
+            return [
+                'id'   => $p->id,
+                'code' => $p->code,
+                'name' => $label,
+            ];
+        });
+
+        return response()->json($ports);
     }
-
-    // Latest 30 records
-    $ports = $query
-        ->orderByDesc('id')
-        ->limit(30)
-        ->get(['id', 'name']);
-
-    return response()->json($ports);
-}
 
     public function show($id)
     {

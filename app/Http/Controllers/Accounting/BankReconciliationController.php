@@ -18,7 +18,13 @@ class BankReconciliationController extends Controller
             ->where('company_id', $companyId)
             ->where('is_active', true)
             ->pluck('bank_name')
-            ->merge(AccountingPayment::whereNotNull('bank_name')->where('bank_name', '!=', '')->distinct()->pluck('bank_name'))
+            ->merge(
+                AccountingPayment::where('company_id', $companyId)
+                    ->whereNotNull('bank_name')
+                    ->where('bank_name', '!=', '')
+                    ->distinct()
+                    ->pluck('bank_name')
+            )
             ->filter()
             ->unique()
             ->sort()
@@ -31,16 +37,27 @@ class BankReconciliationController extends Controller
 
     private function getReportData(Request $request)
     {
+        $companyId = auth()->user()?->company_id ?? 1;
         $bankName = $request->input('bank_name');
         $periodDate = $request->input('period_date', date('Y-m-d'));
         $officeId = $request->input('office_id');
 
-        $bankAccount = BankAccount::where('name', $bankName)->first();
+        $bankRow = !empty($bankName)
+            ? DB::table('banks')->where('bank_name', $bankName)->where('company_id', $companyId)->first()
+            : null;
+        if ($bankRow) {
+            $openingBalance = (float) $bankRow->initial_amount;
+            $bankCurrency = $bankRow->currency ?? 'USD';
+        } else {
+            // bank_accounts table is legacy and unscoped by company_id; default safely without crashing
+            $openingBalance = 0.0;
+            $bankCurrency = 'USD';
+        }
 
-        $openingBalance = $bankAccount ? (float) $bankAccount->opening_balance : 0;
-        $bankCurrency = $bankAccount?->currency?->code ?? 'USD';
-
-        $baseQuery = AccountingPayment::where('bank_name', $bankName)
+        $baseQuery = AccountingPayment::where('company_id', $companyId)
+            ->where('bank_name', $bankName)
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at')
             ->whereNull('void_date')
             ->where('payment_date', '<=', $periodDate);
 
@@ -56,14 +73,20 @@ class BankReconciliationController extends Controller
         $totalDeposits = $deposits->sum('amount');
         $totalChecks = $checks->sum('amount');
 
-        $outstandingDeposits = $deposits->whereNull('clear_date');
-        $outstandingChecks = $checks->whereNull('clear_date');
+        $isClearedByPeriod = fn ($p) => $p->clear_date !== null && $p->clear_date->toDateString() <= $periodDate;
 
+        $clearedDeposits = $deposits->filter($isClearedByPeriod);
+        $clearedChecks = $checks->filter($isClearedByPeriod);
+        $outstandingDeposits = $deposits->reject($isClearedByPeriod);
+        $outstandingChecks = $checks->reject($isClearedByPeriod);
+
+        $clearedDepositAmount = $clearedDeposits->sum('amount');
+        $clearedCheckAmount = $clearedChecks->sum('amount');
         $outstandingDepositAmount = $outstandingDeposits->sum('amount');
         $outstandingCheckAmount = $outstandingChecks->sum('amount');
 
         $statementBeginning = $openingBalance;
-        $statementEnding = $openingBalance + $totalDeposits - $totalChecks;
+        $statementEnding = $openingBalance + $clearedDepositAmount - $clearedCheckAmount;
         $actualEnding = $statementEnding + $outstandingDepositAmount - $outstandingCheckAmount;
 
         $bookBeginning = $openingBalance;
@@ -112,8 +135,8 @@ class BankReconciliationController extends Controller
             'summary' => [
                 'statement' => [
                     'beginning_balance' => round($statementBeginning, 2),
-                    'deposit_credit' => round($totalDeposits, 2),
-                    'checks_debit' => round($totalChecks, 2),
+                    'deposit_credit' => round($clearedDepositAmount, 2),
+                    'checks_debit' => round($clearedCheckAmount, 2),
                     'ending_balance' => round($statementEnding, 2),
                 ],
                 'outstanding' => [
@@ -153,7 +176,8 @@ class BankReconciliationController extends Controller
             'clear_date' => 'required|date',
         ]);
 
-        $payment = AccountingPayment::findOrFail($request->input('payment_id'));
+        $companyId = auth()->user()?->company_id;
+        $payment = AccountingPayment::when($companyId, fn($q) => $q->where('company_id', $companyId))->findOrFail($request->input('payment_id'));
         $payment->clear_date = $request->input('clear_date');
         $payment->save();
 
@@ -166,7 +190,8 @@ class BankReconciliationController extends Controller
             'payment_id' => 'required|exists:payments,id',
         ]);
 
-        $payment = AccountingPayment::findOrFail($request->input('payment_id'));
+        $companyId = auth()->user()?->company_id;
+        $payment = AccountingPayment::when($companyId, fn($q) => $q->where('company_id', $companyId))->findOrFail($request->input('payment_id'));
         $payment->clear_date = null;
         $payment->save();
 

@@ -109,6 +109,19 @@
                 saved: {{ isset($airImport) ? 'true' : 'false' }},
                 isSaving: false,
                 showAiModal: false,
+                frexoAiCredits: {{ (float) (auth()->user()?->company?->frexo_ai_credits ?? 0) }},
+                frexoAiUnlimited: {{ auth()->user()?->company?->frexo_ai_unlimited ? 'true' : 'false' }},
+                lastCreditsDeducted: null,
+                refreshAiCredits() {
+                    fetch('/api/ai/credits/balance')
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.frexoAiCredits = res.balance;
+                                this.frexoAiUnlimited = res.unlimited;
+                            }
+                        }).catch(() => {});
+                },
                 isAiProcessing: false,
                 aiPreviewMode: false,
                 aiError: '',
@@ -279,8 +292,13 @@
                     return this.calcRowCbm(row) * 35.3147;
                 },
                 
+                roundUpHalfKg(val) {
+                    const rounded = Math.round((parseFloat(val) || 0) * 100) / 100;
+                    return rounded > 0 ? Math.ceil(rounded * 2) / 2 : 0;
+                },
+
                 calcRowVolKg(row) {
-                    return this.calcRowCbm(row) * 166.6667;
+                    return this.roundUpHalfKg(this.calcRowCbm(row) * 166.6667);
                 },
                 
                 calcRowVolLb(row) {
@@ -300,7 +318,7 @@
                 },
                 
                 get totalDimVolKg() {
-                    return this.totalDimCbm * 166.6667;
+                    return this.roundUpHalfKg(this.totalDimCbm * 166.6667);
                 },
                 
                 get totalDimVolLb() {
@@ -872,6 +890,10 @@
                     .then(data => {
                         this.isAiProcessing = false;
                         if (data.success && data.data) {
+                            if (data.credit_info && data.credit_info.balance_after !== undefined) {
+                                this.frexoAiCredits = data.credit_info.balance_after;
+                                this.lastCreditsDeducted = data.credit_info.credits_deducted;
+                            }
                             this.extractedData = [];
                             
                             if (data.data.mbl) {
@@ -1918,21 +1940,22 @@
                                 selected: false,
                                 party: c.party || (c.type === 'AP' ? 'Agent' : 'Custom'),
                                 party_name: c.party_name || '',
-                                party_name_id: c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || ''),
+                                party_name_id: c.party_name_id || (c.type === 'AP' ? (c.vendor_id || '') : (c.bill_to_id || '')),
                                 sal: c.sal || 'Air',
-                                pr: c.type === 'AP' ? 'Pay' : 'Rec',
-                                ppc: c.pc === 'PREPAID' ? 'Prepaid' : 'Colle',
-                                chrg_code: c.charge_code || '',
-                                currency: (c.currency && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
+                                pr: c.pr || (c.type === 'AP' ? 'Pay' : 'Rec'),
+                                ppc: c.ppc || (c.pc === 'PREPAID' ? 'Prepaid' : 'Colle'),
+                                chrg_code: c.chrg_code || c.charge_code || '',
+                                charge_name: c.charge_name || c.chrg_code || c.charge_code || '',
+                                currency: (c.currency && typeof c.currency === 'object' && c.currency.code) ? c.currency.code : (c.currency || 'USD'),
                                 rate: parseFloat(c.rate) || 0,
                                 qty: parseFloat(c.qty) || 1,
-                                qty_type: c.unit || 'B/L',
+                                qty_type: c.qty_type || c.unit || 'B/L',
                                 roe: parseFloat(c.roe) || 1.0,
-                                vat: parseFloat(c.vat) || 0,
-                                inv_no: c.invoice_no || '',
-                                financial_date: c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0],
-                                eq_bl_no: c.remark || '',
-                                remark: !!c.remark,
+                                vat: parseFloat(c.vat ?? c.tax_percent ?? 0) || 0,
+                                inv_no: c.inv_no || c.invoice_no || '',
+                                financial_date: c.financial_date || (c.invoice_date ? (typeof c.invoice_date === 'string' ? c.invoice_date.substring(0, 10) : c.invoice_date) : new Date().toISOString().split('T')[0]),
+                                eq_bl_no: c.eq_bl_no ?? c.remark ?? '',
+                                remark: !!(c.remark || c.eq_bl_no),
                                 mbl_no: c.mbl_no || '',
                                 is_invoiced: !!c.is_invoiced
                             };
@@ -2057,7 +2080,7 @@
                 </template>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
+                <button type="button" @click="showAiModal = true; refreshAiCredits()" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
                     <i class="fa fa-bolt"></i> Frexo AI
                 </button>
                 <button type="submit" form="air-import-form"
@@ -2452,7 +2475,7 @@
                                 <small style="color:rgba(255,255,255,0.85); margin-left: 6px; font-weight: normal;">OP : {{ auth()->user()->name ?? 'DEMO_USER' }}</small>
                             </span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
-                                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
+                                <button type="button" @click="showAiModal = true; typeof refreshAiCredits === 'function' && refreshAiCredits()" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
                                     <i class="fa fa-bolt"></i> Frexo AI
                                 </button>
                                 <!-- HAWB Tools Dropdown -->

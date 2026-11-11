@@ -75,6 +75,8 @@ class OceanExport extends Model
     public function vessel() { return $this->belongsTo(Vessel::class); }
     public function portOfLoading() { return $this->belongsTo(Port::class, 'pol_id'); }
     public function portOfDischarge() { return $this->belongsTo(Port::class, 'pod_id'); }
+    public function pol() { return $this->belongsTo(Port::class, 'pol_id'); }
+    public function pod() { return $this->belongsTo(Port::class, 'pod_id'); }
     public function placeOfDelivery() { return $this->belongsTo(Port::class, 'del_id'); }
     public function finalDestination() { return $this->belongsTo(Port::class, 'fdest_id'); }
     public function placeOfReceipt() { return $this->belongsTo(Port::class, 'receipt_id'); }
@@ -88,6 +90,7 @@ class OceanExport extends Model
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }
     public function businessReferredBy() { return $this->belongsTo(TradePartner::class, 'business_referred_by_id'); }
     public function dmCustomer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
+    public function customer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
     public function dmShipper() { return $this->belongsTo(TradePartner::class, 'dm_shipper_id'); }
     public function dmConsignee() { return $this->belongsTo(TradePartner::class, 'dm_consignee_id'); }
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }

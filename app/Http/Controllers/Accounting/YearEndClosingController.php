@@ -14,16 +14,20 @@ class YearEndClosingController extends Controller
 {
     public function index()
     {
+        $companyId = auth()->user()->company_id ?? null;
         $offices = Office::where('is_active', true)->orderBy('name')->get();
-        $changeLog = YearEndClosing::with(['office', 'creator'])
+        $changeLog = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator'])
             ->orderByDesc('created_at')
             ->get();
 
-        $lastClosing = YearEndClosing::where('action', 'CLOSE')
+        $lastClosing = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('action', 'CLOSE')
             ->orderByDesc('fiscal_year')
             ->first();
 
-        $lastCancelled = YearEndClosing::where('action', 'CANCEL')
+        $lastCancelled = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('action', 'CANCEL')
             ->orderByDesc('fiscal_year')
             ->first();
 
@@ -46,11 +50,14 @@ class YearEndClosingController extends Controller
 
     public function status(Request $request)
     {
-        $lastClosing = YearEndClosing::where('action', 'CLOSE')
+        $companyId = auth()->user()->company_id ?? null;
+        $lastClosing = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('action', 'CLOSE')
             ->orderByDesc('fiscal_year')
             ->first();
 
-        $lastCancelled = YearEndClosing::where('action', 'CANCEL')
+        $lastCancelled = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('action', 'CANCEL')
             ->orderByDesc('fiscal_year')
             ->first();
 
@@ -71,7 +78,7 @@ class YearEndClosingController extends Controller
             'perform_year' => $performYear,
             'cancel_year' => $cancelYear,
             'last_closed_year' => $lastClosedYear,
-            'has_closings' => YearEndClosing::where('action', 'CLOSE')->exists(),
+            'has_closings' => YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))->where('action', 'CLOSE')->exists(),
         ]);
     }
 
@@ -81,6 +88,7 @@ class YearEndClosingController extends Controller
             'fiscal_year' => 'required|integer|min:2000|max:2100',
         ]);
 
+        $companyId = auth()->user()->company_id ?? null;
         $year = $request->fiscal_year;
         $startDate = "{$year}-01-01";
         $endDate = "{$year}-12-31";
@@ -88,6 +96,7 @@ class YearEndClosingController extends Controller
         $unclearedPayments = \DB::table('payments')
             ->leftJoin('trade_partners', 'payments.trade_partner_id', '=', 'trade_partners.id')
             ->leftJoin('offices', 'payments.office_id', '=', 'offices.id')
+            ->when($companyId, fn($q) => $q->where('payments.company_id', $companyId))
             ->where('payments.payment_date', '>=', $startDate)
             ->where('payments.payment_date', '<=', $endDate)
             ->whereNull('payments.clear_date')
@@ -118,18 +127,23 @@ class YearEndClosingController extends Controller
             'force' => 'nullable|boolean',
         ]);
 
+        $companyId = auth()->user()->company_id ?? null;
         $year = $request->fiscal_year;
         $closingDate = "{$year}-12-31";
         $startDate = "{$year}-01-01";
         $endDate = "{$year}-12-31";
 
-        $existing = YearEndClosing::where('fiscal_year', $year)->where('action', 'CLOSE')->first();
+        $existing = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('fiscal_year', $year)
+            ->where('action', 'CLOSE')
+            ->first();
         if ($existing) {
             return response()->json(['success' => false, 'message' => "Year {$year} is already closed."]);
         }
 
         if (!$request->force) {
             $unclearedCount = \DB::table('payments')
+                ->when($companyId, fn($q) => $q->where('company_id', $companyId))
                 ->where('payment_date', '>=', $startDate)
                 ->where('payment_date', '<=', $endDate)
                 ->whereNull('clear_date')
@@ -305,15 +319,24 @@ class YearEndClosingController extends Controller
             'fiscal_year' => 'required|integer|min:2000|max:2100',
         ]);
 
+        $companyId = auth()->user()->company_id ?? null;
         $year = $request->fiscal_year;
         $closingDate = "{$year}-12-31";
 
-        $lastClose = YearEndClosing::where('fiscal_year', $year)->where('action', 'CLOSE')->first();
+        $lastClose = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('fiscal_year', $year)
+            ->where('action', 'CLOSE')
+            ->orderByDesc('created_at')
+            ->first();
         if (!$lastClose) {
             return response()->json(['success' => false, 'message' => "No closing found for year {$year}."]);
         }
 
-        $lastCancel = YearEndClosing::where('fiscal_year', $year)->where('action', 'CANCEL')->first();
+        $lastCancel = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('fiscal_year', $year)
+            ->where('action', 'CANCEL')
+            ->orderByDesc('created_at')
+            ->first();
         if ($lastCancel && $lastCancel->created_at->gt($lastClose->created_at)) {
             return response()->json(['success' => false, 'message' => "Year {$year} closing is already cancelled."]);
         }
@@ -321,7 +344,8 @@ class YearEndClosingController extends Controller
         \DB::beginTransaction();
 
         try {
-            $closingEntries = AccountingJournal::where('description', 'LIKE', "%Year-End Closing%({$year})%")
+            $closingEntries = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+                ->where('description', 'LIKE', "%Year-End Closing%({$year})%")
                 ->where('entry_date', $closingDate)
                 ->get();
 
@@ -353,8 +377,12 @@ class YearEndClosingController extends Controller
 
     public function detail(Request $request, $id)
     {
-        $closing = YearEndClosing::with(['office', 'creator'])->findOrFail($id);
-        $entries = AccountingJournal::where('description', 'LIKE', "%Year-End Closing%")
+        $companyId = auth()->user()->company_id ?? null;
+        $closing = YearEndClosing::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator'])
+            ->findOrFail($id);
+        $entries = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->where('description', 'LIKE', "%Year-End Closing%")
             ->where('entry_date', $closing->closing_date)
             ->get();
 
@@ -378,19 +406,22 @@ class YearEndClosingController extends Controller
 
     private function getAccountBalance($accountId, $startDate, $endDate)
     {
+        $companyId = auth()->user()->company_id ?? null;
         $debits = JournalEntryLine::where('gl_account_id', $accountId)
-            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate) {
+            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate, $companyId) {
                 $q->where('entry_date', '>=', $startDate)
                   ->where('entry_date', '<=', $endDate)
-                  ->where('status', 'POSTED');
+                  ->where('status', 'POSTED')
+                  ->when($companyId, fn($cq) => $cq->whereHas('creator', fn($c) => $c->where('company_id', $companyId)));
             })
             ->sum('local_debit');
 
         $credits = JournalEntryLine::where('gl_account_id', $accountId)
-            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate) {
+            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate, $companyId) {
                 $q->where('entry_date', '>=', $startDate)
                   ->where('entry_date', '<=', $endDate)
-                  ->where('status', 'POSTED');
+                  ->where('status', 'POSTED')
+                  ->when($companyId, fn($cq) => $cq->whereHas('creator', fn($c) => $c->where('company_id', $companyId)));
             })
             ->sum('local_credit');
 

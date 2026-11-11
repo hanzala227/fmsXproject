@@ -365,6 +365,68 @@ class CompanyController extends Controller
     }
 
     /**
+     * Top-up / Recharge company Frexo AI credits.
+     */
+    public function rechargeAiCredits(Request $request, Company $company, \App\Services\FrexoAiCreditService $creditService)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'note' => 'nullable|string|max:500',
+            'type' => 'nullable|in:RECHARGE,ADMIN_ADJUSTMENT,REFUND',
+        ]);
+
+        $tx = $creditService->rechargeCredits(
+            $company,
+            (float) $validated['amount'],
+            auth()->id(),
+            $validated['note'] ?: 'SuperAdmin credit top-up',
+            $validated['type'] ?? 'RECHARGE'
+        );
+
+        SuperAdminAuditLog::log('ai_credits_recharged', 'company', $company->id, [
+            'amount' => $validated['amount'],
+            'balance_after' => $tx->balance_after,
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => sprintf('Successfully added %.2f credits. New balance: %.2f', $validated['amount'], $tx->balance_after),
+                'new_balance' => $tx->balance_after,
+            ]);
+        }
+
+        return back()->with('success', sprintf('Successfully added %.2f Frexo AI credits to %s. New balance: %.2f', $validated['amount'], $company->name, $tx->balance_after));
+    }
+
+    /**
+     * Toggle unlimited AI credits for company.
+     */
+    public function toggleAiUnlimited(Request $request, Company $company)
+    {
+        $company->update([
+            'frexo_ai_unlimited' => !$company->frexo_ai_unlimited,
+        ]);
+
+        SuperAdminAuditLog::log('ai_unlimited_toggled', 'company', $company->id, [
+            'frexo_ai_unlimited' => $company->frexo_ai_unlimited,
+        ]);
+
+        $mode = $company->frexo_ai_unlimited ? 'Unlimited' : 'Standard Metered';
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'unlimited' => $company->frexo_ai_unlimited,
+                'message' => "Frexo AI billing mode updated to {$mode}.",
+            ]);
+        }
+
+        return back()->with('success', "Frexo AI billing mode updated to {$mode} for {$company->name}.");
+    }
+
+    /**
      * Audit log listing.
      */
     public function auditLog(Request $request)

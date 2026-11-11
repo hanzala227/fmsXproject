@@ -199,9 +199,14 @@ class BankController extends Controller
             $blockedCount = 0;
 
             foreach ($ids as $id) {
-                $hasPayments = DB::table('accounting_payments')->where('bank_id', $id)->exists();
-                if (!$hasPayments && Schema::hasTable('payments')) {
-                    $hasPayments = DB::table('payments')->where('bank_id', $id)->exists();
+                $bankObj = DB::table('banks')->where('id', $id)->first();
+                $bName = $bankObj?->bank_name;
+                $hasPayments = false;
+                if ($bName) {
+                    $hasPayments = DB::table('payments')->where('bank_name', $bName)->whereNull('deleted_at')->exists();
+                    if (!$hasPayments && !empty($bankObj->gl_no)) {
+                        $hasPayments = DB::table('payments')->where('bank_name', $bankObj->gl_no)->whereNull('deleted_at')->exists();
+                    }
                 }
 
                 if ($hasPayments) {

@@ -115,6 +115,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/api/ai/extract/air-export', [\App\Http\Controllers\AiExtractionController::class, 'extractAirExport'])->name('ai.extract.air-export');
     Route::post('/api/ai/extract/apply', [\App\Http\Controllers\AiExtractionController::class, 'apply'])->name('ai.extract.apply');
     Route::post('/api/ai/extract/match-entity', [\App\Http\Controllers\AiExtractionController::class, 'matchEntity'])->name('ai.extract.match-entity');
+    Route::get('/api/ai/credits/balance', [\App\Http\Controllers\AiExtractionController::class, 'getCreditBalance'])->name('ai.credits.balance');
 
     Route::get('/ocean-import/list', [OceanImportController::class, 'index'])->name('ocean-import.index');
     Route::get('/ocean-import/create', [OceanImportController::class, 'create'])->name('ocean-import.create');
@@ -1160,6 +1161,8 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
     Route::put('/companies/{company}', [SuperAdminCompanyController::class, 'update'])->name('companies.update');
     Route::patch('/companies/{company}/toggle-status', [SuperAdminCompanyController::class, 'toggleStatus'])->name('companies.toggle-status');
     Route::post('/companies/{company}/reset-password', [SuperAdminCompanyController::class, 'resetPassword'])->name('companies.reset-password');
+    Route::post('/companies/{company}/recharge-ai-credits', [SuperAdminCompanyController::class, 'rechargeAiCredits'])->name('companies.recharge-ai-credits');
+    Route::post('/companies/{company}/toggle-ai-unlimited', [SuperAdminCompanyController::class, 'toggleAiUnlimited'])->name('companies.toggle-ai-unlimited');
 
     // Users (Accounts & Access)
     Route::get('/users/export-csv', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'exportCsv'])->name('users.export-csv');
@@ -1251,19 +1254,6 @@ Route::middleware(['auth', 'verified', 'check-status', 'customer-access'])->pref
 });
 
 require __DIR__.'/auth.php';
-Route::post('/ocean-import/{ocean_import}/send-batch-email', [App\Http\Controllers\OceanImportController::class, 'sendBatchEmail'])->name('ocean-import.send-batch-email');
-Route::post('/ocean-import/{ocean_import}/send-manifest-email', [App\Http\Controllers\OceanImportController::class, 'sendManifestEmail'])->name('ocean-import.send-manifest-email');
-
-Route::get('/ocean-import/{id}/batch-print-view', [App\Http\Controllers\OceanImportController::class, 'batchPrintView'])->name('ocean-import.batch-print-view');
-
-Route::get('/ocean-import/{id}/dev-seg', [App\Http\Controllers\OceanImportController::class, 'devSegView'])->name('ocean-import.dev-seg');
-
-Route::get('/ocean-import/{id}/delivery-order', [App\Http\Controllers\OceanImportController::class, 'deliveryOrderView'])->name('ocean-import.delivery-order');
-
-Route::get('/ocean-import/{id}/profit-summary', [App\Http\Controllers\OceanImportController::class, 'profitSummaryView'])->name('ocean-import.profit-summary');
-
-Route::get('/ocean-import/{id}/profit-detail', [App\Http\Controllers\OceanImportController::class, 'profitDetailView'])->name('ocean-import.profit-detail');
-
 
 Route::prefix('client-portal')
     ->middleware(['auth', 'client'])
@@ -1315,6 +1305,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/tracking/sync', [\App\Http\Controllers\TrackingController::class, 'sync'])->name('api.tracking.sync');
     Route::get('/api/tracking/details', [\App\Http\Controllers\TrackingController::class, 'getDetails'])->name('api.tracking.details');
     Route::post('/api/tracking/manual-event', [\App\Http\Controllers\TrackingController::class, 'addManualEvent'])->name('api.tracking.manual-event');
+
+    // Ocean Import documents & summaries
+    Route::post('/ocean-import/{ocean_import}/send-batch-email', [App\Http\Controllers\OceanImportController::class, 'sendBatchEmail'])->name('ocean-import.send-batch-email');
+    Route::post('/ocean-import/{ocean_import}/send-manifest-email', [App\Http\Controllers\OceanImportController::class, 'sendManifestEmail'])->name('ocean-import.send-manifest-email');
+    Route::get('/ocean-import/{id}/batch-print-view', [App\Http\Controllers\OceanImportController::class, 'batchPrintView'])->name('ocean-import.batch-print-view');
+    Route::get('/ocean-import/{id}/dev-seg', [App\Http\Controllers\OceanImportController::class, 'devSegView'])->name('ocean-import.dev-seg');
+    Route::get('/ocean-import/{id}/delivery-order', [App\Http\Controllers\OceanImportController::class, 'deliveryOrderView'])->name('ocean-import.delivery-order');
+    Route::get('/ocean-import/{id}/profit-summary', [App\Http\Controllers\OceanImportController::class, 'profitSummaryView'])->name('ocean-import.profit-summary');
+    Route::get('/ocean-import/{id}/profit-detail', [App\Http\Controllers\OceanImportController::class, 'profitDetailView'])->name('ocean-import.profit-detail');
 });
 
 

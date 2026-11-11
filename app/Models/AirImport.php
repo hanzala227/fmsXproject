@@ -89,6 +89,8 @@ class AirImport extends Model
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }
     public function depPort() { return $this->belongsTo(Port::class, 'dep_port_id'); }
     public function dstPort() { return $this->belongsTo(Port::class, 'dst_port_id'); }
+    public function pol() { return $this->belongsTo(Port::class, 'dep_port_id'); }
+    public function pod() { return $this->belongsTo(Port::class, 'dst_port_id'); }
     public function packageUnit() { return $this->belongsTo(PackageUnit::class, 'pkg_unit_id'); }
     public function shipper_rel() { return $this->belongsTo(TradePartner::class, 'shipper_id'); }
     public function consignee_rel() { return $this->belongsTo(TradePartner::class, 'consignee_id'); }
@@ -102,6 +104,7 @@ class AirImport extends Model
 
     // Direct Master relationships
     public function dmCustomer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
+    public function customer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
     public function dmShipper() { return $this->belongsTo(TradePartner::class, 'dm_shipper_id'); }
     public function dmConsignee() { return $this->belongsTo(TradePartner::class, 'dm_consignee_id'); }
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }

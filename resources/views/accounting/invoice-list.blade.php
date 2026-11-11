@@ -480,7 +480,7 @@
                                         <td style="text-align:center;">
                                             @php
                                                 $statusBadge = match($invoice->status) {
-                                                    'DRAFT' => 'badge-draft',
+                                                    'DRAFT' => ($invoice->verification_status === 'Rejected' ? 'badge-void' : 'badge-draft'),
                                                     'POSTED' => 'badge-posted',
                                                     'PAID' => 'badge-paid',
                                                     'PARTIAL' => 'badge-partial',
@@ -490,7 +490,15 @@
                                                 if ($isCancelled) {
                                                     $statusBadge = 'badge-void';
                                                 }
-                                                $displayStatus = $isCancelled ? 'CANCELLED' : ($hasSettlements ? ($invoice->status === 'PAID' ? 'PAID (LOCKED)' : 'PARTIAL (LOCKED)') : $invoice->status);
+                                                $displayStatus = $isCancelled
+                                                    ? 'CANCELLED'
+                                                    : ($hasSettlements
+                                                        ? ($invoice->status === 'PAID' ? 'PAID (LOCKED)' : 'PARTIAL (LOCKED)')
+                                                        : ($invoice->status === 'DRAFT' && $invoice->verification_status === 'Rejected'
+                                                            ? 'DRAFT (REJECTED)'
+                                                            : ($invoice->status === 'DRAFT' && $invoice->verification_status === 'Pending Verification'
+                                                                ? 'DRAFT (PENDING)'
+                                                                : $invoice->status)));
                                             @endphp
                                             <span class="badge-status {{ $statusBadge }}">{{ $displayStatus }}</span>
                                         </td>

@@ -159,6 +159,25 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group-gf"><label class="form-label-gf">Doc Type</label>
+                                    <div class="form-input-container">
+                                        <select name="document_type" class="form-control-gf" x-model="form.document_type" @change="documentTypeManuallyChanged = true; if (form.document_type !== 'CN') form.related_invoice_id = '';">
+                                            <option value="INV">INV — Invoice</option>
+                                            <option value="DN">DN — Debit Note</option>
+                                            <option value="CN">CN — Credit Note</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group-gf" x-show="form.document_type === 'CN'" x-cloak><label class="form-label-gf">Original Invoice</label>
+                                    <div class="form-input-container">
+                                        <select name="related_invoice_id" x-ref="relatedInvoiceSelect" class="form-control-gf" x-model="form.related_invoice_id" :disabled="form.document_type !== 'CN'">
+                                            <option value="">Select original invoice (optional)...</option>
+                                            <template x-for="orig in filteredOriginalInvoices" :key="orig.id">
+                                                <option :value="orig.id" :selected="String(form.related_invoice_id) === String(orig.id)" x-text="orig.invoice_no + ' ($' + Number(orig.total_amount || 0).toFixed(2) + ')'"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             <!-- Column 2 -->
                             <div>
@@ -177,19 +196,28 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group-gf"><label class="form-label-gf">Exchange Rate</label>
+                                    <div class="form-input-container">
+                                        <input type="number" step="0.000001" min="0.000001" name="exchange_rate" class="form-control-gf input-number" x-model="form.exchange_rate" placeholder="1.000000">
+                                    </div>
+                                </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Paid Amount</label>
                                     <div class="form-input-container">
-                                        <input type="number" step="0.01" name="paid_amount" class="form-control-gf input-number" x-model="form.paid_amount" @input="recalcTotals()">
+                                        <input type="number" step="0.01" name="paid_amount" class="form-control-gf input-number" x-model="form.paid_amount" @input="recalcTotals()" @if(!$editMode) readonly style="background:#f8fafc;color:#64748b;" title="Settlements are recorded via Receive/Make Payment" @endif>
                                     </div>
                                 </div>
                                 <div class="form-group-gf"><label class="form-label-gf">Status</label>
                                     <div class="form-input-container">
                                         <select name="status" class="form-control-gf" x-model="form.status">
-                                            <option value="DRAFT">Draft</option>
-                                            <option value="POSTED">Posted</option>
-                                            <option value="PAID">Paid</option>
-                                            <option value="PARTIAL">Partial</option>
-                                            <option value="VOID">Void</option>
+                                            @if(!$editMode)
+                                                <option value="DRAFT">Draft (Pending Verification)</option>
+                                            @else
+                                                <option value="DRAFT">Draft</option>
+                                                <option value="POSTED">Posted</option>
+                                                <option value="PAID">Paid</option>
+                                                <option value="PARTIAL">Partial</option>
+                                                <option value="VOID">Void</option>
+                                            @endif
                                         </select>
                                     </div>
                                 </div>
@@ -443,7 +471,12 @@
                                     <span style="font-size:10px;font-weight:600;color:#64748b;">Memo Content</span>
                                 </div>
                                 <div style="flex:1;padding:6px;display:flex;">
-                                    <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." x-model="memos[selectedMemo]?.content" :disabled="selectedMemo === null"></textarea>
+                                    <template x-if="selectedMemo !== null && memos[selectedMemo]">
+                                        <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." x-model="memos[selectedMemo].content"></textarea>
+                                    </template>
+                                    <template x-if="selectedMemo === null || !memos[selectedMemo]">
+                                        <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." disabled></textarea>
+                                    </template>
                                 </div>
                             </div>
                         </div>
@@ -547,6 +580,10 @@
                 activeTab: 'basic',
                 saveAction: 'save_close',
                 isSaved: {{ $editMode ? 'true' : 'false' }},
+                documentTypeManuallyChanged: {{ $editMode ? 'true' : 'false' }},
+                partnerAgentMap: @json($tradePartners->mapWithKeys(fn($tp) => [(string) $tp->id => \App\Models\TradePartner::isAgentType($tp->type)])->toArray()),
+                currencyRateMap: @json($currencies->mapWithKeys(fn($c) => [(string) $c->id => (string) ($c->exchange_rate ?? 1)])->toArray()),
+                originalInvoices: @json($originalInvoices ?? []),
 
                 form: {
                     invoice_no: '{{ old("invoice_no", $editMode ? $invoice->invoice_no : $invoiceNo) }}',
@@ -555,8 +592,11 @@
                     invoice_date: '{{ old("invoice_date", $editMode && $invoice->invoice_date ? $invoice->invoice_date->format("Y-m-d") : date("Y-m-d")) }}',
                     due_date: '{{ old("due_date", $editMode && $invoice->due_date ? $invoice->due_date->format("Y-m-d") : "") }}',
                     type: '{{ old("type", $editMode ? $invoice->type : ($defaultType ?? "AR")) }}',
+                    document_type: '{{ old("document_type", $editMode ? ($invoice->document_type ?? "INV") : "INV") }}',
+                    related_invoice_id: '{{ old("related_invoice_id", $editMode ? ($invoice->related_invoice_id ?? "") : "") }}',
                     bill_to_id: '{{ old("bill_to_id", $editMode ? $invoice->bill_to_id : "") }}',
                     currency_id: '{{ old("currency_id", $editMode ? $invoice->currency_id : "") }}',
+                    exchange_rate: '{{ old("exchange_rate", $editMode ? ($invoice->exchange_rate ?? "1") : "1") }}',
                     office_id: '{{ old("office_id", $editMode ? $invoice->office_id : "") }}',
                     issued_by: '{{ old("issued_by", $editMode ? $invoice->issued_by : "") }}',
                     billing_address: '{!! old("billing_address", $editMode ? $invoice->billing_address : "") !!}',
@@ -566,6 +606,11 @@
                     discount_pct: '{{ old("discount_pct", $editMode ? $invoice->discount_pct : "0") }}',
                     tax_pct: '{{ old("tax_pct", $editMode ? $invoice->tax_pct : "0") }}',
                     shipping_amount: '{{ old("shipping_amount", $editMode ? $invoice->shipping_amount : "0") }}',
+                },
+
+                get filteredOriginalInvoices() {
+                    if (!this.form.bill_to_id) return this.originalInvoices || [];
+                    return (this.originalInvoices || []).filter(i => String(i.bill_to_id) === String(this.form.bill_to_id));
                 },
 
                 lines: [],
@@ -580,6 +625,18 @@
                 memoModalOpen: false,
                 memoEditIndex: -1,
                 memoForm: { subject: '', content: '' },
+
+                syncDocumentType() {
+                    if (this.documentTypeManuallyChanged) return;
+                    const isAgent = !!this.partnerAgentMap[String(this.form.bill_to_id)];
+                    this.form.document_type = isAgent ? (this.form.type === 'AR' ? 'DN' : 'CN') : 'INV';
+                },
+
+                syncExchangeRate(currencyId) {
+                    if (currencyId && this.currencyRateMap[String(currencyId)]) {
+                        this.form.exchange_rate = String(this.currencyRateMap[String(currencyId)]);
+                    }
+                },
 
                 init() {
                     @if($editMode && $invoice->lines->count() > 0)
@@ -598,6 +655,35 @@
                     @if($editMode && isset($invoice->memos_data) && $invoice->memos_data)
                         this.memos = @json($invoice->memos_data);
                     @endif
+                    this.$watch('form.bill_to_id', (newVal, oldVal) => {
+                        if (oldVal !== undefined && String(newVal) !== String(oldVal)) {
+                            this.documentTypeManuallyChanged = false;
+                            this.syncDocumentType();
+                            this.form.related_invoice_id = '';
+                        }
+                    });
+                    this.$watch('form.type', (newVal, oldVal) => {
+                        if (oldVal !== undefined && String(newVal) !== String(oldVal)) {
+                            this.documentTypeManuallyChanged = false;
+                            this.syncDocumentType();
+                        }
+                    });
+                    this.$watch('form.currency_id', (val) => {
+                        this.syncExchangeRate(val);
+                    });
+                    if (!{{ $editMode ? 'true' : 'false' }}) {
+                        this.syncExchangeRate(this.form.currency_id);
+                    }
+                    // Ensure dynamic <template x-for> options render before binding selected original invoice on edit/reload
+                    if (this.form.related_invoice_id) {
+                        const savedRelId = String(this.form.related_invoice_id);
+                        this.$nextTick(() => {
+                            this.form.related_invoice_id = savedRelId;
+                            if (this.$refs.relatedInvoiceSelect) {
+                                this.$refs.relatedInvoiceSelect.value = savedRelId;
+                            }
+                        });
+                    }
                     this.recalcTotals();
                     if (!this.isSaved) this.activeTab = 'basic';
                 },
@@ -692,7 +778,8 @@
                                 this.activeTab = 'basic';
                             }
                         } else {
-                            showToast('error', data.message || 'Save failed.');
+                            const errors = data.errors ? Object.values(data.errors).flat().join('<br>') : (data.message || 'Save failed.');
+                            showToast('error', errors);
                         }
                     })
                     .catch(err => showToast('error', 'Network error: ' + (err.message || 'Unknown')));

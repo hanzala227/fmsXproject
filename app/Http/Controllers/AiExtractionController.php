@@ -4,15 +4,90 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\AiExtractionService;
+use App\Services\FrexoAiCreditService;
 use Exception;
 
 class AiExtractionController extends Controller
 {
     protected $aiService;
+    protected $creditService;
 
-    public function __construct(AiExtractionService $aiService)
+    public function __construct(AiExtractionService $aiService, FrexoAiCreditService $creditService)
     {
         $this->aiService = $aiService;
+        $this->creditService = $creditService;
+    }
+
+    /**
+     * Pre-flight credit check before initiating AI calls.
+     */
+    private function checkCompanyAiCredits(?int $companyId): ?\Illuminate\Http\JsonResponse
+    {
+        $check = $this->creditService->checkPreflight($companyId);
+        if (!$check['allowed']) {
+            return response()->json([
+                'success' => false,
+                'code' => 'INSUFFICIENT_CREDITS',
+                'message' => $check['message'],
+                'current_balance' => $check['balance'],
+            ], 200);
+        }
+
+        return null;
+    }
+
+    /**
+     * Deduct credits atomically after successful extraction.
+     */
+    private function postProcessCreditDeduction(?int $companyId, string $module, array $files): array
+    {
+        if (!$companyId) {
+            return [];
+        }
+
+        try {
+            $lastUsage = $this->aiService->getLastUsage();
+            $tokensUsed = $lastUsage['total_tokens'] ?? 0;
+
+            if ($tokensUsed <= 0) {
+                $tokensUsed = $this->creditService->estimateTokens([], [], 'Freight extraction ' . $module);
+            }
+
+            $fileNames = [];
+            foreach ($files as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    $fileNames[] = $file->getClientOriginalName();
+                }
+            }
+            $referenceDoc = !empty($fileNames) ? implode(', ', array_slice($fileNames, 0, 3)) : ($module . '_document');
+
+            return $this->creditService->deductCredits(
+                $companyId,
+                $tokensUsed,
+                $module,
+                $referenceDoc,
+                auth()->id(),
+                $lastUsage
+            );
+        } catch (\Throwable $e) {
+            \Log::warning("Frexo AI credit deduction failed for company {$companyId}: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get live AI credit balance for current authenticated company.
+     */
+    public function getCreditBalance()
+    {
+        $companyId = auth()->user()->company_id ?? null;
+        $check = $this->creditService->checkPreflight($companyId);
+
+        return response()->json([
+            'success' => true,
+            'balance' => $check['balance'],
+            'unlimited' => $check['unlimited'],
+        ]);
     }
 
     // Helper to get or create a Port
@@ -434,15 +509,23 @@ class AiExtractionController extends Controller
     public function extractOceanImport(Request $request)
     {
         try {
+            $companyId = auth()->user()->company_id ?? null;
+            $creditGate = $this->checkCompanyAiCredits($companyId);
+            if ($creditGate) {
+                return $creditGate;
+            }
+
             $files = $this->resolveUploadedFiles($request);
 
             if (config('frexo_ai.enabled', false)) {
                 $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
                 $result = $pipeline->execute($files, 'ocean_import');
+                $creditInfo = $this->postProcessCreditDeduction($companyId, 'ocean_import', $files);
                 return response()->json([
                     'success' => true,
                     'data' => $result->toArray(),
-                    'message' => 'Document processed successfully via Staged Pipeline.'
+                    'message' => 'Document processed successfully via Staged Pipeline.',
+                    'credit_info' => $creditInfo,
                 ]);
             }
 
@@ -529,10 +612,13 @@ class AiExtractionController extends Controller
             
             \Log::info("AI Extracted Data with IDs:", $data);
 
+            $creditInfo = $this->postProcessCreditDeduction($companyId, 'ocean_import', $files);
+
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Document processed successfully.'
+                'message' => 'Document processed successfully.',
+                'credit_info' => $creditInfo,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -545,15 +631,23 @@ class AiExtractionController extends Controller
     public function extractOceanExport(Request $request)
     {
         try {
+            $companyId = auth()->user()->company_id ?? null;
+            $creditGate = $this->checkCompanyAiCredits($companyId);
+            if ($creditGate) {
+                return $creditGate;
+            }
+
             $files = $this->resolveUploadedFiles($request);
 
             if (config('frexo_ai.enabled', false)) {
                 $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
                 $result = $pipeline->execute($files, 'ocean_export');
+                $creditInfo = $this->postProcessCreditDeduction($companyId, 'ocean_export', $files);
                 return response()->json([
                     'success' => true,
                     'data' => $result->toArray(),
-                    'message' => 'Document processed successfully via Staged Pipeline.'
+                    'message' => 'Document processed successfully via Staged Pipeline.',
+                    'credit_info' => $creditInfo,
                 ]);
             }
 
@@ -652,10 +746,13 @@ class AiExtractionController extends Controller
             
             \Log::info("AI Extracted Ocean Export Data with IDs:", $data);
 
+            $creditInfo = $this->postProcessCreditDeduction($companyId, 'ocean_export', $files);
+
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Document processed successfully.'
+                'message' => 'Document processed successfully.',
+                'credit_info' => $creditInfo,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -668,15 +765,23 @@ class AiExtractionController extends Controller
     public function extractAirImport(Request $request)
     {
         try {
+            $companyId = auth()->user()->company_id ?? null;
+            $creditGate = $this->checkCompanyAiCredits($companyId);
+            if ($creditGate) {
+                return $creditGate;
+            }
+
             $files = $this->resolveUploadedFiles($request);
 
             if (config('frexo_ai.enabled', false)) {
                 $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
                 $result = $pipeline->execute($files, 'air_import');
+                $creditInfo = $this->postProcessCreditDeduction($companyId, 'air_import', $files);
                 return response()->json([
                     'success' => true,
                     'data' => $result->toArray(),
-                    'message' => 'Document processed successfully via Staged Pipeline.'
+                    'message' => 'Document processed successfully via Staged Pipeline.',
+                    'credit_info' => $creditInfo,
                 ]);
             }
 
@@ -876,10 +981,13 @@ class AiExtractionController extends Controller
                 unset($hbl);
             }
 
+            $creditInfo = $this->postProcessCreditDeduction($companyId, 'air_import', $files);
+
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Document processed successfully.'
+                'message' => 'Document processed successfully.',
+                'credit_info' => $creditInfo,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -892,15 +1000,23 @@ class AiExtractionController extends Controller
     public function extractAirExport(Request $request)
     {
         try {
+            $companyId = auth()->user()->company_id ?? null;
+            $creditGate = $this->checkCompanyAiCredits($companyId);
+            if ($creditGate) {
+                return $creditGate;
+            }
+
             $files = $this->resolveUploadedFiles($request);
 
             if (config('frexo_ai.enabled', false)) {
                 $pipeline = app(\App\Services\FrexoAi\Pipeline\StagedExtractionPipeline::class);
                 $result = $pipeline->execute($files, 'air_export');
+                $creditInfo = $this->postProcessCreditDeduction($companyId, 'air_export', $files);
                 return response()->json([
                     'success' => true,
                     'data' => $result->toArray(),
-                    'message' => 'Document processed successfully via Staged Pipeline.'
+                    'message' => 'Document processed successfully via Staged Pipeline.',
+                    'credit_info' => $creditInfo,
                 ]);
             }
 
@@ -1102,10 +1218,13 @@ class AiExtractionController extends Controller
                 unset($hbl);
             }
 
+            $creditInfo = $this->postProcessCreditDeduction($companyId, 'air_export', $files);
+
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Document processed successfully.'
+                'message' => 'Document processed successfully.',
+                'credit_info' => $creditInfo,
             ]);
         } catch (\Throwable $e) {
             return response()->json([

@@ -2,11 +2,26 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class JournalEntryLine extends Model
 {
+    use BelongsToTenant;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $line) {
+            if (empty($line->company_id) && $line->journal_entry_id) {
+                $line->company_id = AccountingJournal::withoutGlobalScopes()
+                    ->where('id', $line->journal_entry_id)
+                    ->value('company_id');
+            }
+        });
+    }
+
     protected $fillable = [
+        'company_id',
         'journal_entry_id',
         'line_no',
         'gl_account_id',

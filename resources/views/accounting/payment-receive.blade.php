@@ -135,9 +135,18 @@
             <input type="hidden" name="payment_level" :value="paymentLevel">
             <input type="hidden" name="office_id" :value="officeId">
             <input type="hidden" name="bank_name" :value="bankName">
-            <input type="hidden" name="bank_currency_id" :value="bankCurrencyId">
+            <input type="hidden" name="bank_currency_id" :value="bankCurrencyCode">
+            <input type="hidden" name="exchange_rate" :value="form.exchange_rate">
             <input type="hidden" name="clear_date" :value="depositChecked ? clearDate : ''">
             <input type="hidden" name="void_date" :value="voidChecked ? voidDate : ''">
+            <template x-for="(inv, idx) in selectedInvoices" :key="'alloc-' + inv.id">
+                <span style="display:none;">
+                    <input type="hidden" :name="'allocations[' + idx + '][invoice_id]'" :value="inv.id">
+                    <input type="hidden" :name="'allocations[' + idx + '][amount]'" :value="parseFloat(allocationAmounts[inv.id] || 0).toFixed(2)">
+                    <input type="hidden" :name="'allocations[' + idx + '][tds_tax]'" :value="parseFloat(allocationTds[inv.id] || 0).toFixed(2)">
+                    <input type="hidden" :name="'allocations[' + idx + '][discount]'" :value="parseFloat(allocationDiscount[inv.id] || 0).toFixed(2)">
+                </span>
+            </template>
 
             @if($errors->any())
                 <div style="background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;padding:10px 15px;border-radius:4px;margin-bottom:15px;font-size:12px;">
@@ -220,6 +229,11 @@
                                         <input type="number" step="0.01" min="0" name="amount" class="form-control-gf input-number" x-model="form.amount" @input="onAmountInput()" required>
                                     </div>
                                 </div>
+                                <div class="form-group-gf" x-show="selectedInvoices.length === 0" x-cloak><label class="form-label-gf">Advance TDS Tax</label>
+                                    <div class="form-input-container">
+                                        <input type="number" step="0.01" min="0" class="form-control-gf input-number" x-model="unattachedTds" placeholder="0.00" title="Withholding / TDS Tax for unattached on-account advances">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Column 2 -->
@@ -292,7 +306,7 @@
                                 <div class="form-group-gf" style="align-items:flex-start;">
                                     <label class="form-label-gf" style="margin-top:3px;">Remark</label>
                                     <div class="form-input-container">
-                                        <textarea name="remark" class="form-control-gf" style="height:50px;resize:vertical;padding:4px;" value="{!! old('remark', $payment?->remark ?? '') !!}"></textarea>
+                                        <textarea name="remark" class="form-control-gf" style="height:50px;resize:vertical;padding:4px;">{{ old('remark', $payment?->remark ?? '') }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -338,7 +352,7 @@
                                         @foreach($currencies as $curr)
                                         <div class="exchange-rate-item">
                                             <span class="fx-label">{{ $curr->code }} =&gt; USD</span>
-                                            <input type="text" class="form-control-gf input-number" value="1" placeholder="Rate">
+                                            <input type="number" step="0.000001" min="0.000001" class="form-control-gf input-number" x-model="exchangeRates['{{ $curr->id }}']" @input="onExchangeRateInput('{{ $curr->id }}')" placeholder="Rate">
                                         </div>
                                         @endforeach
                                     </div>
@@ -487,7 +501,7 @@
                                 <div style="font-size:12px;font-weight:700;color:#3b82f6;" x-text="totalAllocated.toFixed(2)"></div>
                             </div>
                         </div>
-                        <input type="hidden" name="tds_tax" :value="totalTds">
+                        <input type="hidden" name="tds_tax" :value="selectedInvoices.length > 0 ? totalTds.toFixed(2) : (parseFloat(unattachedTds) || 0).toFixed(2)">
                         <input type="hidden" name="discount" :value="totalDiscount">
                         @else
                         <div style="text-align:center;padding:40px 20px;color:#94a3b8;">
@@ -694,6 +708,7 @@
                 paymentLevel: (editPayment && editPayment.payment_level) ? editPayment.payment_level : 'Level 1',
                 banks: @json($banks ?? []),
                 currencies: @json($currencies ?? []),
+                exchangeRates: @json($currencies->mapWithKeys(fn($c) => [(string) $c->id => (string) ($payment && (string) $payment->currency_id === (string) $c->id && $payment->exchange_rate ? $payment->exchange_rate : ($c->exchange_rate ?? 1))])->toArray()),
                 bankName: (editPayment && editPayment.bank_name) ? editPayment.bank_name : '{{ old("bank_name", $defaultBankName ?? "") }}',
                 bankCurrencyCode: (editPayment && editPayment.bank_currency_id) ? String(editPayment.bank_currency_id) : '{{ old("bank_currency_id", "") }}',
                 officeId: (editPayment && editPayment.office_id) ? String(editPayment.office_id) : '',
@@ -705,6 +720,12 @@
                 isBankRequired() {
                     const method = (this.form.payment_method || '').toUpperCase().trim();
                     return method !== 'CASH';
+                },
+
+                onExchangeRateInput(currencyId) {
+                    if (String(this.form.currency_id) === String(currencyId)) {
+                        this.form.exchange_rate = String(this.exchangeRates[String(currencyId)] || '1');
+                    }
                 },
 
                 onBankChange(selectedBankName) {
@@ -726,6 +747,7 @@
                     amount: '{{ old("amount", $payment?->amount ?? ($selectedInvoice ? number_format($selectedInvoice->balance_amount > 0 ? $selectedInvoice->balance_amount : $selectedInvoice->total_amount, 2, ".", "") : "0.00")) }}',
                     payment_method: '{{ old("payment_method", $payment?->payment_method ?? "BANK_TRANSFER") }}',
                     currency_id: '{{ old("currency_id", $payment?->currency_id ?? $selectedInvoice?->currency_id ?? "") }}',
+                    exchange_rate: '{{ old("exchange_rate", $payment?->exchange_rate ?? "") }}',
                     invoice_id: '{{ old("invoice_id", $payment?->invoice_id ?? $selectedInvoiceId ?? "") }}',
                 },
 
@@ -746,6 +768,7 @@
                 totalBalanceAmount: {{ $invoices->sum(fn($i) => $i->balance_amount ?? $i->total_amount) }},
                 totalAllocated: 0,
                 totalTds: 0,
+                unattachedTds: '{{ old("tds_tax", ($payment && !$payment->invoice_id) ? number_format($payment->tds_tax ?? 0, 2, ".", "") : "0.00") }}',
                 totalDiscount: 0,
                 sortCol: '',
                 sortDir: 'asc',
@@ -778,7 +801,21 @@
                 init() {
                     const allInvoices = @json($invoices);
 
-                    // Sync bank currency from bank if bankName is set
+                    if (!this.form.exchange_rate && this.form.currency_id && this.exchangeRates[String(this.form.currency_id)]) {
+                        this.form.exchange_rate = String(this.exchangeRates[String(this.form.currency_id)]);
+                    }
+                    this.$watch('form.currency_id', (val) => {
+                        if (val && this.exchangeRates[String(val)]) {
+                            this.form.exchange_rate = String(this.exchangeRates[String(val)]);
+                        } else if (!val) {
+                            this.form.exchange_rate = '';
+                        }
+                    });
+
+                    // Sync bank currency from bank whenever bankName changes (manual click, x-model, or script)
+                    this.$watch('bankName', (val) => {
+                        this.onBankChange(val);
+                    });
                     if (this.bankName && !this.bankCurrencyCode) {
                         this.onBankChange(this.bankName);
                     }
@@ -797,6 +834,8 @@
                     // If editing existing payment, populate invoice
                     @if($payment && $payment->invoice_id)
                     this.allocationAmounts[{{ $payment->invoice_id }}] = '{{ number_format($payment->amount ?? 0, 2, ".", "") }}';
+                    this.allocationTds[{{ $payment->invoice_id }}] = '{{ number_format($payment->tds_tax ?? 0, 2, ".", "") }}';
+                    this.allocationDiscount[{{ $payment->invoice_id }}] = '{{ number_format($payment->discount ?? 0, 2, ".", "") }}';
                     if (!this.selectedInvoices.some(i => Number(i.id) === {{ $payment->invoice_id }})) {
                         this.selectedInvoices.push({ id: {{ $payment->invoice_id }}, inv_no: '{{ $payment->invoice->invoice_no ?? "" }}' });
                     }
@@ -1125,7 +1164,8 @@
                                 window.location.href = data.redirect;
                             }
                         } else {
-                            showToast('error', data.message || 'Save failed.');
+                            const errors = data.errors ? Object.values(data.errors).flat().join('<br>') : (data.message || 'Save failed.');
+                            showToast('error', errors);
                         }
                     })
                     .catch(err => showToast('error', 'Network error: ' + (err.message || 'Unknown')));

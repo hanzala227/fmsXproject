@@ -64,8 +64,18 @@ class DashboardController extends Controller
         $activeLastYearIds = collect();
 
         try {
-            $arTotal = Charge::where('type', 'AR')->sum('amount');
-            $apTotal = Charge::where('type', 'AP')->sum('amount');
+            $arTotal = (float) Charge::where('type', 'AR')->sum('amount');
+            $apTotal = (float) Charge::where('type', 'AP')->sum('amount');
+
+            // If no charges exist or invoice records exist, use Invoice table sums
+            $invAr = (float) \App\Models\Invoice::where('type', 'AR')->sum('total_amount');
+            $invAp = (float) \App\Models\Invoice::where('type', 'AP')->sum('total_amount');
+            if ($arTotal == 0 && $invAr > 0) {
+                $arTotal = $invAr;
+            }
+            if ($apTotal == 0 && $invAp > 0) {
+                $apTotal = $invAp;
+            }
         } catch (\Exception $e) {}
 
         try { $oceanImportCount = OceanImport::count(); } catch (\Exception $e) {}
@@ -114,8 +124,12 @@ class DashboardController extends Controller
 
         $prevArTotal = 0; $prevApTotal = 0; $prevVolume = 0;
         try {
-            $prevArTotal = Charge::where('type', 'AR')->where('created_at', '<', now()->subMonth())->sum('amount');
-            $prevApTotal = Charge::where('type', 'AP')->where('created_at', '<', now()->subMonth())->sum('amount');
+            $prevArTotal = (float) Charge::where('type', 'AR')->where('created_at', '<', now()->subMonth())->sum('amount');
+            $prevApTotal = (float) Charge::where('type', 'AP')->where('created_at', '<', now()->subMonth())->sum('amount');
+            if ($prevArTotal == 0 && $prevApTotal == 0) {
+                $prevArTotal = (float) \App\Models\Invoice::where('type', 'AR')->where('created_at', '<', now()->subMonth())->sum('total_amount');
+                $prevApTotal = (float) \App\Models\Invoice::where('type', 'AP')->where('created_at', '<', now()->subMonth())->sum('total_amount');
+            }
         } catch (\Exception $e) {}
         $prevProfit = $prevArTotal - $prevApTotal;
 
@@ -340,7 +354,19 @@ class DashboardController extends Controller
                     ->whereMonth('created_at', $date->month)
                     ->sum('amount');
 
-                if ($revenue == 0) {
+                if ($revenue == 0 && $expense == 0) {
+                    $revenue = (float) \App\Models\Invoice::where('type', 'AR')
+                        ->whereYear('created_at', $date->year)
+                        ->whereMonth('created_at', $date->month)
+                        ->sum('total_amount');
+
+                    $expense = (float) \App\Models\Invoice::where('type', 'AP')
+                        ->whereYear('created_at', $date->year)
+                        ->whereMonth('created_at', $date->month)
+                        ->sum('total_amount');
+                }
+
+                if ($revenue == 0 && $expense == 0) {
                     $shipmentCount = OceanImport::whereYear('created_at', $date->year)->whereMonth('created_at', $date->month)->count()
                         + OceanExport::whereYear('created_at', $date->year)->whereMonth('created_at', $date->month)->count()
                         + AirImport::whereYear('created_at', $date->year)->whereMonth('created_at', $date->month)->count()

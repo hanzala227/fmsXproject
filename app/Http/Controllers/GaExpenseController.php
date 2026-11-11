@@ -20,8 +20,10 @@ class GaExpenseController extends Controller
      */
     public function index(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $query = Invoice::with(['billTo', 'currency', 'office', 'issuer', 'payments'])
-            ->where('type', 'AP');
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId));
 
         // Quick search
         if ($request->filled('search')) {
@@ -92,10 +94,14 @@ class GaExpenseController extends Controller
         $pageSize = $request->input('limit', 15);
         $expenses = $query->orderBy($sortField, $sortDir)->paginate($pageSize)->withQueryString();
 
-        // Summary stats
-        $totalAmount = Invoice::where('type', 'AP')->where('status', '!=', 'VOID')->sum('total_amount');
-        $totalPaid = Invoice::where('type', 'AP')->where('status', '!=', 'VOID')->sum('paid_amount');
-        $totalBalance = Invoice::where('type', 'AP')->where('status', '!=', 'VOID')->sum('balance_amount');
+        // Summary stats scoped to company and active/reportable expenses
+        $summaryBase = Invoice::where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('status', '!=', 'VOID')
+            ->whereNotIn('verification_status', ['Cancelled', 'Rejected']);
+        $totalAmount = (clone $summaryBase)->sum('total_amount');
+        $totalPaid = (clone $summaryBase)->sum('paid_amount');
+        $totalBalance = (clone $summaryBase)->sum('balance_amount');
 
         return view('accounting.ga-expense-list', compact('expenses', 'totalAmount', 'totalPaid', 'totalBalance'));
     }
@@ -119,15 +125,32 @@ class GaExpenseController extends Controller
     public function store(StoreInvoiceRequest $request)
     {
         $data = $request->validated();
+
+        if (\App\Models\AccountingBlockDate::isDateBlocked($data['post_date'] ?? $data['invoice_date'] ?? null, $data['office_id'] ?? null)) {
+            $msg = 'Access Control: Cannot create a G&A expense in a blocked accounting period.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->back()->withInput()->withErrors(['invoice_date' => $msg]);
+        }
+
         $data['type'] = 'AP';
+        $data['company_id'] = auth()->user()?->company_id;
         $data['payable_to'] = $request->input('payable_to');
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
         $data['subtotal'] = $data['subtotal'] ?? 0;
         $data['tax_total'] = $data['tax_total'] ?? 0;
-        $data['paid_amount'] = $data['paid_amount'] ?? 0;
-        $data['balance_amount'] = $data['total_amount'] - ($data['paid_amount'] ?? 0);
+        $data['paid_amount'] = 0;
+        $data['balance_amount'] = $data['total_amount'];
+        $data['status'] = 'DRAFT';
+        $data['verification_status'] = 'Pending Verification';
+
+        if (empty($data['exchange_rate'])) {
+            $curr = Currency::find($data['currency_id'] ?? 1);
+            $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? 1.0);
+        }
 
         DB::beginTransaction();
         try {
@@ -181,7 +204,8 @@ class GaExpenseController extends Controller
      */
     public function show(Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             abort(404);
         }
         $ga_expense->load(['billTo', 'currency', 'office', 'issuer', 'lines', 'payments']);
@@ -193,14 +217,23 @@ class GaExpenseController extends Controller
      */
     public function edit(Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             abort(404);
+        }
+        if ($ga_expense->hasActiveSettlements()) {
+            abort(403, 'This G&A expense is locked because active settlements or payments exist against it.');
+        }
+        if ($ga_expense->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                abort(403, 'Cannot modify a verified G&A expense.');
+            }
         }
         $ga_expense->load(['lines', 'documents']);
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $companyId = auth()->user()?->company_id;
         $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         return view('accounting.create-ga-expense', compact('ga_expense', 'tradePartners', 'currencies', 'offices', 'users'));
     }
@@ -210,20 +243,54 @@ class GaExpenseController extends Controller
      */
     public function update(UpdateInvoiceRequest $request, Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             abort(404);
+        }
+
+        $newDate = $request->input('post_date') ?? $request->input('invoice_date') ?? $ga_expense->post_date ?? $ga_expense->invoice_date;
+        $newOfficeId = $request->input('office_id', $ga_expense->office_id);
+        if (
+            $ga_expense->is_blocked
+            || \App\Models\AccountingBlockDate::isDateBlocked($ga_expense->post_date ?? $ga_expense->invoice_date, $ga_expense->office_id)
+            || \App\Models\AccountingBlockDate::isDateBlocked($newDate, $newOfficeId)
+        ) {
+            $msg = 'Access Control: This G&A expense cannot be modified because the record or accounting period is blocked.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            abort(403, $msg);
+        }
+
+        if ($ga_expense->hasActiveSettlements()) {
+            $msg = 'This G&A expense is locked because active settlements (Payments) are recorded against it. Editing is strictly disabled.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            abort(403, $msg);
+        }
+
+        if ($ga_expense->verification_status === 'Verified') {
+            $user = auth()->user();
+            if (!in_array($user->role, ['SuperAdmin', 'Admin']) && !$user->can('invoice.edit_verified')) {
+                $msg = 'Cannot modify a verified G&A expense.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg], 403);
+                }
+                abort(403, $msg);
+            }
         }
 
         $data = $request->validated();
         $data['type'] = 'AP';
+        $data['company_id'] = $companyId ?? $ga_expense->company_id;
         $data['payable_to'] = $request->input('payable_to');
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
         $data['subtotal'] = $data['subtotal'] ?? 0;
         $data['tax_total'] = $data['tax_total'] ?? 0;
-        $data['paid_amount'] = $data['paid_amount'] ?? 0;
-        $data['balance_amount'] = $data['total_amount'] - ($data['paid_amount'] ?? 0);
+        unset($data['paid_amount'], $data['balance_amount'], $data['status']);
 
         DB::beginTransaction();
         try {
@@ -246,6 +313,7 @@ class GaExpenseController extends Controller
                 }
             }
 
+            AccountingPaymentController::syncInvoiceBalance($ga_expense->id);
             DB::commit();
 
             if ($request->ajax()) {
@@ -277,8 +345,16 @@ class GaExpenseController extends Controller
      */
     public function destroy(Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             abort(404);
+        }
+        if ($ga_expense->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($ga_expense->post_date ?? $ga_expense->invoice_date, $ga_expense->office_id)) {
+            $msg = 'Access Control: This G&A expense cannot be deleted because the record or accounting period is blocked.';
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->back()->with('error', $msg);
         }
         if ($ga_expense->isApproved() || in_array(strtoupper($ga_expense->status), ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || in_array($ga_expense->verification_status, ['Verified', 'Cancelled'])) {
             return redirect()->back()->with('error', 'Document Control: Approved or posted expenses cannot be deleted. Cancellation is required.');
@@ -293,7 +369,8 @@ class GaExpenseController extends Controller
      */
     public function updateColor(Request $request, Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             return response()->json(['success' => false, 'message' => 'Not found.'], 404);
         }
         $request->validate(['color' => 'nullable|string|max:20']);
@@ -306,13 +383,28 @@ class GaExpenseController extends Controller
      */
     public function bulkDelete(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $ids = $request->input('ids', []);
         if (empty($ids)) {
             return response()->json(['success' => false, 'message' => 'No expenses selected.']);
         }
 
+        $expensesForDelete = Invoice::whereIn('id', $ids)
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->get();
+        foreach ($expensesForDelete as $exp) {
+            if ($exp->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($exp->post_date ?? $exp->invoice_date, $exp->office_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Access Control: Expense {$exp->invoice_no} cannot be deleted because its record or accounting period is blocked."
+                ], 403);
+            }
+        }
+
         $protected = Invoice::whereIn('id', $ids)
             ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
             ->where(function ($q) {
                 $q->whereIn('status', ['POSTED', 'PARTIAL', 'PAID', 'VOID'])
                   ->orWhereIn('verification_status', ['Verified', 'Cancelled']);
@@ -326,8 +418,12 @@ class GaExpenseController extends Controller
             ], 403);
         }
 
-        Invoice::whereIn('id', $ids)->where('type', 'AP')->delete();
-        return response()->json(['success' => true, 'message' => count($ids) . ' expense(s) deleted.']);
+        $deleted = Invoice::whereIn('id', $ids)
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => $deleted . ' expense(s) deleted.']);
     }
 
     /**
@@ -335,6 +431,7 @@ class GaExpenseController extends Controller
      */
     public function batchUpdateStatus(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $request->validate([
             'ids' => 'required|array',
             'status' => 'required|in:DRAFT,POSTED,PAID,PARTIAL,VOID',
@@ -343,7 +440,49 @@ class GaExpenseController extends Controller
         $ids = $request->input('ids');
         $status = $request->input('status');
 
-        $updated = Invoice::whereIn('id', $ids)->where('type', 'AP')->update(['status' => $status]);
+        if ($status === 'VOID' || $status === 'CANCELLED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Prohibited: Cancellation requires an Administrator to provide a mandatory cancellation reason using the Cancel action.'
+            ], 403);
+        }
+
+        $expenses = Invoice::whereIn('id', $ids)
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->get();
+
+        foreach ($expenses as $exp) {
+            if ($exp->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($exp->post_date ?? $exp->invoice_date, $exp->office_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Access Control: Expense {$exp->invoice_no} cannot be updated because its record or accounting period is blocked."
+                ], 403);
+            }
+            if ($exp->status === 'VOID' || $exp->verification_status === 'Cancelled') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Cancelled expense {$exp->invoice_no} cannot have its status altered."
+                ], 422);
+            }
+            if ($status !== 'DRAFT' && $exp->verification_status !== 'Verified') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Expense {$exp->invoice_no} must be approved in the Verification Queue before posting."
+                ], 422);
+            }
+            if ($status === 'DRAFT' && ($exp->hasActiveSettlements() || $exp->verification_status === 'Verified')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Cannot revert verified or settled expense {$exp->invoice_no} to Draft."
+                ], 422);
+            }
+        }
+
+        $updated = Invoice::whereIn('id', $ids)
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->update(['status' => $status]);
 
         return response()->json([
             'success' => true,
@@ -356,8 +495,10 @@ class GaExpenseController extends Controller
      */
     public function exportCsv(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $query = Invoice::with(['billTo', 'currency', 'office'])
-            ->where('type', 'AP');
+            ->where('type', 'AP')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId));
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -409,17 +550,20 @@ class GaExpenseController extends Controller
      */
     public function duplicate(Invoice $ga_expense)
     {
-        if ($ga_expense->type !== 'AP') {
+        $companyId = auth()->user()?->company_id;
+        if ($ga_expense->type !== 'AP' || ($companyId && $ga_expense->company_id && $ga_expense->company_id != $companyId)) {
             abort(404);
         }
         $ga_expense->load(['billTo', 'currency', 'office', 'issuer', 'lines']);
         $tradePartners = TradePartner::orderBy('name')->get();
         $currencies = Currency::all();
         $offices = Office::where('is_active', true)->get();
-        $companyId = auth()->user()?->company_id;
         $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         $ga_expense->invoice_no = $ga_expense->invoice_no . '-COPY-' . time();
+        $ga_expense->status = 'DRAFT';
+        $ga_expense->verification_status = 'Pending Verification';
+        $ga_expense->paid_amount = 0;
 
         return view('accounting.create-ga-expense', compact('ga_expense', 'tradePartners', 'currencies', 'offices', 'users'));
     }

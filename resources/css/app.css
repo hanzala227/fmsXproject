@@ -13,3 +13,165 @@
     height: 0 !important;
     width: 0 !important;
 }
+
+/* ==========================================================================
+   GLOBAL PAGINATION THEME (FREIGHTX MODERN LIGHT THEME)
+   Applies across all views, modules, and pagination engines
+   ========================================================================== */
+
+/* Prevent Laravel Tailwind pagination container from collapsing or misaligning */
+nav[role="navigation"] {
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+nav[role="navigation"] span.shadow-sm,
+nav[role="navigation"] .inline-flex.shadow-sm {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Hide redundant duplicate "Showing X to Y results" in list toolbars */
+#pagination-container nav[role="navigation"] > div > div:first-child:not(:only-child) {
+    display: none !important;
+}
+
+nav[role="navigation"] p {
+    font-size: 11px !important;
+    color: #64748b !important;
+    margin: 0 !important;
+    font-weight: 400 !important;
+}
+
+nav[role="navigation"] p span {
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+
+/* Base button pill styling: Laravel Tailwind, Bootstrap .pagination, and Custom */
+nav[role="navigation"] a,
+nav[role="navigation"] span[aria-disabled="true"] > span,
+nav[role="navigation"] span[aria-current="page"] > span,
+nav[role="navigation"] .cursor-default,
+nav[role="navigation"] .cursor-not-allowed,
+nav[role="navigation"] .sm\:hidden span,
+nav[role="navigation"] .sm\:hidden a,
+.pagination li a,
+.pagination li span,
+.pagination .page-item .page-link,
+.tp-page-btn,
+.ce-page-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 28px !important;
+    height: 26px !important;
+    padding: 0 8px !important;
+    margin: 0 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    color: #334155 !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.15s ease-in-out !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+}
+
+/* Hover state on inactive pages */
+nav[role="navigation"] a:hover,
+nav[role="navigation"] .sm\:hidden a:hover,
+.pagination li a:hover,
+.pagination .page-item:not(.active):not(.disabled) .page-link:hover,
+.tp-page-btn:hover:not(.disabled):not(.active),
+.ce-page-item:not(.active):not(.disabled) .ce-page-link:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+/* Active page button (Signature FreightX Blue Accent) */
+nav[role="navigation"] span[aria-current="page"] > span,
+nav[role="navigation"] [aria-current="page"] > *,
+.pagination li.active span,
+.pagination .page-item.active .page-link,
+.tp-page-btn.active,
+.ce-page-item.active .ce-page-link {
+    background-color: #3b82f6 !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35) !important;
+    cursor: default !important;
+}
+
+/* Disabled previous / next arrow buttons */
+nav[role="navigation"] span[aria-disabled="true"] > span,
+nav[role="navigation"] [aria-disabled="true"] > *,
+nav[role="navigation"] .cursor-not-allowed,
+nav[role="navigation"] .sm\:hidden span.cursor-not-allowed,
+.pagination li.disabled span,
+.pagination .page-item.disabled .page-link,
+.tp-page-btn.disabled,
+.ce-page-item.disabled .ce-page-link {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    opacity: 0.65 !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+
+/* Consistent Chevron & Icon sizing */
+nav[role="navigation"] svg,
+.pagination svg,
+.tp-page-btn svg,
+.ce-page-link svg {
+    width: 12px !important;
+    height: 12px !important;
+    max-width: 12px !important;
+    max-height: 12px !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    fill: currentColor !important;
+    color: inherit !important;
+}
+
+nav[role="navigation"] span[aria-disabled="true"] svg,
+.tp-page-btn.disabled i,
+.ce-page-item.disabled i {
+    fill: #94a3b8 !important;
+    color: #94a3b8 !important;
+}
+
+.tp-page-btn i,
+.ce-page-link i {
+    font-size: 10px !important;
+    line-height: 1 !important;
+}
+
+/* Pagination container alignment across standard list templates */
+.pagination,
+.ce-pages,
+.tp-pagination {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.pagination .page-item,
+.ce-pages .ce-page-item {
+    margin: 0 !important;
+}

@@ -61,7 +61,8 @@ class AirImportController extends Controller
         }
 
         $shipments = $query->latest()->paginate(20)->withQueryString();
-        $users = \App\Models\User::orderBy('name')->get();
+        $companyId = auth()->user()?->company_id;
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -120,7 +121,8 @@ class AirImportController extends Controller
         }
 
         $shipments = $query->latest()->paginate(20)->withQueryString();
-        $users = \App\Models\User::orderBy('name')->get();
+        $companyId = auth()->user()?->company_id;
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -138,9 +140,10 @@ class AirImportController extends Controller
 
     public function create(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->get();
-         $ports = Port::latest('id')->orderBy('name')->take(10)->get();
-        $users = \App\Models\User::orderBy('name')->get();
+        $ports = Port::where('type', 'AIR')->orderByRaw("CASE WHEN code IN ('DAC', 'DXB', 'JFK', 'LHR', 'KHI') THEN 1 ELSE 2 END")->orderBy('name')->take(25)->get();
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $containerTypes = ContainerType::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -294,18 +297,21 @@ class AirImportController extends Controller
                 'party_name' => $c->party_name ?? ($c->billTo->name ?? ($c->vendor->name ?? '')),
                 'party_name_id' => $c->bill_to_id ?? $c->vendor_id ?? '',
                 'sal' => $c->sal ?? 'Air',
-                'chrg_code' => $c->charge_code,
-                'charge_name' => $c->charge_name ?? $c->charge_code,
-                'currency' => $c->currency->code ?? 'USD',
+                'type' => $c->type,
+                'charge_code' => $c->charge_code ?? '',
+                'chrg_code' => $c->charge_code ?? '',
+                'charge_name' => $c->charge_name ?? $c->charge_code ?? '',
+                'currency' => is_string($c->currency) ? ($c->currency ?: 'USD') : ($c->currency?->code ?? 'USD'),
                 'rate' => $c->rate,
                 'qty' => $c->qty,
                 'qty_type' => $c->unit ?? 'B/L',
-                'pr' => $c->type === 'AP' ? 'Pay' : 'Rec',
-                'ppc' => $c->pc === 'PREPAID' ? 'Prepaid' : 'Colle',
+                'pr' => $c->pr ?? ($c->type === 'AP' ? 'Pay' : 'Rec'),
+                'ppc' => $c->ppc ?? ($c->pc === 'PREPAID' ? 'Prepaid' : 'Colle'),
                 'eq_bl_no' => $c->remark ?? '',
                 'vat' => $c->tax_percent ?? 0,
                 'roe' => 1.0,
-                'inv_no' => $c->invoice_no ?? '',
+                'invoice_no' => $c->invoice_no ?? ($c->inv_no ?? ''),
+                'inv_no' => $c->inv_no ?? ($c->invoice_no ?? ''),
                 'is_invoiced' => $c->is_invoiced,
                 'financial_date' => !empty($c->invoice_date) ? (is_string($c->invoice_date) ? substr($c->invoice_date, 0, 10) : $c->invoice_date->format('Y-m-d')) : date('Y-m-d'),
                 'seal_no2' => $c->seal_no2 ?? '',
@@ -362,7 +368,7 @@ class AirImportController extends Controller
         $shipments = AirImport::with(['office', 'operator', 'carrier'])
             ->latest()
             ->paginate(20);
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         return view('air-import.mbl-list', compact('shipments', 'users'));
     }
 
@@ -655,13 +661,16 @@ class AirImportController extends Controller
     public function deleteCharge($chargeId)
     {
         $charge = \App\Models\Charge::findOrFail($chargeId);
+        if ($charge->is_invoiced) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete an already invoiced charge.'], 422);
+        }
         $charge->delete();
         return response()->json(['success' => true]);
     }
 
     public function deleteAllCharges(AirImport $airImport)
     {
-        $airImport->charges()->delete();
+        $airImport->charges()->where('is_invoiced', false)->delete();
         return response()->json(['success' => true]);
     }
 

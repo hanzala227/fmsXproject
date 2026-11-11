@@ -119,8 +119,8 @@
                         <div class="form-group-row">
                             <div class="form-label-box">Status</div>
                             <div class="form-input-box">
-                                <label class="radio-item"><input type="radio" name="status" value="all" checked> All</label>
-                                <label class="radio-item"><input type="radio" name="status" value="active"> Active</label>
+                                <label class="radio-item"><input type="radio" name="status" value="active" checked> Active</label>
+                                <label class="radio-item"><input type="radio" name="status" value="all"> All</label>
                                 <label class="radio-item"><input type="radio" name="status" value="inactive"> Inactive</label>
                             </div>
                         </div>
@@ -152,15 +152,15 @@
                         <div class="form-group-row">
                             <div class="form-label-box">Currency</div>
                             <div class="form-input-box">
-                                <label class="radio-item"><input type="radio" name="currency" value="bank_currency" checked> Bank Currency</label>
-                                <label class="radio-item"><input type="radio" name="currency" value="main_currency"> Main Currency</label>
+                                <label class="radio-item"><input type="radio" name="currency" value="main_currency" checked> USD (Base Currency)</label>
+                                <label class="radio-item"><input type="radio" name="currency" value="bank_currency"> Bank Currency</label>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="button-row">
-                    <button class="btn-action-round primary" onclick="viewReport()" id="btnViewReport"><i class="fa fa-search"></i> Search / View</button>
+                    <button class="btn-action-round primary" onclick="viewReport()" id="btnViewReport"><i class="fa fa-search"></i> View</button>
                     <button class="btn-action-round" onclick="printReport()"><i class="fa fa-print"></i> Print</button>
                     <button class="btn-action-round green" onclick="exportExcel()"><i class="fa fa-file-excel-o"></i> Download Excel</button>
                 </div>
@@ -294,11 +294,11 @@
         html += '<th>Bank Name</th>';
         html += '<th>Account No.</th>';
         html += '<th>Currency</th>';
-        html += '<th class="num">Opening Balance</th>';
-        html += '<th class="num">Receipts</th>';
-        html += '<th class="num">Payments</th>';
-        html += '<th class="num">Closing Balance</th>';
-        html += '<th class="num">Book Balance</th>';
+        html += '<th class="num">Opening Balance (USD)</th>';
+        html += '<th class="num">Receipts (USD)</th>';
+        html += '<th class="num">Payments (USD)</th>';
+        html += '<th class="num">Closing Balance (USD)</th>';
+        html += '<th class="num">Book Balance (USD)</th>';
         html += '<th class="num">Difference</th>';
         html += '<th>Status</th>';
         html += '</tr></thead><tbody>';
@@ -353,16 +353,32 @@
             }
         });
 
-        // Totals Row
-        html += '<tr class="total-row">';
-        html += '<td colspan="3">GRAND TOTAL</td>';
-        html += `<td class="num">${fmt(totals.opening_balance)}</td>`;
-        html += `<td class="num">${fmt(totals.receipts)}</td>`;
-        html += `<td class="num">${fmt(totals.payments)}</td>`;
-        html += `<td class="num">${fmt(totals.closing_balance)}</td>`;
-        html += `<td class="num">${fmt(totals.book_balance)}</td>`;
-        const totalDiff = parseFloat(totals.difference);
-        html += `<td class="num" style="color:${totalDiff < 0 ? '#dc2626' : totalDiff > 0 ? '#16a34a' : '#475569'};">${fmt(totals.difference)}</td>`;
+        // Subtotals per currency (if bank_currency mode)
+        if (data.currency_mode === 'bank_currency' && data.currency_subtotals && data.currency_subtotals.length > 0) {
+            data.currency_subtotals.forEach(sub => {
+                html += '<tr class="subtotal-row">';
+                html += `<td colspan="3" style="text-align:right;font-style:italic;font-weight:600;">SUBTOTAL (${escapeHtml(sub.currency)}) <span style="font-size:10px;color:#64748b;font-weight:normal;">[Rate: ${parseFloat(sub.rate).toFixed(4)}]</span></td>`;
+                html += `<td class="num">${fmt(sub.opening_balance)}</td>`;
+                html += `<td class="num" style="color:#16a34a;">${fmt(sub.receipts)}</td>`;
+                html += `<td class="num" style="color:#dc2626;">${fmt(sub.payments)}</td>`;
+                html += `<td class="num fw-600">${fmt(sub.closing_balance)}</td>`;
+                html += `<td class="num">${fmt(sub.book_balance)}</td>`;
+                html += `<td class="num">${fmt(sub.difference)}</td>`;
+                html += '<td></td>';
+                html += '</tr>';
+            });
+        }
+
+        // Totals Row (USD Equivalent)
+        const totalsUSD = data.totals_usd || data.totals || {};
+        html += '<tr class="total-row" style="background:#1e293b !important;color:#fff !important;">';
+        html += `<td colspan="3" style="color:#fff;font-weight:700;">${data.currency_mode === 'bank_currency' ? 'GRAND TOTAL (USD EQUIVALENT)' : 'GRAND TOTAL (USD)'}</td>`;
+        html += `<td class="num" style="color:#fff;font-weight:700;">${fmt(totalsUSD.opening_balance)}</td>`;
+        html += `<td class="num" style="color:#86efac;font-weight:700;">${fmt(totalsUSD.receipts)}</td>`;
+        html += `<td class="num" style="color:#fca5a5;font-weight:700;">${fmt(totalsUSD.payments)}</td>`;
+        html += `<td class="num fw-600" style="color:#fff;font-weight:700;">${fmt(totalsUSD.closing_balance)}</td>`;
+        html += `<td class="num" style="color:#fff;font-weight:700;">${fmt(totalsUSD.book_balance)}</td>`;
+        html += `<td class="num" style="color:#fff;font-weight:700;">${fmt(totalsUSD.difference)}</td>`;
         html += '<td></td>';
         html += '</tr>';
 
@@ -438,10 +454,6 @@
         div.textContent = text;
         return div.innerHTML;
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        viewReport();
-    });
     </script>
     @endpush
 </x-layout>

@@ -64,6 +64,19 @@ class TradePartner extends Model
         'print_address_show_contact' => 'boolean',
     ];
 
+    public const AGENT_TYPES = ['PR', 'AGENT', 'FR', 'FORWARDER', 'FW', 'AG', 'OA'];
+
+    public static function isAgentType(?string $type): bool
+    {
+        $upper = strtoupper(trim((string) $type));
+        if ($upper === '') {
+            return false;
+        }
+        return in_array($upper, self::AGENT_TYPES, true)
+            || str_contains($upper, 'AGENT')
+            || str_contains($upper, 'FORWARD');
+    }
+
     public function getTypeAttribute($value)
     {
         $map = [

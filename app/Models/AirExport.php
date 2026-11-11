@@ -60,9 +60,12 @@ class AirExport extends Model
     public function acctCarrier() { return $this->belongsTo(TradePartner::class, 'acct_carrier_id'); }
     public function depPort() { return $this->belongsTo(Port::class, 'dep_port_id'); }
     public function dstPort() { return $this->belongsTo(Port::class, 'dst_port_id'); }
+    public function pol() { return $this->belongsTo(Port::class, 'dep_port_id'); }
+    public function pod() { return $this->belongsTo(Port::class, 'dst_port_id'); }
     public function packageUnit() { return $this->belongsTo(PackageUnit::class, 'pkg_unit_id'); }
 
     public function dmCustomer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
+    public function customer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
     public function dmShipper() { return $this->belongsTo(TradePartner::class, 'dm_shipper_id'); }
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }
     public function dmBillTo() { return $this->belongsTo(TradePartner::class, 'dm_bill_to_id'); }

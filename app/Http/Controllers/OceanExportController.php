@@ -72,7 +72,7 @@ class OceanExportController extends Controller
         }
 
         $offices = Office::where('is_active', true)->get();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $agents = TradePartner::all();
         $ports = Port::latest()->take(10)->get();
 
@@ -137,13 +137,18 @@ class OceanExportController extends Controller
 
     public function create(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::where('type', 'SEA')
+            ->orderByRaw("CASE WHEN code IN ('SGSIN', 'CNSHA', 'USLAX', 'NLRTM', 'AEDXB', 'PKKHI') THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->take(25)
+            ->get();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
         if ($carriers->isEmpty()) $carriers = $agents;
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -443,13 +448,18 @@ class OceanExportController extends Controller
             return (object) $data;
         });
         
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::latest()->take(10)->get();
+        $ports = Port::where('type', 'SEA')
+            ->orderByRaw("CASE WHEN code IN ('SGSIN', 'CNSHA', 'USLAX', 'NLRTM', 'AEDXB', 'PKKHI') THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->take(25)
+            ->get();
         $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
         if ($carriers->isEmpty()) $carriers = $agents;
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $containerTypes = \App\Models\ContainerType::all();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -477,16 +487,20 @@ class OceanExportController extends Controller
                     'party' => $c->type === 'AP' ? 'Agent' : 'Custom',
                     'party_name' => $c->party_name ?? ($c->billTo->name ?? ($c->vendor->name ?? '')),
                     'party_name_id' => $c->type === 'AP' ? ($c->vendor_id ?? '') : ($c->bill_to_id ?? ''),
-                    'sal' => 'Sea',
+                    'sal' => $c->sal ?? 'Sea',
+                    'type' => $c->type,
                     'pr' => $c->type === 'AP' ? 'Pay' : 'Rec',
                     'ppc' => ($c->pc ?? 'COLLECT') === 'PREPAID' ? 'Prepaid' : 'Colle',
+                    'charge_code' => $c->charge_code ?? '',
                     'chrg_code' => $c->charge_code ?? '',
-                    'currency' => $c->currency?->code ?? 'USD',
+                    'charge_name' => $c->charge_name ?? $c->charge_code ?? '',
+                    'currency' => is_string($c->currency) ? ($c->currency ?: 'USD') : ($c->currency?->code ?? 'USD'),
                     'rate' => (float)($c->rate ?? 0),
                     'qty' => (float)($c->qty ?? 1),
                     'qty_type' => $c->unit ?? 'B/L',
                     'roe' => 1.0,
                     'vat' => (float)($c->tax_percent ?? 0),
+                    'invoice_no' => $c->invoice_no ?? '',
                     'inv_no' => $c->invoice_no ?? '',
                 'is_invoiced' => $c->is_invoiced,
                     'financial_date' => $c->invoice_date ? (is_string($c->invoice_date) ? $c->invoice_date : $c->invoice_date->format('Y-m-d')) : '',
@@ -1565,7 +1579,7 @@ class OceanExportController extends Controller
     {
         $customers = TradePartner::whereIn('type', ['CS', 'CLIENT'])->get();
         $ports = Port::latest()->take(10)->get();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $statuses = Quotation::select('status')->distinct()->whereNotNull('status')->pluck('status');
         $quotations = Quotation::with(['customer:id,name', 'salesPerson:id,name', 'pol:id,name', 'pod:id,name', 'carrier:id,name', 'op:id,name', 'items'])->forModule('Ocean Export')->latest()->get();
         $latestBooking = OceanBooking::latest()->value('booking_no');

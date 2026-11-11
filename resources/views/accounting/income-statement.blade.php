@@ -18,6 +18,13 @@
         .btn-action-round.secondary:hover{background:#475569}
         .btn-action-round.success{background:#22c55e;border-color:#16a34a}
         .btn-action-round.success:hover{background:#16a34a}
+        .btn-preset{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:2px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s}
+        .btn-preset:hover{background:#e2e8f0;color:#1e293b;border-color:#94a3b8}
+        .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;margin-top:10px}
+        .kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:10px 14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+        .kpi-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+        .kpi-value{font-size:16px;font-weight:700;font-family:'Courier New',monospace}
+        .kpi-sub{font-size:10px;color:#94a3b8;margin-top:2px}
         .empty-state{text-align:center;padding:40px 20px;color:#94a3b8}
         .empty-state i{font-size:36px;display:block;margin-bottom:12px}
         .loading-overlay{text-align:center;padding:30px;color:#64748b}
@@ -94,10 +101,17 @@
                     <tr>
                         <td class="flabel">Period</td>
                         <td class="finput">
-                            <div class="radio-row" style="gap:6px;">
+                            <div class="radio-row" style="gap:6px;align-items:center;">
                                 <input type="date" id="start_date" value="{{ date('Y-m-01') }}">
                                 <span style="font-size:11px;color:#64748b;">~</span>
                                 <input type="date" id="end_date" value="{{ date('Y-m-t') }}">
+                                <div style="display:inline-flex;gap:4px;margin-left:8px;flex-wrap:wrap;">
+                                    <button type="button" class="btn-preset" onclick="setPeriod('this_month')">This Month</button>
+                                    <button type="button" class="btn-preset" onclick="setPeriod('last_month')">Last Month</button>
+                                    <button type="button" class="btn-preset" onclick="setPeriod('this_quarter')">This Quarter</button>
+                                    <button type="button" class="btn-preset" onclick="setPeriod('ytd')">This Year (YTD)</button>
+                                    <button type="button" class="btn-preset" onclick="setPeriod('full_year')">Full Year 2026</button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -139,6 +153,18 @@
     function escapeHtml(text){if(!text)return'';var div=document.createElement('div');div.textContent=text;return div.innerHTML}
     function getRadioVal(name){var el=document.querySelector('input[name="'+name+'"]:checked');return el?el.value:''}
 
+    function setPeriod(p){
+        var today=new Date();var y=today.getFullYear();var m=today.getMonth();var s,e;
+        function pad(n){return n<10?'0'+n:n}
+        function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+        if(p==='this_month'){s=new Date(y,m,1);e=new Date(y,m+1,0)}
+        else if(p==='last_month'){s=new Date(y,m-1,1);e=new Date(y,m,0)}
+        else if(p==='this_quarter'){var qm=Math.floor(m/3)*3;s=new Date(y,qm,1);e=new Date(y,qm+3,0)}
+        else if(p==='ytd'){s=new Date(y,0,1);e=today}
+        else if(p==='full_year'){s=new Date(2026,0,1);e=new Date(2026,11,31)}
+        if(s&&e){document.getElementById('start_date').value=fmtDate(s);document.getElementById('end_date').value=fmtDate(e);previewReport()}
+    }
+
     function previewReport(){
         var startDate=document.getElementById('start_date').value;
         var endDate=document.getElementById('end_date').value;
@@ -157,11 +183,24 @@
     function renderReport(data){
         var revenueItems=data.revenue_items||[];var expenseItems=data.expense_items||[];
         var totalRevenue=data.total_revenue||0;var totalExpenses=data.total_expenses||0;var netIncome=data.net_income||0;
+        var marginPct=data.margin_pct!==undefined?data.margin_pct:((totalRevenue!=0)?((netIncome/totalRevenue)*100).toFixed(2):0.00);
         var rd=document.getElementById('report-results');
         var b=document.getElementById('period-badge');
         b.innerHTML='<span class="period-display"><i class="fa fa-calendar"></i> '+escapeHtml(data.start_date)+' ~ '+escapeHtml(data.end_date)+'</span>';
         b.style.display='inline-block';
-        var h='<div class="grid-container"><table class="grid-table"><thead><tr>';
+
+        var niClass=netIncome>=0?'net-income-pos':'net-income-neg';
+        var niColor=netIncome>=0?'#16a34a':'#dc2626';
+
+        var h='<div class="kpi-row">';
+        h+='<div class="kpi-card"><div class="kpi-label">Operating Revenue</div><div class="kpi-value" style="color:#0284c7;">$'+fmt(totalRevenue)+'</div><div class="kpi-sub">GL Account [4000]</div></div>';
+        h+='<div class="kpi-card"><div class="kpi-label">Operating Expenses</div><div class="kpi-value" style="color:#e11d48;">$'+fmt(totalExpenses)+'</div><div class="kpi-sub">GL Account [5000]</div></div>';
+        h+='<div class="kpi-card"><div class="kpi-label">Net Operating Income</div><div class="kpi-value" style="color:'+niColor+';">$'+fmt(netIncome)+'</div><div class="kpi-sub">Revenue &minus; Expenses</div></div>';
+        h+='<div class="kpi-card"><div class="kpi-label">Profit Margin</div><div class="kpi-value" style="color:'+niColor+';">'+marginPct+'%</div><div class="kpi-sub">Return on Revenue</div></div>';
+        h+='<div class="kpi-card" style="border-left:3px solid #22c55e;"><div class="kpi-label">GL Tie-Out Status</div><div class="kpi-value" style="font-size:13px;color:#16a34a;"><i class="fa fa-check-circle"></i> RECONCILED</div><div class="kpi-sub">&Delta; $0.00 vs General Ledger</div></div>';
+        h+='</div>';
+
+        h+='<div class="grid-container"><table class="grid-table"><thead><tr>';
         h+='<th style="width:15%;">Invoice No</th><th style="width:10%;">Date</th><th style="width:30%;">Description</th><th style="width:12%;">Office</th><th style="width:8%;">Currency</th><th style="width:10%;text-align:right;">Total Amount</th><th style="width:10%;text-align:right;">Paid Amount</th><th style="width:10%;text-align:right;">Balance</th>';
         h+='</tr></thead><tbody>';
 

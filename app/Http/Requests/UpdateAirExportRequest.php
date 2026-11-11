@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Rules\IataMawbRule;
+use App\Support\AirTactWeight;
 
 class UpdateAirExportRequest extends FormRequest
 {
@@ -16,9 +17,8 @@ class UpdateAirExportRequest extends FormRequest
     {
         $gross = floatval($this->input('gross_weight', 0));
         $cbm = floatval($this->input('volume') ?? $this->input('volume_cbm', 0));
-        $minVolumetric = round($cbm * 166.67, 2);
-        $minRequired = max($gross, $minVolumetric);
         $chargeable = floatval($this->input('chargeable_weight', 0));
+        $clampedMawb = AirTactWeight::clampChargeable($gross, $cbm, $chargeable);
 
         $merge = [
             'is_ecommerce' => filter_var($this->is_ecommerce, FILTER_VALIDATE_BOOLEAN),
@@ -27,9 +27,13 @@ class UpdateAirExportRequest extends FormRequest
             'internal_remark' => $this->internal_remark ?? $this->memo,
         ];
 
-        // IATA TACT Rule: Automatically guarantee chargeable weight >= max(gross, volumetric)
-        if ($minRequired > 0 && ($chargeable < $minRequired || $chargeable == 0)) {
-            $merge['chargeable_weight'] = $minRequired;
+        // IATA TACT Rule: Automatically guarantee chargeable weight >= max(gross, ceil_to_0.5(cbm * 166.6667))
+        if ($clampedMawb > $chargeable || ($clampedMawb > 0 && $chargeable == 0)) {
+            $merge['chargeable_weight'] = $clampedMawb;
+        }
+
+        if (is_array($this->input('hbls'))) {
+            $merge['hbls'] = AirTactWeight::clampHbls($this->input('hbls'));
         }
 
         $this->merge($merge);
@@ -41,7 +45,7 @@ class UpdateAirExportRequest extends FormRequest
 
         return [
             'file_no' => 'required|string|unique:air_exports,file_no,' . $id,
-            'mawb_no' => 'nullable|string',
+            'mawb_no' => ['nullable', 'string', new IataMawbRule()],
             'booking_no' => 'nullable|string',
             'post_date' => 'nullable|date',
             'office_id' => 'nullable|exists:offices,id',
@@ -68,8 +72,8 @@ class UpdateAirExportRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     $gross = floatval($this->input('gross_weight', 0));
                     $cbm = floatval($this->input('volume') ?? $this->input('volume_cbm', 0));
-                    $minVolumetric = round($cbm * 166.67, 2);
-                    $minRequired = max($gross, $minVolumetric);
+                    $minVolumetric = AirTactWeight::volumetricWeight($cbm);
+                    $minRequired = AirTactWeight::minimumChargeable($gross, $cbm);
                     if ($minRequired > 0 && floatval($value) < ($minRequired - 0.05)) {
                         $fail("Chargeable weight cannot be less than {$minRequired} kg (Gross: {$gross} kg, IATA 1:6 Volumetric: {$minVolumetric} kg).");
                     }

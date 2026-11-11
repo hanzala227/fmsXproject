@@ -59,7 +59,7 @@ class OceanBookingController extends Controller
         $tradePartners = TradePartner::all();
         $customers     = TradePartner::whereIn('type', ['CS', 'CLIENT'])->get();
         $carriers      = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
-        $users         = User::all();
+        $users         = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
 
         if ($customers->isEmpty()) $customers = $tradePartners;
         if ($carriers->isEmpty())  $carriers  = $tradePartners;
@@ -123,7 +123,7 @@ class OceanBookingController extends Controller
         $truckers = TradePartner::whereIn('type', ['TR', 'TRUCKER'])->get();
         $vessels = Vessel::all();
         $ports = Port::latest()->take(10)->get();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $serviceTerms = ServiceTerm::all();
         $containerTypes = ContainerType::all();
         $incoterms = Incoterm::all();
@@ -213,7 +213,7 @@ class OceanBookingController extends Controller
         $truckers = TradePartner::whereIn('type', ['TR', 'TRUCKER'])->get();
         $vessels = Vessel::all();
         $ports = Port::all();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $serviceTerms = ServiceTerm::all();
         $containerTypes = ContainerType::all();
         $incoterms = Incoterm::all();

@@ -43,7 +43,7 @@ class AirExportController extends Controller
         $shipments = $query->orderBy($sortField, $sortDir)->paginate(20)->withQueryString();
 
         $offices = Office::where('is_active', true)->get();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $agents = TradePartner::whereNotNull('name')->where(function($q) { $q->where('type', 'carrier')->orWhereNull('type'); })->orderBy('name')->get();
         $ports = Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(10)->get();
 
@@ -129,10 +129,15 @@ class AirExportController extends Controller
 
     public function create(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->get();
-        $ports = Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(15)->get();
+        $ports = Port::where('type', 'AIR')
+            ->orderByRaw("CASE WHEN code IN ('DAC', 'DXB', 'JFK', 'LHR', 'KHI') THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->take(25)
+            ->get();
         $agents = TradePartner::all();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
@@ -410,7 +415,7 @@ class AirExportController extends Controller
             ->orderBy('name')
             ->get();
         $agents = TradePartner::all();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $currencies = Currency::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->orderBy('name')->get();
@@ -624,10 +629,11 @@ class AirExportController extends Controller
         $shipments = $query->orderBy($sortField, $sortDir)->paginate(20)->withQueryString();
 
         $offices = Office::where('is_active', true)->get();
-        $operators = \App\Models\User::orderBy('name')->get();
+        $companyId = auth()->user()?->company_id;
+        $operators = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $carriers = TradePartner::whereNotNull('name')->where(function($q) { $q->where('type', 'carrier')->orWhereNull('type'); })->orderBy('name')->get();
         $ports = \App\Models\Port::where('type', 'AIR')->orWhereNull('type')->latest()->take(10)->get();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         return view('air-export.mbl-list', compact('shipments', 'users', 'offices', 'operators', 'carriers', 'ports'));
     }
@@ -679,7 +685,7 @@ class AirExportController extends Controller
         $query->orderBy($sortField, $sortDir);
 
         $hbls  = $query->paginate($request->input('per_page', 20))->withQueryString();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
 
         return view('air-export.hbl-list', compact('hbls', 'users'));
     }
@@ -916,13 +922,16 @@ class AirExportController extends Controller
     public function deleteCharge($chargeId)
     {
         $charge = Charge::findOrFail($chargeId);
+        if ($charge->is_invoiced) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete an already invoiced charge.'], 422);
+        }
         $charge->delete();
         return response()->json(['success' => true]);
     }
 
     public function deleteAllCharges(AirExport $airExport)
     {
-        $airExport->charges()->delete();
+        $airExport->charges()->where('is_invoiced', false)->delete();
         return response()->json(['success' => true]);
     }
 

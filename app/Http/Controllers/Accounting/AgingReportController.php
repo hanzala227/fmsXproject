@@ -8,12 +8,38 @@ use App\Models\AccountingPayment;
 use App\Models\Office;
 use App\Models\TradePartner;
 use App\Models\User;
+use App\Models\Currency;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class AgingReportController extends Controller
 {
+    /**
+     * Helper to convert foreign currency amount to base USD.
+     */
+    private function toUSD(float $amount, ?string $currCode, $modelRate = null): float
+    {
+        if ($modelRate && (float) $modelRate > 0) {
+            return ((float) $modelRate != 1.0) ? round($amount / (float) $modelRate, 2) : $amount;
+        }
+        $currCode = $currCode ?: 'USD';
+        if ($currCode === 'USD') return $amount;
+
+        $rateRecord = DB::table('currency_rates')
+            ->where('from_currency', $currCode)
+            ->where('to_currency', 'USD')
+            ->orderByDesc('as_of_date')
+            ->first();
+        if ($rateRecord && (float) $rateRecord->rate_internal > 0) {
+            $rate = (float) $rateRecord->rate_internal;
+        } else {
+            $curr = Currency::where('code', $currCode)->first();
+            $rate = ($curr && (float) $curr->exchange_rate > 0) ? (float) $curr->exchange_rate : 1.0;
+        }
+        return ($rate > 0 && $rate != 1.0) ? round($amount / $rate, 2) : $amount;
+    }
     public function index()
     {
         $companyId     = auth()->user()?->company_id;
@@ -80,22 +106,46 @@ class AgingReportController extends Controller
             $invoiceTypes = ['AR', 'AP'];
         }
 
-        $invoices = Invoice::where('company_id', $companyId)
+        $invoices = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->whereIn('type', $invoiceTypes)
             ->where('invoice_date', '<=', $asOfDate)
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->with(['billTo', 'currency', 'payments', 'invoiceable'])
+            ->with([
+                'billTo',
+                'currency',
+                'invoiceable',
+                'payments' => fn($q) => $q->whereNull('deleted_at')
+                    ->whereNull('cancelled_at')
+                    ->whereNull('void_date')
+                    ->where('payment_date', '<=', $asOfDate),
+            ])
+            ->withCount(['payments as future_payments_count' => function($q) use ($asOfDate) {
+                $q->whereNull('deleted_at')->whereNull('cancelled_at')->whereNull('void_date')->where('payment_date', '>', $asOfDate);
+            }])
             ->get();
 
         $grouped = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->whereNull('void_date')->sum('amount');
-            $isCN      = strtoupper($invoice->document_type ?? '') === 'CN';
-            $balance   = ($invoice->status === 'PAID' || (float)$invoice->balance_amount <= 0.001) 
-                ? 0.0 
-                : ($isCN ? -abs((float)$invoice->balance_amount) : (float)$invoice->balance_amount);
+            $currCode = $invoice->currency?->code ?: ($invoice->currency?->name ?: 'USD');
+            $rawTotal = (float) $invoice->total_amount;
+            $activePays = $invoice->payments;
+            $rawPaid  = (float) $activePays->sum('amount')
+                      + (float) $activePays->sum('tds_tax')
+                      + (float) $activePays->sum('discount');
+            $docType  = strtoupper($invoice->document_type ?? '');
+            $isCreditAdjustment = ($invoice->type === 'AR' && $docType === 'CN')
+                || ($invoice->type === 'AP' && in_array($docType, ['DN', 'CN']));
+
+            $rawOutstanding = max(0.0, $rawTotal - $rawPaid);
+            $hasFuturePayments = ((int) ($invoice->future_payments_count ?? 0)) > 0;
+            if (($invoice->status === 'PAID' && !$hasFuturePayments) || $rawOutstanding <= 0.001) {
+                $rawOutstanding = 0.0;
+            }
+
+            $rawBalance = $isCreditAdjustment ? -abs($rawOutstanding) : $rawOutstanding;
+
+            $balance = $this->toUSD($rawBalance, $currCode, $invoice->exchange_rate);
 
             if (abs($balance) <= 0.001 && $hideZeroBal === '1') {
                 continue;
@@ -198,14 +248,14 @@ class AgingReportController extends Controller
                 $over90 = $balance;
             }
 
-            $currencyCode = $invoice->currency?->name ?? 'USD';
+            $currencyCode = $invoice->currency?->code ?: ($invoice->currency?->name ?: 'USD');
 
             if (!isset($grouped[$partnerId])) {
                 $grouped[$partnerId] = [
                     'partner_id'   => $partnerId,
                     'partner_name' => $partnerName,
                     'partner_type' => $partnerType,
-                    'currency'     => $currencyCode,
+                    'currency'     => 'USD',
                     'current'      => 0,
                     'over1_30'     => 0,
                     'over31_60'    => 0,
@@ -227,11 +277,13 @@ class AgingReportController extends Controller
                 'invoice_no'   => $invoice->invoice_no ?? '',
                 'invoice_date' => $invoiceDate?->format('Y-m-d') ?? '',
                 'due_date'     => $dueDate?->format('Y-m-d') ?? '',
-                'total_amount' => (float) $invoice->total_amount,
-                'paid_amount'  => $totalPaid,
+                'total_amount' => $this->toUSD($rawTotal, $currCode, $invoice->exchange_rate),
+                'paid_amount'  => $this->toUSD($rawPaid, $currCode, $invoice->exchange_rate),
                 'balance'      => $balance,
+                'raw_balance'  => $rawBalance,
                 'type'         => $invoice->type ?? '',
-                'currency'     => $currencyCode,
+                'currency'     => 'USD',
+                'orig_currency'=> $currencyCode,
                 'days_overdue' => (int) $daysOverdue,
                 'current'      => $current,
                 'over1_30'     => $over1_30,

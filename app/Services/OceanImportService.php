@@ -216,7 +216,15 @@ class OceanImportService
 
                     if (isset($chargeData['id']) && $chargeData['id']) {
                         $charge = \App\Models\OceanImportCharge::find($chargeData['id']);
-                        if ($charge) $charge->update($mapped);
+                        if ($charge) {
+                            if ($charge->is_invoiced) {
+                                if (isset($mapped['remark'])) {
+                                    $charge->update(['remark' => $mapped['remark']]);
+                                }
+                            } else {
+                                $charge->update($mapped);
+                            }
+                        }
                     } else {
                         $oceanImport->charges()->create($mapped);
                     }

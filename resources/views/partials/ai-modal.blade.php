@@ -40,6 +40,31 @@
             </div>
 
             <div class="frexo-header-right">
+                @php
+                    $tenantCompany = auth()->user()?->company;
+                    $initialCredits = (float) ($tenantCompany?->frexo_ai_credits ?? 0.0);
+                    $isUnlimited = (bool) ($tenantCompany?->frexo_ai_unlimited ?? false);
+                @endphp
+                @if($tenantCompany)
+                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;"
+                    @click="typeof refreshAiCredits === 'function' && refreshAiCredits()"
+                    :style="(typeof frexoAiUnlimited !== 'undefined' && frexoAiUnlimited) ? 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;' : (((typeof frexoAiCredits !== 'undefined' ? frexoAiCredits : {{ $initialCredits }}) > 50) ? 'background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;' : 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;')"
+                    title="Click to refresh Frexo AI credit balance">
+                    <i class="fa fa-bolt" style="color: #f59e0b;"></i>
+                    <template x-if="typeof frexoAiUnlimited !== 'undefined' && frexoAiUnlimited">
+                        <span>Unlimited AI</span>
+                    </template>
+                    <template x-if="typeof frexoAiUnlimited === 'undefined' || !frexoAiUnlimited">
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span x-text="typeof frexoAiCredits !== 'undefined' ? (Number(frexoAiCredits).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) + ' Credits') : '{{ number_format($initialCredits, 1) }} Credits'">{{ number_format($initialCredits, 1) }} Credits</span>
+                            <template x-if="typeof lastCreditsDeducted !== 'undefined' && lastCreditsDeducted">
+                                <span style="font-size: 10px; color: #dc2626; background: #fee2e2; padding: 1px 4px; border-radius: 3px; font-weight: 700;" x-text="'-' + Number(lastCreditsDeducted).toFixed(1)"></span>
+                            </template>
+                        </span>
+                    </template>
+                </div>
+                @endif
+
                 <!-- Live Processing Indicator -->
                 <div x-show="{{ $loadingVar }}" class="frexo-status-live" style="display: none;">
                     <i class="fa fa-spinner fa-spin"></i>

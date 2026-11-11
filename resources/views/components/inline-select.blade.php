@@ -52,6 +52,9 @@
                 
                 $val = is_object($option) || is_array($option) ? data_get($option, $valueField) : $key;
                 $label = is_object($option) || is_array($option) ? (data_get($option, $labelField) ?? '') : $option;
+                if ($module === 'port' && is_object($option) && !empty($option->code)) {
+                    $label = "[{$option->code}] {$label}";
+                }
             @endphp
             <option value="{{ $val }}">{{ $label }}</option>
         @endforeach

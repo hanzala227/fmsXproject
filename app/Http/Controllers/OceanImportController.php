@@ -70,7 +70,7 @@ class OceanImportController extends Controller
         }
 
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $agents = TradePartner::all();
        $ports = Port::where('type', 'SEA')
     ->latest()
@@ -163,15 +163,18 @@ class OceanImportController extends Controller
 
     public function create(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->get();
-$ports = Port::where('type', 'SEA')
-    ->latest()
-    ->take(10)
-    ->get();        $vessels = Vessel::all();
+        $ports = Port::where('type', 'SEA')
+            ->orderByRaw("CASE WHEN code IN ('SGSIN', 'CNSHA', 'USLAX', 'NLRTM', 'AEDXB', 'PKKHI') THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->take(25)
+            ->get();
+        $vessels = Vessel::all();
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
         if ($carriers->isEmpty()) $carriers = $agents;
-        $users = User::all();
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -596,7 +599,7 @@ $ports = Port::where('type', 'SEA')
         $agents = TradePartner::all();
         $carriers = TradePartner::whereIn('type', ['CR', 'CARRIER'])->get();
         if ($carriers->isEmpty()) $carriers = $agents;
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $containerTypes = ContainerType::all();
         $packageUnits = PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
@@ -796,7 +799,8 @@ $ports = Port::where('type', 'SEA')
         if (!in_array($sortDir, ['asc', 'desc'])) $sortDir = 'desc';
 
         $shipments = $query->orderBy($sortField, $sortDir)->paginate(20)->withQueryString();
-        $operators = User::orderBy('name')->get();
+        $companyId = auth()->user()?->company_id;
+        $operators = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         // Return JSON for AJAX requests
         if ($request->ajax() || $request->wantsJson()) {
@@ -881,8 +885,9 @@ $ports = Port::where('type', 'SEA')
         if (!in_array($sortDir, ['asc', 'desc'])) $sortDir = 'desc';
 
         $hbls = $query->orderBy($sortField, $sortDir)->paginate(20)->withQueryString();
-        $operators = User::orderBy('name')->get();
-        $salesPersons = User::orderBy('name')->get();
+        $companyId = auth()->user()?->company_id;
+        $operators = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
+        $salesPersons = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $ports = Port::all();
 
         // Return JSON for AJAX requests
@@ -1032,7 +1037,7 @@ $ports = Port::where('type', 'SEA')
         }
 
         $containers = $query->latest()->paginate(20)->withQueryString();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $truckers = TradePartner::orderBy('name')->get();
 
         // Return JSON for AJAX requests
@@ -1101,7 +1106,7 @@ $ports = Port::where('type', 'SEA')
         $data = $request->validate([
             'containers' => 'required|array',
             'containers.*.id' => 'required|exists:ocean_import_containers,id',
-            'containers.*.container_no' => 'nullable|string',
+            'containers.*.container_no' => ['nullable', 'string', new \App\Rules\Iso6346ContainerRule()],
             'containers.*.pp_ctf' => 'nullable|string',
             'containers.*.seal_no' => 'nullable|string',
             'containers.*.seal_no2' => 'nullable|string',
@@ -1725,6 +1730,9 @@ $ports = Port::where('type', 'SEA')
 
         $shipment = OceanImport::with(['hbls.containers', 'containers'])->findOrFail($oceanImportId);
         $charge = OceanImportCharge::findOrFail($request->charge_id);
+        if ($charge->is_invoiced) {
+            return response()->json(['success' => false, 'message' => 'Cannot prorate an already invoiced charge.'], 422);
+        }
 
         $totalVal = 0;
         if ($request->basis == 'volume') {
@@ -1893,7 +1901,7 @@ $ports = Port::where('type', 'SEA')
     {
         $this->authorize('update', OceanImport::findOrFail($oceanImportId));
 
-        OceanImportCharge::where('ocean_import_id', $oceanImportId)->delete();
+        OceanImportCharge::where('ocean_import_id', $oceanImportId)->where('is_invoiced', false)->delete();
 
         OceanImportHistory::create([
             'ocean_import_id' => $oceanImportId,

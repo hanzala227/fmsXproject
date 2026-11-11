@@ -42,6 +42,7 @@
     <div class="subtitle">
         Period: {{ $periodFrom ?? 'N/A' }} ~ {{ $periodTo ?? 'N/A' }}
         &middot; {{ $reportType ?? 'Summary' }} Report
+        &middot; All Amounts in USD (Base Currency)
     </div>
 
     @if(!count($rows))
@@ -53,11 +54,11 @@
                     <th>Bank Name</th>
                     <th>Account No.</th>
                     <th>Currency</th>
-                    <th class="num">Opening Balance</th>
-                    <th class="num">Receipts</th>
-                    <th class="num">Payments</th>
-                    <th class="num">Closing Balance</th>
-                    <th class="num">Book Balance</th>
+                    <th class="num">Opening Balance (USD)</th>
+                    <th class="num">Receipts (USD)</th>
+                    <th class="num">Payments (USD)</th>
+                    <th class="num">Closing Balance (USD)</th>
+                    <th class="num">Book Balance (USD)</th>
                     <th class="num">Difference</th>
                     <th>Status</th>
                 </tr>
@@ -103,14 +104,28 @@
                     @endif
                     @endif
                 @endforeach
+                @if(($currencyMode ?? 'bank_currency') === 'bank_currency' && !empty($currencySubtotals))
+                    @foreach($currencySubtotals as $sub)
+                    <tr class="subtotal-row">
+                        <td colspan="3" style="text-align:right;font-style:italic;font-weight:600;">SUBTOTAL ({{ $sub['currency'] }}) [Rate: {{ number_format($sub['rate'] ?? 1, 4) }}]</td>
+                        <td class="num">{{ number_format($sub['opening_balance'], 2) }}</td>
+                        <td class="num">{{ number_format($sub['receipts'], 2) }}</td>
+                        <td class="num">{{ number_format($sub['payments'], 2) }}</td>
+                        <td class="num" style="font-weight:600;">{{ number_format($sub['closing_balance'], 2) }}</td>
+                        <td class="num">{{ number_format($sub['book_balance'], 2) }}</td>
+                        <td class="num">{{ number_format($sub['difference'], 2) }}</td>
+                        <td></td>
+                    </tr>
+                    @endforeach
+                @endif
                 <tr class="total-row">
-                    <td colspan="3">GRAND TOTAL</td>
-                    <td class="num">{{ number_format($totals['opening_balance'] ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($totals['receipts'] ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($totals['payments'] ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($totals['closing_balance'] ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($totals['book_balance'] ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($totals['difference'] ?? 0, 2) }}</td>
+                    <td colspan="3">{{ ($currencyMode ?? 'bank_currency') === 'bank_currency' ? 'GRAND TOTAL (USD EQUIVALENT)' : 'GRAND TOTAL (USD)' }}</td>
+                    <td class="num">{{ number_format($totalsUSD['opening_balance'] ?? ($totals['opening_balance'] ?? 0), 2) }}</td>
+                    <td class="num">{{ number_format($totalsUSD['receipts'] ?? ($totals['receipts'] ?? 0), 2) }}</td>
+                    <td class="num">{{ number_format($totalsUSD['payments'] ?? ($totals['payments'] ?? 0), 2) }}</td>
+                    <td class="num">{{ number_format($totalsUSD['closing_balance'] ?? ($totals['closing_balance'] ?? 0), 2) }}</td>
+                    <td class="num">{{ number_format($totalsUSD['book_balance'] ?? ($totals['book_balance'] ?? 0), 2) }}</td>
+                    <td class="num">{{ number_format($totalsUSD['difference'] ?? ($totals['difference'] ?? 0), 2) }}</td>
                     <td></td>
                 </tr>
             </tbody>

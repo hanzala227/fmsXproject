@@ -28,11 +28,26 @@ class Company extends Model
         'timezone',
         'logo',
         'subscription_ends_at',
+        'frexo_ai_credits',
+        'frexo_ai_unlimited',
     ];
 
     protected $casts = [
         'subscription_ends_at' => 'datetime',
+        'frexo_ai_credits' => 'float',
+        'frexo_ai_unlimited' => 'boolean',
     ];
+
+    protected static function booted()
+    {
+        static::created(function ($company) {
+            try {
+                app(\App\Services\FrexoAiCreditService::class)->grantInitialCredits($company);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Auto-grant initial Frexo AI credits failed for company {$company->id}: " . $e->getMessage());
+            }
+        });
+    }
 
     public function users()
     {
@@ -42,6 +57,25 @@ class Company extends Model
     public function modules()
     {
         return $this->hasMany(CompanyModule::class);
+    }
+
+    public function creditTransactions()
+    {
+        return $this->hasMany(CompanyAiCreditTransaction::class)->orderBy('created_at', 'desc');
+    }
+
+    public function getAiCreditBalance(): float
+    {
+        return (float) ($this->frexo_ai_credits ?? 0.0);
+    }
+
+    public function hasSufficientAiCredits(float $required = 1.0): bool
+    {
+        if ($this->frexo_ai_unlimited) {
+            return true;
+        }
+
+        return $this->getAiCreditBalance() >= $required;
     }
 
     public function hasModule(string $key): bool

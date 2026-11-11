@@ -192,60 +192,60 @@
                 
                 form: {
                     id: '{{ isset($airExport) ? $airExport->id : "" }}',
-                    file_no: '{{ isset($airExport) ? $airExport->file_no : \App\Services\DocumentSequenceService::generateBookingNo("MAE", \App\Models\AirExport::class) }}',
-                    mawb_no: '{{ isset($airExport) ? $airExport->mawb_no : "" }}',
+                    file_no: @json(old('file_no', isset($airExport) ? $airExport->file_no : \App\Services\DocumentSequenceService::generateBookingNo("MAE", \App\Models\AirExport::class))),
+                    mawb_no: @json(old('mawb_no', isset($airExport) ? ($airExport->mawb_no ?? "") : "")),
                     office: '{{ old('office_id', isset($airExport) && !empty($airExport->office_id) ? $airExport->office_id : (auth()->check() ? (auth()->user()->assigned_office_id ?? '') : '')) }}',
-                    carrier: '{{ isset($airExport) ? $airExport->carrier_id : "" }}',
-                    issuing_carrier: @json(isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX"),
-                    awb_type: @json(isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL"),
-                    awb_date: '{{ isset($airExport) && $airExport->awb_date ? \Carbon\Carbon::parse($airExport->awb_date)->format("Y-m-d") : "" }}',
-                    shipper: '{{ isset($airExport) ? $airExport->shipper_id : "" }}',
-                    consignee: '{{ isset($airExport) ? $airExport->consignee_id : "" }}',
-                    notify: '{{ isset($airExport) ? $airExport->notify_id : "" }}',
-                    post_date: '{{ isset($airExport) && $airExport->post_date ? \Carbon\Carbon::parse($airExport->post_date)->format("Y-m-d") : date("Y-m-d") }}',
-                    awb_acct_carrier: '{{ isset($airExport) ? $airExport->acct_carrier_id : "" }}',
-                    co_loader: '{{ isset($airExport) ? $airExport->forwarding_agent_id : "" }}',
-                    actual_shipper: '{{ isset($airExport) ? $airExport->actual_shipper_id : "" }}',
-                    op: '{{ isset($airExport) ? $airExport->op_id : auth()->id() }}',
-                    itn_no: @json(isset($airExport) ? ($airExport->itn_no ?? "") : ""),
-                    cers_no: @json(isset($airExport) ? ($airExport->cers_no ?? "") : ""),
-                    reference_no: @json(isset($airExport) ? ($airExport->reference_no ?? "") : ""),
-                    display_unit: '{{ isset($airExport) && $airExport->display_unit ? $airExport->display_unit : "BOTH" }}',
-                    departure: '{{ isset($airExport) ? $airExport->dep_port_id : "" }}',
-                    destination: '{{ isset($airExport) ? $airExport->dst_port_id : "" }}',
-                    flight_no: @json(isset($airExport) ? ($airExport->flight_no ?? "") : ""),
-                    cargo_ready_date: '{{ isset($airExport) && $airExport->cargo_ready_date ? \Carbon\Carbon::parse($airExport->cargo_ready_date)->format("Y-m-d") : "" }}',
-                    etd: '{{ isset($airExport) && $airExport->etd ? \Carbon\Carbon::parse($airExport->etd)->format("Y-m-d") : "" }}',
-                    atd: '{{ isset($airExport) && $airExport->atd ? \Carbon\Carbon::parse($airExport->atd)->format("Y-m-d") : "" }}',
-                    eta: '{{ isset($airExport) && $airExport->eta ? \Carbon\Carbon::parse($airExport->eta)->format("Y-m-d") : "" }}',
-                    ata: '{{ isset($airExport) && $airExport->ata ? \Carbon\Carbon::parse($airExport->ata)->format("Y-m-d") : "" }}',
-                    dv_carriage: @json(isset($airExport) && $airExport->dv_carriage ? $airExport->dv_carriage : "N.V.D."),
-                    dv_customs: @json(isset($airExport) && $airExport->dv_customs ? $airExport->dv_customs : "N.C.V."),
-                    insurance: @json(isset($airExport) && $airExport->insurance ? $airExport->insurance : "N.I.L."),
-                    wt_val: '{{ isset($airExport) && $airExport->wt_val ? $airExport->wt_val : "P" }}',
-                    other_term: '{{ isset($airExport) && $airExport->other_term ? $airExport->other_term : "P" }}',
-                    pkg_qty: '{{ isset($airExport) ? $airExport->pkg_qty : "" }}',
-                    pkg_unit_id: '{{ isset($airExport) ? $airExport->pkg_unit_id : "" }}',
-                    gross_weight: '{{ isset($airExport) ? $airExport->gross_weight : "" }}',
-                    chargeable_weight: '{{ isset($airExport) ? $airExport->chargeable_weight : "" }}',
-                    volume: '{{ isset($airExport) ? $airExport->volume : "" }}',
-                    buying_rate: '{{ isset($airExport) ? $airExport->buying_rate : "" }}',
-                    selling_rate: '{{ isset($airExport) ? $airExport->selling_rate : "" }}',
-                    sales_type: '{{ isset($airExport) ? $airExport->sales_type : "" }}',
-                    internal_remark: @json(isset($airExport) ? ($airExport->internal_remark ?? "") : ""),
-                    dm_customer_id: '{{ isset($airExport) ? $airExport->dm_customer_id : "" }}',
-                    dm_sales_person_id: '{{ isset($airExport) ? $airExport->dm_sales_person_id : "" }}',
-                    dm_shipper_id: '{{ isset($airExport) ? $airExport->dm_shipper_id : "" }}',
-                    dm_bill_to_id: '{{ isset($airExport) ? $airExport->dm_bill_to_id : "" }}',
-                    dm_consignee_id: '{{ isset($airExport) ? $airExport->dm_consignee_id : "" }}',
-                    dm_notify_id: '{{ isset($airExport) ? $airExport->dm_notify_id : "" }}',
-                    cargo_type: @json(isset($airExport) && $airExport->cargo_type ? $airExport->cargo_type : "GENERAL CARGO"),
-                    routes: @json(isset($airExport) && !empty($airExport->routes) ? (is_array($airExport->routes) ? $airExport->routes : json_decode($airExport->routes, true)) : []),
-                    other_charges: @json(isset($airExport) && !empty($airExport->other_charges) ? (is_array($airExport->other_charges) ? $airExport->other_charges : json_decode($airExport->other_charges, true)) : []),
-                    charges: @json($chargesData ?? []),
-                    accounting_info: @json(isset($airExport) && !empty($airExport->accounting_info) ? (is_array($airExport->accounting_info) ? $airExport->accounting_info : json_decode($airExport->accounting_info, true)) : []),
-                    commodities: @json(isset($airExport) && !empty($airExport->commodities) ? (is_array($airExport->commodities) ? $airExport->commodities : json_decode($airExport->commodities, true)) : []),
-                    memo: @json(isset($airExport) ? ($airExport->internal_remark ?? "") : "")
+                    carrier: @json((string) old('carrier_id', isset($airExport) ? ($airExport->carrier_id ?? "") : "")),
+                    issuing_carrier: @json(old('issuing_carrier', isset($airExport) && $airExport->issuing_carrier ? $airExport->issuing_carrier : "FREIGHTX")),
+                    awb_type: @json(old('awb_type', isset($airExport) && $airExport->awb_type ? $airExport->awb_type : "NORMAL")),
+                    awb_date: @json((string) old('awb_date', isset($airExport) && $airExport->awb_date ? \Carbon\Carbon::parse($airExport->awb_date)->format("Y-m-d") : "")),
+                    shipper: @json((string) old('shipper_id', isset($airExport) ? ($airExport->shipper_id ?? "") : "")),
+                    consignee: @json((string) old('consignee_id', isset($airExport) ? ($airExport->consignee_id ?? "") : "")),
+                    notify: @json((string) old('notify_id', isset($airExport) ? ($airExport->notify_id ?? "") : "")),
+                    post_date: @json((string) old('post_date', isset($airExport) && $airExport->post_date ? \Carbon\Carbon::parse($airExport->post_date)->format("Y-m-d") : date("Y-m-d"))),
+                    awb_acct_carrier: @json((string) old('acct_carrier_id', isset($airExport) ? ($airExport->acct_carrier_id ?? "") : "")),
+                    co_loader: @json((string) old('forwarding_agent_id', isset($airExport) ? ($airExport->forwarding_agent_id ?? "") : "")),
+                    actual_shipper: @json((string) old('actual_shipper_id', isset($airExport) ? ($airExport->actual_shipper_id ?? "") : "")),
+                    op: @json((string) old('op_id', isset($airExport) ? ($airExport->op_id ?? "") : auth()->id())),
+                    itn_no: @json(old('itn_no', isset($airExport) ? ($airExport->itn_no ?? "") : "")),
+                    cers_no: @json(old('cers_no', isset($airExport) ? ($airExport->cers_no ?? "") : "")),
+                    reference_no: @json(old('reference_no', isset($airExport) ? ($airExport->reference_no ?? "") : "")),
+                    display_unit: @json((string) old('display_unit', isset($airExport) && $airExport->display_unit ? $airExport->display_unit : "BOTH")),
+                    departure: @json((string) old('dep_port_id', isset($airExport) ? ($airExport->dep_port_id ?? "") : "")),
+                    destination: @json((string) old('dst_port_id', isset($airExport) ? ($airExport->dst_port_id ?? "") : "")),
+                    flight_no: @json(old('flight_no', isset($airExport) ? ($airExport->flight_no ?? "") : "")),
+                    cargo_ready_date: @json((string) old('cargo_ready_date', isset($airExport) && $airExport->cargo_ready_date ? \Carbon\Carbon::parse($airExport->cargo_ready_date)->format("Y-m-d") : "")),
+                    etd: @json((string) old('etd', isset($airExport) && $airExport->etd ? \Carbon\Carbon::parse($airExport->etd)->format("Y-m-d") : "")),
+                    atd: @json((string) old('atd', isset($airExport) && $airExport->atd ? \Carbon\Carbon::parse($airExport->atd)->format("Y-m-d") : "")),
+                    eta: @json((string) old('eta', isset($airExport) && $airExport->eta ? \Carbon\Carbon::parse($airExport->eta)->format("Y-m-d") : "")),
+                    ata: @json((string) old('ata', isset($airExport) && $airExport->ata ? \Carbon\Carbon::parse($airExport->ata)->format("Y-m-d") : "")),
+                    dv_carriage: @json(old('dv_carriage', isset($airExport) && $airExport->dv_carriage ? $airExport->dv_carriage : "N.V.D.")),
+                    dv_customs: @json(old('dv_customs', isset($airExport) && $airExport->dv_customs ? $airExport->dv_customs : "N.C.V.")),
+                    insurance: @json(old('insurance', isset($airExport) && $airExport->insurance ? $airExport->insurance : "N.I.L.")),
+                    wt_val: @json((string) old('wt_val', isset($airExport) && $airExport->wt_val ? $airExport->wt_val : "P")),
+                    other_term: @json((string) old('other_term', isset($airExport) && $airExport->other_term ? $airExport->other_term : "P")),
+                    pkg_qty: @json((string) old('pkg_qty', isset($airExport) ? ($airExport->pkg_qty ?? "") : "")),
+                    pkg_unit_id: @json((string) old('pkg_unit_id', isset($airExport) ? ($airExport->pkg_unit_id ?? "") : "")),
+                    gross_weight: @json((string) old('gross_weight', isset($airExport) ? ($airExport->gross_weight ?? "") : "")),
+                    chargeable_weight: @json((string) old('chargeable_weight', isset($airExport) ? ($airExport->chargeable_weight ?? "") : "")),
+                    volume: @json((string) old('volume', isset($airExport) ? ($airExport->volume ?? "") : "")),
+                    buying_rate: @json((string) old('buying_rate', isset($airExport) ? ($airExport->buying_rate ?? "") : "")),
+                    selling_rate: @json((string) old('selling_rate', isset($airExport) ? ($airExport->selling_rate ?? "") : "")),
+                    sales_type: @json((string) old('sales_type', isset($airExport) ? ($airExport->sales_type ?? "") : "")),
+                    internal_remark: @json(old('internal_remark', isset($airExport) ? ($airExport->internal_remark ?? "") : "")),
+                    dm_customer_id: @json((string) old('dm_customer_id', isset($airExport) ? ($airExport->dm_customer_id ?? "") : "")),
+                    dm_sales_person_id: @json((string) old('dm_sales_person_id', isset($airExport) ? ($airExport->dm_sales_person_id ?? "") : "")),
+                    dm_shipper_id: @json((string) old('dm_shipper_id', isset($airExport) ? ($airExport->dm_shipper_id ?? "") : "")),
+                    dm_bill_to_id: @json((string) old('dm_bill_to_id', isset($airExport) ? ($airExport->dm_bill_to_id ?? "") : "")),
+                    dm_consignee_id: @json((string) old('dm_consignee_id', isset($airExport) ? ($airExport->dm_consignee_id ?? "") : "")),
+                    dm_notify_id: @json((string) old('dm_notify_id', isset($airExport) ? ($airExport->dm_notify_id ?? "") : "")),
+                    cargo_type: @json(old('cargo_type', isset($airExport) && $airExport->cargo_type ? $airExport->cargo_type : "GENERAL CARGO")),
+                    routes: @json(old('routes', isset($airExport) && !empty($airExport->routes) ? (is_array($airExport->routes) ? $airExport->routes : json_decode($airExport->routes, true)) : [])),
+                    other_charges: @json(old('other_charges', isset($airExport) && !empty($airExport->other_charges) ? (is_array($airExport->other_charges) ? $airExport->other_charges : json_decode($airExport->other_charges, true)) : [])),
+                    charges: @json(old('charges', $chargesData ?? [])),
+                    accounting_info: @json(old('accounting_info', isset($airExport) && !empty($airExport->accounting_info) ? (is_array($airExport->accounting_info) ? $airExport->accounting_info : json_decode($airExport->accounting_info, true)) : [])),
+                    commodities: @json(old('commodities', isset($airExport) && !empty($airExport->commodities) ? (is_array($airExport->commodities) ? $airExport->commodities : json_decode($airExport->commodities, true)) : [])),
+                    memo: @json(old('memo', old('internal_remark', isset($airExport) ? ($airExport->internal_remark ?? "") : "")))
                 },
                 addRoute() {
                     if (!this.form.routes || !Array.isArray(this.form.routes)) {
@@ -844,6 +844,19 @@
                     document.getElementById('airExportForm').submit();
                 },
                 showAiModal: false,
+                frexoAiCredits: {{ (float) (auth()->user()?->company?->frexo_ai_credits ?? 0) }},
+                frexoAiUnlimited: {{ auth()->user()?->company?->frexo_ai_unlimited ? 'true' : 'false' }},
+                lastCreditsDeducted: null,
+                refreshAiCredits() {
+                    fetch('/api/ai/credits/balance')
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.frexoAiCredits = res.balance;
+                                this.frexoAiUnlimited = res.unlimited;
+                            }
+                        }).catch(() => {});
+                },
                 aiPreviewMode: false,
                 isAiProcessing: false,
                 documentPreviewUrl: '',
@@ -904,6 +917,11 @@
                         if (!data.success) {
                             this.aiError = data.message;
                             return;
+                        }
+
+                        if (data.credit_info && data.credit_info.balance_after !== undefined) {
+                            this.frexoAiCredits = data.credit_info.balance_after;
+                            this.lastCreditsDeducted = data.credit_info.credits_deducted;
                         }
                         
                         this.extractedData = [];
@@ -1384,7 +1402,60 @@
                     const shipmentId = {{ isset($airExport) && $airExport->id ? $airExport->id : 0 }};
                     
                     // Load existing HAWBs if any
-                    @if(isset($airExport) && $airExport->hbls->count() > 0)
+                    @if(old('hbls') && is_array(old('hbls')))
+                        this.hawbs = {!! json_encode(collect(array_values(old('hbls')))->map(function($hbl) {
+                            return [
+                                'id' => $hbl['id'] ?? null,
+                                'show' => true,
+                                'showMore' => false,
+                                'showMemo' => false,
+                                'hawb_no' => $hbl['hawb_no'] ?? '',
+                                'booking_no' => $hbl['booking_no'] ?? '',
+                                'booking_date' => $hbl['booking_date'] ?? '',
+                                'quotation_no' => $hbl['quotation_no'] ?? '',
+                                'shipper' => $hbl['shipper_id'] ?? '',
+                                'customer' => $hbl['customer_id'] ?? '',
+                                'bill_to' => $hbl['bill_to'] ?? '',
+                                'consignee' => $hbl['consignee_id'] ?? '',
+                                'notify' => $hbl['notify_party_id'] ?? '',
+                                'sales' => $hbl['sales_person_id'] ?? '',
+                                'op' => auth()->user()?->name ?? '',
+                                'oversea_agent' => $hbl['oversea_agent_id'] ?? '',
+                                'sales_type' => $hbl['sales_type'] ?? '',
+                                'departure' => $hbl['departure'] ?? '',
+                                'destination' => $hbl['destination'] ?? '',
+                                'cargo_pickup' => $hbl['cargo_pickup'] ?? '',
+                                'delivery_to' => $hbl['delivery_to'] ?? '',
+                                'cargo_type' => $hbl['cargo_type'] ?? 'GENERAL CARGO',
+                                'ship_type' => $hbl['ship_type'] ?? 'NORMAL',
+                                'feta' => $hbl['feta'] ?? '',
+                                'itn_no' => $hbl['itn_no'] ?? '',
+                                'display_unit' => $hbl['display_unit'] ?? 'BOTH',
+                                'pkg_qty' => $hbl['pkg_qty'] ?? '',
+                                'pkg_unit_id' => $hbl['pkg_unit_id'] ?? '',
+                                'gross_weight' => $hbl['gross_weight'] ?? '',
+                                'chargeable_weight' => $hbl['chargeable_weight'] ?? '',
+                                'volume' => $hbl['volume'] ?? '',
+                                'buying_rate' => $hbl['buying_rate'] ?? '',
+                                'selling_rate' => $hbl['selling_rate'] ?? '',
+                                'commodity' => $hbl['commodity'] ?? '',
+                                'incoterms_id' => $hbl['incoterms_id'] ?? '',
+                                'freight_term' => $hbl['freight_term'] ?? 'P',
+                                'other_charge_term' => $hbl['other_charge_term'] ?? 'P',
+                                'issuing_carrier' => $hbl['issuing_carrier'] ?? 'FREIGHTX',
+                                'trucker' => $hbl['trucker'] ?? '',
+                                'dv_carriage' => $hbl['dv_carriage'] ?? 'N.V.D.',
+                                'dv_customs' => $hbl['dv_customs'] ?? 'N.C.V.',
+                                'insurance' => $hbl['insurance'] ?? 'N.I.L.',
+                                'cargo_ready_date' => $hbl['cargo_ready_date'] ?? '',
+                                'hbl_remark' => $hbl['hbl_remark'] ?? '',
+                                'mark' => $hbl['mark'] ?? '',
+                                'description' => $hbl['description'] ?? '',
+                                'remark' => $hbl['remark'] ?? '',
+                                'commodities' => is_array($hbl['commodities'] ?? null) ? $hbl['commodities'] : [],
+                            ];
+                        })) !!};
+                    @elseif(isset($airExport) && $airExport->hbls->count() > 0)
                         this.hawbs = {!! json_encode($airExport->hbls->map(function($hbl) use ($airExport) {
                             return [
                                 'id' => $airExport->id ? $hbl->id : null,
@@ -2141,8 +2212,12 @@
                 calcRowCft(row) {
                     return this.calcRowCbm(row) * 35.3147;
                 },
+                roundUpHalfKg(val) {
+                    const rounded = Math.round((parseFloat(val) || 0) * 100) / 100;
+                    return rounded > 0 ? Math.ceil(rounded * 2) / 2 : 0;
+                },
                 calcRowVolKg(row) {
-                    return this.calcRowCbm(row) * 166.6667;
+                    return this.roundUpHalfKg(this.calcRowCbm(row) * 166.6667);
                 },
                 calcRowVolLb(row) {
                     return this.calcRowVolKg(row) * 2.20462;
@@ -2160,7 +2235,7 @@
                     return this.totalDimCbm * 35.3147;
                 },
                 get totalDimVolKg() {
-                    return this.totalDimCbm * 166.6667;
+                    return this.roundUpHalfKg(this.totalDimCbm * 166.6667);
                 },
                 get totalDimVolLb() {
                     return this.totalDimVolKg * 2.20462;
@@ -2223,7 +2298,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h1 class="caption-subject" style="font-size: 18px;">{{ isset($airExport) ? 'AIR EXPORT SHIPMENT' : 'Create Air Export Shipment' }}</h1>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
+                <button type="button" @click="showAiModal = true; refreshAiCredits()" class="frexo-trigger-btn" title="Auto-fill shipment details using Frexo AI">
                     <i class="fa fa-bolt"></i> Frexo AI
                 </button>
                 <button type="submit"
@@ -2233,6 +2308,23 @@
                 <a href="/air-export/list" class="btn-default-gf">BACK TO LIST</a>
             </div>
         </div>
+
+        <!-- Alerts -->
+        @if(session('error'))
+            <div class="alert alert-danger" style="background:#fce4e4;border:1px solid #e57373;color:#c62828;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
+                <i class="fa fa-exclamation-circle"></i> {{ session('error') }}
+            </div>
+        @endif
+        @if($errors->any())
+            <div class="alert alert-danger" style="background:#fce4e4;border:1px solid #e57373;color:#c62828;padding:10px 15px;border-radius:4px;margin-bottom:15px;">
+                <strong>Validation Errors:</strong>
+                <ul style="margin:5px 0 0 15px;padding:0;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <!-- Main Tabs + Tools Dropdown (Ocean Import Pattern) -->
         <div style="display:flex; align-items:stretch; border-bottom:2px solid #e5e7eb; margin-bottom:15px; background:#fff;">
@@ -2297,7 +2389,7 @@
                     <div class="portlet-body" x-show="showMblSection">
                         <div class="form-grid-4">
                             <!-- Row 1 -->
-                            <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly value="{{ isset($airExport) ? $airExport->file_no : \App\Services\DocumentSequenceService::generateBookingNo('MAE', \App\Models\AirExport::class) }}" required></div></div>
+                            <div class="form-group-gf"><label class="form-label-gf">Booking No.</label><div class="form-input-container"><input type="text" name="file_no" class="form-control-gf" readonly x-model="form.file_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf" style="color:red;">*MAWB No.</label><div class="form-input-container"><input type="text" name="mawb_no" class="form-control-gf" x-model="form.mawb_no" required></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Notify</label><div class="form-input-container"><x-inline-select name="notify_id" :options="$agents" module="trade-partner" x-model="form.notify" class="form-control-gf" /><button type="button" class="btn-default-gf" style="height:18px; padding:0 4px;" @click="openAddNewModal('trade-partner', 'notify_id')"><i class="fa fa-external-link" style="font-size:9px;"></i></button></div></div>
                             <div class="form-group-gf"><label class="form-label-gf">Co-loader</label><div class="form-input-container"><x-inline-select name="forwarding_agent_id" :options="$agents" module="trade-partner" x-model="form.co_loader" class="form-control-gf" /></div></div>
@@ -2591,7 +2683,7 @@
                                 <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;" x-text="'OP: ' + hawb.op"></small>
                             </span>
                             <div class="actions" style="display: flex; gap: 8px; align-items: center;" @click.stop>
-                                <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
+                                <button type="button" @click="showAiModal = true; typeof refreshAiCredits === 'function' && refreshAiCredits()" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
                                     <i class="fa fa-bolt"></i> Frexo AI
                                 </button>
                                 <!-- HAWB Tools Dropdown -->

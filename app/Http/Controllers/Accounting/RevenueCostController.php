@@ -32,7 +32,7 @@ class RevenueCostController extends Controller
         $companyId     = auth()->user()?->company_id;
         $offices       = Office::where('is_active', true)->orderBy('name')->get();
         $users         = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
-        $tradePartners = TradePartner::orderBy('name')->get();
+        $tradePartners = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
 
         return view('accounting.revenue-cost', compact('offices', 'users', 'tradePartners'));
     }
@@ -106,9 +106,8 @@ class RevenueCostController extends Controller
             $query = Invoice::where('company_id', $companyId)->whereBetween('invoice_date', [$startDate, $endDate]);
         }
 
-        // Exclude VOID and cancelled documents
-        $query->where('status', '!=', 'VOID')
-              ->where('verification_status', '!=', 'Cancelled');
+        // Exclude unverified, DRAFT, VOID, Cancelled, and Rejected documents
+        $query->reportable();
 
         if ($officeId) {
             $query->where('office_id', $officeId);
@@ -141,11 +140,18 @@ class RevenueCostController extends Controller
             $query->where('issued_by', $salesPersonId);
         }
 
-        $invoices = $query->with(['billTo', 'currency', 'office', 'issuer', 'payments'])->orderBy('invoice_date')->get();
+        $invoices = $query->with([
+                'billTo',
+                'currency',
+                'office',
+                'issuer',
+                'payments' => fn($p) => $p->whereNull('void_date')->whereNull('cancelled_at'),
+            ])->orderBy('invoice_date')->get();
 
         $results = [];
         foreach ($invoices as $invoice) {
-            $totalPaid  = (float) $invoice->payments->whereNull('void_date')->sum('amount');
+            $activePays = $invoice->payments->whereNull('void_date')->whereNull('cancelled_at');
+            $totalPaid  = (float) ($activePays->sum('amount') + $activePays->sum('tds_tax') + $activePays->sum('discount'));
             $rawAmount  = (float) $invoice->total_amount;
             $invType    = strtoupper($invoice->type ?? '');
             $docType    = strtoupper($invoice->document_type ?? '');
@@ -156,13 +162,16 @@ class RevenueCostController extends Controller
             $baseAmount = $toUSD($rawAmount, $currCode, $invoice->exchange_rate);
             $basePaid   = $toUSD($totalPaid, $currCode, $invoice->exchange_rate);
 
-            // In Revenue (AR), CN is negative; In Cost (AP), DN is negative
+            // In Revenue (AR), CN is negative; In Cost (AP), DN/CN is negative
             if ($invType === 'AR') {
                 $netAmount = $isCN ? -$baseAmount : $baseAmount;
             } else {
-                $netAmount = $isDN ? -$baseAmount : $baseAmount;
+                $netAmount = ($isDN || $isCN) ? -$baseAmount : $baseAmount;
             }
             $balance = $netAmount - $basePaid;
+            if (strtoupper($invoice->status ?? '') === 'PAID' || abs($balance) <= 0.01) {
+                $balance = 0.0;
+            }
 
             if ($paymentStatus === 'paid' && abs($balance) > 0.01) continue;
             if ($paymentStatus === 'not_paid' && $basePaid > 0.01) continue;

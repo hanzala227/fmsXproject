@@ -15,10 +15,12 @@ class JournalReportController extends Controller
 {
     public function index()
     {
+        $companyId    = auth()->user()?->company_id;
         $offices      = Office::where('is_active', true)->orderBy('name')->get();
         $currencies   = Currency::orderBy('code')->get();
         $glAccounts   = GlAccount::active()->orderBy('code')->get(['id', 'code', 'name']);
-        $partners     = TradePartner::where('status', '!=', 'INACTIVE')->orderBy('name')->limit(100)->get(['id', 'name', 'code']);
+        $partners     = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('status', '!=', 'INACTIVE')->orderBy('name')->limit(100)->get(['id', 'name', 'code']);
         $nextEntryNo  = AccountingJournal::generateEntryNo();
 
         return view('accounting.journal-report', compact('offices', 'currencies', 'glAccounts', 'partners', 'nextEntryNo'));
@@ -26,6 +28,7 @@ class JournalReportController extends Controller
 
     private function getReportData(Request $request)
     {
+        $companyId  = auth()->user()?->company_id;
         $startDate  = $request->input('start_date', $request->input('period_from', date('Y-m-d', strtotime('first day of this month'))));
         $endDate    = $request->input('end_date', $request->input('period_to', date('Y-m-d')));
         $officeId   = $request->input('office_id');
@@ -47,8 +50,10 @@ class JournalReportController extends Controller
                 'office',
                 'currency',
             ])
-            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('entry_date', [$startDate, $endDate])
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->whereHas('journalEntry', function ($q) use ($startDate, $endDate, $companyId) {
+                $q->when($companyId, fn($cq) => $cq->where('company_id', $companyId))
+                  ->whereBetween('entry_date', [$startDate, $endDate])
                   ->whereNotIn('status', ['VOIDED', 'VOID', 'CANCELLED']);
             })
             ->when($officeId, function ($q) use ($officeId) {

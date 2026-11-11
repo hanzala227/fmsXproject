@@ -145,7 +145,7 @@ class AirBookingController extends Controller
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
         $ports = Port::latest()->take(10)->get();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
         $airExports = \App\Models\AirExport::whereNotNull('mawb_no')->select('id', 'mawb_no', 'file_no')->get();
@@ -208,7 +208,7 @@ class AirBookingController extends Controller
         $offices = Office::where('is_active', true)->get();
         $tradePartners = TradePartner::all();
         $ports = Port::latest()->take(10)->get();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $incoterms = \App\Models\Incoterm::all();
         $airExports = \App\Models\AirExport::whereNotNull('mawb_no')->select('id', 'mawb_no', 'file_no')->get();
@@ -478,7 +478,7 @@ class AirBookingController extends Controller
         $booking = AirBooking::findOrFail($id);
         $currencies = \App\Models\Currency::all();
         $tradePartners = \App\Models\TradePartner::all();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $chargeCodes = \App\Models\ChargeCode::all();
         $currentUser = auth()->user();
         return view('air-export.booking-accounting', compact('booking', 'currencies', 'tradePartners', 'users', 'chargeCodes', 'currentUser'));
@@ -553,7 +553,7 @@ class AirBookingController extends Controller
     public function status($id)
     {
         $booking = AirBooking::findOrFail($id);
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $currentUser = auth()->user();
         return view('air-export.booking-status', compact('booking', 'users', 'currentUser'));
     }

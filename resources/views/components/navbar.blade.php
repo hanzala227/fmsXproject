@@ -79,7 +79,7 @@
                     { name: 'Accounting - G/L Code List', category: 'Accounting', icon: 'fa-book', url: '/accounting/gl-code-list', keywords: 'gl code list general ledger' },
                     { name: 'Accounting - Currency Table', category: 'Accounting', icon: 'fa-money', url: '/accounting/currency-table', keywords: 'currency table exchange rates fx' },
                     { name: 'Accounting - Invoice List', category: 'Accounting', icon: 'fa-file-text-o', url: '/accounting/invoices', keywords: 'invoice list invoices ar ap' },
-                    { name: 'Accounting - Create Invoice', category: 'Accounting', icon: 'fa-plus', url: '/accounting/invoices/create', keywords: 'create invoice new invoice' },
+                    { name: 'Accounting - Create Invoice', category: 'Accounting', icon: 'fa-plus', url: '/accounting/invoice/create', keywords: 'create invoice new invoice' },
                     { name: 'Accounting - G&A Expense List', category: 'Accounting', icon: 'fa-calculator', url: '/accounting/ga-expenses', keywords: 'ga expense list expenses' },
                     { name: 'Accounting - Create G&A Expense', category: 'Accounting', icon: 'fa-plus', url: '/accounting/ga-expenses/create', keywords: 'create ga expense new' },
                     { name: 'Accounting - Make Payment (AP)', category: 'Accounting', icon: 'fa-credit-card', url: '/accounting/payment-make', keywords: 'make payment vendor pay' },
@@ -314,9 +314,9 @@
         <div class="relative flex items-center pl-3 border-l border-gray-200 cursor-pointer group !overflow-visible" x-data="{ open: false }">
             <div @click="open = !open" class="flex items-center space-x-2">
                 <div class="relative flex items-center">
-                    <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=6B7280&background=F3F4F6" alt="Avatar" class="w-7 h-7 rounded-full border border-gray-200">
+                    <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()?->name ?? 'User') }}&color=6B7280&background=F3F4F6" alt="Avatar" class="w-7 h-7 rounded-full border border-gray-200">
                 </div>
-                <span class="hidden md:inline text-[11px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase">{{ Auth::user()->name }}</span>
+                <span class="hidden md:inline text-[11px] font-bold text-gray-600 group-hover:text-gray-900 transition-colors uppercase">{{ Auth::user()?->name ?? 'Guest' }}</span>
                 <i class="fa fa-angle-down text-gray-400 text-[10px] transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
             </div>
 
@@ -333,7 +333,7 @@
                  x-cloak>
                 <div class="px-4 py-2.5 border-b border-gray-50 bg-gray-50/50">
                     <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Operator Account</p>
-                    <p class="text-[11px] font-bold text-gray-800 truncate mt-0.5">{{ Auth::user()->email }}</p>
+                    <p class="text-[11px] font-bold text-gray-800 truncate mt-0.5">{{ Auth::user()?->email ?? '' }}</p>
                 </div>
                 
                 <div class="py-1">

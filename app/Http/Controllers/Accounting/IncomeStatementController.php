@@ -45,13 +45,13 @@ class IncomeStatementController extends Controller
 
         // Helper currency conversion to functional base USD
         $toUSD = function ($amount, $currCode, $modelRate = null) {
+            $amount = (float) $amount;
             if ($modelRate && (float) $modelRate > 0) {
-                return ((float) $modelRate != 1.0) ? round(((float) $amount) / (float) $modelRate, 2) : (float) $amount;
+                return ((float) $modelRate != 1.0) ? round($amount / (float) $modelRate, 2) : $amount;
             }
-            $currCode = $currCode ?: 'USD';
-            if ($currCode === 'USD') return (float) $amount;
+            $currCode = $currCode ? strtoupper(trim($currCode)) : 'USD';
+            if ($currCode === 'USD') return $amount;
 
-            $rate = 1.0;
             $rateRecord = DB::table('currency_rates')
                 ->where('from_currency', $currCode)
                 ->where('to_currency', 'USD')
@@ -61,18 +61,15 @@ class IncomeStatementController extends Controller
                 $rate = (float) $rateRecord->rate_internal;
             } else {
                 $curr = Currency::where('code', $currCode)->first();
-                if ($curr && (float) $curr->exchange_rate > 0) {
-                    $rate = (float) $curr->exchange_rate;
-                }
+                $rate = ($curr && (float) $curr->exchange_rate > 0) ? (float) $curr->exchange_rate : 1.0;
             }
-            return ($rate > 0 && $rate != 1.0) ? round(((float) $amount) / $rate, 2) : (float) $amount;
+            return ($rate > 0 && $rate != 1.0) ? round($amount / $rate, 2) : $amount;
         };
 
-        // Query active invoices scoped to company and excluding VOID/Cancelled documents
-        $invoices = Invoice::where('company_id', $companyId)
+        // Query active & verified invoices scoped to company
+        $invoices = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->whereBetween('invoice_date', [$startDate, $endDate])
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->with(['payments', 'office', 'currency', 'billTo'])
             ->orderBy('invoice_date')
@@ -99,10 +96,11 @@ class IncomeStatementController extends Controller
             if ($invType === 'AR') {
                 $signedAmount = $isCN ? -$baseAmount : $baseAmount;
                 $partnerName = $invoice->billTo?->name ?? 'Customer';
+                $descPrefix = $isCN ? 'Credit Note (Revenue Reduction) - ' : ($isDN ? 'Debit Note - ' : 'Operating Revenue - ');
                 $revenueItems[] = [
                     'invoice_no'   => $invoice->invoice_no ?? '',
                     'invoice_date' => $invoice->invoice_date?->format('Y-m-d') ?? '',
-                    'description'  => ($isCN ? 'Credit Note - ' : 'Operating Revenue - ') . $partnerName,
+                    'description'  => $descPrefix . $partnerName,
                     'office'       => $officeName,
                     'currency'     => $currCode,
                     'total_amount' => $signedAmount,
@@ -111,12 +109,14 @@ class IncomeStatementController extends Controller
                 ];
                 $totalRevenue += $signedAmount;
             } elseif ($invType === 'AP') {
-                $signedAmount = $isDN ? -$baseAmount : $baseAmount;
+                $isCostReduction = ($isDN || $isCN);
+                $signedAmount = $isCostReduction ? -$baseAmount : $baseAmount;
                 $partnerName = $invoice->billTo?->name ?? 'Payable To';
+                $descPrefix = $isDN ? 'Debit Note (Cost Recovery) - ' : ($isCN ? 'Credit Note (Cost Reduction) - ' : 'Operating Expense - ');
                 $expenseItems[] = [
                     'invoice_no'   => $invoice->invoice_no ?? '',
                     'invoice_date' => $invoice->invoice_date?->format('Y-m-d') ?? '',
-                    'description'  => ($isDN ? 'Debit Note - ' : 'Operating Expense - ') . $partnerName,
+                    'description'  => $descPrefix . $partnerName,
                     'office'       => $officeName,
                     'currency'     => $currCode,
                     'total_amount' => $signedAmount,
@@ -127,41 +127,109 @@ class IncomeStatementController extends Controller
             }
         }
 
-        // Include any manual Journal Entries affecting Revenue or Expense accounts
-        $journalLines = DB::table('journal_entry_lines')
-            ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
-            ->leftJoin('gl_codes', 'gl_codes.id', '=', 'journal_entry_lines.gl_account_id')
-            ->whereNull('journal_entries.deleted_at')
-            ->where('journal_entries.status', '!=', 'VOIDED')
-            ->whereBetween('journal_entries.entry_date', [$startDate, $endDate])
-            ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
-            ->select('journal_entry_lines.*', 'journal_entries.entry_no', 'journal_entries.entry_date', 'gl_codes.gl_code', 'gl_codes.gl_name_eng')
+        // Include Customer / Vendor Payment Discounts (consistent with Balance Sheet Net Income)
+        $discPayments = AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->where('discount', '>', 0)
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at')
+            ->whereNull('void_date')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get();
 
-        foreach ($journalLines as $line) {
+        foreach ($discPayments as $dp) {
+            $discUSD = $toUSD((float) $dp->discount, $dp->currency?->code, $dp->exchange_rate);
+            if ($discUSD <= 0.001) continue;
+            if (strtoupper($dp->type ?? '') === 'RECEIVED') {
+                $revenueItems[] = [
+                    'invoice_no'   => $dp->payment_no ?? 'DISC',
+                    'invoice_date' => $dp->payment_date?->format('Y-m-d') ?? '',
+                    'description'  => 'Sales Discount Allowed (Money Receipt)',
+                    'office'       => 'HQ',
+                    'currency'     => 'USD',
+                    'total_amount' => -$discUSD,
+                    'paid_amount'  => -$discUSD,
+                    'balance'      => 0.0,
+                ];
+                $totalRevenue -= $discUSD;
+            } elseif (strtoupper($dp->type ?? '') === 'MADE') {
+                $expenseItems[] = [
+                    'invoice_no'   => $dp->payment_no ?? 'DISC',
+                    'invoice_date' => $dp->payment_date?->format('Y-m-d') ?? '',
+                    'description'  => 'Purchase Discount Earned (Vendor Payment)',
+                    'office'       => 'HQ',
+                    'currency'     => 'USD',
+                    'total_amount' => -$discUSD,
+                    'paid_amount'  => -$discUSD,
+                    'balance'      => 0.0,
+                ];
+                $totalExpenses -= $discUSD;
+            }
+        }
+
+        // Include posted manual Journal Entries for THIS company affecting Revenue (4xxx) or Expense (5xxx/6xxx) accounts
+        // Resolve each line against gl_accounts first, falling back to company-scoped legacy gl_codes only when absent from gl_accounts
+        $allJeLines = DB::table('journal_entry_lines')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
+            ->leftJoin('trade_partners', 'trade_partners.id', '=', 'journal_entry_lines.trade_partner_id')
+            ->leftJoin('gl_accounts', 'gl_accounts.id', '=', 'journal_entry_lines.gl_account_id')
+            ->leftJoin('gl_codes', function ($join) use ($companyId) {
+                $join->on('gl_codes.id', '=', 'journal_entry_lines.gl_account_id')
+                     ->where('gl_codes.company_id', '=', $companyId);
+            })
+            ->where('journal_entries.company_id', $companyId)
+            ->whereNull('journal_entries.deleted_at')
+            ->where('journal_entries.status', '=', 'POSTED')
+            ->whereBetween('journal_entries.entry_date', [$startDate, $endDate])
+            ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
+            ->select(
+                'journal_entry_lines.*',
+                'journal_entries.entry_no',
+                'journal_entries.entry_date',
+                'trade_partners.name as partner_name',
+                'gl_accounts.code as gl_acc_code',
+                'gl_accounts.type as gl_acc_type',
+                'gl_codes.gl_code as legacy_gl_code'
+            )
+            ->get();
+
+        foreach ($allJeLines as $line) {
+            $accType = strtoupper((string) ($line->gl_acc_type ?? ''));
+            $accCode = (string) ($line->gl_acc_code ?? $line->legacy_gl_code ?? '');
             $dr = (float) ($line->local_debit ?? 0);
             $cr = (float) ($line->local_credit ?? 0);
-            if ($dr <= 0.001 && $cr <= 0.001) continue;
 
-            $isRev = ($cr > $dr);
-            $amt = $isRev ? ($cr - $dr) : ($dr - $cr);
+            $isRevenueAcc = $accType === 'REVENUE' || (empty($accType) && str_starts_with($accCode, '4'));
+            $isExpenseAcc = $accType === 'EXPENSE' || (empty($accType) && (str_starts_with($accCode, '5') || str_starts_with($accCode, '6')));
 
-            $item = [
-                'invoice_no'   => $line->entry_no ?? 'JE',
-                'invoice_date' => $line->entry_date ? date('Y-m-d', strtotime($line->entry_date)) : '',
-                'description'  => 'Journal: ' . ($line->gl_name_eng ?: ($line->description ?: 'Journal Adjustment')),
-                'office'       => 'HQ',
-                'currency'     => 'USD',
-                'total_amount' => $amt,
-                'paid_amount'  => $amt,
-                'balance'      => 0.0,
-            ];
-
-            if ($isRev) {
-                $revenueItems[] = $item;
+            if ($isRevenueAcc) {
+                $amt = $cr - $dr;
+                if (abs($amt) <= 0.001) continue;
+                $revenueItems[] = [
+                    'invoice_no'   => $line->entry_no ?? 'JE',
+                    'invoice_date' => $line->entry_date ? date('Y-m-d', strtotime($line->entry_date)) : '',
+                    'description'  => 'Journal Adjustment - ' . ($line->description ?: ($line->partner_name ?: 'Revenue Adjustment')),
+                    'office'       => 'HQ',
+                    'currency'     => 'USD',
+                    'total_amount' => $amt,
+                    'paid_amount'  => $amt,
+                    'balance'      => 0.0,
+                ];
                 $totalRevenue += $amt;
-            } else {
-                $expenseItems[] = $item;
+            } elseif ($isExpenseAcc) {
+                $amt = $dr - $cr;
+                if (abs($amt) <= 0.001) continue;
+                $expenseItems[] = [
+                    'invoice_no'   => $line->entry_no ?? 'JE',
+                    'invoice_date' => $line->entry_date ? date('Y-m-d', strtotime($line->entry_date)) : '',
+                    'description'  => 'Journal Adjustment - ' . ($line->description ?: ($line->partner_name ?: 'Expense Adjustment')),
+                    'office'       => 'HQ',
+                    'currency'     => 'USD',
+                    'total_amount' => $amt,
+                    'paid_amount'  => $amt,
+                    'balance'      => 0.0,
+                ];
                 $totalExpenses += $amt;
             }
         }
@@ -169,6 +237,7 @@ class IncomeStatementController extends Controller
         $totalRevenue  = round($totalRevenue, 2);
         $totalExpenses = round($totalExpenses, 2);
         $netIncome     = round($totalRevenue - $totalExpenses, 2);
+        $marginPct     = ($totalRevenue != 0) ? round(($netIncome / $totalRevenue) * 100, 2) : 0.0;
 
         $months = [];
         if ($type === 'bymonth') {
@@ -218,6 +287,7 @@ class IncomeStatementController extends Controller
             'total_revenue'  => $totalRevenue,
             'total_expenses' => $totalExpenses,
             'net_income'     => $netIncome,
+            'margin_pct'     => $marginPct,
             'months'         => $months,
         ]);
     }
@@ -232,6 +302,7 @@ class IncomeStatementController extends Controller
             'totalRevenue'  => $data['total_revenue'] ?? 0,
             'totalExpenses' => $data['total_expenses'] ?? 0,
             'netIncome'     => $data['net_income'] ?? 0,
+            'marginPct'     => $data['margin_pct'] ?? 0,
             'startDate'     => $request->start_date ?? date('Y-01-01'),
             'endDate'       => $request->end_date ?? date('Y-m-d'),
             'type'          => $request->type ?? 'standard',

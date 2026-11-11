@@ -472,43 +472,45 @@
                     <span><i class="fa fa-file-text-o"></i> Journal Entry Details - <span x-text="selectedEntry?.entry_no"></span></span>
                     <button type="button" @click="detailModalOpen = false" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
                 </div>
-                <div class="modal-body" x-if="selectedEntry">
-                    <div class="report-grid" style="margin-bottom:12px;">
-                        <div>
-                            <div><strong>Entry Date:</strong> <span x-text="selectedEntry.entry_date"></span></div>
-                            <div><strong>Office:</strong> <span x-text="selectedEntry.office ? selectedEntry.office.name : '-'"></span></div>
+                <template x-if="selectedEntry">
+                    <div class="modal-body">
+                        <div class="report-grid" style="margin-bottom:12px;">
+                            <div>
+                                <div><strong>Entry Date:</strong> <span x-text="selectedEntry?.entry_date || '-'"></span></div>
+                                <div><strong>Office:</strong> <span x-text="selectedEntry?.office ? selectedEntry.office.name : '-'"></span></div>
+                            </div>
+                            <div>
+                                <div><strong>Status:</strong> <span class="badge-status posted" x-text="selectedEntry?.status || '-'"></span></div>
+                                <div><strong>Description:</strong> <span x-text="selectedEntry?.description || '-'"></span></div>
+                            </div>
                         </div>
-                        <div>
-                            <div><strong>Status:</strong> <span class="badge-status posted" x-text="selectedEntry.status"></span></div>
-                            <div><strong>Description:</strong> <span x-text="selectedEntry.description || '-'"></span></div>
-                        </div>
-                    </div>
 
-                    <div class="grid-container" style="margin:0;">
-                        <table class="grid-table">
-                            <thead>
-                                <tr>
-                                    <th>G/L Account</th>
-                                    <th>Customer</th>
-                                    <th>Description</th>
-                                    <th style="text-align:right;">Debit</th>
-                                    <th style="text-align:right;">Credit</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="line in (selectedEntry.lines || [])" :key="line.id">
+                        <div class="grid-container" style="margin:0;">
+                            <table class="grid-table">
+                                <thead>
                                     <tr>
-                                        <td x-text="(line.gl_account ? line.gl_account.code + ' - ' + line.gl_account.name : '-')"></td>
-                                        <td x-text="line.trade_partner ? line.trade_partner.name : '-'"></td>
-                                        <td x-text="line.description || '-'"></td>
-                                        <td class="num" x-text="line.local_debit > 0 ? formatMoney(line.local_debit) : ''"></td>
-                                        <td class="num" x-text="line.local_credit > 0 ? formatMoney(line.local_credit) : ''"></td>
+                                        <th>G/L Account</th>
+                                        <th>Customer</th>
+                                        <th>Description</th>
+                                        <th style="text-align:right;">Debit</th>
+                                        <th style="text-align:right;">Credit</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(line, idx) in (selectedEntry?.lines || [])" :key="line.id || idx">
+                                        <tr>
+                                            <td x-text="(line.gl_account ? line.gl_account.code + ' - ' + line.gl_account.name : '-')"></td>
+                                            <td x-text="line.trade_partner ? line.trade_partner.name : '-'"></td>
+                                            <td x-text="line.description || '-'"></td>
+                                            <td class="num" x-text="line.local_debit > 0 ? formatMoney(line.local_debit) : ''"></td>
+                                            <td class="num" x-text="line.local_credit > 0 ? formatMoney(line.local_credit) : ''"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                </template>
             </div>
         </div>
     </div>

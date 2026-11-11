@@ -11,10 +11,12 @@ class BankOutstandingController extends Controller
 {
     public function index()
     {
+        $companyId = auth()->user()?->company_id;
         $offices = Office::where('is_active', true)->orderBy('code')->get();
         $bankNames = AccountingPayment::whereNull('clear_date')
             ->whereNull('void_date')
             ->whereNotNull('bank_name')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
             ->distinct()
             ->pluck('bank_name')
             ->sort()
@@ -25,6 +27,7 @@ class BankOutstandingController extends Controller
 
     private function getReportData(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
         $asOfDate = $request->input('as_of_date', date('Y-m-d'));
         $officeId = $request->input('office_id');
         $groupByOffice = filter_var($request->input('group_by_office', false), FILTER_VALIDATE_BOOLEAN);
@@ -32,7 +35,8 @@ class BankOutstandingController extends Controller
         $query = AccountingPayment::whereNull('clear_date')
             ->whereNull('void_date')
             ->where('payment_date', '<=', $asOfDate)
-            ->whereNotNull('bank_name');
+            ->whereNotNull('bank_name')
+            ->when($companyId, fn($q) => $q->where('company_id', $companyId));
 
         if ($officeId) {
             $query->where('office_id', $officeId);

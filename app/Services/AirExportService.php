@@ -202,6 +202,12 @@ class AirExportService
 
     public function updateCharge(Charge $charge, array $data)
     {
+        if ($charge->is_invoiced) {
+            if (isset($data['remark']) || isset($data['eq_bl_no'])) {
+                $charge->update(['remark' => $data['eq_bl_no'] ?? ($data['remark'] ?? $charge->remark)]);
+            }
+            return $charge;
+        }
         $currencyId = $charge->currency_id;
         if (isset($data['currency'])) {
             $currency = \App\Models\Currency::where('code', $data['currency'])->first();

@@ -30,7 +30,7 @@ class DocumentSequenceService
                     ->where('invoiceable_id', $sourceId)
                     ->where('document_type', $docType)
                     ->lockForUpdate() // Prevent race conditions on this specific group
-                    ->orderBy('group_letter', 'desc')
+                    ->orderByRaw('LENGTH(group_letter) DESC, group_letter DESC')
                     ->first();
                 
                 if ($existingInvoice && $existingInvoice->main_sequence_no) {
@@ -75,8 +75,14 @@ class DocumentSequenceService
                     ->first();
             }
 
-            // Increment the counter
-            $nextNumber = $sequence->current_number + 1;
+            // Increment the counter, skipping any existing invoice numbers to prevent duplicate collisions
+            do {
+                $nextNumber = ($sequence->current_number ?? 0) + 1;
+                $sequence->current_number = $nextNumber;
+                $mainSequenceNo = $docType . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+                $groupLetter = 'A';
+                $fullInvoiceNo = "{$mainSequenceNo}-{$groupLetter}";
+            } while (\App\Models\Invoice::withoutGlobalScopes()->where('company_id', $companyId)->where('invoice_no', $fullInvoiceNo)->withTrashed()->exists());
 
             DB::table('document_sequences')
                 ->where('id', $sequence->id)
@@ -84,10 +90,6 @@ class DocumentSequenceService
                     'current_number' => $nextNumber,
                     'updated_at' => now()
                 ]);
-
-            $mainSequenceNo = $docType . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-            $groupLetter = 'A';
-            $fullInvoiceNo = "{$mainSequenceNo}-{$groupLetter}";
 
             return [
                 'main_sequence_no' => $mainSequenceNo,
@@ -104,7 +106,7 @@ class DocumentSequenceService
     private function incrementLetter(string $letter): string
     {
         if (empty($letter)) return 'A';
-        return ++$letter; // PHP automatically handles alphabetical incrementing Z -> AA
+        return function_exists('str_increment') ? str_increment($letter) : ++$letter;
     }
 
     /**
@@ -115,7 +117,15 @@ class DocumentSequenceService
     {
         $ym = date('ym');
         $pattern = $prefix . '-' . $ym . '%';
-        $records = $modelClass::where('file_no', 'like', $pattern)->pluck('file_no');
+        $usesSoftDeletes = in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($modelClass), true);
+
+        // Scan globally (ignoring tenant scopes and including soft-deleted rows) so generated
+        // booking numbers never collide with database-wide unique constraints on `file_no`.
+        $baseQuery = fn() => $usesSoftDeletes
+            ? $modelClass::withoutGlobalScopes()->withTrashed()
+            : $modelClass::withoutGlobalScopes();
+
+        $records = $baseQuery()->where('file_no', 'like', $pattern)->pluck('file_no');
         $maxSeq = 0;
         foreach ($records as $fileNo) {
             if (preg_match('/^' . preg_quote($prefix, '/') . '-' . $ym . '(\d{4})$/', $fileNo, $matches)) {
@@ -130,7 +140,7 @@ class DocumentSequenceService
         do {
             $proposed = sprintf('%s-%s%04d', $prefix, $ym, $nextSeq);
             $nextSeq++;
-        } while ($modelClass::where('file_no', $proposed)->exists());
+        } while ($baseQuery()->where('file_no', $proposed)->exists());
 
         return $proposed;
     }

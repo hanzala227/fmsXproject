@@ -30,34 +30,76 @@ class GeneralLedgerController extends Controller
     /**
      * Get available GL accounts for the filter dropdowns.
      */
-    private function getGLAccounts(?int $companyId = null): array
+    private function getGLAccounts(?int $companyId = null, float $priorNetIncome = 0.0): array
     {
         $baseAccounts = [
             ['code' => '1000', 'name' => 'Cash & Cash Equivalents', 'type' => 'debit'],
             ['code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'debit'],
+            ['code' => '1300', 'name' => 'Withholding Tax / TDS Receivable', 'type' => 'debit'],
             ['code' => '2000', 'name' => 'Accounts Payable', 'type' => 'credit'],
+            ['code' => '2100', 'name' => 'Withholding Tax / TDS Payable', 'type' => 'credit'],
             ['code' => '3000', 'name' => "Owner's Capital / Opening Equity", 'type' => 'credit'],
-            ['code' => '4000', 'name' => 'Freight & Operating Revenue', 'type' => 'credit'],
-            ['code' => '5000', 'name' => 'Cost of Freight & Operating Expenses', 'type' => 'debit'],
         ];
 
-        // Also include any GL accounts from gl_codes that have journal entries
-        $usedGlIds = DB::table('journal_entry_lines')->distinct()->pluck('gl_account_id')->filter()->all();
+        // Include Retained Earnings (Prior Net Income) if prior revenues/costs exist
+        if (abs($priorNetIncome) > 0.001) {
+            $baseAccounts[] = [
+                'code' => '3100',
+                'name' => 'Retained Earnings (Prior Periods)',
+                'type' => 'credit',
+            ];
+        }
+
+        $baseAccounts[] = ['code' => '4000', 'name' => 'Freight & Operating Revenue', 'type' => 'credit'];
+        $baseAccounts[] = ['code' => '4900', 'name' => 'Sales Discounts Allowed', 'type' => 'debit'];
+        $baseAccounts[] = ['code' => '5000', 'name' => 'Cost of Freight & Operating Expenses', 'type' => 'debit'];
+        $baseAccounts[] = ['code' => '5900', 'name' => 'Purchase Discounts Earned', 'type' => 'credit'];
+
+        // Include any GL accounts from gl_accounts (and fallback legacy gl_codes) that have posted journal entries for this company
+        $usedGlIds = DB::table('journal_entry_lines')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
+            ->whereNull('journal_entries.deleted_at')
+            ->where('journal_entries.status', '=', 'POSTED')
+            ->when($companyId, fn($q) => $q->where('journal_entries.company_id', $companyId))
+            ->distinct()
+            ->pluck('journal_entry_lines.gl_account_id')
+            ->filter()
+            ->all();
+
         if (!empty($usedGlIds)) {
-            $extraGl = DB::table('gl_codes')
+            $extraGlAccs = DB::table('gl_accounts')
                 ->whereIn('id', $usedGlIds)
-                ->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhere('company_id', 1);
-                })
+                ->where('is_active', 1)
                 ->get();
-            foreach ($extraGl as $gl) {
-                $code = $gl->gl_code;
+            $matchedAccIds = [];
+            foreach ($extraGlAccs as $gl) {
+                $matchedAccIds[] = $gl->id;
+                $code = (string) $gl->code;
                 if (!in_array($code, array_column($baseAccounts, 'code'))) {
+                    $normalType = in_array(strtoupper($gl->type), ['ASSET', 'EXPENSE']) ? 'debit' : 'credit';
                     $baseAccounts[] = [
                         'code' => $code,
-                        'name' => $gl->gl_name_eng ?: ($gl->gl_name_local ?: 'General Ledger Account'),
-                        'type' => 'debit',
+                        'name' => $gl->name ?: 'General Ledger Account',
+                        'type' => $normalType,
                     ];
+                }
+            }
+
+            $unmatchedGlIds = array_diff($usedGlIds, $matchedAccIds);
+            if (!empty($unmatchedGlIds)) {
+                $extraGlCodes = DB::table('gl_codes')
+                    ->whereIn('id', $unmatchedGlIds)
+                    ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+                    ->get();
+                foreach ($extraGlCodes as $gl) {
+                    $code = (string) $gl->gl_code;
+                    if (!in_array($code, array_column($baseAccounts, 'code'))) {
+                        $baseAccounts[] = [
+                            'code' => $code,
+                            'name' => $gl->gl_name_eng ?: ($gl->gl_name_local ?: 'General Ledger Account'),
+                            'type' => 'debit',
+                        ];
+                    }
                 }
             }
         }
@@ -117,10 +159,43 @@ class GeneralLedgerController extends Controller
         $glTo       = $request->input('gl_to');
         $companyId  = auth()->user()->company_id ?? 1;
 
+        // Calculate prior AR and AP for Retained Earnings (Prior Net Income)
+        $priorAR = Invoice::reportable()
+            ->where('company_id', $companyId)
+            ->where('type', 'AR')
+            ->where('invoice_date', '<', $periodFrom)
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->get()
+            ->sum(fn($i) => ($i->document_type === 'CN' ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
+
+        $priorAP = Invoice::reportable()
+            ->where('company_id', $companyId)
+            ->where('type', 'AP')
+            ->where('invoice_date', '<', $periodFrom)
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->get()
+            ->sum(fn($i) => (in_array(strtoupper($i->document_type ?? ''), ['DN', 'CN']) ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
+
+        $priorCustDisc = AccountingPayment::where('company_id', $companyId)
+            ->where('type', 'RECEIVED')->where('payment_date', '<', $periodFrom)
+            ->whereNull('void_date')->whereNull('cancelled_at')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->with('currency')->get()
+            ->sum(fn($p) => $this->toUSD((float) ($p->discount ?? 0), $p->currency?->code, $p->exchange_rate));
+
+        $priorVendDisc = AccountingPayment::where('company_id', $companyId)
+            ->where('type', 'MADE')->where('payment_date', '<', $periodFrom)
+            ->whereNull('void_date')->whereNull('cancelled_at')
+            ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+            ->with('currency')->get()
+            ->sum(fn($p) => $this->toUSD((float) ($p->discount ?? 0), $p->currency?->code, $p->exchange_rate));
+
+        $priorNetIncome = round($priorAR - $priorAP - $priorCustDisc + $priorVendDisc, 2);
+
         $accounts = [];
 
         // Build GL accounts list with optional range filter
-        $allAccounts = $this->getGLAccounts($companyId);
+        $allAccounts = $this->getGLAccounts($companyId, $priorNetIncome);
         if ($glFrom) {
             $allAccounts = array_filter($allAccounts, fn($a) => $a['code'] >= $glFrom);
         }
@@ -134,7 +209,7 @@ class GeneralLedgerController extends Controller
             $type = $glAccount['type'] ?? 'debit';
 
             // Calculate opening balance (sum of all transactions before period_from)
-            $openingBalance = $this->calculateOpeningBalance($code, $periodFrom, $officeId, $companyId);
+            $openingBalance = $this->calculateOpeningBalance($code, $periodFrom, $officeId, $companyId, $priorNetIncome);
 
             // Get transactions in period
             $transactions = $this->getTransactions($code, $periodFrom, $periodTo, $officeId, $companyId, $reportType, $openingBalance, $type);
@@ -149,24 +224,62 @@ class GeneralLedgerController extends Controller
                 $closingBalance = $openingBalance;
             }
 
+            $isDeb = ($type === 'debit');
+            $opVal = round($openingBalance, 2);
+            $clVal = round($closingBalance, 2);
+
+            $openingDebit  = $isDeb ? max(0.0, $opVal) : max(0.0, -$opVal);
+            $openingCredit = $isDeb ? max(0.0, -$opVal) : max(0.0, $opVal);
+            $closingDebit  = $isDeb ? max(0.0, $clVal) : max(0.0, -$clVal);
+            $closingCredit = $isDeb ? max(0.0, -$clVal) : max(0.0, $clVal);
+
+            $openingType = $isDeb ? ($opVal >= 0 ? 'Dr' : 'Cr') : ($opVal >= 0 ? 'Cr' : 'Dr');
+            $closingType = $isDeb ? ($clVal >= 0 ? 'Dr' : 'Cr') : ($clVal >= 0 ? 'Cr' : 'Dr');
+
+            // Abnormal balance detection
+            $isAbnormal = ($clVal < -0.001);
+            $abnormalLabel = $isAbnormal
+                ? ($isDeb ? 'Abnormal Credit Balance (Negative Asset/Expense)' : 'Abnormal Debit Balance (Overpaid/Deficit)')
+                : null;
+
             $accounts[] = [
                 'code'              => $code,
                 'name'              => $name,
                 'type'              => $type,
-                'opening_balance'   => round($openingBalance, 2),
+                'opening_balance'   => $opVal,
+                'opening_debit'     => $openingDebit,
+                'opening_credit'    => $openingCredit,
+                'opening_type'      => $openingType,
                 'transactions'      => $transactions,
                 'total_debit'       => $totalDebit,
                 'total_credit'      => $totalCredit,
-                'closing_balance'   => round($closingBalance, 2),
+                'closing_balance'   => $clVal,
+                'closing_debit'     => $closingDebit,
+                'closing_credit'    => $closingCredit,
+                'closing_type'      => $closingType,
+                'is_abnormal'       => $isAbnormal,
+                'abnormal_label'    => $abnormalLabel,
                 'transaction_count' => count($transactions),
             ];
         }
 
-        // Grand totals
-        $grandTotalDebit  = round(array_sum(array_column($accounts, 'total_debit')), 2);
-        $grandTotalCredit = round(array_sum(array_column($accounts, 'total_credit')), 2);
-        $grandOpening     = round(array_sum(array_column($accounts, 'opening_balance')), 2);
-        $grandClosing     = round(array_sum(array_column($accounts, 'closing_balance')), 2);
+        // Grand totals with strict debit/credit separation
+        $grandTotalDebit    = round(array_sum(array_column($accounts, 'total_debit')), 2);
+        $grandTotalCredit   = round(array_sum(array_column($accounts, 'total_credit')), 2);
+        $totalOpeningDebit  = round(array_sum(array_column($accounts, 'opening_debit')), 2);
+        $totalOpeningCredit = round(array_sum(array_column($accounts, 'opening_credit')), 2);
+        $totalClosingDebit  = round(array_sum(array_column($accounts, 'closing_debit')), 2);
+        $totalClosingCredit = round(array_sum(array_column($accounts, 'closing_credit')), 2);
+
+        // Strict 3-Way Independent Audit Validations
+        $openingBalanced = abs($totalOpeningDebit - $totalOpeningCredit) < 0.01;
+        $periodBalanced  = abs($grandTotalDebit - $grandTotalCredit) < 0.01;
+        $closingBalanced = abs($totalClosingDebit - $totalClosingCredit) < 0.01;
+        $isBalanced      = ($openingBalanced && $periodBalanced && $closingBalanced);
+
+        $openingVariance = round(abs($totalOpeningDebit - $totalOpeningCredit), 2);
+        $periodVariance  = round(abs($grandTotalDebit - $grandTotalCredit), 2);
+        $closingVariance = round(abs($totalClosingDebit - $totalClosingCredit), 2);
 
         return response()->json([
             'success'     => true,
@@ -176,13 +289,24 @@ class GeneralLedgerController extends Controller
             'report_type' => $reportType,
             'accounts'    => $accounts,
             'summary'     => [
-                'grand_total_debit'  => $grandTotalDebit,
-                'grand_total_credit' => $grandTotalCredit,
-                'grand_opening'      => $grandOpening,
-                'grand_closing'      => $grandClosing,
-                'is_balanced'        => abs($grandTotalDebit - $grandTotalCredit) < 0.01,
-                'account_count'      => count($accounts),
-                'total_transactions' => array_sum(array_column($accounts, 'transaction_count')),
+                'grand_total_debit'    => $grandTotalDebit,
+                'grand_total_credit'   => $grandTotalCredit,
+                'total_opening_debit'  => $totalOpeningDebit,
+                'total_opening_credit' => $totalOpeningCredit,
+                'total_closing_debit'  => $totalClosingDebit,
+                'total_closing_credit' => $totalClosingCredit,
+                'grand_opening'        => $totalOpeningDebit,
+                'grand_closing'        => $totalClosingDebit,
+                'opening_balanced'     => $openingBalanced,
+                'period_balanced'      => $periodBalanced,
+                'closing_balanced'     => $closingBalanced,
+                'is_balanced'          => $isBalanced,
+                'audit_status'         => $isBalanced ? 'BALANCED' : 'UNBALANCED',
+                'opening_variance'     => $openingVariance,
+                'period_variance'      => $periodVariance,
+                'closing_variance'     => $closingVariance,
+                'account_count'        => count($accounts),
+                'total_transactions'   => array_sum(array_column($accounts, 'transaction_count')),
             ],
         ]);
     }
@@ -190,14 +314,12 @@ class GeneralLedgerController extends Controller
     /**
      * Calculate opening balance for an account before the period start.
      */
-    private function calculateOpeningBalance(string $glCode, string $periodFrom, ?int $officeId, int $companyId): float
+    private function calculateOpeningBalance(string $glCode, string $periodFrom, ?int $officeId, int $companyId, float $priorNetIncome = 0.0): float
     {
         switch ($glCode) {
             case '1000': // Cash & Cash Equivalents
                 $banks = DB::table('banks')
-                    ->where(function ($q) use ($companyId) {
-                        $q->where('company_id', $companyId)->orWhere('company_id', 1);
-                    })
+                    ->where('company_id', $companyId)
                     ->where('is_active', 1)
                     ->get();
                 $initialCash = $banks->sum(fn($b) => $this->toUSD((float) $b->initial_amount, $b->currency));
@@ -206,6 +328,7 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'RECEIVED')
                     ->where('payment_date', '<', $periodFrom)
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->get()
                     ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
@@ -214,6 +337,7 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'MADE')
                     ->where('payment_date', '<', $periodFrom)
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->get()
                     ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
@@ -221,11 +345,10 @@ class GeneralLedgerController extends Controller
                 return $initialCash + $priorRec - $priorPay;
 
             case '1200': // Accounts Receivable (Asset: Debit normal)
-                $arPrior = Invoice::where('company_id', $companyId)
+                $arPrior = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AR')
                     ->where('invoice_date', '<', $periodFrom)
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->get()
                     ->sum(fn($i) => ($i->document_type === 'CN' ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
@@ -234,54 +357,91 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'RECEIVED')
                     ->where('payment_date', '<', $periodFrom)
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with('currency')
                     ->get()
-                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->tds_tax ?? 0), $p->currency?->code, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->discount ?? 0), $p->currency?->code, $p->exchange_rate));
 
                 return $arPrior - $arRecPrior;
 
+            case '1300': // Withholding Tax / TDS Receivable (Asset: Debit normal)
+                return (float) AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with('currency')
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) ($p->tds_tax ?? 0), $p->currency?->code, $p->exchange_rate));
+
             case '2000': // Accounts Payable (Liability: Credit normal)
-                $apPrior = Invoice::where('company_id', $companyId)
+                $apPrior = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AP')
                     ->where('invoice_date', '<', $periodFrom)
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->get()
-                    ->sum(fn($i) => ($i->document_type === 'DN' ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
+                    ->sum(fn($i) => (in_array(strtoupper($i->document_type ?? ''), ['DN', 'CN']) ? -1 : 1) * $this->toUSD((float) $i->total_amount, $i->currency?->code, $i->exchange_rate));
 
                 $apPayPrior = AccountingPayment::where('company_id', $companyId)
                     ->where('type', 'MADE')
                     ->where('payment_date', '<', $periodFrom)
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with('currency')
                     ->get()
-                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate));
+                    ->sum(fn($p) => $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->tds_tax ?? 0), $p->currency?->code, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->discount ?? 0), $p->currency?->code, $p->exchange_rate));
 
                 return $apPrior - $apPayPrior;
 
+            case '2100': // Withholding Tax / TDS Payable (Liability: Credit normal)
+                return (float) AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->where('payment_date', '<', $periodFrom)
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with('currency')
+                    ->get()
+                    ->sum(fn($p) => $this->toUSD((float) ($p->tds_tax ?? 0), $p->currency?->code, $p->exchange_rate));
+
             case '3000': // Owner's Capital / Opening Equity (Equity: Credit normal)
                 $banks = DB::table('banks')
-                    ->where(function ($q) use ($companyId) {
-                        $q->where('company_id', $companyId)->orWhere('company_id', 1);
-                    })
+                    ->where('company_id', $companyId)
                     ->where('is_active', 1)
                     ->get();
                 return (float) $banks->sum(fn($b) => $this->toUSD((float) $b->initial_amount, $b->currency));
 
+            case '3100': // Retained Earnings (Prior Periods) - Equity (Credit normal)
+                return (float) $priorNetIncome;
+
             case '4000': // Revenue (Nominal account)
+            case '4900': // Sales Discounts Allowed (Nominal account)
             case '5000': // Expenses (Nominal account)
+            case '5900': // Purchase Discounts Earned (Nominal account)
                 return 0.0;
 
             default:
-                // Check if this is a custom GL account from journal entries
-                $gl = DB::table('gl_codes')->where('gl_code', $glCode)->first();
-                if ($gl) {
+                // Check if this is a custom GL account from journal entries (gl_accounts first, then scoped legacy gl_codes)
+                $glAccIds = DB::table('gl_accounts')->where('code', $glCode)->pluck('id')->all();
+                $allGlIds = !empty($glAccIds)
+                    ? $glAccIds
+                    : DB::table('gl_codes')->where('gl_code', $glCode)->where('company_id', $companyId)->pluck('id')->all();
+
+                if (!empty($allGlIds)) {
                     $priorLines = DB::table('journal_entry_lines')
                         ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
-                        ->where('journal_entry_lines.gl_account_id', $gl->id)
+                        ->where('journal_entries.company_id', $companyId)
+                        ->whereIn('journal_entry_lines.gl_account_id', $allGlIds)
                         ->whereNull('journal_entries.deleted_at')
-                        ->where('journal_entries.status', '!=', 'VOIDED')
+                        ->where('journal_entries.status', '=', 'POSTED')
                         ->where('journal_entries.entry_date', '<', $periodFrom)
                         ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
                         ->get();
@@ -314,6 +474,7 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'RECEIVED')
                     ->whereBetween('payment_date', [$periodFrom, $periodTo])
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['tradePartner', 'invoice', 'currency'])
                     ->get();
@@ -336,6 +497,7 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'MADE')
                     ->whereBetween('payment_date', [$periodFrom, $periodTo])
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['tradePartner', 'invoice', 'currency'])
                     ->get();
@@ -356,11 +518,10 @@ class GeneralLedgerController extends Controller
                 break;
 
             case '1200': // AR - show AR invoices (Debit) and payments received (Credit)
-                $invoices = Invoice::where('company_id', $companyId)
+                $invoices = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AR')
                     ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['billTo', 'currency'])
                     ->get();
@@ -384,16 +545,21 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'RECEIVED')
                     ->whereBetween('payment_date', [$periodFrom, $periodTo])
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['tradePartner', 'currency'])
                     ->get();
 
                 foreach ($arPayments as $p) {
-                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
+                    $curr = $p->currency?->code;
+                    $amt = $this->toUSD((float) $p->amount, $curr, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->tds_tax ?? 0), $curr, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->discount ?? 0), $curr, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Customer Settlement - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'description' => 'Customer Settlement (Cash+TDS+Disc) - ' . ($p->tradePartner?->name ?? 'N/A'),
                         'debit'       => 0.0,
                         'credit'      => $amt,
                         'partner'     => $p->tradePartner?->name ?? '',
@@ -403,23 +569,49 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
+            case '1300': // TDS Receivable
+                $tdsRecPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->where('tds_tax', '>', 0)
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with(['tradePartner', 'invoice', 'currency'])
+                    ->get();
+
+                foreach ($tdsRecPayments as $p) {
+                    $amt = $this->toUSD((float) $p->tds_tax, $p->currency?->code, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
+                    $transactions[] = [
+                        'date'        => $p->payment_date?->format('Y-m-d') ?? '',
+                        'reference'   => $p->payment_no ?? '',
+                        'description' => 'TDS Withheld by ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => $amt,
+                        'credit'      => 0.0,
+                        'partner'     => $p->tradePartner?->name ?? '',
+                        'invoice_no'  => $p->invoice?->invoice_no ?? '',
+                        'method'      => $p->payment_method ?? '',
+                    ];
+                }
+                break;
+
             case '2000': // AP - show AP invoices (Credit) and payments made (Debit)
-                $invoices = Invoice::where('company_id', $companyId)
+                $invoices = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AP')
                     ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
-                    $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+                    $isDN = in_array(strtoupper($inv->document_type ?? ''), ['DN', 'CN']);
                     $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => ($isDN ? 'Debit Note - ' : 'Payable Billed - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'description' => ($isDN ? 'Debit/Credit Note - ' : 'Payable Billed - ') . ($inv->billTo?->name ?? 'N/A'),
                         'debit'       => $isDN ? $amt : 0.0,
                         'credit'      => $isDN ? 0.0 : $amt,
                         'partner'     => $inv->billTo?->name ?? '',
@@ -432,16 +624,21 @@ class GeneralLedgerController extends Controller
                     ->where('type', 'MADE')
                     ->whereBetween('payment_date', [$periodFrom, $periodTo])
                     ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['tradePartner', 'currency'])
                     ->get();
 
                 foreach ($apPayments as $p) {
-                    $amt = $this->toUSD((float) $p->amount, $p->currency?->code, $p->exchange_rate);
+                    $curr = $p->currency?->code;
+                    $amt = $this->toUSD((float) $p->amount, $curr, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->tds_tax ?? 0), $curr, $p->exchange_rate)
+                        + $this->toUSD((float) ($p->discount ?? 0), $curr, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
                     $transactions[] = [
                         'date'        => $p->payment_date?->format('Y-m-d') ?? '',
                         'reference'   => $p->payment_no ?? '',
-                        'description' => 'Vendor Disbursement - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'description' => 'Vendor Settlement (Cash+TDS+Disc) - ' . ($p->tradePartner?->name ?? 'N/A'),
                         'debit'       => $amt,
                         'credit'      => 0.0,
                         'partner'     => $p->tradePartner?->name ?? '',
@@ -451,12 +648,92 @@ class GeneralLedgerController extends Controller
                 }
                 break;
 
+            case '2100': // TDS Payable
+                $tdsPayPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->where('tds_tax', '>', 0)
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with(['tradePartner', 'invoice', 'currency'])
+                    ->get();
+
+                foreach ($tdsPayPayments as $p) {
+                    $amt = $this->toUSD((float) $p->tds_tax, $p->currency?->code, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
+                    $transactions[] = [
+                        'date'        => $p->payment_date?->format('Y-m-d') ?? '',
+                        'reference'   => $p->payment_no ?? '',
+                        'description' => 'TDS Payable on Payment to ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => 0.0,
+                        'credit'      => $amt,
+                        'partner'     => $p->tradePartner?->name ?? '',
+                        'invoice_no'  => $p->invoice?->invoice_no ?? '',
+                        'method'      => $p->payment_method ?? '',
+                    ];
+                }
+                break;
+
+            case '4900': // Sales Discounts Allowed
+                $discRecPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'RECEIVED')
+                    ->where('discount', '>', 0)
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with(['tradePartner', 'invoice', 'currency'])
+                    ->get();
+
+                foreach ($discRecPayments as $p) {
+                    $amt = $this->toUSD((float) $p->discount, $p->currency?->code, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
+                    $transactions[] = [
+                        'date'        => $p->payment_date?->format('Y-m-d') ?? '',
+                        'reference'   => $p->payment_no ?? '',
+                        'description' => 'Sales Discount Allowed - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => $amt,
+                        'credit'      => 0.0,
+                        'partner'     => $p->tradePartner?->name ?? '',
+                        'invoice_no'  => $p->invoice?->invoice_no ?? '',
+                        'method'      => $p->payment_method ?? '',
+                    ];
+                }
+                break;
+
+            case '5900': // Purchase Discounts Earned
+                $discPayPayments = AccountingPayment::where('company_id', $companyId)
+                    ->where('type', 'MADE')
+                    ->where('discount', '>', 0)
+                    ->whereBetween('payment_date', [$periodFrom, $periodTo])
+                    ->whereNull('void_date')
+                    ->whereNull('cancelled_at')
+                    ->when($officeId, fn($q) => $q->where('office_id', $officeId))
+                    ->with(['tradePartner', 'invoice', 'currency'])
+                    ->get();
+
+                foreach ($discPayPayments as $p) {
+                    $amt = $this->toUSD((float) $p->discount, $p->currency?->code, $p->exchange_rate);
+                    if ($amt <= 0.001) continue;
+                    $transactions[] = [
+                        'date'        => $p->payment_date?->format('Y-m-d') ?? '',
+                        'reference'   => $p->payment_no ?? '',
+                        'description' => 'Purchase Discount Earned - ' . ($p->tradePartner?->name ?? 'N/A'),
+                        'debit'       => 0.0,
+                        'credit'      => $amt,
+                        'partner'     => $p->tradePartner?->name ?? '',
+                        'invoice_no'  => $p->invoice?->invoice_no ?? '',
+                        'method'      => $p->payment_method ?? '',
+                    ];
+                }
+                break;
+
             case '4000': // Revenue - show AR invoices (Credit) & CN (Debit)
-                $invoices = Invoice::where('company_id', $companyId)
+                $invoices = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AR')
                     ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['billTo', 'currency'])
                     ->get();
@@ -478,24 +755,23 @@ class GeneralLedgerController extends Controller
                 break;
 
             case '5000': // Expenses - show AP invoices (Debit) & DN (Credit)
-                $invoices = Invoice::where('company_id', $companyId)
+                $invoices = Invoice::reportable()
+                    ->where('company_id', $companyId)
                     ->where('type', 'AP')
                     ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-                    ->where('status', '!=', 'VOID')
-                    ->where('verification_status', '!=', 'Cancelled')
                     ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                     ->with(['billTo', 'currency'])
                     ->get();
 
                 foreach ($invoices as $inv) {
-                    $isDN = strtoupper($inv->document_type ?? '') === 'DN';
+                    $isCostReduction = in_array(strtoupper($inv->document_type ?? ''), ['DN', 'CN']);
                     $amt = $this->toUSD((float) $inv->total_amount, $inv->currency?->code, $inv->exchange_rate);
                     $transactions[] = [
                         'date'        => $inv->invoice_date?->format('Y-m-d') ?? '',
                         'reference'   => $inv->invoice_no ?? '',
-                        'description' => ($isDN ? 'Debit Note (Expense Recovery) - ' : 'Operating Expense - ') . ($inv->billTo?->name ?? 'N/A'),
-                        'debit'       => $isDN ? 0.0 : $amt,
-                        'credit'      => $isDN ? $amt : 0.0,
+                        'description' => ($isCostReduction ? 'Debit/Credit Note (Expense Recovery) - ' : 'Operating Expense - ') . ($inv->billTo?->name ?? 'N/A'),
+                        'debit'       => $isCostReduction ? 0.0 : $amt,
+                        'credit'      => $isCostReduction ? $amt : 0.0,
                         'partner'     => $inv->billTo?->name ?? '',
                         'invoice_no'  => $inv->invoice_no ?? '',
                         'method'      => '',
@@ -504,15 +780,20 @@ class GeneralLedgerController extends Controller
                 break;
         }
 
-        // Include any manual Journal Entries affecting this GL account
-        $targetGl = DB::table('gl_codes')->where('gl_code', $glCode)->first();
-        if ($targetGl) {
+        // Include any manual Journal Entries affecting this GL account (gl_accounts first, then scoped legacy gl_codes)
+        $glAccIds = DB::table('gl_accounts')->where('code', $glCode)->pluck('id')->all();
+        $allGlIds = !empty($glAccIds)
+            ? $glAccIds
+            : DB::table('gl_codes')->where('gl_code', $glCode)->where('company_id', $companyId)->pluck('id')->all();
+
+        if (!empty($allGlIds)) {
             $jeLines = DB::table('journal_entry_lines')
                 ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
                 ->leftJoin('trade_partners', 'trade_partners.id', '=', 'journal_entry_lines.trade_partner_id')
-                ->where('journal_entry_lines.gl_account_id', $targetGl->id)
+                ->where('journal_entries.company_id', $companyId)
+                ->whereIn('journal_entry_lines.gl_account_id', $allGlIds)
                 ->whereNull('journal_entries.deleted_at')
-                ->where('journal_entries.status', '!=', 'VOIDED')
+                ->where('journal_entries.status', '=', 'POSTED')
                 ->whereBetween('journal_entries.entry_date', [$periodFrom, $periodTo])
                 ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
                 ->select(
@@ -553,7 +834,11 @@ class GeneralLedgerController extends Controller
             } else {
                 $running += ($txn['debit'] - $txn['credit']);
             }
-            $txn['running_balance'] = round($running, 2);
+            $rVal = round($running, 2);
+            $txn['running_balance'] = $rVal;
+            $txn['balance_type'] = ($accountType === 'credit')
+                ? ($rVal >= 0 ? 'Cr' : 'Dr')
+                : ($rVal >= 0 ? 'Dr' : 'Cr');
         }
         unset($txn);
 

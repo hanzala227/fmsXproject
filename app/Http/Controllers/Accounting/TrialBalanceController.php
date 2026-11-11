@@ -82,13 +82,12 @@ class TrialBalanceController extends Controller
 
         // ── 1. Cash & Cash Equivalents (Banks from Settings + Undeposited Cash) ──
         $banks = DB::table('banks')
-            ->where(function ($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 1);
-            })
+            ->where('company_id', $companyId)
             ->where('is_active', 1)
             ->orderBy('id')
             ->get();
 
+        $glNoCounts = $banks->pluck('gl_no')->filter()->map(fn($g) => trim($g))->countBy();
         $totalInitialBankUSD = 0.0;
         $trackedBankNames = [];
 
@@ -96,57 +95,62 @@ class TrialBalanceController extends Controller
             $currCode = $bank->currency ?: 'USD';
             $initialUSD = $toUSD($bank->initial_amount, $currCode);
             $totalInitialBankUSD += $initialUSD;
-            $trackedBankNames[] = trim($bank->bank_name);
-            if (!empty($bank->gl_no)) {
-                $trackedBankNames[] = trim($bank->gl_no);
+            $bName = trim($bank->bank_name);
+            $trackedBankNames[] = $bName;
+            $uniqueGlNo = (!empty($bank->gl_no) && ($glNoCounts[trim($bank->gl_no)] ?? 0) === 1) ? trim($bank->gl_no) : null;
+            if ($uniqueGlNo) {
+                $trackedBankNames[] = $uniqueGlNo;
             }
 
+            $bankFilter = function ($q) use ($bName, $uniqueGlNo) {
+                $q->where('bank_name', $bName);
+                if ($uniqueGlNo) {
+                    $q->orWhere('bank_name', $uniqueGlNo);
+                }
+            };
+
             // Prior Receipts & Payments before period_from
-            $priorBankRec = AccountingPayment::where('company_id', $companyId)
-                ->where(function ($q) use ($bank) {
-                    $q->where('bank_name', trim($bank->bank_name));
-                    if (!empty($bank->gl_no)) $q->orWhere('bank_name', trim($bank->gl_no));
-                })
+            $priorBankRec = AccountingPayment::with('currency')
+                ->where('company_id', $companyId)
+                ->where($bankFilter)
                 ->where('type', 'RECEIVED')
                 ->where('payment_date', '<', $periodFrom)
                 ->whereNull('void_date')
+                ->whereNull('cancelled_at')
                 ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                 ->get()
                 ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
-            $priorBankPay = AccountingPayment::where('company_id', $companyId)
-                ->where(function ($q) use ($bank) {
-                    $q->where('bank_name', trim($bank->bank_name));
-                    if (!empty($bank->gl_no)) $q->orWhere('bank_name', trim($bank->gl_no));
-                })
+            $priorBankPay = AccountingPayment::with('currency')
+                ->where('company_id', $companyId)
+                ->where($bankFilter)
                 ->where('type', 'MADE')
                 ->where('payment_date', '<', $periodFrom)
                 ->whereNull('void_date')
+                ->whereNull('cancelled_at')
                 ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                 ->get()
                 ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
             // Period Receipts & Payments
-            $periodBankRec = AccountingPayment::where('company_id', $companyId)
-                ->where(function ($q) use ($bank) {
-                    $q->where('bank_name', trim($bank->bank_name));
-                    if (!empty($bank->gl_no)) $q->orWhere('bank_name', trim($bank->gl_no));
-                })
+            $periodBankRec = AccountingPayment::with('currency')
+                ->where('company_id', $companyId)
+                ->where($bankFilter)
                 ->where('type', 'RECEIVED')
                 ->whereBetween('payment_date', [$periodFrom, $periodTo])
                 ->whereNull('void_date')
+                ->whereNull('cancelled_at')
                 ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                 ->get()
                 ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
-            $periodBankPay = AccountingPayment::where('company_id', $companyId)
-                ->where(function ($q) use ($bank) {
-                    $q->where('bank_name', trim($bank->bank_name));
-                    if (!empty($bank->gl_no)) $q->orWhere('bank_name', trim($bank->gl_no));
-                })
+            $periodBankPay = AccountingPayment::with('currency')
+                ->where('company_id', $companyId)
+                ->where($bankFilter)
                 ->where('type', 'MADE')
                 ->whereBetween('payment_date', [$periodFrom, $periodTo])
                 ->whereNull('void_date')
+                ->whereNull('cancelled_at')
                 ->when($officeId, fn($q) => $q->where('office_id', $officeId))
                 ->get()
                 ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
@@ -178,38 +182,47 @@ class TrialBalanceController extends Controller
         }
 
         // Unassigned Cash (Payments not specifically linked to a Settings bank)
-        $unassignedPriorRec = AccountingPayment::where('company_id', $companyId)
-            ->where(fn($q) => $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
+        $trackedBankNames = array_values(array_unique($trackedBankNames));
+        $unassignedPriorRec = AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
+            ->where(fn($q) => empty($trackedBankNames) ? $q : $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
             ->where('type', 'RECEIVED')
             ->where('payment_date', '<', $periodFrom)
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
             ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
-        $unassignedPriorPay = AccountingPayment::where('company_id', $companyId)
-            ->where(fn($q) => $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
+        $unassignedPriorPay = AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
+            ->where(fn($q) => empty($trackedBankNames) ? $q : $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
             ->where('type', 'MADE')
             ->where('payment_date', '<', $periodFrom)
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
             ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
-        $unassignedPeriodRec = AccountingPayment::where('company_id', $companyId)
-            ->where(fn($q) => $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
+        $unassignedPeriodRec = AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
+            ->where(fn($q) => empty($trackedBankNames) ? $q : $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
             ->where('type', 'RECEIVED')
             ->whereBetween('payment_date', [$periodFrom, $periodTo])
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
             ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
 
-        $unassignedPeriodPay = AccountingPayment::where('company_id', $companyId)
-            ->where(fn($q) => $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
+        $unassignedPeriodPay = AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
+            ->where(fn($q) => empty($trackedBankNames) ? $q : $q->whereNull('bank_name')->orWhereNotIn('bank_name', $trackedBankNames))
             ->where('type', 'MADE')
             ->whereBetween('payment_date', [$periodFrom, $periodTo])
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
             ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
@@ -233,62 +246,81 @@ class TrialBalanceController extends Controller
             ];
         }
 
-        // Total payments summary for AR and AP reconciliations
-        $totalPriorRec = AccountingPayment::where('company_id', $companyId)
+        // Total payment Cash, TDS, and Discount breakdown for AR & AP reconciliations
+        $sumPayParts = function ($collection) use ($toUSD) {
+            $cash = 0.0; $tds = 0.0; $disc = 0.0;
+            foreach ($collection as $p) {
+                $curr = $p->currency?->code;
+                $cUsd = $toUSD((float) $p->amount, $curr, $p->exchange_rate);
+                $tUsd = $toUSD((float) ($p->tds_tax ?? 0), $curr, $p->exchange_rate);
+                $dUsd = $toUSD((float) ($p->discount ?? 0), $curr, $p->exchange_rate);
+                $cash += $cUsd;
+                $tds  += $tUsd;
+                $disc += $dUsd;
+            }
+            return ['cash' => $cash, 'tds' => $tds, 'disc' => $disc, 'settled' => $cash + $tds + $disc];
+        };
+
+        $priorRecParts = $sumPayParts(AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
             ->where('type', 'RECEIVED')
             ->where('payment_date', '<', $periodFrom)
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
+            ->get());
 
-        $totalPriorPay = AccountingPayment::where('company_id', $companyId)
+        $priorPayParts = $sumPayParts(AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
             ->where('type', 'MADE')
             ->where('payment_date', '<', $periodFrom)
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
+            ->get());
 
-        $totalPeriodRec = AccountingPayment::where('company_id', $companyId)
+        $periodRecParts = $sumPayParts(AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
             ->where('type', 'RECEIVED')
             ->whereBetween('payment_date', [$periodFrom, $periodTo])
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
+            ->get());
 
-        $totalPeriodPay = AccountingPayment::where('company_id', $companyId)
+        $periodPayParts = $sumPayParts(AccountingPayment::with('currency')
+            ->where('company_id', $companyId)
             ->where('type', 'MADE')
             ->whereBetween('payment_date', [$periodFrom, $periodTo])
             ->whereNull('void_date')
+            ->whereNull('cancelled_at')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($p) => $toUSD($p->amount, $p->currency?->code, $p->exchange_rate));
+            ->get());
 
-        // ── 2. Accounts Receivable (Code 1200) ──
-        $priorAR = Invoice::where('company_id', $companyId)
+        // ── 2. Accounts Receivable (Code 1200) & TDS Receivable (Code 1300) ──
+        $priorAR = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->where('type', 'AR')
             ->where('invoice_date', '<', $periodFrom)
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
             ->sum(fn($i) => ($i->document_type === 'CN' ? -1 : 1) * $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
 
-        $periodAR = Invoice::where('company_id', $companyId)
+        $periodAR_Invoices = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->where('type', 'AR')
             ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($i) => ($i->document_type === 'CN' ? -1 : 1) * $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+            ->get();
 
-        $arOpening = $priorAR - $totalPriorRec;
-        $arClosing = $arOpening + $periodAR - $totalPeriodRec;
+        $periodAR_Gross = $periodAR_Invoices->where('document_type', '!=', 'CN')->sum(fn($i) => $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+        $periodAR_CN    = $periodAR_Invoices->where('document_type', '=', 'CN')->sum(fn($i) => $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+        $periodAR_Net   = $periodAR_Gross - $periodAR_CN;
 
-        if (!$hideZero || abs($arOpening) > 0.001 || abs($periodAR) > 0.001 || abs($totalPeriodRec) > 0.001 || abs($arClosing) > 0.001) {
+        $arOpening = $priorAR - $priorRecParts['settled'];
+        $arClosing = $arOpening + $periodAR_Net - $periodRecParts['settled'];
+
+        if (!$hideZero || abs($arOpening) > 0.001 || abs($periodAR_Gross) > 0.001 || abs($periodRecParts['settled']) > 0.001 || abs($arClosing) > 0.001) {
             $accounts[] = [
                 'code'            => '1200',
                 'sub_code'        => 'AR',
@@ -297,36 +329,55 @@ class TrialBalanceController extends Controller
                 'sub_group'       => 'Current Assets',
                 'currency'        => 'USD',
                 'opening_balance' => $arOpening,
-                'debit'           => $periodAR,
-                'credit'          => $totalPeriodRec,
+                'debit'           => $periodAR_Gross,
+                'credit'          => $periodRecParts['settled'] + $periodAR_CN,
                 'closing_balance' => $arClosing,
                 'type'            => 'debit',
             ];
         }
 
-        // ── 3. Accounts Payable (Code 2000) ──
-        $priorAP = Invoice::where('company_id', $companyId)
+        $tdsRecOpen = $priorRecParts['tds'];
+        $tdsRecClose = $tdsRecOpen + $periodRecParts['tds'];
+        if (abs($tdsRecOpen) > 0.001 || abs($periodRecParts['tds']) > 0.001 || abs($tdsRecClose) > 0.001) {
+            $accounts[] = [
+                'code'            => '1300',
+                'sub_code'        => 'TDS_REC',
+                'name'            => 'Withholding Tax / TDS Receivable',
+                'group'           => 'Assets',
+                'sub_group'       => 'Current Assets',
+                'currency'        => 'USD',
+                'opening_balance' => $tdsRecOpen,
+                'debit'           => $periodRecParts['tds'],
+                'credit'          => 0.0,
+                'closing_balance' => $tdsRecClose,
+                'type'            => 'debit',
+            ];
+        }
+
+        // ── 3. Accounts Payable (Code 2000) & TDS Payable (Code 2100) ──
+        $priorAP = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->where('type', 'AP')
             ->where('invoice_date', '<', $periodFrom)
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->get()
-            ->sum(fn($i) => ($i->document_type === 'DN' ? -1 : 1) * $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+            ->sum(fn($i) => (in_array(strtoupper($i->document_type ?? ''), ['DN', 'CN']) ? -1 : 1) * $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
 
-        $periodAP = Invoice::where('company_id', $companyId)
+        $periodAP_Invoices = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->where('type', 'AP')
             ->whereBetween('invoice_date', [$periodFrom, $periodTo])
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->get()
-            ->sum(fn($i) => ($i->document_type === 'DN' ? -1 : 1) * $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+            ->get();
 
-        $apOpening = $priorAP - $totalPriorPay;
-        $apClosing = $apOpening + $periodAP - $totalPeriodPay;
+        $periodAP_Gross = $periodAP_Invoices->whereNotIn('document_type', ['DN', 'CN'])->sum(fn($i) => $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+        $periodAP_CN_DN = $periodAP_Invoices->whereIn('document_type', ['DN', 'CN'])->sum(fn($i) => $toUSD($i->total_amount, $i->currency?->code, $i->exchange_rate));
+        $periodAP_Net   = $periodAP_Gross - $periodAP_CN_DN;
 
-        if (!$hideZero || abs($apOpening) > 0.001 || abs($periodAP) > 0.001 || abs($totalPeriodPay) > 0.001 || abs($apClosing) > 0.001) {
+        $apOpening = $priorAP - $priorPayParts['settled'];
+        $apClosing = $apOpening + $periodAP_Net - $periodPayParts['settled'];
+
+        if (!$hideZero || abs($apOpening) > 0.001 || abs($periodAP_Gross) > 0.001 || abs($periodPayParts['settled']) > 0.001 || abs($apClosing) > 0.001) {
             $accounts[] = [
                 'code'            => '2000',
                 'sub_code'        => 'AP',
@@ -335,9 +386,27 @@ class TrialBalanceController extends Controller
                 'sub_group'       => 'Current Liabilities',
                 'currency'        => 'USD',
                 'opening_balance' => $apOpening,
-                'debit'           => $totalPeriodPay,
-                'credit'          => $periodAP,
+                'debit'           => $periodPayParts['settled'] + $periodAP_CN_DN,
+                'credit'          => $periodAP_Gross,
                 'closing_balance' => $apClosing,
+                'type'            => 'credit',
+            ];
+        }
+
+        $tdsPayOpen = $priorPayParts['tds'];
+        $tdsPayClose = $tdsPayOpen + $periodPayParts['tds'];
+        if (abs($tdsPayOpen) > 0.001 || abs($periodPayParts['tds']) > 0.001 || abs($tdsPayClose) > 0.001) {
+            $accounts[] = [
+                'code'            => '2100',
+                'sub_code'        => 'TDS_PAY',
+                'name'            => 'Withholding Tax / TDS Payable',
+                'group'           => 'Liabilities',
+                'sub_group'       => 'Current Liabilities',
+                'currency'        => 'USD',
+                'opening_balance' => $tdsPayOpen,
+                'debit'           => 0.0,
+                'credit'          => $periodPayParts['tds'],
+                'closing_balance' => $tdsPayClose,
                 'type'            => 'credit',
             ];
         }
@@ -359,7 +428,7 @@ class TrialBalanceController extends Controller
             ];
         }
 
-        $priorNetIncome = $priorAR - $priorAP;
+        $priorNetIncome = $priorAR - $priorAP - $priorRecParts['disc'] + $priorPayParts['disc'];
         if (abs($priorNetIncome) > 0.001) {
             $accounts[] = [
                 'code'            => '3200',
@@ -376,8 +445,40 @@ class TrialBalanceController extends Controller
             ];
         }
 
+        if (abs($periodRecParts['disc']) > 0.001) {
+            $accounts[] = [
+                'code'            => '4900',
+                'sub_code'        => 'DISC_ALLOWED',
+                'name'            => 'Sales Discounts Allowed',
+                'group'           => 'Revenue',
+                'sub_group'       => 'Operating Revenue',
+                'currency'        => 'USD',
+                'opening_balance' => 0.0,
+                'debit'           => $periodRecParts['disc'],
+                'credit'          => 0.0,
+                'closing_balance' => $periodRecParts['disc'],
+                'type'            => 'debit',
+            ];
+        }
+
+        if (abs($periodPayParts['disc']) > 0.001) {
+            $accounts[] = [
+                'code'            => '5900',
+                'sub_code'        => 'DISC_EARNED',
+                'name'            => 'Purchase Discounts Earned',
+                'group'           => 'Expenses',
+                'sub_group'       => 'Operating Expenses',
+                'currency'        => 'USD',
+                'opening_balance' => 0.0,
+                'debit'           => 0.0,
+                'credit'          => $periodPayParts['disc'],
+                'closing_balance' => $periodPayParts['disc'],
+                'type'            => 'credit',
+            ];
+        }
+
         // ── 5. Revenue (Operating Revenue, Code 4000) ──
-        if (!$hideZero || abs($periodAR) > 0.001) {
+        if (!$hideZero || abs($periodAR_Gross) > 0.001 || abs($periodAR_CN) > 0.001) {
             $accounts[] = [
                 'code'            => '4000',
                 'sub_code'        => 'REV',
@@ -386,15 +487,15 @@ class TrialBalanceController extends Controller
                 'sub_group'       => 'Operating Revenue',
                 'currency'        => 'USD',
                 'opening_balance' => 0.0,
-                'debit'           => 0.0,
-                'credit'          => $periodAR,
-                'closing_balance' => $periodAR,
+                'debit'           => $periodAR_CN,
+                'credit'          => $periodAR_Gross,
+                'closing_balance' => $periodAR_Net,
                 'type'            => 'credit',
             ];
         }
 
         // ── 6. Operating Expenses (Expenses, Code 5000) ──
-        if (!$hideZero || abs($periodAP) > 0.001) {
+        if (!$hideZero || abs($periodAP_Gross) > 0.001 || abs($periodAP_CN_DN) > 0.001) {
             $accounts[] = [
                 'code'            => '5000',
                 'sub_code'        => 'EXP',
@@ -403,46 +504,126 @@ class TrialBalanceController extends Controller
                 'sub_group'       => 'Operating Expenses',
                 'currency'        => 'USD',
                 'opening_balance' => 0.0,
-                'debit'           => $periodAP,
-                'credit'          => 0.0,
-                'closing_balance' => $periodAP,
+                'debit'           => $periodAP_Gross,
+                'credit'          => $periodAP_CN_DN,
+                'closing_balance' => $periodAP_Net,
                 'type'            => 'debit',
             ];
         }
 
-        // ── 7. Manual Journal Entries (from AccountingJournal / journal_entries) ──
+        // ── 7. Manual Journal Entries (strictly company-scoped, POSTED, mapped via gl_accounts first) ──
+        $jePriorNominalNet = 0.0;
         $journalLines = DB::table('journal_entry_lines')
             ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_lines.journal_entry_id')
-            ->leftJoin('gl_codes', 'gl_codes.id', '=', 'journal_entry_lines.gl_account_id')
+            ->leftJoin('gl_accounts', 'gl_accounts.id', '=', 'journal_entry_lines.gl_account_id')
+            ->leftJoin('gl_codes', function ($join) use ($companyId) {
+                $join->on('gl_codes.id', '=', 'journal_entry_lines.gl_account_id')
+                     ->where('gl_codes.company_id', '=', $companyId);
+            })
+            ->where('journal_entries.company_id', $companyId)
             ->whereNull('journal_entries.deleted_at')
-            ->where('journal_entries.status', '!=', 'VOIDED')
-            ->whereBetween('journal_entries.entry_date', [$periodFrom, $periodTo])
+            ->where('journal_entries.status', '=', 'POSTED')
+            ->where('journal_entries.entry_date', '<=', $periodTo)
             ->when($officeId, fn($q) => $q->where('journal_entries.office_id', $officeId))
             ->select(
                 'journal_entry_lines.*',
-                'gl_codes.gl_code as gl_code',
-                'gl_codes.gl_name_eng as gl_name'
+                'journal_entries.entry_date',
+                'gl_accounts.code as acc_code',
+                'gl_accounts.name as acc_name',
+                'gl_accounts.type as acc_type',
+                'gl_codes.gl_code as legacy_code',
+                'gl_codes.gl_name_eng as legacy_name'
             )
             ->get();
 
+        $jeGrouped = [];
         foreach ($journalLines as $line) {
-            $lDebit = (float) ($line->local_debit ?? 0);
+            $lDebit  = (float) ($line->local_debit ?? 0);
             $lCredit = (float) ($line->local_credit ?? 0);
             if ($lDebit <= 0.001 && $lCredit <= 0.001) continue;
 
-            $accounts[] = [
-                'code'            => $line->gl_code ?: '6000',
-                'sub_code'        => 'JE',
-                'name'            => $line->gl_name ?: ($line->description ?: 'Journal Adjustment'),
-                'group'           => ($lDebit > $lCredit) ? 'Expenses' : 'Revenue',
-                'sub_group'       => 'Journal Adjustments',
-                'currency'        => 'USD',
-                'opening_balance' => 0.0,
-                'debit'           => $lDebit,
-                'credit'          => $lCredit,
-                'closing_balance' => ($lDebit >= $lCredit) ? ($lDebit - $lCredit) : ($lCredit - $lDebit),
-                'type'            => ($lDebit >= $lCredit) ? 'debit' : 'credit',
-            ];
+            $code = (string) ($line->acc_code ?: ($line->legacy_code ?: '6000'));
+            $name = (string) ($line->acc_name ?: ($line->legacy_name ?: ($line->description ?: 'Journal Adjustment')));
+            $rawType = strtoupper((string) ($line->acc_type ?? ''));
+            if (empty($rawType)) {
+                if (str_starts_with($code, '1')) $rawType = 'ASSET';
+                elseif (str_starts_with($code, '2')) $rawType = 'LIABILITY';
+                elseif (str_starts_with($code, '3')) $rawType = 'EQUITY';
+                elseif (str_starts_with($code, '4')) $rawType = 'REVENUE';
+                else $rawType = 'EXPENSE';
+            }
+
+            $isBeforePeriod = $line->entry_date < $periodFrom;
+            if ($isBeforePeriod && in_array($rawType, ['REVENUE', 'EXPENSE'])) {
+                $jePriorNominalNet += ($lCredit - $lDebit);
+                continue;
+            }
+
+            if (!isset($jeGrouped[$code])) {
+                [$grp, $subGrp, $normType] = match ($rawType) {
+                    'ASSET'     => ['Assets', 'General Ledger Adjustments', 'debit'],
+                    'LIABILITY' => ['Liabilities', 'General Ledger Adjustments', 'credit'],
+                    'EQUITY'    => ['Equity', 'Owner Equity', 'credit'],
+                    'REVENUE'   => ['Revenue', 'Operating Revenue', 'credit'],
+                    default     => ['Expenses', 'Operating Expenses', 'debit'],
+                };
+                $jeGrouped[$code] = [
+                    'code'            => $code,
+                    'sub_code'        => 'JE',
+                    'name'            => $name,
+                    'group'           => $grp,
+                    'sub_group'       => $subGrp,
+                    'currency'        => 'USD',
+                    'opening_balance' => 0.0,
+                    'debit'           => 0.0,
+                    'credit'          => 0.0,
+                    'closing_balance' => 0.0,
+                    'type'            => $normType,
+                ];
+            }
+
+            if ($isBeforePeriod) {
+                $delta = ($jeGrouped[$code]['type'] === 'debit') ? ($lDebit - $lCredit) : ($lCredit - $lDebit);
+                $jeGrouped[$code]['opening_balance'] += $delta;
+            } else {
+                $jeGrouped[$code]['debit']  += $lDebit;
+                $jeGrouped[$code]['credit'] += $lCredit;
+            }
+        }
+
+        // Apply prior nominal JE net income into Retained Earnings (3200) if present
+        if (abs($jePriorNominalNet) > 0.001) {
+            $reIdx = null;
+            foreach ($accounts as $idx => $a) {
+                if ($a['code'] === '3200') { $reIdx = $idx; break; }
+            }
+            if ($reIdx !== null) {
+                $accounts[$reIdx]['opening_balance'] += $jePriorNominalNet;
+                $accounts[$reIdx]['closing_balance'] += $jePriorNominalNet;
+            } else {
+                $accounts[] = [
+                    'code'            => '3200',
+                    'sub_code'        => 'RETAINED_EARNINGS',
+                    'name'            => 'Retained Earnings (Prior Periods)',
+                    'group'           => 'Equity',
+                    'sub_group'       => 'Owner Equity',
+                    'currency'        => 'USD',
+                    'opening_balance' => $jePriorNominalNet,
+                    'debit'           => 0.0,
+                    'credit'          => 0.0,
+                    'closing_balance' => $jePriorNominalNet,
+                    'type'            => 'credit',
+                ];
+            }
+        }
+
+        foreach ($jeGrouped as $jeAcc) {
+            $jeAcc['closing_balance'] = ($jeAcc['type'] === 'debit')
+                ? ($jeAcc['opening_balance'] + $jeAcc['debit'] - $jeAcc['credit'])
+                : ($jeAcc['opening_balance'] + $jeAcc['credit'] - $jeAcc['debit']);
+            if (!$hideZero || abs($jeAcc['opening_balance']) > 0.001 || abs($jeAcc['debit']) > 0.001 || abs($jeAcc['credit']) > 0.001 || abs($jeAcc['closing_balance']) > 0.001) {
+                $accounts[] = $jeAcc;
+            }
         }
 
         // Enrich accounts with Debit/Credit balance formatting fields
@@ -502,7 +683,9 @@ class TrialBalanceController extends Controller
         $totalOpeningBalance = array_sum(array_column($accounts, 'opening_balance'));
         $totalClosingBalance = array_sum(array_column($accounts, 'closing_balance'));
 
-        $isBalanced = abs($totalDebit - $totalCredit) < 0.01;
+        $isBalanced = abs($totalOpeningDebit - $totalOpeningCredit) < 0.01
+            && abs($totalDebit - $totalCredit) < 0.01
+            && abs($totalClosingDebit - $totalClosingCredit) < 0.01;
 
         return response()->json([
             'success'      => true,

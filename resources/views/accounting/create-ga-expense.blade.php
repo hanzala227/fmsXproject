@@ -187,7 +187,7 @@
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">Tax Amount</label>
                                 <div class="form-input-container">
-                                    <input type="number" step="0.01" name="tax_total" class="form-control-gf" style="text-align:right;" x-model="form.tax_total" @input="recalcSubtotal()">
+                                    <input type="number" step="0.01" name="tax_total" class="form-control-gf" style="text-align:right;" x-model="form.tax_total" @input="syncTotalFromLines()">
                                 </div>
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">Subtotal</label>
@@ -197,7 +197,7 @@
                             </div>
                             <div class="form-group-gf"><label class="form-label-gf">Discount %</label>
                                 <div class="form-input-container">
-                                    <input type="number" step="0.01" min="0" max="100" name="discount_pct" class="form-control-gf" style="text-align:right;" x-model="form.discount_pct">
+                                    <input type="number" step="0.01" min="0" max="100" name="discount_pct" class="form-control-gf" style="text-align:right;" x-model="form.discount_pct" @input="syncTotalFromLines()">
                                 </div>
                             </div>
                         </div>
@@ -346,7 +346,12 @@
                                 <span style="font-size:10px;font-weight:600;color:#64748b;">Memo Content</span>
                             </div>
                             <div style="flex:1;padding:6px;display:flex;">
-                                <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." x-model="memos[selectedMemo]?.content" :disabled="selectedMemo === null"></textarea>
+                                <template x-if="selectedMemo !== null && memos[selectedMemo]">
+                                    <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." x-model="memos[selectedMemo].content"></textarea>
+                                </template>
+                                <template x-if="selectedMemo === null || !memos[selectedMemo]">
+                                    <textarea class="form-control-gf" style="flex:1;min-height:80px;resize:vertical;border:none;border-radius:0;" placeholder="Select a memo to view content..." disabled></textarea>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -434,6 +439,15 @@
 
                 recalcSubtotal() {},
 
+                syncTotalFromLines() {
+                    if (!this.lines || this.lines.length === 0) return;
+                    const linesTotal = this.lines.reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
+                    const discountPct = parseFloat(this.form.discount_pct) || 0;
+                    const afterDiscount = linesTotal * (1 - discountPct / 100);
+                    const tax = parseFloat(this.form.tax_total) || 0;
+                    this.form.total_amount = (afterDiscount + tax).toFixed(2);
+                },
+
                 formatAmount(val) {
                     return parseFloat(val || 0).toFixed(2);
                 },
@@ -441,10 +455,12 @@
                 calcLineAmount(idx) {
                     const line = this.lines[idx];
                     line.amount = (parseFloat(line.qty) || 0) * (parseFloat(line.rate) || 0);
+                    this.syncTotalFromLines();
                 },
 
                 addLine() {
                     this.lines.push({ charge_code: '', description: '', unit: 'UNIT', currency: 'USD', qty: 1, rate: 0, amount: 0, selected: false });
+                    this.syncTotalFromLines();
                 },
                 addLines(count) {
                     for (let i = 0; i < count; i++) this.addLine();
@@ -452,11 +468,13 @@
                 copySelectedLines() {
                     this.selectedLines.forEach(i => { this.lines.push({ ...this.lines[i], selected: false }); });
                     this.selectedLines = [];
+                    this.syncTotalFromLines();
                 },
                 deleteSelectedLines() {
                     if (!this.selectedLines.length) return;
                     this.selectedLines.sort((a, b) => b - a).forEach(i => this.lines.splice(i, 1));
                     this.selectedLines = [];
+                    this.syncTotalFromLines();
                 },
                 toggleLineSelection(idx, checked) {
                     if (checked) {

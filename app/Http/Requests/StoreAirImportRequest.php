@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Rules\IataMawbRule;
+use App\Support\AirTactWeight;
 
 class StoreAirImportRequest extends FormRequest
 {
@@ -14,17 +15,50 @@ class StoreAirImportRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        $merge = [];
         if ($this->has('referred_by_id') && !$this->has('business_referred_by_id')) {
-            $this->merge(['business_referred_by_id' => $this->referred_by_id]);
+            $merge['business_referred_by_id'] = $this->referred_by_id;
+        }
+
+        $gross = floatval($this->input('gross_weight_kg') ?? $this->input('gross_weight', 0));
+        $cbm = floatval($this->input('volume_cbm') ?? $this->input('volume', 0));
+        $cw = floatval($this->input('chargeable_weight_kg') ?? $this->input('chargeable_weight', 0));
+        $clamped = AirTactWeight::clampChargeable($gross, $cbm, $cw);
+        if ($clamped > $cw || ($clamped > 0 && $cw == 0)) {
+            if ($this->has('chargeable_weight_kg') || !$this->has('chargeable_weight')) {
+                $merge['chargeable_weight_kg'] = $clamped;
+            }
+            if ($this->has('chargeable_weight')) {
+                $merge['chargeable_weight'] = $clamped;
+            }
+        }
+
+        if (is_array($this->input('hbls'))) {
+            $merge['hbls'] = AirTactWeight::clampHbls($this->input('hbls'), true);
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
         }
     }
 
     public function rules()
     {
+        $tactWeightRule = function ($attribute, $value, $fail) {
+            if ($value === null || $value === '') return;
+            $gross = floatval($this->input('gross_weight_kg') ?? $this->input('gross_weight', 0));
+            $cbm = floatval($this->input('volume_cbm') ?? $this->input('volume', 0));
+            $minVolumetric = AirTactWeight::volumetricWeight($cbm);
+            $minRequired = AirTactWeight::minimumChargeable($gross, $cbm);
+            if ($minRequired > 0 && floatval($value) < ($minRequired - 0.05)) {
+                $fail("Chargeable weight cannot be less than {$minRequired} kg (Gross: {$gross} kg, IATA 1:6 Volumetric: {$minVolumetric} kg).");
+            }
+        };
+
         return [
             // Required fields
             'file_no' => 'required|string|unique:air_imports,file_no',
-            'mawb_no' => 'required|string|max:255|unique:air_imports,mawb_no',
+            'mawb_no' => ['required', 'string', 'max:255', 'unique:air_imports,mawb_no', new IataMawbRule()],
             'office_id' => 'required|exists:offices,id',
             'eta' => 'nullable|date|after_or_equal:etd',
             
@@ -50,10 +84,13 @@ class StoreAirImportRequest extends FormRequest
             
             'pkg_qty' => 'nullable|numeric|min:0',
             'pkg_unit_id' => 'nullable|exists:package_units,id',
+            'gross_weight' => 'nullable|numeric|min:0',
             'gross_weight_kg' => 'nullable|numeric|min:0',
             'gross_weight_lb' => 'nullable|numeric|min:0',
-            'chargeable_weight_kg' => 'nullable|numeric|min:0',
+            'chargeable_weight' => ['nullable', 'numeric', 'min:0', $tactWeightRule],
+            'chargeable_weight_kg' => ['nullable', 'numeric', 'min:0', $tactWeightRule],
             'chargeable_weight_lb' => 'nullable|numeric|min:0',
+            'volume' => 'nullable|numeric|min:0',
             'volume_weight_kg' => 'nullable|numeric|min:0',
             'volume_cbm' => 'nullable|numeric|min:0',
             

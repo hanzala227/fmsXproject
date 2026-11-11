@@ -18,9 +18,8 @@ class BankBookBalanceController extends Controller
     {
         $companyId = auth()->user()?->company_id ?? 1;
         $bankAccounts = DB::table('banks')
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 1);
-            })
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
             ->orderBy('bank_name')
             ->get();
         $currencies = Currency::orderBy('code')->get();
@@ -64,16 +63,14 @@ class BankBookBalanceController extends Controller
         $periodFrom   = $request->input('period_from', date('Y-m-01'));
         $periodTo     = $request->input('period_to', date('Y-m-d'));
         $bankId       = $request->input('bank_account_id');
-        $status       = $request->input('status', 'all');
+        $status       = $request->input('status', 'active');
         $type         = $request->input('type', 'all');
         $reportType   = $request->input('report_type', 'Summary');
         $hideSubtotal = filter_var($request->input('hide_subtotal', false), FILTER_VALIDATE_BOOLEAN);
-        $currencyMode = $request->input('currency', 'bank_currency');
+        $currencyMode = $request->input('currency', 'main_currency'); // Default to USD (main_currency)
 
         // Query banks configured in Settings
-        $query = DB::table('banks')->where(function($q) use ($companyId) {
-            $q->where('company_id', $companyId)->orWhere('company_id', 1);
-        });
+        $query = DB::table('banks')->where('company_id', $companyId);
 
         if ($status === 'active') {
             $query->where('is_active', 1);
@@ -89,6 +86,7 @@ class BankBookBalanceController extends Controller
         $currencies = Currency::all()->keyBy('code');
 
         $reportRows = [];
+        $currencySubtotals = [];
         $grandTotals = [
             'opening_balance' => 0.0,
             'receipts'        => 0.0,
@@ -102,95 +100,111 @@ class BankBookBalanceController extends Controller
             $bankCurrencyCode = $bank->currency ?: 'USD';
             $currObj = $currencies->get($bankCurrencyCode);
             $exchangeRate = (float)($currObj?->exchange_rate ?? 1.0);
+            if ($exchangeRate <= 0) $exchangeRate = 1.0;
             $bankName = trim($bank->bank_name);
 
-            // Query active, non-cancelled payments matching this bank name or GL account
-            $paymentBase = AccountingPayment::where(function($q) use ($bankName, $bank) {
-                $q->where('bank_name', $bankName);
-                if (!empty($bank->gl_no)) {
-                    $q->orWhere('bank_name', $bank->gl_no);
+            // Active, non-cancelled payments matching this bank name or GL account
+            $paymentRows = AccountingPayment::with('currency')
+                ->where('company_id', $companyId)
+                ->where(function($q) use ($bankName, $bank) {
+                    $q->where('bank_name', $bankName);
+                    if (!empty($bank->gl_no)) {
+                        $q->orWhere('bank_name', $bank->gl_no);
+                    }
+                })
+                ->whereNull('deleted_at')
+                ->whereNull('cancelled_at')
+                ->whereNull('void_date')
+                ->where('payment_date', '<=', $periodTo)
+                ->get();
+
+            $toPaymentUSD = function ($p) use ($exchangeRate, $currencyMode): float {
+                $amt = (float) $p->amount;
+                if ($currencyMode === 'bank_currency') {
+                    return round($amt, 2);
                 }
-            })
-            ->whereNull('deleted_at')
-            ->whereNull('cancelled_at');
+                $pRate = (float) ($p->exchange_rate ?? $p->currency?->exchange_rate ?? $exchangeRate);
+                if ($pRate <= 0) $pRate = $exchangeRate;
+                return round($amt / $pRate, 2);
+            };
 
-            // 1. Opening balance: Initial balance from Settings + prior receipts - prior payments before period_from
-            $priorReceipts = (clone $paymentBase)
-                ->where('type', 'RECEIVED')
-                ->where('payment_date', '<', $periodFrom)
-                ->sum('amount');
+            $priorReceiptsUSD = 0.0;
+            $priorPaymentsUSD = 0.0;
+            $receiptsUSD = 0.0;
+            $paymentsUSD = 0.0;
+            foreach ($paymentRows as $prRow) {
+                $pDate = $prRow->payment_date?->toDateString() ?? '';
+                $convAmt = $toPaymentUSD($prRow);
+                if ($pDate < $periodFrom) {
+                    if ($prRow->type === 'RECEIVED') $priorReceiptsUSD += $convAmt;
+                    elseif ($prRow->type === 'MADE') $priorPaymentsUSD += $convAmt;
+                } else {
+                    if ($prRow->type === 'RECEIVED') $receiptsUSD += $convAmt;
+                    elseif ($prRow->type === 'MADE') $paymentsUSD += $convAmt;
+                }
+            }
 
-            $priorPayments = (clone $paymentBase)
-                ->where('type', 'MADE')
-                ->where('payment_date', '<', $periodFrom)
-                ->sum('amount');
-
-            $openingBalance = (float)$bank->initial_amount + (float)$priorReceipts - (float)$priorPayments;
-
-            // 2. Receipts during period (payments of type RECEIVED)
-            $receipts = (clone $paymentBase)
-                ->where('type', 'RECEIVED')
-                ->where('payment_date', '>=', $periodFrom)
-                ->where('payment_date', '<=', $periodTo)
-                ->sum('amount');
-
-            // 3. Payments during period (payments of type MADE)
-            $payments = (clone $paymentBase)
-                ->where('type', 'MADE')
-                ->where('payment_date', '>=', $periodFrom)
-                ->where('payment_date', '<=', $periodTo)
-                ->sum('amount');
-
-            // Currency conversion
-            $openingBalanceConv = $this->convertAmount($openingBalance, $exchangeRate, $currencyMode);
-            $receiptsConv       = $this->convertAmount((float)$receipts, $exchangeRate, $currencyMode);
-            $paymentsConv       = $this->convertAmount((float)$payments, $exchangeRate, $currencyMode);
+            $openingInitConv = $this->convertAmount((float) $bank->initial_amount, $exchangeRate, $currencyMode);
+            $openingBalanceConv = round($openingInitConv + $priorReceiptsUSD - $priorPaymentsUSD, 2);
+            $receiptsConv       = round($receiptsUSD, 2);
+            $paymentsConv       = round($paymentsUSD, 2);
+            $openingBalance     = (float) $bank->initial_amount
+                + (float) $paymentRows->where('type', 'RECEIVED')->filter(fn($r) => ($r->payment_date?->toDateString() ?? '') < $periodFrom)->sum('amount')
+                - (float) $paymentRows->where('type', 'MADE')->filter(fn($r) => ($r->payment_date?->toDateString() ?? '') < $periodFrom)->sum('amount');
 
             // 4. Closing balance = Opening + Receipts - Payments
             $closingBalanceConv = round($openingBalanceConv + $receiptsConv - $paymentsConv, 2);
 
-            // 5. Reconcile with the ledger:
-            // Bank book ledger balance equals the closing balance
+            // 5. Book balance & difference
             $bookBalanceConv = $closingBalanceConv;
             $differenceConv  = round($closingBalanceConv - $bookBalanceConv, 2);
 
-            // 6. Detail transactions (when Detail report is requested)
+            // Grand totals in USD
+            $grandTotals['opening_balance'] += $openingBalanceConv;
+            $grandTotals['receipts']        += $receiptsConv;
+            $grandTotals['payments']        += $paymentsConv;
+            $grandTotals['closing_balance'] += $closingBalanceConv;
+            $grandTotals['book_balance']    += $closingBalanceConv;
+            $grandTotals['difference']      += 0.0;
+
+            // Detail transactions (when Detail report is requested)
             $transactions = [];
             if ($reportType === 'Detail') {
-                $txns = (clone $paymentBase)
-                    ->where('payment_date', '>=', $periodFrom)
-                    ->where('payment_date', '<=', $periodTo)
-                    ->with(['tradePartner', 'invoice'])
-                    ->orderBy('payment_date')
-                    ->orderBy('id')
-                    ->get();
+                $txns = $paymentRows
+                    ->filter(fn($p) => ($p->payment_date?->toDateString() ?? '') >= $periodFrom && ($p->payment_date?->toDateString() ?? '') <= $periodTo)
+                    ->sortBy([['payment_date', 'asc'], ['id', 'asc']]);
+                $txns->load(['tradePartner', 'invoice']);
 
-                $runningBalance = $openingBalance;
+                $runningBalance = $currencyMode === 'bank_currency' ? $openingBalance : $openingBalanceConv;
                 foreach ($txns as $p) {
                     $isReceipt = ($p->type === 'RECEIVED');
-                    $amt = (float)$p->amount;
-                    $debit = $isReceipt ? $amt : 0.0;
-                    $credit = !$isReceipt ? $amt : 0.0;
-                    $runningBalance += ($debit - $credit);
+                    $convAmt = $toPaymentUSD($p);
+                    $debit = $isReceipt ? $convAmt : 0.0;
+                    $credit = !$isReceipt ? $convAmt : 0.0;
+                    $runningBalance = round($runningBalance + $debit - $credit, 2);
 
                     $transactions[] = [
                         'date'        => $p->payment_date ? $p->payment_date->format('Y-m-d') : '--',
                         'reference'   => $p->payment_no ?? $p->check_no ?? '',
                         'description' => ($isReceipt ? 'Receipt: ' : 'Payment: ') . ($p->tradePartner?->name ?? 'N/A') . ($p->reference_no ? ' (Ref: ' . $p->reference_no . ')' : '') . ($p->check_no ? ' [Chk #' . $p->check_no . ']' : ''),
-                        'debit'       => $this->convertAmount($debit, $exchangeRate, $currencyMode),
-                        'credit'      => $this->convertAmount($credit, $exchangeRate, $currencyMode),
-                        'balance'     => $this->convertAmount($runningBalance, $exchangeRate, $currencyMode),
+                        'debit'       => $debit,
+                        'credit'      => $credit,
+                        'balance'     => $runningBalance,
                     ];
                 }
             }
+
+            $currDisplay = ($currencyMode === 'main_currency')
+                ? ($bankCurrencyCode !== 'USD' ? 'USD (' . $bankCurrencyCode . ' @ ' . number_format($exchangeRate, 4) . ')' : 'USD')
+                : $bankCurrencyCode;
 
             $reportRows[] = [
                 'is_subtotal'      => false,
                 'id'               => $bank->id,
                 'name'             => $bank->bank_name,
-                'account_no'       => !empty($bank->gl_no) ? $bank->gl_no : '--',
-                'currency'         => $currencyMode === 'main_currency' ? 'USD' : $bankCurrencyCode,
-                'type'             => 'Bank',
+                'account_no'       => !empty($bank->gl_no) ? $bank->gl_no : 'N/A',
+                'currency'         => $currDisplay,
+                'exchange_rate'    => $exchangeRate,
                 'opening_balance'  => $openingBalanceConv,
                 'receipts'         => $receiptsConv,
                 'payments'         => $paymentsConv,
@@ -200,22 +214,22 @@ class BankBookBalanceController extends Controller
                 'status'           => $bank->is_active ? 'active' : 'inactive',
                 'transactions'     => $transactions,
             ];
+        }
 
-            $grandTotals['opening_balance'] += $openingBalanceConv;
-            $grandTotals['receipts']        += $receiptsConv;
-            $grandTotals['payments']        += $paymentsConv;
-            $grandTotals['closing_balance'] += $closingBalanceConv;
-            $grandTotals['book_balance']    += $bookBalanceConv;
-            $grandTotals['difference']      += $differenceConv;
+        // Round grand totals
+        foreach ($grandTotals as $k => $v) {
+            $grandTotals[$k] = round($v, 2);
         }
 
         return response()->json([
-            'success'       => true,
-            'rows'          => $reportRows,
-            'totals'        => $grandTotals,
-            'hide_subtotal' => $hideSubtotal,
-            'report_type'   => $reportType,
-            'currency_mode' => $currencyMode,
+            'success'            => true,
+            'rows'               => $reportRows,
+            'currency_subtotals' => [],
+            'totals_usd'         => $grandTotals,
+            'totals'             => $grandTotals,
+            'hide_subtotal'      => $hideSubtotal,
+            'report_type'        => $reportType,
+            'currency_mode'      => $currencyMode,
         ]);
     }
 
@@ -224,15 +238,24 @@ class BankBookBalanceController extends Controller
      */
     public function printReport(Request $request)
     {
+        if (!$request->has('currency')) {
+            $request->merge(['currency' => 'main_currency']);
+        }
+        if (!$request->has('status')) {
+            $request->merge(['status' => 'active']);
+        }
+
         $data = $this->view($request)->getData(true);
 
         return view('accounting.bank-book-balance-print', [
-            'rows'         => $data['rows'] ?? [],
-            'totals'       => $data['totals'] ?? [],
-            'hideSubtotal' => $data['hide_subtotal'] ?? false,
-            'reportType'   => $data['report_type'] ?? 'Summary',
-            'periodFrom'   => $request->period_from,
-            'periodTo'     => $request->period_to,
+            'rows'               => $data['rows'] ?? [],
+            'totalsUSD'          => $data['totals_usd'] ?? [],
+            'totals'             => $data['totals_usd'] ?? [],
+            'hideSubtotal'       => $data['hide_subtotal'] ?? false,
+            'reportType'         => $data['report_type'] ?? 'Summary',
+            'currencyMode'       => $data['currency_mode'] ?? 'main_currency',
+            'periodFrom'         => $request->period_from,
+            'periodTo'           => $request->period_to,
         ]);
     }
 
@@ -241,12 +264,19 @@ class BankBookBalanceController extends Controller
      */
     public function exportExcel(Request $request)
     {
+        if (!$request->has('currency')) {
+            $request->merge(['currency' => 'main_currency']);
+        }
+        if (!$request->has('status')) {
+            $request->merge(['status' => 'active']);
+        }
+
         $data = $this->view($request)->getData(true);
         $rows = $data['rows'] ?? [];
-        $totals = $data['totals'] ?? [];
+        $totals = $data['totals_usd'] ?? [];
         $reportType = $data['report_type'] ?? 'Summary';
 
-        $filename = 'bank-book-balance-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = 'bank-book-balance-usd-' . now()->format('Y-m-d-His') . '.csv';
 
         $headers = [
             'Content-Type'        => 'text/csv; charset=UTF-8',
@@ -259,9 +289,9 @@ class BankBookBalanceController extends Controller
 
             // Header row
             fputcsv($handle, [
-                'Bank Name', 'GL / Account No.', 'Currency', 'Opening Balance',
-                'Receipts', 'Payments', 'Closing Balance',
-                'Book Balance', 'Difference', 'Status'
+                'Bank Name', 'GL / Account No.', 'Currency', 'Opening Balance (USD)',
+                'Receipts (USD)', 'Payments (USD)', 'Closing Balance (USD)',
+                'Book Balance (USD)', 'Difference (USD)', 'Status'
             ]);
 
             foreach ($rows as $row) {
@@ -278,7 +308,7 @@ class BankBookBalanceController extends Controller
                     $row['status'],
                 ]);
 
-                // Include detail transactions if available
+                // Detail transactions
                 if ($reportType === 'Detail' && !empty($row['transactions'])) {
                     foreach ($row['transactions'] as $txn) {
                         fputcsv($handle, [
@@ -295,9 +325,10 @@ class BankBookBalanceController extends Controller
                 }
             }
 
-            // Totals row
+            // Grand Total USD
+            fputcsv($handle, []);
             fputcsv($handle, [
-                'GRAND TOTAL', '', '',
+                'GRAND TOTAL (USD)', '', 'USD',
                 number_format($totals['opening_balance'] ?? 0, 2),
                 number_format($totals['receipts'] ?? 0, 2),
                 number_format($totals['payments'] ?? 0, 2),

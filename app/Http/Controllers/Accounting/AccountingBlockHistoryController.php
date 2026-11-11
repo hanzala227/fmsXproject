@@ -18,7 +18,9 @@ class AccountingBlockHistoryController extends Controller
 
     public function search(Request $request)
     {
-        $query = AccountingBlockHistory::with(['office', 'executor']);
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingBlockHistory::when($companyId, fn($q) => $q->whereHas('executor', fn($e) => $e->where('company_id', $companyId)))
+            ->with(['office', 'executor']);
 
         if ($request->office_id) {
             $query->where('office_id', $request->office_id);

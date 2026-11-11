@@ -154,7 +154,7 @@ class TruckShipmentController extends Controller
         }
 
         $offices = Office::where('is_active', true)->get();
-        $users = User::all();
+        $users = User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $agents = TradePartner::all();
         $ports = Port::latest()->take(10)->get();
 
@@ -168,7 +168,7 @@ class TruckShipmentController extends Controller
         $offices = Office::where('is_active', true)->get();
         $ports = Port::latest()->take(10)->get();
         $agents = TradePartner::all();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $quotations = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Truck')->latest()->get();
         $locations = TradePartner::whereIn('type', ['CF', 'CY', 'WH', 'WAREHOUSE', 'CFS'])
@@ -213,7 +213,7 @@ class TruckShipmentController extends Controller
         $offices = Office::where('is_active', true)->get();
         $ports = Port::latest()->take(10)->get();
         $agents = TradePartner::all();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::when(auth()->user()?->company_id, fn($q, $c) => $q->where('company_id', $c))->orderBy('name')->get();
         $packageUnits = \App\Models\PackageUnit::all();
         $quotations = Quotation::with(['customer', 'salesPerson', 'pol', 'pod', 'carrier', 'op', 'items.currency'])->forModule('Truck')->latest()->get();
         $locations = TradePartner::whereIn('type', ['CF', 'CY', 'WH', 'WAREHOUSE', 'CFS'])
@@ -593,6 +593,9 @@ class TruckShipmentController extends Controller
     public function deleteCharge($charge)
     {
         $charge = \App\Models\Charge::findOrFail($charge);
+        if ($charge->is_invoiced) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete an already invoiced charge.'], 422);
+        }
         $charge->delete();
 
         return response()->json(['success' => true]);

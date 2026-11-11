@@ -76,6 +76,8 @@ class OceanImport extends Model
     public function vessel() { return $this->belongsTo(Vessel::class); }
     public function portOfLoading() { return $this->belongsTo(Port::class, 'pol_id'); }
     public function portOfDischarge() { return $this->belongsTo(Port::class, 'pod_id'); }
+    public function pol() { return $this->belongsTo(Port::class, 'pol_id'); }
+    public function pod() { return $this->belongsTo(Port::class, 'pod_id'); }
     
     // Trade Partner Relations
     public function forwardingAgent() { return $this->belongsTo(TradePartner::class, 'forwarding_agent_id'); }
@@ -83,6 +85,7 @@ class OceanImport extends Model
     public function deliveryAgent() { return $this->belongsTo(TradePartner::class, 'oversea_agent_id'); }
     public function carrier() { return $this->belongsTo(TradePartner::class, 'carrier_id'); }
     public function dmCustomer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
+    public function customer() { return $this->belongsTo(TradePartner::class, 'dm_customer_id'); }
     public function dmShipper() { return $this->belongsTo(TradePartner::class, 'dm_shipper_id'); }
     public function dmConsignee() { return $this->belongsTo(TradePartner::class, 'dm_consignee_id'); }
     public function dmNotify() { return $this->belongsTo(TradePartner::class, 'dm_notify_id'); }

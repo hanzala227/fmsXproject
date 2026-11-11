@@ -75,7 +75,9 @@ class DropdownOptionsController extends Controller
 
     public function users(Request $request)
     {
-        $users = User::orderBy('name')
+        $companyId = auth()->user()?->company_id;
+        $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->orderBy('name')
             ->select('id', 'name', 'email')
             ->get();
 

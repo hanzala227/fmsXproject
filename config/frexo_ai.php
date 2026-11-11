@@ -16,7 +16,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'model' => env('FREXO_AI_MODEL', 'gemini-3.5-flash-lite'),
-    'temperature' => (float) env('FREXO_AI_TEMPERATURE', 0.1),
+    'temperature' => (float) env('FREXO_AI_TEMPERATURE', 0.0),
     'timeout' => (int) env('FREXO_AI_TIMEOUT', 60),
     'concurrency' => (int) env('FREXO_AI_CONCURRENCY', 3),
     'prompt_version' => env('FREXO_AI_PROMPT_VERSION', 'v1'),
@@ -51,6 +51,19 @@ return [
         'name' => env('FREXO_AI_QUEUE_NAME', 'frexo-ai'),
         'timeout' => (int) env('FREXO_AI_JOB_TIMEOUT', 120),
         'max_tries' => (int) env('FREXO_AI_JOB_MAX_TRIES', 2),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frexo AI Credit & Billing System
+    |--------------------------------------------------------------------------
+    */
+    'billing' => [
+        'enabled' => env('FREXO_AI_BILLING_ENABLED', true),
+        'initial_company_credits' => (float) env('FREXO_AI_INITIAL_CREDITS', 1000.0), // Complimentary credits for new companies
+        'tokens_per_credit' => (int) env('FREXO_AI_TOKENS_PER_CREDIT', 100), // 100 tokens = 1 credit (e.g. 5,000 tokens = 50 credits)
+        'min_required_credits' => (float) env('FREXO_AI_MIN_REQUIRED_CREDITS', 1.0), // Minimum balance to start extraction
+        'image_tokens_weight' => (int) env('FREXO_AI_IMAGE_TOKENS', 258), // Gemini standard image token weight
     ],
 ];
 

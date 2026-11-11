@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountingJournal extends Model
 {
-    use SoftDeletes;
+    use BelongsToTenant, SoftDeletes;
 
     protected $table = 'journal_entries';
 
     protected $fillable = [
+        'company_id',
         'entry_no',
         'entry_date',
         'description',
@@ -43,7 +45,9 @@ class AccountingJournal extends Model
     public static function generateEntryNo(): string
     {
         $prefix = 'JE-' . date('Ymd') . '-';
-        $last = self::where('entry_no', 'LIKE', $prefix . '%')
+        $last = self::withoutGlobalScopes()
+            ->withTrashed()
+            ->where('entry_no', 'LIKE', $prefix . '%')
             ->orderByRaw("CAST(SUBSTRING(entry_no, " . (strlen($prefix) + 1) . ") AS UNSIGNED) DESC")
             ->first();
 

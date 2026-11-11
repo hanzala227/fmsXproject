@@ -193,7 +193,7 @@
                     if(actionCell) {
                         actionCell.innerHTML = `
                             <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: nowrap;">
-                                <a href="/accounting/invoices/${id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
+                                <a href="/accounting/invoice/${id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
                                     <i class="fa fa-eye"></i> View
                                 </a>
                                 <span style="color: #64748b; font-size: 11px;">Processed</span>
@@ -249,7 +249,7 @@
                         if(actionCell) {
                             actionCell.innerHTML = `
                                 <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: nowrap;">
-                                    <a href="/accounting/invoices/${id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
+                                    <a href="/accounting/invoice/${id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
                                         <i class="fa fa-eye"></i> View
                                     </a>
                                     <span style="color: #64748b; font-size: 11px;">Processed</span>
@@ -285,7 +285,7 @@
                             if(actionCell) {
                                 actionCell.innerHTML = `
                                     <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: nowrap;">
-                                        <a href="/accounting/invoices/${res.id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
+                                        <a href="/accounting/invoice/${res.id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
                                             <i class="fa fa-eye"></i> View
                                         </a>
                                         <span style="color: #64748b; font-size: 11px;">Processed</span>
@@ -336,7 +336,7 @@
                         const actionCell = document.getElementById(`actions-${res.id}`);
                         if(actionCell) actionCell.innerHTML = `
                             <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: nowrap;">
-                                <a href="/accounting/invoices/${res.id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
+                                <a href="/accounting/invoice/${res.id}" class="btn-tool" style="padding: 2px 8px; text-decoration: none; color: #333; white-space: nowrap;" title="View">
                                     <i class="fa fa-eye"></i> View
                                 </a>
                                 <span style="color: #64748b; font-size: 11px;">Processed</span>

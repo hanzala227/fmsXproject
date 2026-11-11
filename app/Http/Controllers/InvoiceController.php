@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Models\Document;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ShipmentMemoAutoPopulationService;
 use App\Services\DocumentSequenceService;
@@ -23,14 +24,9 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $companyId = auth()->user()->company_id ?? 1;
-        // Show verified and cancelled/void invoices in the main list (pending verification stays in queue)
+        // Include DRAFT (Pending/Rejected) documents alongside Verified and Cancelled/VOID so users can view, filter (?status=DRAFT), and delete drafts from the list
         $query = Invoice::with(['billTo', 'currency', 'office', 'issuer', 'invoiceable'])
-            ->where('company_id', $companyId)
-            ->where(function ($q) {
-                $q->where('verification_status', 'Verified')
-                  ->orWhere('verification_status', 'Cancelled')
-                  ->orWhere('status', 'VOID');
-            });
+            ->where('company_id', $companyId);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -95,13 +91,17 @@ class InvoiceController extends Controller
 
         // Apply filters to totals query BEFORE applying ordering and pagination
         $totalsQuery = (clone $query)->reorder();
+        if (strtoupper((string) $request->input('status')) !== 'DRAFT') {
+            // Unverified/Rejected drafts never inflate active summary KPIs unless explicitly filtering DRAFTs
+            $totalsQuery->where('verification_status', 'Verified');
+        }
 
         $pageSize = $request->input('limit', 15);
         $invoices = $query->orderBy($sortField, $sortDir)->paginate($pageSize)->withQueryString();
 
         // Base currency is strictly locked to USD per CR-004 & CR-005
         $baseCurrencyCode = 'USD';
-        
+
         // Sum totals grouped by currency_id and type (AR vs AP), handling CN as negative
         $totalsGrouped = $totalsQuery->where('status', '!=', 'VOID')
             ->where('verification_status', '!=', 'Cancelled')
@@ -196,12 +196,27 @@ class InvoiceController extends Controller
         $invoiceableType = $request->input('invoiceable_type');
         $invoiceableId = $request->input('invoiceable_id');
 
-        return view('accounting.invoice-create', compact('tradePartners', 'currencies', 'offices', 'users', 'defaultType', 'invoiceableType', 'invoiceableId'));
+        $originalInvoices = Invoice::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('status', '!=', 'VOID')
+            ->where('document_type', '!=', 'CN')
+            ->orderByDesc('invoice_date')
+            ->limit(500)
+            ->get(['id', 'invoice_no', 'bill_to_id', 'total_amount', 'type', 'document_type']);
+
+        return view('accounting.invoice-create', compact('tradePartners', 'currencies', 'offices', 'users', 'defaultType', 'invoiceableType', 'invoiceableId', 'originalInvoices'));
     }
 
     public function store(StoreInvoiceRequest $request)
     {
         $data = $request->validated();
+
+        if (\App\Models\AccountingBlockDate::isDateBlocked($data['post_date'] ?? $data['invoice_date'] ?? null, $data['office_id'] ?? null)) {
+            $msg = 'Access Control: Cannot create an invoice or bill in a blocked accounting period.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->back()->withInput()->withErrors(['invoice_date' => $msg]);
+        }
         $data['discount_pct'] = $data['discount_pct'] ?? 0;
         $data['tax_pct'] = $data['tax_pct'] ?? 0;
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
@@ -229,10 +244,9 @@ class InvoiceController extends Controller
         try {
             $companyId = auth()->user()->company_id ?? 1;
             
-            // Determine document type (INV, DN, CN)
+            // Determine document type (INV, DN, CN) using unified Agent/Forwarder rule
             $partner = TradePartner::find($data['bill_to_id']);
-            $partnerType = $partner ? strtolower($partner->type) : '';
-            $isAgent = str_contains($partnerType, 'agent');
+            $isAgent = TradePartner::isAgentType($partner?->type);
             
             if ($request->filled('document_type')) {
                 $docType = $request->input('document_type');
@@ -256,6 +270,7 @@ class InvoiceController extends Controller
             $data['main_sequence_no'] = $seqData['main_sequence_no'];
             $data['group_letter'] = $seqData['group_letter'];
             $data['document_type'] = $docType;
+            $data['status'] = 'DRAFT';
             $data['verification_status'] = 'Pending Verification';
 
             // Lock historical exchange rate upon creation
@@ -264,24 +279,18 @@ class InvoiceController extends Controller
                 $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? 1.0);
             }
 
-            // Guard: Credit Note cannot exceed original invoice amount
-            // NOTE: Do NOT call DB::rollBack() here — we are inside a DB::transaction() block.
-            // Returning a response without throwing exits the transaction cleanly; the outer
-            // try/catch will handle any real exceptions. Calling rollBack() inside a nested
-            // transaction (e.g., from DocumentSequenceService::generateSequence()) causes a
-            // "SAVEPOINT does not exist" PDO error on concurrent requests.
+            $targetInvoiceId = null;
             if ($docType === 'CN') {
                 $targetInvoiceId = $data['related_invoice_id'] ?? $request->input('related_invoice_id') ?? $data['invoiceable_id'] ?? null;
-                if ($targetInvoiceId) {
-                    $origInv = Invoice::find($targetInvoiceId);
-                    if ($origInv && (float) $data['total_amount'] > (float) $origInv->total_amount) {
-                        $msg = "Prohibited: Credit Note amount (\${$data['total_amount']}) exceeds original invoice amount (\${$origInv->total_amount}). Credit notes cannot exceed the original billed amount.";
-                        if ($request->ajax()) {
-                            return response()->json(['success' => false, 'message' => $msg, 'errors' => ['total_amount' => [$msg]]], 422);
-                        }
-                        return back()->withInput()->withErrors(['total_amount' => $msg]);
+                if ($targetInvoiceId && ($capErr = $this->checkCreditNoteCap($companyId, (int) $targetInvoiceId, (float) $data['total_amount']))) {
+                    DB::rollBack();
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $capErr, 'errors' => ['total_amount' => [$capErr]]], 422);
                     }
+                    return back()->withInput()->withErrors(['total_amount' => $capErr]);
                 }
+            } else {
+                $data['related_invoice_id'] = null;
             }
 
             $invoice = Invoice::create($data);
@@ -340,6 +349,14 @@ class InvoiceController extends Controller
 
             self::syncInvoiceTotals($invoice);
 
+            if ($docType === 'CN' && $targetInvoiceId && ($capErr = $this->checkCreditNoteCap($companyId, (int) $targetInvoiceId, (float) $invoice->total_amount))) {
+                DB::rollBack();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $capErr, 'errors' => ['total_amount' => [$capErr]]], 422);
+                }
+                return back()->withInput()->withErrors(['total_amount' => $capErr]);
+            }
+
             DB::commit();
 
             if ($request->ajax()) {
@@ -375,13 +392,19 @@ class InvoiceController extends Controller
 
     public function printDocument(Invoice $invoice)
     {
-        $invoice->load(['billTo', 'currency', 'office', 'issuer', 'lines', 'payments', 'invoiceable']);
+        $authCompanyId = auth()->user()?->company_id;
+        if ($authCompanyId && $invoice->company_id && (int) $invoice->company_id !== (int) $authCompanyId) {
+            abort(403, 'Unauthorized invoice access.');
+        }
 
-        // 1. Company details with professional defaults matching template
-        $company = \App\Models\Company::find($invoice->company_id) ?? \App\Models\Company::first();
+        $invoice->load(['billTo', 'currency', 'office', 'issuer', 'lines', 'payments', 'invoiceable', 'relatedInvoice']);
+
+        // 1. Company details scoped strictly to the invoice/authenticated company
+        $companyId = $invoice->company_id ?? $authCompanyId;
+        $company = $companyId ? \App\Models\Company::find($companyId) : null;
         $companyName = ($company && $company->name && $company->name !== 'Main Freight Tenant')
             ? ($company->legal_name ?? $company->name)
-            : 'Silk Container Lines Ltd';
+            : ($company?->name ?? 'N/A');
 
         // 2. Document type and Title
         $docType = $invoice->document_type;
@@ -447,8 +470,9 @@ class InvoiceController extends Controller
         $refNo = $invoice->mbl_no ?? $shipment?->mbl_no ?? $shipment?->mawb_no ?? 'SCL-INV-2026-00123';
         $jobNo = $shipment?->file_no ?? $shipment?->bkg_no ?? 'SCL-JOB-2026-00456';
 
-        // 6. Currency & Totals (Strict USD base currency)
-        $currencyCode = 'USD';
+        // 6. Currency & Totals (Display in the document's actual billing currency)
+        $invCurrCode = $invoice->currency?->code ?? 'USD';
+        $currencyCode = $invCurrCode;
         $lines = $invoice->lines;
         $subtotal = (float)($invoice->subtotal > 0 ? $invoice->subtotal : $invoice->total_amount);
         $taxPct = (float)($invoice->tax_pct ?? 0);
@@ -462,18 +486,28 @@ class InvoiceController extends Controller
             default => 'Standard commercial freight invoice. Payment is due within credit terms. Please quote invoice number in remittance advice.',
         };
 
-        // 8. Bank Instructions
-        $bank = \Illuminate\Support\Facades\DB::table('banks')
-            ->where('currency', 'USD')
-            ->where('is_active', 1)
-            ->where('bank_name', 'not like', '%test%')
-            ->where('bank_name', 'not like', 'qd%')
-            ->first()
-            ?? \Illuminate\Support\Facades\DB::table('banks')->where('is_active', 1)->first();
-        $bankName = ($bank && !in_array($bank->bank_name, ['qd', 'test'])) ? $bank->bank_name : 'Dutch-Bangla Bank Limited';
-        $bankAccount = ($bank && $bank->gl_no && !str_contains($bank->gl_no, 'tezt')) ? explode(' ', $bank->gl_no)[0] : '1234567890123';
-        $bankSwift = 'DBBLBDDH';
-        $bankBranch = 'Corporate Branch, Dhaka, Bangladesh';
+        // 8. Bank Instructions (strictly scoped to $companyId; never leak another tenant's bank)
+        $bank = null;
+        if ($companyId) {
+            $baseBankQuery = fn() => \Illuminate\Support\Facades\DB::table('banks')
+                ->where('company_id', $companyId)
+                ->where('is_active', 1)
+                ->where('bank_name', 'not like', '%test%')
+                ->where('bank_name', 'not like', 'qd%');
+
+            $bank = $baseBankQuery()->where('is_default_invoice_bank', 1)->first()
+                ?? $baseBankQuery()->where('currency', $invCurrCode)->first()
+                ?? $baseBankQuery()->where('currency', 'USD')->first()
+                ?? \Illuminate\Support\Facades\DB::table('banks')
+                    ->where('company_id', $companyId)
+                    ->where('is_active', 1)
+                    ->orderByDesc('is_default_invoice_bank')
+                    ->first();
+        }
+        $bankName = $bank?->bank_name ?? 'Contact Finance Team';
+        $bankAccount = ($bank && $bank->gl_no && !str_contains($bank->gl_no, 'tezt')) ? explode(' ', $bank->gl_no)[0] : '--';
+        $bankSwift = '--';
+        $bankBranch = $invoice->office?->name ?? '--';
 
         return view('accounting.invoice-print', compact(
             'invoice',
@@ -509,7 +543,13 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
-        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+        $newDate = $request->input('post_date') ?? $request->input('invoice_date') ?? $invoice->post_date ?? $invoice->invoice_date;
+        $newOfficeId = $request->input('office_id', $invoice->office_id);
+        if (
+            $invoice->is_blocked
+            || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)
+            || \App\Models\AccountingBlockDate::isDateBlocked($newDate, $newOfficeId)
+        ) {
             $msg = 'Access Control: This invoice cannot be modified because the record or accounting period is blocked.';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msg], 403);
@@ -541,8 +581,32 @@ class InvoiceController extends Controller
         $data['shipping_amount'] = $data['shipping_amount'] ?? 0;
         $data['subtotal'] = $data['subtotal'] ?? 0;
         $data['tax_total'] = $data['tax_total'] ?? 0;
-        $data['paid_amount'] = $data['paid_amount'] ?? 0;
-        $data['balance_amount'] = $data['total_amount'] - ($data['paid_amount'] ?? 0);
+        unset($data['status'], $data['paid_amount'], $data['balance_amount'], $data['verification_status']);
+
+        if (empty($data['exchange_rate'])) {
+            $curr = Currency::find($data['currency_id'] ?? $invoice->currency_id ?? 1);
+            $data['exchange_rate'] = (float) ($curr?->exchange_rate ?? $invoice->exchange_rate ?? 1.0);
+        }
+
+        $companyId = (int) ($invoice->company_id ?? auth()->user()?->company_id ?? 1);
+        $effectiveDocType = strtoupper($data['document_type'] ?? $invoice->document_type ?? 'INV');
+        $targetInvoiceId = null;
+        if ($effectiveDocType === 'CN') {
+            $submittedRelId = $request->filled('related_invoice_id') ? (int) $request->input('related_invoice_id') : null;
+            // Preserve existing related_invoice_id on linked CNs if form/payload omits it so cap cannot be bypassed
+            if (!$submittedRelId && $invoice->related_invoice_id) {
+                $data['related_invoice_id'] = $invoice->related_invoice_id;
+            }
+            $targetInvoiceId = $submittedRelId ?? $invoice->related_invoice_id ?? ($data['invoiceable_id'] ?? $invoice->invoiceable_id);
+            if ($targetInvoiceId && ($capErr = $this->checkCreditNoteCap($companyId, (int) $targetInvoiceId, (float) $data['total_amount'], $invoice->id))) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $capErr, 'errors' => ['total_amount' => [$capErr]]], 422);
+                }
+                return back()->withInput()->withErrors(['total_amount' => $capErr]);
+            }
+        } else {
+            $data['related_invoice_id'] = null;
+        }
 
         DB::beginTransaction();
         try {
@@ -566,6 +630,14 @@ class InvoiceController extends Controller
             }
 
             self::syncInvoiceTotals($invoice);
+
+            if ($effectiveDocType === 'CN' && $targetInvoiceId && ($capErr = $this->checkCreditNoteCap($companyId, (int) $targetInvoiceId, (float) $invoice->total_amount))) {
+                DB::rollBack();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $capErr, 'errors' => ['total_amount' => [$capErr]]], 422);
+                }
+                return back()->withInput()->withErrors(['total_amount' => $capErr]);
+            }
 
             DB::commit();
 
@@ -595,6 +667,14 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+            $msg = 'Access Control: This document cannot be deleted because the record or accounting period is blocked.';
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 403);
+            }
+            return redirect()->route('accounting.invoices.index')->with('error', $msg);
+        }
+
         // Prohibit deletion of approved, verified, posted, partial, paid, or cancelled documents
         $status = strtoupper($invoice->status ?? '');
         if (in_array($status, ['POSTED', 'PARTIAL', 'PAID', 'VOID']) || $invoice->verification_status === 'Verified' || $invoice->verification_status === 'Cancelled') {
@@ -605,7 +685,10 @@ class InvoiceController extends Controller
             return redirect()->route('accounting.invoices.index')->with('error', $msg);
         }
 
-        $invoice->delete();
+        DB::transaction(function () use ($invoice) {
+            $this->releaseLinkedCharges($invoice);
+            $invoice->delete();
+        });
         return redirect()->route('accounting.invoices.index')
             ->with('success', 'Draft invoice deleted successfully.');
     }
@@ -635,6 +718,13 @@ class InvoiceController extends Controller
                 'success' => false,
                 'message' => 'This document has already been cancelled.'
             ], 422);
+        }
+
+        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access Control: Cannot cancel an invoice in a blocked accounting period.'
+            ], 403);
         }
 
         DB::transaction(function () use ($invoice, $request, $user) {
@@ -674,16 +764,8 @@ class InvoiceController extends Controller
                 'cancellation_reason' => $request->input('reason'),
             ]);
 
-            // Release any linked charges so they can be re-billed if needed
-            DB::table('charges')
-                ->where('company_id', $invoice->company_id)
-                ->where('invoice_no', $invoice->invoice_no)
-                ->update([
-                    'is_invoiced' => false,
-                    'invoice_no' => null,
-                    'invoice_date' => null,
-                    'updated_at' => now(),
-                ]);
+            // Release any linked charges across all shipment charge tables so they can be re-billed if needed
+            $this->releaseLinkedCharges($invoice);
 
             // Retain audit trail
             ActivityLog::create([
@@ -729,6 +811,14 @@ class InvoiceController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized to verify documents.'], 403);
         }
 
+        if ($invoice->status === 'VOID' || $invoice->verification_status === 'Cancelled') {
+            return response()->json(['success' => false, 'message' => 'Prohibited: Cancelled or voided document cannot be verified.'], 422);
+        }
+
+        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+            return response()->json(['success' => false, 'message' => 'Access Control: Cannot verify a document in a blocked accounting period.'], 403);
+        }
+
         $updateData = [
             'verification_status' => 'Verified',
             'verified_by' => auth()->id(),
@@ -751,8 +841,21 @@ class InvoiceController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized to reject documents.'], 403);
         }
 
+        if ($invoice->status === 'VOID' || $invoice->verification_status === 'Cancelled') {
+            return response()->json(['success' => false, 'message' => 'Prohibited: Cancelled or voided document cannot be rejected.'], 422);
+        }
+
+        if ($invoice->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($invoice->post_date ?? $invoice->invoice_date, $invoice->office_id)) {
+            return response()->json(['success' => false, 'message' => 'Access Control: Cannot reject a document in a blocked accounting period.'], 403);
+        }
+
+        if ($invoice->hasActiveSettlements()) {
+            return response()->json(['success' => false, 'message' => 'Cannot reject an invoice that has active settlements. Cancel the document instead.'], 422);
+        }
+
         $request->validate(['reject_reason' => 'required|string']);
         $invoice->update([
+            'status' => 'DRAFT',
             'verification_status' => 'Rejected',
             'rejected_by' => auth()->id(),
             'rejected_at' => now(),
@@ -780,7 +883,15 @@ class InvoiceController extends Controller
         $offices = Office::where('is_active', true)->get();
         $companyId = auth()->user()?->company_id;
         $users = User::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
-        return view('accounting.invoice-create', compact('invoice', 'tradePartners', 'currencies', 'offices', 'users'));
+        $originalInvoices = Invoice::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('id', '!=', $invoice->id)
+            ->where('status', '!=', 'VOID')
+            ->where('document_type', '!=', 'CN')
+            ->orderByDesc('invoice_date')
+            ->limit(500)
+            ->get(['id', 'invoice_no', 'bill_to_id', 'total_amount', 'type', 'document_type']);
+
+        return view('accounting.invoice-create', compact('invoice', 'tradePartners', 'currencies', 'offices', 'users', 'originalInvoices'));
     }
 
     /**
@@ -803,6 +914,16 @@ class InvoiceController extends Controller
             return response()->json(['success' => false, 'message' => 'No invoices selected.']);
         }
 
+        $selectedForDelete = Invoice::whereIn('id', $ids)->get();
+        foreach ($selectedForDelete as $selInv) {
+            if ($selInv->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($selInv->post_date ?? $selInv->invoice_date, $selInv->office_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Access Control: Document {$selInv->invoice_no} cannot be deleted because its record or accounting period is blocked."
+                ], 403);
+            }
+        }
+
         // Check if any selected invoice is approved, verified, posted, settled, or cancelled
         $approvedCount = Invoice::whereIn('id', $ids)
             ->where(function($q) {
@@ -818,8 +939,57 @@ class InvoiceController extends Controller
             ], 403);
         }
 
-        Invoice::whereIn('id', $ids)->delete();
+        DB::transaction(function () use ($ids) {
+            $drafts = Invoice::whereIn('id', $ids)->get();
+            foreach ($drafts as $draft) {
+                $this->releaseLinkedCharges($draft);
+            }
+            Invoice::whereIn('id', $ids)->delete();
+        });
         return response()->json(['success' => true, 'message' => count($ids) . ' draft invoice(s) deleted.']);
+    }
+
+    /**
+     * Release all shipment charge rows linked to a cancelled or deleted invoice.
+     */
+    private function releaseLinkedCharges(Invoice $invoice): void
+    {
+        if (empty($invoice->invoice_no)) {
+            return;
+        }
+
+        $chargeTables = [
+            'charges',
+            'ocean_import_charges',
+            'ocean_export_charges',
+            'air_import_charges',
+            'air_export_charges',
+            'truck_shipment_charges',
+        ];
+
+        foreach ($chargeTables as $table) {
+            if (!Schema::hasTable($table) || !Schema::hasColumn($table, 'invoice_no') || !Schema::hasColumn($table, 'is_invoiced')) {
+                continue;
+            }
+
+            $query = DB::table($table)->where('invoice_no', $invoice->invoice_no);
+            if ($invoice->company_id && Schema::hasColumn($table, 'company_id')) {
+                $query->where('company_id', $invoice->company_id);
+            }
+
+            $payload = [
+                'is_invoiced' => false,
+                'invoice_no' => null,
+            ];
+            if (Schema::hasColumn($table, 'invoice_date')) {
+                $payload['invoice_date'] = null;
+            }
+            if (Schema::hasColumn($table, 'updated_at')) {
+                $payload['updated_at'] = now();
+            }
+
+            $query->update($payload);
+        }
     }
 
     /**
@@ -842,12 +1012,47 @@ class InvoiceController extends Controller
             ], 403);
         }
 
+        if ($status === 'PAID' || $status === 'PARTIAL') {
+            return response()->json([
+                'success' => false,
+                'message' => "Prohibited: Status cannot be set to {$status} via batch update; payments must be recorded through Payment Receive or Payment Make."
+            ], 422);
+        }
+
+        $selectedInvoices = Invoice::whereIn('id', $ids)->get();
+        foreach ($selectedInvoices as $selInv) {
+            if ($selInv->is_blocked || \App\Models\AccountingBlockDate::isDateBlocked($selInv->post_date ?? $selInv->invoice_date, $selInv->office_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Access Control: Document {$selInv->invoice_no} cannot be updated because its record or accounting period is blocked."
+                ], 403);
+            }
+            if ($selInv->status === 'VOID' || $selInv->verification_status === 'Cancelled') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Cancelled document {$selInv->invoice_no} cannot have its status altered."
+                ], 422);
+            }
+            if ($status !== 'DRAFT' && $selInv->verification_status !== 'Verified') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Document {$selInv->invoice_no} must be approved in the Verification Queue before posting."
+                ], 422);
+            }
+            if ($status === 'POSTED' && (in_array($selInv->status, ['PAID', 'PARTIAL']) || (float) $selInv->paid_amount > 0)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Prohibited: Settled or partially paid document {$selInv->invoice_no} cannot be reverted to POSTED while payments exist."
+                ], 422);
+            }
+        }
+
         if ($status === 'DRAFT') {
             $hasSettlements = Invoice::whereIn('id', $ids)
                 ->where(function($q) {
                     $q->where('paid_amount', '>', 0)
                       ->orWhereIn('status', ['PAID', 'PARTIAL'])
-                      ->orWhereHas('payments', fn($p) => $p->whereNull('void_date'));
+                      ->orWhereHas('payments', fn($p) => $p->whereNull('void_date')->whereNull('cancelled_at'));
                 })->exists();
             if ($hasSettlements) {
                 return response()->json([
@@ -1265,6 +1470,44 @@ class InvoiceController extends Controller
      * Recalculates and synchronizes invoice header totals (subtotal, tax_total, total_amount, balance_amount)
      * strictly from the line items to guarantee mathematical ledger consistency.
      */
+    /**
+     * Validate that cumulative Credit Notes do not exceed the linked original invoice amount.
+     */
+    protected function checkCreditNoteCap(int $companyId, int $targetInvoiceId, float $cnTotal, ?int $ignoreCnId = null): ?string
+    {
+        $origInv = Invoice::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->find($targetInvoiceId);
+
+        if (!$origInv) {
+            return null;
+        }
+
+        $existingCnsSum = (float) Invoice::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where(function($q) use ($targetInvoiceId) {
+                $q->where('related_invoice_id', $targetInvoiceId)
+                  ->orWhere(function($sub) use ($targetInvoiceId) {
+                      $sub->where('document_type', 'CN')
+                          ->where('invoiceable_type', 'App\\Models\\Invoice')
+                          ->where('invoiceable_id', $targetInvoiceId);
+                  });
+            })
+            ->whereNotIn('status', ['VOID', 'CANCELLED'])
+            ->where('verification_status', '!=', 'Cancelled')
+            ->when($ignoreCnId, fn($q) => $q->where('id', '!=', $ignoreCnId))
+            ->sum('total_amount');
+
+        $totalCn = round($existingCnsSum + $cnTotal, 2);
+        $origTotal = round((float) $origInv->total_amount, 2);
+
+        if ($totalCn > $origTotal + 0.005) {
+            return "Prohibited: Cumulative Credit Notes (\${$totalCn}) exceed original invoice amount (\${$origTotal}). Active credit notes currently total \${$existingCnsSum}.";
+        }
+
+        return null;
+    }
+
     public static function syncInvoiceTotals(Invoice $invoice): void
     {
         $lines = $invoice->lines()->get();
@@ -1287,24 +1530,13 @@ class InvoiceController extends Controller
         $subtotal = round($linesSum, 2);
         $totalAmount = round($afterDiscount + $shipping + $taxTotal, 2);
 
-        $actualPayments = (float) DB::table('payments')
-            ->where('invoice_id', $invoice->id)
-            ->whereNull('deleted_at')
-            ->sum('amount');
-
         $invoice->subtotal = $subtotal;
         $invoice->tax_total = $taxTotal;
         $invoice->total_amount = $totalAmount;
-        $invoice->paid_amount = $actualPayments;
-        $invoice->balance_amount = max(0, round($totalAmount - $actualPayments, 2));
-
-        if ($invoice->balance_amount <= 0 && $totalAmount > 0) {
-            $invoice->status = 'PAID';
-        } elseif ($actualPayments > 0) {
-            $invoice->status = 'PARTIAL';
-        }
-
         $invoice->saveQuietly();
+
+        AccountingPaymentController::syncInvoiceBalance($invoice->id);
+        $invoice->refresh();
     }
 
     /**

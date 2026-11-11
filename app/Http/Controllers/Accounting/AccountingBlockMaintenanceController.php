@@ -66,31 +66,31 @@ class AccountingBlockMaintenanceController extends Controller
         $results = collect();
 
         if (in_array('ocean_import', $types)) {
-            $q = OceanImport::with(['office', 'overseaAgent', 'carrier', 'customer', 'pol', 'pod', 'vessel'])
+            $q = OceanImport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'portOfLoading', 'portOfDischarge', 'vessel'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'pol_id', 'pod_id', 'vessel_id', 'is_blocked');
             $results = $results->merge($this->applyShipmentFilters($q, $request, 'ocean_imports', 'OCEAN IMPORT'));
         }
 
         if (in_array('ocean_export', $types)) {
-            $q = OceanExport::with(['office', 'overseaAgent', 'carrier', 'customer', 'pol', 'pod', 'vessel'])
+            $q = OceanExport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'portOfLoading', 'portOfDischarge', 'vessel'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'pol_id', 'pod_id', 'vessel_id', 'is_blocked');
             $results = $results->merge($this->applyShipmentFilters($q, $request, 'ocean_exports', 'OCEAN EXPORT'));
         }
 
         if (in_array('air_import', $types)) {
-            $q = AirImport::with(['office', 'overseaAgent', 'carrier', 'customer', 'departurePort', 'destinationPort'])
+            $q = AirImport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'depPort', 'dstPort'])
                 ->select('id', 'file_no', 'mawb_no as mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'dep_port_id as pol_id', 'dst_port_id as pod_id', 'is_blocked');
             $results = $results->merge($this->applyShipmentFilters($q, $request, 'air_imports', 'AIR IMPORT'));
         }
 
         if (in_array('air_export', $types)) {
-            $q = AirExport::with(['office', 'overseaAgent', 'carrier', 'customer', 'departurePort', 'destinationPort'])
+            $q = AirExport::with(['office', 'overseaAgent', 'carrier', 'dmCustomer', 'depPort', 'dstPort'])
                 ->select('id', 'file_no', 'mawb_no as mbl_no', 'post_date', 'office_id', 'oversea_agent_id', 'carrier_id', 'dm_customer_id', 'dep_port_id as pol_id', 'dst_port_id as pod_id', 'is_blocked');
             $results = $results->merge($this->applyShipmentFilters($q, $request, 'air_exports', 'AIR EXPORT'));
         }
 
         if (in_array('truck', $types)) {
-            $q = TruckShipment::with(['office', 'customer', 'originPort', 'destinationPort'])
+            $q = TruckShipment::with(['office', 'dmCustomer', 'pol', 'pod'])
                 ->select('id', 'file_no', 'mbl_no', 'post_date', 'office_id', 'customer_id', 'pol_id', 'pod_id', 'is_blocked');
             $results = $results->merge($this->applyShipmentFilters($q, $request, 'truck_shipments', 'TRUCK'));
         }
@@ -100,6 +100,11 @@ class AccountingBlockMaintenanceController extends Controller
 
     private function applyShipmentFilters($query, Request $request, string $table, string $typeLabel)
     {
+        $companyId = auth()->user()->company_id ?? null;
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
         if ($request->office_id) {
             $query->where('office_id', $request->office_id);
         }
@@ -143,9 +148,9 @@ class AccountingBlockMaintenanceController extends Controller
                 'bl_no'         => $r->mbl_no ?? '',
                 'oversea_agent' => $r->overseaAgent?->name ?? '',
                 'carrier'       => $r->carrier?->name ?? '',
-                'customer'      => $r->customer?->name ?? '',
-                'pol'           => $r->pol?->name ?? ($r->departurePort?->name ?? ($r->originPort?->name ?? '')),
-                'pod'           => $r->pod?->name ?? ($r->destinationPort?->name ?? ''),
+                'customer'      => $r->dmCustomer?->name ?? ($r->customer?->name ?? ''),
+                'pol'           => $r->portOfLoading?->name ?? ($r->depPort?->name ?? ($r->pol?->name ?? '')),
+                'pod'           => $r->portOfDischarge?->name ?? ($r->dstPort?->name ?? ($r->pod?->name ?? '')),
                 'vessel_flt_no' => $r->vessel?->name ?? ($r->voyage ?? ''),
                 'is_blocked'    => (bool)($r->is_blocked ?? false),
                 'model_type'    => $typeLabel,
@@ -156,7 +161,9 @@ class AccountingBlockMaintenanceController extends Controller
 
     private function searchArApDc(Request $request)
     {
-        $query = Invoice::with(['billTo', 'office'])
+        $companyId = auth()->user()->company_id ?? null;
+        $query = Invoice::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->with(['billTo', 'office'])
             ->select('id', 'invoice_no', 'type', 'document_type', 'invoice_date as post_date', 'office_id', 'bill_to_id', 'is_blocked');
 
         if ($request->office_id) {
@@ -210,7 +217,9 @@ class AccountingBlockMaintenanceController extends Controller
 
     private function searchDepositPayment(Request $request)
     {
-        $query = AccountingPayment::with(['tradePartner', 'office'])
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingPayment::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->with(['tradePartner', 'office'])
             ->select('id', 'payment_no', 'type', 'payment_date as post_date', 'office_id', 'trade_partner_id', 'check_no', 'is_blocked');
 
         if ($request->office_id) {
@@ -263,7 +272,9 @@ class AccountingBlockMaintenanceController extends Controller
 
     private function searchGeneralJournal(Request $request)
     {
-        $query = AccountingJournal::with(['office', 'creator'])
+        $companyId = auth()->user()->company_id ?? null;
+        $query = AccountingJournal::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator'])
             ->select('id', 'entry_no', 'entry_date as post_date', 'office_id', 'description', 'status', 'created_by', 'is_blocked');
 
         if ($request->office_id) {
@@ -340,6 +351,29 @@ class AccountingBlockMaintenanceController extends Controller
 
         if (!in_array($table, $allowedTables)) {
             return response()->json(['success' => false, 'message' => 'Invalid record type.'], 422);
+        }
+
+        $companyId = auth()->user()->company_id ?? null;
+        if ($companyId) {
+            if ($table === 'journal_entries') {
+                $validIds = DB::table('journal_entries')
+                    ->join('users', 'journal_entries.created_by', '=', 'users.id')
+                    ->where('users.company_id', $companyId)
+                    ->whereIn('journal_entries.id', $ids)
+                    ->pluck('journal_entries.id')
+                    ->toArray();
+            } else {
+                $validIds = DB::table($table)
+                    ->where('company_id', $companyId)
+                    ->whereIn('id', $ids)
+                    ->pluck('id')
+                    ->toArray();
+            }
+            $ids = $validIds;
+        }
+
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No matching records found for this company.'], 404);
         }
 
         $affected = DB::table($table)->whereIn('id', $ids)->update(['is_blocked' => $blocked]);

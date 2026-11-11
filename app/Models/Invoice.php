@@ -22,6 +22,7 @@ class Invoice extends Model
         'billing_address',
         'invoiceable_type',
         'invoiceable_id',
+        'related_invoice_id',
         'currency_id',
         'exchange_rate',
         'subtotal',
@@ -84,6 +85,16 @@ class Invoice extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    public function relatedInvoice()
+    {
+        return $this->belongsTo(self::class, 'related_invoice_id');
+    }
+
+    public function creditNotes()
+    {
+        return $this->hasMany(self::class, 'related_invoice_id');
     }
 
     public function getInvoiceableTypeAttribute($value)
@@ -171,7 +182,7 @@ class Invoice extends Model
     {
         return (float)($this->paid_amount ?? 0) > 0 
             || in_array(strtoupper($this->status ?? ''), ['PAID', 'PARTIAL'])
-            || $this->payments()->whereNull('void_date')->exists();
+            || $this->payments()->whereNull('void_date')->whereNull('cancelled_at')->exists();
     }
 
     public function documents()
@@ -291,6 +302,14 @@ class Invoice extends Model
         }
 
         return null;
+    }
+
+    public function scopeReportable($query)
+    {
+        return $query->whereIn('status', ['POSTED', 'PARTIAL', 'PAID'])
+            ->where('verification_status', 'Verified')
+            ->whereNull('deleted_at')
+            ->whereNull('cancelled_at');
     }
 
     /**

@@ -85,6 +85,9 @@ class StoreOceanImportRequest extends FormRequest
                 foreach (['pkg_qty','weight_kg','weight_lb','measure_cbm','measure_cft','chassis_days','tare_weight','vgm','net_weight'] as $numField) {
                     if (isset($container[$numField]) && $container[$numField] === '') $containers[$index][$numField] = null;
                 }
+                if (isset($container['container_no']) && $container['container_no'] === 'MANUAL' && !empty($container['manual_container_no'])) {
+                    $containers[$index]['container_no'] = $container['manual_container_no'];
+                }
             }
             $this->merge(['containers' => $containers]);
         }
@@ -249,7 +252,8 @@ class StoreOceanImportRequest extends FormRequest
             
             // Nested HBL Containers
             'hbls.*.containers' => 'sometimes|array',
-            'hbls.*.containers.*.container_no' => 'nullable|string',
+            'hbls.*.containers.*.container_no' => ['nullable', 'string', new Iso6346ContainerRule()],
+            'hbls.*.containers.*.manual_container_no' => ['nullable', 'string', new Iso6346ContainerRule()],
             'hbls.*.containers.*.pkg_qty' => 'nullable|numeric',
             'hbls.*.containers.*.pkg_unit' => 'nullable|string',
             'hbls.*.containers.*.weight_kg' => 'nullable|numeric',
@@ -278,7 +282,8 @@ class StoreOceanImportRequest extends FormRequest
             'hbls.*.receipts.*.remarks' => 'nullable|string',
 
             'containers' => 'sometimes|array',
-            'containers.*.container_no' => 'nullable|string',
+            'containers.*.container_no' => ['nullable', 'string', new Iso6346ContainerRule()],
+            'containers.*.manual_container_no' => ['nullable', 'string', new Iso6346ContainerRule()],
             'containers.*.pp_ctf' => 'nullable|string',
             'containers.*.container_type_id' => 'nullable|exists:container_types,id',
             'containers.*.seal_no' => 'nullable|string',

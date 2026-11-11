@@ -69,6 +69,17 @@
         <div style="font-size: 8px; color: #64748b; font-weight: 500;">
             {{ $company->users->count() }} / {{ $company->user_limit }} Seats
         </div>
+        <div style="margin-top: 3px;">
+            @if($company->frexo_ai_unlimited)
+            <span style="font-size: 8px; font-weight: 700; background: #dcfce7; color: #15803d; padding: 1px 5px; border-radius: 3px; display: inline-flex; align-items: center; gap: 3px;">
+                <i class="fa fa-bolt" style="color: #f59e0b;"></i> AI: Unlimited
+            </span>
+            @else
+            <span style="font-size: 8px; font-weight: 700; background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 3px; display: inline-flex; align-items: center; gap: 3px; border: 1px solid #fde68a;">
+                <i class="fa fa-bolt" style="color: #f59e0b;"></i> AI: {{ number_format($company->frexo_ai_credits ?? 0, 0) }} cr
+            </span>
+            @endif
+        </div>
     </td>
 
     {{-- 7. Freight Modules --}}

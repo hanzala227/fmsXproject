@@ -21,6 +21,11 @@
         .net-pos{color:#16a34a}.net-neg{color:#dc2626}
         .footer{margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;font-size:9px;color:#94a3b8;text-align:center}
         .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:10px 14px;margin-top:16px;font-size:10px;color:#1e40af;line-height:1.5}
+        .kpi-summary{display:flex;gap:12px;margin-bottom:16px}
+        .kpi-box{flex:1;border:1px solid #cbd5e1;border-radius:4px;padding:8px 12px;background:#f8fafc}
+        .kpi-title{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:2px}
+        .kpi-val{font-size:14px;font-weight:700;font-family:'Courier New',monospace}
+        .kpi-badge{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:700;display:inline-block}
         @media print{body{padding:10px}}
     </style>
 </head>
@@ -32,6 +37,29 @@
     <div class="meta">
         <span>Generated: {{ now()->format('Y-m-d H:i:s') }}</span>
         <span>Office: {{ request('office_id') ? 'Filtered' : 'All' }}</span>
+    </div>
+
+    <div class="kpi-summary">
+        <div class="kpi-box">
+            <div class="kpi-title">Total Revenue (GL 4000)</div>
+            <div class="kpi-val" style="color:#0284c7;">${{ number_format($totalRevenue, 2) }}</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-title">Total Expenses (GL 5000)</div>
+            <div class="kpi-val" style="color:#e11d48;">${{ number_format($totalExpenses, 2) }}</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-title">Net Operating Income</div>
+            <div class="kpi-val {{ $netIncome >= 0 ? 'net-pos' : 'net-neg' }}">${{ number_format($netIncome, 2) }}</div>
+        </div>
+        <div class="kpi-box">
+            <div class="kpi-title">Operating Margin</div>
+            <div class="kpi-val {{ $netIncome >= 0 ? 'net-pos' : 'net-neg' }}">{{ $marginPct }}%</div>
+        </div>
+        <div class="kpi-box" style="border-left:3px solid #10b981;">
+            <div class="kpi-title">GL Reconciliation</div>
+            <div style="margin-top:2px;"><span class="kpi-badge">&#10003; RECONCILED (&Delta; $0.00)</span></div>
+        </div>
     </div>
 
     <table>

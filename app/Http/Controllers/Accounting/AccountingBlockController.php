@@ -12,10 +12,12 @@ class AccountingBlockController extends Controller
 {
     public function index()
     {
+        $companyId = auth()->user()->company_id ?? null;
         $offices = Office::where('is_active', true)->orderBy('name')->get();
 
-        // Get latest block/unblock status per office (including global/all offices)
-        $latestRecords = AccountingBlockDate::with(['office', 'creator'])
+        // Get latest block/unblock status per office (including global/all offices) scoped to current company
+        $latestRecords = AccountingBlockDate::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator'])
             ->orderByDesc('id')
             ->get()
             ->unique('office_id');
@@ -63,9 +65,24 @@ class AccountingBlockController extends Controller
         $label = ($request->action === 'BLOCK') ? 'blocked' : 'unblocked';
         $officeName = $request->office_id ? Office::find($request->office_id)?->name : 'All Offices';
 
+        $companyId = auth()->user()->company_id ?? null;
+        $latestRecords = AccountingBlockDate::when($companyId, fn($q) => $q->whereHas('creator', fn($c) => $c->where('company_id', $companyId)))
+            ->with(['office', 'creator'])
+            ->orderByDesc('id')
+            ->get()
+            ->unique('office_id')
+            ->values()
+            ->map(fn($r) => [
+                'office_code' => $r->office?->code ?? 'All Offices',
+                'block_date'  => $r->block_date?->format('m-d-Y') ?? '',
+                'action'      => $r->action ?? 'BLOCK',
+                'updated_by'  => ($r->creator?->name ?? 'Admin') . ' (' . ($r->created_at?->format('m-d-Y H:i') ?? '') . ')',
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => "Accounting data successfully {$label} for {$officeName} before " . date('m-d-Y', strtotime($request->block_date)) . ".",
+            'records' => $latestRecords,
         ]);
     }
 }

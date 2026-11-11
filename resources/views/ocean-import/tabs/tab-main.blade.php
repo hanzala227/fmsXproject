@@ -735,7 +735,7 @@
                     <small style="color:rgba(255,255,255,0.8); margin-left: 10px; font-weight: normal;">OP : <span x-text="getUserName(form.op_id)"></span></small>
                 </span>
                 <div class="actions" style="display: flex; gap: 6px; align-items: center;" @click.stop>
-                    <button type="button" @click="showAiModal = true" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
+                    <button type="button" @click="showAiModal = true; typeof refreshAiCredits === 'function' && refreshAiCredits()" class="frexo-trigger-btn" style="height: 22px; padding: 2px 8px; font-size: 10px; border-radius: 3px;" title="Auto-fill with Frexo AI">
                         <i class="fa fa-bolt"></i> Frexo AI
                     </button>
                     <!-- HBL Tools Dropdown -->
@@ -920,10 +920,10 @@
                         </div>
                         <div class="form-group-gf">
                             <label class="form-label-gf">VESSEL</label>
-                            <div class="form-input-container">
-                                <input type="text" :name="'hbls['+index+'][vessel_name]'" class="form-control-gf" x-model="hbl.vessel_name" placeholder="Vessel" style="width: 50%;">
-                                <span style="font-size: 10px; font-weight: 600; color: #475569; white-space: nowrap; margin-left: 4px;">M. Voyage No:</span>
-                                <input type="text" :name="'hbls['+index+'][voyage_no]'" class="form-control-gf" x-model="hbl.voyage_no" placeholder="Voyage No" style="flex: 1;">
+                            <div class="form-input-container" style="display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0;">
+                                <input type="text" :name="'hbls['+index+'][vessel_name]'" class="form-control-gf" x-model="hbl.vessel_name" placeholder="Vessel" style="flex: 1; min-width: 0;">
+                                <span style="font-size: 10px; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0;" title="Master Voyage Number">M. Voy:</span>
+                                <input type="text" :name="'hbls['+index+'][voyage_no]'" class="form-control-gf" x-model="hbl.voyage_no" placeholder="Voyage No" style="flex: 1; min-width: 0;">
                             </div>
                         </div>
                         <div class="form-group-gf">

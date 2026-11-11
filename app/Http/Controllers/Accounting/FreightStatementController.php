@@ -15,10 +15,12 @@ class FreightStatementController extends Controller
 {
     public function index()
     {
+        $companyId     = auth()->user()?->company_id;
         $offices       = Office::where('is_active', true)->orderBy('name')->get();
-        $tradePartners = TradePartner::orderBy('name')->get();
+        $tradePartners = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))->orderBy('name')->get();
         $currencies    = Currency::orderBy('name')->get();
-        $accountGroups = TradePartner::whereNotNull('credit_limit_group_name')
+        $accountGroups = TradePartner::when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->whereNotNull('credit_limit_group_name')
             ->where('credit_limit_group_name', '!=', '')
             ->distinct()
             ->pluck('credit_limit_group_name')
@@ -65,12 +67,17 @@ class FreightStatementController extends Controller
 
         $asOfCarbon = Carbon::parse($asOfDate);
 
-        $query = Invoice::where('company_id', $companyId)
+        $query = Invoice::reportable()
+            ->where('company_id', $companyId)
             ->where('invoice_date', '<=', $asOfDate)
-            ->where('status', '!=', 'VOID')
-            ->where('verification_status', '!=', 'Cancelled')
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
-            ->with(['billTo', 'currency', 'office', 'payments' => fn($p) => $p->whereNull('void_date'), 'invoiceable']);
+            ->with([
+                'billTo',
+                'currency',
+                'office',
+                'payments' => fn($p) => $p->whereNull('void_date')->whereNull('cancelled_at')->where('payment_date', '<=', $asOfDate),
+                'invoiceable',
+            ]);
 
         if ($partnerType === 'account_group') {
             if ($accountGroup) {
@@ -111,34 +118,38 @@ class FreightStatementController extends Controller
 
         $results = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->whereNull('void_date')->sum('amount');
-            $invType   = strtoupper($invoice->type ?? '');
-            $docType   = strtoupper($invoice->document_type ?? '');
-            $isCN      = $docType === 'CN';
-            $isDN      = $docType === 'DN';
-            $rawTotal  = (float) $invoice->total_amount;
+            $activePays = $invoice->payments->whereNull('void_date')->whereNull('cancelled_at');
+            $totalPaid  = (float) ($activePays->sum('amount') + $activePays->sum('tds_tax') + $activePays->sum('discount'));
+            $invType    = strtoupper($invoice->type ?? '');
+            $docType    = strtoupper($invoice->document_type ?? '');
+            $isCN       = $docType === 'CN';
+            $isDN       = $docType === 'DN';
+            $rawTotal   = (float) $invoice->total_amount;
 
             // DR/CR and Balance logic
             if ($invType === 'AR') {
                 if ($isCN) {
                     $drAmount = 0.0;
                     $crAmount = $rawTotal;
-                    $balance  = -$rawTotal - $totalPaid;
+                    $balance  = -$rawTotal + $totalPaid;
                 } else {
                     $drAmount = $rawTotal;
                     $crAmount = 0.0;
                     $balance  = $rawTotal - $totalPaid;
                 }
             } else { // AP
-                if ($isDN) {
+                if ($isDN || $isCN) {
                     $drAmount = $rawTotal;
                     $crAmount = 0.0;
-                    $balance  = -$rawTotal - $totalPaid;
+                    $balance  = -$rawTotal + $totalPaid;
                 } else {
                     $drAmount = 0.0;
                     $crAmount = $rawTotal;
                     $balance  = $rawTotal - $totalPaid;
                 }
+            }
+            if (strtoupper($invoice->status ?? '') === 'PAID' || abs($balance) <= 0.001) {
+                $balance = 0.0;
             }
 
             $skip = false;

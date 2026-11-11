@@ -110,6 +110,52 @@
                     </table>
                 </div>
             </div>
+
+            {{-- Frexo AI Credit Ledger / History --}}
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa fa-list-alt" style="color: #405189; margin-right: 6px;"></i> Frexo AI Credit History (Recent Transactions)</span>
+                </div>
+                <div style="padding: 0; max-height: 280px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                <th style="padding: 8px 16px; text-align: left; font-weight: 600; color: #475569;">Date</th>
+                                <th style="padding: 8px 16px; text-align: left; font-weight: 600; color: #475569;">Type</th>
+                                <th style="padding: 8px 16px; text-align: right; font-weight: 600; color: #475569;">Amount</th>
+                                <th style="padding: 8px 16px; text-align: right; font-weight: 600; color: #475569;">Balance</th>
+                                <th style="padding: 8px 16px; text-align: left; font-weight: 600; color: #475569;">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($company->creditTransactions()->take(10)->get() as $tx)
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 16px; color: #64748b;">{{ $tx->created_at->format('M d, H:i') }}</td>
+                                <td style="padding: 8px 16px;">
+                                    <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600;
+                                        {{ $tx->credits_amount > 0 ? 'background: #dcfce7; color: #15803d;' : 'background: #fee2e2; color: #991b1b;' }}">
+                                        {{ str_replace('_', ' ', $tx->type) }}
+                                    </span>
+                                </td>
+                                <td style="padding: 8px 16px; text-align: right; font-weight: 600; {{ $tx->credits_amount > 0 ? 'color: #16a34a;' : 'color: #dc2626;' }}">
+                                    {{ $tx->credits_amount > 0 ? '+' : '' }}{{ number_format($tx->credits_amount, 2) }}
+                                </td>
+                                <td style="padding: 8px 16px; text-align: right; font-weight: 500; color: #334155;">
+                                    {{ number_format($tx->balance_after, 2) }}
+                                </td>
+                                <td style="padding: 8px 16px; color: #64748b;">
+                                    {{ $tx->description ?: ($tx->reference_doc ?: '—') }}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8;">No AI credit transactions recorded yet.</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -143,6 +189,49 @@
                         <span style="font-size: 12px; color: #64748b;">Timezone</span>
                         <span style="font-size: 13px; font-weight: 600; color: #1e293b;">{{ $company->timezone ?? 'UTC' }}</span>
                     </div>
+                </div>
+            </div>
+
+            {{-- Frexo AI Credits & Metering --}}
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa fa-bolt" style="color: #f59e0b; margin-right: 6px;"></i> Frexo AI Credits</span>
+                    @if($company->frexo_ai_unlimited)
+                    <span style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600; background: #dcfce7; color: #15803d;">Unlimited</span>
+                    @else
+                    <span style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600; background: #e0f2fe; color: #0369a1;">Metered</span>
+                    @endif
+                </div>
+                <div style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+                        <span style="font-size: 12px; color: #64748b;">Available Balance</span>
+                        <span style="font-size: 18px; font-weight: 700; color: #1e293b;">
+                            {{ number_format($company->frexo_ai_credits ?? 0, 2) }}
+                            <span style="font-size: 11px; font-weight: normal; color: #64748b;">Credits</span>
+                        </span>
+                    </div>
+
+                    {{-- Quick Action: Top Up Credits --}}
+                    <form action="{{ route('super-admin.companies.recharge-ai-credits', $company) }}" method="POST" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+                        @csrf
+                        <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Top-Up / Add Credits</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                            <input type="number" step="any" min="1" name="amount" placeholder="Amount (e.g. 500)" required style="flex: 1; height: 32px; font-size: 12px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            <button type="submit" style="height: 32px; padding: 0 12px; font-size: 11px; font-weight: 600; background: #10b981; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+                                <i class="fa fa-plus"></i> Add
+                            </button>
+                        </div>
+                        <input type="text" name="note" placeholder="Optional reference / invoice note" style="width: 100%; height: 28px; font-size: 11px; padding: 0 8px; border: 1px solid #e2e8f0; border-radius: 4px; box-sizing: border-box;">
+                    </form>
+
+                    {{-- Toggle Unlimited Mode --}}
+                    <form action="{{ route('super-admin.companies.toggle-ai-unlimited', $company) }}" method="POST" style="margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        @csrf
+                        <span style="font-size: 11px; color: #64748b;">Unlimited AI Mode</span>
+                        <button type="submit" style="height: 26px; padding: 0 10px; font-size: 10px; font-weight: 600; border-radius: 4px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; cursor: pointer;">
+                            {{ $company->frexo_ai_unlimited ? 'Disable Unlimited' : 'Enable Unlimited' }}
+                        </button>
+                    </form>
                 </div>
             </div>
 

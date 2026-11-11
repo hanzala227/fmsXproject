@@ -101,9 +101,17 @@ class AgentLocalStatementController extends Controller
 
         $query = Invoice::where('invoice_date', '<=', $asOfDate)
             ->when($companyId, fn($q) => $q->where('company_id', $companyId))
+            ->where('status', '!=', 'VOID')
+            ->whereNotIn('verification_status', ['Cancelled', 'Rejected'])
             ->when($officeId, fn($q) => $q->where('office_id', $officeId))
             ->when($salesPersonId, fn($q) => $q->where('issued_by', $salesPersonId))
-            ->with(['billTo', 'currency', 'office', 'payments', 'invoiceable']);
+            ->with([
+                'billTo',
+                'currency',
+                'office',
+                'payments' => fn($p) => $p->whereNull('void_date')->whereNull('cancelled_at')->where('payment_date', '<=', $asOfDate),
+                'invoiceable',
+            ]);
 
         // Filter by partner (filter_partner / partner_name, account_group, or bill_to_id)
         if ($filterPartner) {
@@ -175,8 +183,23 @@ class AgentLocalStatementController extends Controller
 
         $results = [];
         foreach ($invoices as $invoice) {
-            $totalPaid = (float) $invoice->payments->sum('amount');
-            $balance   = (float) $invoice->total_amount - $totalPaid;
+            $activePayments = $invoice->payments->whereNull('void_date')->whereNull('cancelled_at');
+            $totalCashPaid = (float) $activePayments->sum('amount');
+            $totalTdsPaid  = (float) $activePayments->sum('tds_tax');
+            $totalDiscPaid = (float) $activePayments->sum('discount');
+            $totalPaid     = $totalCashPaid + $totalTdsPaid + $totalDiscPaid;
+
+            $invType  = strtoupper($invoice->type ?? '');
+            $docType  = strtoupper($invoice->document_type ?? '');
+            $rawTotal = (float) $invoice->total_amount;
+            $isCreditReduction = ($invType === 'AR' && $docType === 'CN')
+                || ($invType === 'AP' && in_array($docType, ['DN', 'CN']));
+
+            $signedTotal = $isCreditReduction ? -$rawTotal : $rawTotal;
+            $balance     = $signedTotal - $totalPaid;
+            if (strtoupper($invoice->status ?? '') === 'PAID' || abs($balance) <= 0.001) {
+                $balance = 0.0;
+            }
 
             $skip = false;
 
@@ -218,7 +241,7 @@ class AgentLocalStatementController extends Controller
 
             $daysOverdue = 0;
             if ($invoice->due_date) {
-                $daysOverdue = max(0, $asOfCarbon->diffInDays(Carbon::parse($invoice->due_date), false));
+                $daysOverdue = max(0, (int) Carbon::parse($invoice->due_date)->diffInDays($asOfCarbon, false));
             }
 
             $current = 0;
@@ -241,10 +264,10 @@ class AgentLocalStatementController extends Controller
                 }
             }
 
-            $lastPaid = $invoice->payments->sortByDesc('payment_date')->first();
+            $lastPaid = $activePayments->sortByDesc('payment_date')->first();
             $lastPaidDate = $lastPaid?->payment_date?->format('Y-m-d') ?? '';
-            $drAmount = $invType === 'AR' ? (float) $invoice->total_amount : 0;
-            $crAmount = $invType === 'AP' ? (float) $invoice->total_amount : 0;
+            $drAmount = ($invType === 'AR' && !$isCreditReduction) || ($invType === 'AP' && $isCreditReduction) ? $rawTotal : 0.0;
+            $crAmount = ($invType === 'AP' && !$isCreditReduction) || ($invType === 'AR' && $isCreditReduction) ? $rawTotal : 0.0;
 
             $results[] = [
                 'invoice_no'     => $invoice->invoice_no ?? '',

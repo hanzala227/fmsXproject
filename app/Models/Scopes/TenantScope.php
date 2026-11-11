@@ -15,6 +15,9 @@ class TenantScope implements Scope
     {
         if (auth()->check() && auth()->user()->company_id) {
             $builder->where($model->getTable() . '.company_id', auth()->user()->company_id);
+        } elseif (!app()->runningInConsole()) {
+            // Defense-in-depth: Unauthenticated web/api requests must never leak multi-tenant records
+            $builder->whereRaw('1 = 0');
         }
     }
 }
