@@ -126,8 +126,10 @@ Route::prefix('dropdown-options')->middleware(['web', 'auth'])->group(function (
     Route::get('/vendors', [App\Http\Controllers\Api\DropdownOptionsController::class, 'vendors']);
 });
 
-// ShipmentBeat Tracking Webhook (Public HTTPS endpoint, supports GET for health check and POST for events)
-Route::match(['get', 'post'], '/webhooks/shipmentbeat', [App\Http\Controllers\Api\ShipmentBeatWebhookController::class, 'handleWebhook']);
+// ShipmentBeat Tracking Webhook (Public HTTPS endpoint, supports all webhook path variants)
+Route::match(['get', 'post', 'head', 'options'], '/webhooks/{any?}', [App\Http\Controllers\Api\ShipmentBeatWebhookController::class, 'handleWebhook'])->where('any', '.*');
+Route::match(['get', 'post', 'head', 'options'], '/webhook/{any?}', [App\Http\Controllers\Api\ShipmentBeatWebhookController::class, 'handleWebhook'])->where('any', '.*');
+
 
 
 
