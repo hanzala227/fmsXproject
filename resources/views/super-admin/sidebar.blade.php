@@ -17,17 +17,14 @@
                     'Core' => [
                         [
                             'label' => 'Dashboard', 'icon' => 'fa-dashboard', 'route' => 'super-admin.dashboard', 'match' => 'super-admin',
-                            'sub' => [
-                                ['label' => 'Overview', 'route' => 'super-admin.dashboard'],
-                                ['label' => 'Reports', 'route' => 'super-admin.dashboard.reports'],
-                                ['label' => 'System Status', 'route' => 'super-admin.dashboard.system-status'],
-                            ]
+                            'sub' => []
                         ],
                         [
-                            'label' => 'Companies', 'icon' => 'fa-building', 'route' => 'super-admin.companies.index', 'match' => 'super-admin/companies',
+                            'label' => 'Companies', 'icon' => 'fa-building', 'route' => 'super-admin.companies.index', 'match' => ['super-admin/companies', 'super-admin/branches'],
                             'sub' => [
                                 ['label' => 'All Companies', 'route' => 'super-admin.companies.index', 'params' => []],
                                 ['label' => 'Add New Company', 'route' => 'super-admin.companies.create', 'params' => []],
+                                ['label' => 'Branch Management', 'route' => 'super-admin.branches.index', 'params' => []],
                             ]
                         ],
                         [
@@ -47,9 +44,10 @@
                             ]
                         ],
                         [
-                            'label' => 'Bugs & Issues', 'icon' => 'fa-bug', 'route' => 'super-admin.bugs.index', 'match' => 'super-admin/bugs',
+                            'label' => 'Bug Management', 'icon' => 'fa-bug', 'route' => 'super-admin.bugs.index', 'match' => 'super-admin/bugs',
                             'sub' => [
-                                ['label' => 'Issue Triage Console', 'route' => 'super-admin.bugs.index'],
+                                ['label' => 'All Reported Bugs', 'route' => 'super-admin.bugs.index'],
+                                ['label' => 'Urgent Triage', 'route' => 'super-admin.bugs.index', 'params' => ['tab' => 'urgent']],
                             ]
                         ],
                         [
@@ -74,10 +72,12 @@
                             ]
                         ],
                         [
-                            'label' => 'Integrations', 'icon' => 'fa-plug', 'route' => 'super-admin.carrier-tracking.index', 'match' => 'super-admin/carrier-tracking',
+                            'label' => 'Integration & API Management', 'icon' => 'fa-plug', 'route' => 'super-admin.carrier-tracking.index', 'match' => ['super-admin/carrier-tracking', 'super-admin/ai-settings', 'super-admin/integrations'],
                             'sub' => [
-                                ['label' => 'Carrier Tracking (DCSA)', 'route' => 'super-admin.carrier-tracking.index'],
-                                ['label' => 'AI Engine Settings', 'route' => 'super-admin.ai-settings.index'],
+                                ['label' => 'Carrier Tracking (ShipmentBeat)', 'route' => 'super-admin.carrier-tracking.index'],
+                                ['label' => 'AI Engine API (Gemini)', 'route' => 'super-admin.ai-settings.index'],
+                                ['label' => 'Frexo AI Credits & Pricing', 'route' => 'super-admin.ai-settings.credits'],
+                                ['label' => 'API Keys & Webhooks', 'route' => 'super-admin.integrations.api-keys'],
                             ]
                         ],
                     ],
@@ -90,9 +90,9 @@
                             ]
                         ],
                         [
-                            'label' => 'System Health', 'icon' => 'fa-heartbeat', 'route' => 'super-admin.dashboard.system-status', 'match' => 'super-admin/system-status',
+                            'label' => 'Release & System', 'icon' => 'fa-code-fork', 'route' => 'super-admin.releases.index', 'match' => 'super-admin/releases',
                             'sub' => [
-                                ['label' => 'Infrastructure Status', 'route' => 'super-admin.dashboard.system-status'],
+                                ['label' => 'Releases & Updates', 'route' => 'super-admin.releases.index'],
                                 ['label' => 'System Reports', 'route' => 'super-admin.dashboard.reports'],
                             ]
                         ],
@@ -119,9 +119,19 @@
 
                 @foreach($items as $item)
                     @php
-                        $isActive = $item['match'] === 'super-admin'
-                            ? request()->is('super-admin') && !request()->is('super-admin/*')
-                            : request()->is($item['match'] . '*');
+                        if (is_array($item['match'])) {
+                            $isActive = false;
+                            foreach ($item['match'] as $m) {
+                                if (request()->is($m . '*')) {
+                                    $isActive = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            $isActive = $item['match'] === 'super-admin'
+                                ? request()->is('super-admin') && !request()->is('super-admin/*')
+                                : request()->is($item['match'] . '*');
+                        }
                     @endphp
                     <div x-data="{ open: {{ $isActive ? 'true' : 'false' }} }" style="margin: 2px 8px;">
                         <a href="{{ $item['route'] !== '#' ? route($item['route']) : '#' }}"

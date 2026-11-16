@@ -85,20 +85,39 @@
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Seal No.</th>
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Weight</th>
                         <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Volume (CBM)</th>
+                        <th style="padding: 12px 16px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($shipment->containers ?? [] as $container)
                         <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                            <td style="padding: 12px 16px; color: #1e293b; font-weight: 600;">{{ $container->container_no ?: '-' }}</td>
+                            <td style="padding: 12px 16px; color: #1e293b; font-weight: 600;">
+                                @if($container->container_no)
+                                    <a href="{{ route('client.tracking', ['q' => $container->container_no]) }}" 
+                                       title="Track container {{ $container->container_no }}"
+                                       style="color: #2563eb; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa fa-cube"></i> {{ $container->container_no }}
+                                    </a>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td style="padding: 12px 16px; color: #475569;">{{ $container->containerType->code ?? ($container->container_type ?? '-') }}</td>
                             <td style="padding: 12px 16px; color: #475569;">{{ $container->seal_no ?: '-' }}</td>
                             <td style="padding: 12px 16px; color: #475569;">{{ $container->weight ?: '-' }} kg</td>
                             <td style="padding: 12px 16px; color: #475569;">{{ $container->measurement ?: '-' }} CBM</td>
+                            <td style="padding: 12px 16px; text-align: center;">
+                                @if($container->container_no)
+                                    <a href="{{ route('client.tracking', ['q' => $container->container_no]) }}" 
+                                       style="padding: 4px 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 4px; font-size: 11px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa fa-crosshairs"></i> Track Live
+                                    </a>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8; font-size: 13px;">
+                            <td colspan="6" style="padding: 30px; text-align: center; color: #94a3b8; font-size: 13px;">
                                 <i class="fa fa-cube" style="font-size: 32px; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
                                 No containers associated with this shipment.
                             </td>

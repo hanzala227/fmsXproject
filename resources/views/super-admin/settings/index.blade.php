@@ -73,12 +73,16 @@
 
                         <div>
                             <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Default System Timezone</label>
-                            <select name="default_timezone" style="width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;">
-                                <option value="Asia/Karachi" selected>Asia/Karachi (GMT+5)</option>
-                                <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
-                                <option value="UTC">UTC (Universal Coordinated Time)</option>
-                                <option value="Europe/London">Europe/London (GMT+0/1)</option>
-                                <option value="America/New_York">America/New_York (EST)</option>
+                            <select name="default_timezone" required style="width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;">
+                                @php
+                                    $tzList = $timezones ?? \App\Services\TimezoneService::getTimezones();
+                                    $currentTz = old('default_timezone', $settings['default_timezone'] ?? 'Asia/Karachi');
+                                @endphp
+                                @foreach($tzList as $tzVal => $tzLabel)
+                                    <option value="{{ $tzVal }}" {{ $currentTz === $tzVal ? 'selected' : '' }}>
+                                        {{ $tzLabel }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -157,13 +161,13 @@
 
                         <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
                             <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Active Multi-Tenants</div>
-                            <div style="font-weight: 600; color: #059669; margin-top: 2px;">7 Isolated Organizations</div>
+                            <div style="font-weight: 600; color: #059669; margin-top: 2px;">{{ \App\Models\Company::count() }} Isolated Organizations</div>
                         </div>
 
                         <div style="padding-top: 12px; border-top: 1px solid #f1f5f9;">
-                            <a href="{{ route('super-admin.dashboard.system-status') }}" 
+                            <a href="{{ route('super-admin.releases.index') }}" 
                                style="display: flex; align-items: center; justify-content: center; height: 34px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: 600;">
-                                Full Infrastructure Health <i class="fa fa-arrow-right" style="margin-left: 6px; font-size: 10px;"></i>
+                                Platform Releases & Updates <i class="fa fa-arrow-right" style="margin-left: 6px; font-size: 10px;"></i>
                             </a>
                         </div>
                     </div>

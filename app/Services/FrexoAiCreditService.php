@@ -106,7 +106,7 @@ class FrexoAiCreditService
      */
     public function grantInitialCredits(Company $company, ?float $amount = null, ?string $note = null): ?CompanyAiCreditTransaction
     {
-        $initial = $amount ?? (float) config('frexo_ai.billing.initial_company_credits', 1000.0);
+        $initial = $amount ?? (float) (\App\Models\FrexoAiCreditSetting::current()->initial_free_credits ?? config('frexo_ai.billing.initial_company_credits', 1000.0));
         if ($initial <= 0) {
             return null;
         }

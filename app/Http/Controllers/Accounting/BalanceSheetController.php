@@ -427,7 +427,7 @@ class BalanceSheetController extends Controller
 
         if ($unallocatedCount > 0) {
             $currentAssetLines[] = [
-                'label'    => 'Unallocated payments (needs fixing)',
+                'label'    => 'Unallocated payments ',
                 'detail'   => $unallocatedCount . ' payment(s) without matching active bank',
                 'amount'   => $unallocatedNetUSD,
                 'is_alert' => true,

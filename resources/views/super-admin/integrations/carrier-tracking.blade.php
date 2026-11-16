@@ -20,6 +20,19 @@
         </div>
     </div>
 
+    {{-- Sub-Navigation Tabs --}}
+    <div style="display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <a href="{{ route('super-admin.carrier-tracking.index') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 600; color: #0ab39c; border-bottom: 2px solid #0ab39c;">
+            <i class="fa fa-ship" style="margin-right: 4px;"></i> Carrier Tracking (ShipmentBeat)
+        </a>
+        <a href="{{ route('super-admin.ai-settings.index') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            <i class="fa fa-microchip" style="margin-right: 4px;"></i> AI Engine API (Gemini)
+        </a>
+        <a href="{{ route('super-admin.integrations.api-keys') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            <i class="fa fa-key" style="margin-right: 4px;"></i> API Keys & Webhooks Console
+        </a>
+    </div>
+
     @if(session('success'))
         <div style="margin-bottom: 20px; padding: 12px 16px; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 13px; display: flex; align-items: center;">
             <i class="fa fa-check-circle" style="margin-right: 8px; font-size: 16px;"></i> {{ session('success') }}
@@ -132,124 +145,13 @@
             </form>
         </div>
     @endforeach
-        <div x-show="activeCarrier === '{{ $code }}'" x-cloak style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; overflow: hidden;">
-            
-            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h3 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #1e293b;">
-                        {{ $c->name ?? ucfirst($code) }} Configuration
-                    </h3>
-                    <span style="font-size: 12px; color: #64748b;">
-                        @if($code === 'hapag_lloyd')
-                            Official developer portal: <a href="https://www.hapag-lloyd.com/en/services-information/data-solutions/api-portal.html" target="_blank" style="color: #3b82f6;">developer.hlag.com</a> (Free standard Track & Trace)
-                        @elseif($code === 'maersk')
-                            Official developer portal: <a href="https://developer.maersk.com" target="_blank" style="color: #3b82f6;">developer.maersk.com</a> (Consumer Key auth)
-                        @else
-                            Digital Container Shipping Association: <a href="https://reference.dcsa.org" target="_blank" style="color: #3b82f6;">reference.dcsa.org</a> (Standard v2.2/v3.0)
-                        @endif
-                    </span>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button type="button" 
-                            @click="runTestConnection('{{ $code }}')"
-                            :disabled="testingCarrier === '{{ $code }}'"
-                            style="padding: 8px 16px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                        <i class="fa" :class="testingCarrier === '{{ $code }}' ? 'fa-spinner fa-spin' : 'fa-plug'"></i>
-                        <span x-text="testingCarrier === '{{ $code }}' ? 'Testing Connection...' : 'Test Connection'"></span>
-                    </button>
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('super-admin.carrier-tracking.update') }}" style="padding: 24px;">
-                @csrf
-                @method('PUT')
-                <input type="hidden" name="carrier_code" value="{{ $code }}">
-
-                <!-- Environment & Active Status -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Environment Mode</label>
-                        <div style="display: flex; gap: 16px;">
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #1e293b; cursor: pointer;">
-                                <input type="radio" name="environment" value="sandbox" {{ ($c->environment ?? 'sandbox') === 'sandbox' ? 'checked' : '' }}>
-                                <span>Sandbox / Test Environment</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #1e293b; cursor: pointer;">
-                                <input type="radio" name="environment" value="production" {{ ($c->environment ?? '') === 'production' ? 'checked' : '' }}>
-                                <span style="font-weight: 600; color: #059669;">Production (Live APIs)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Direct Carrier API Integration</label>
-                        <div style="font-size: 12px; color: #334155; display: flex; align-items: center; gap: 6px; padding: 6px 0;">
-                            <i class="fa fa-shield" style="color: #059669;"></i>
-                            <span>100% Real-Time API Fetching directly from shipping line gateways (No static or mock data).</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Base URL -->
-                <div style="margin-bottom: 18px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Base API Gateway URL</label>
-                    <input type="text" name="base_url" value="{{ $c->base_url ?? '' }}" placeholder="https://api.hlag.com" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                </div>
-
-                <!-- Dynamic Credentials Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 20px;">
-                    @if($code === 'hapag_lloyd')
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Client ID (OAuth2)</label>
-                            <input type="text" name="client_id" value="{{ $c->client_id ?? '' }}" placeholder="Enter Hapag-Lloyd Client ID" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Client Secret (OAuth2)</label>
-                            <input type="password" name="client_secret" value="{{ $c->client_secret ?? '' }}" placeholder="Enter Hapag-Lloyd Client Secret" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Subscription Key / API Key (Optional)</label>
-                            <input type="text" name="api_key" value="{{ $c->api_key ?? '' }}" placeholder="X-IBM-Client-Id / API Key" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                    @elseif($code === 'maersk')
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Consumer Key (Primary API Key)</label>
-                            <input type="text" name="api_key" value="{{ $c->api_key ?? '' }}" placeholder="Maersk App Consumer Key" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Consumer Secret (Optional)</label>
-                            <input type="password" name="client_secret" value="{{ $c->client_secret ?? '' }}" placeholder="Maersk App Secret" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Customer Code / Party Code (Optional)</label>
-                            <input type="text" name="client_id" value="{{ $c->client_id ?? '' }}" placeholder="Customer Code" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                    @else
-                        <div>
-                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px;">Bearer Token / API Key</label>
-                            <input type="text" name="api_key" value="{{ $c->api_key ?? '' }}" placeholder="Bearer token for DCSA carrier gateway" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; outline: none;">
-                        </div>
-                    @endif
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 18px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1e293b; cursor: pointer;">
-                        <input type="checkbox" name="is_active" value="1" {{ ($c->is_active ?? true) ? 'checked' : '' }} style="width: 16px; height: 16px;">
-                        <span>Active for automatic and manual tracking lookups</span>
-                    </label>
-
-                    <button type="submit" style="padding: 10px 22px; background: #405189; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-                        <i class="fa fa-save"></i> Save {{ $c->name ?? ucfirst($code) }} Settings
-                    </button>
-                </div>
-            </form>
-        </div>
-    @endforeach
 
     <!-- Test Diagnostic Result Modal -->
-    <div x-show="showDiagnosticModal" x-cloak style="position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center;" @click.self="showDiagnosticModal = false">
-        <div style="background: #fff; border-radius: 8px; max-width: 580px; width: 92%; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+    <div x-show="showDiagnosticModal" x-cloak 
+         class="fixed inset-0 z-[999999] flex items-center justify-center p-4"
+         style="position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15,23,42,0.65); z-index: 999999; display: flex !important; align-items: center !important; justify-content: center !important; padding: 16px; backdrop-filter: blur(4px);" 
+         @click.self="showDiagnosticModal = false">
+        <div style="background: #fff; border-radius: 10px; max-width: 580px; width: 100%; margin: auto; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); position: relative;">
             <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
                 <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
                     <i class="fa fa-stethoscope" style="color: #3b82f6;"></i> Connection Diagnostic Result
@@ -265,7 +167,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; font-size: 12px;">
                     <div style="padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
                         <span style="color: #64748b; display: block;">HTTP Status:</span>
-                        <strong style="font-size: 14px; color: #1e293b;" x-text="diagnosticResult.status_code || 200"></strong>
+                        <strong style="font-size: 14px; color: #1e293b;" x-text="diagnosticResult.status_code || (diagnosticResult.success ? 200 : 400)"></strong>
                     </div>
                     <div style="padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
                         <span style="color: #64748b; display: block;">Latency:</span>
@@ -375,13 +277,21 @@ function carrierTrackingAdmin() {
 
         runTestConnection(carrierCode) {
             this.testingCarrier = carrierCode;
+            var apiKeyInput = document.querySelector('input[name="api_key"]');
+            var baseUrlInput = document.querySelector('input[name="base_url"]');
+            var payload = {
+                carrier_code: carrierCode,
+                api_key: apiKeyInput ? apiKeyInput.value.trim() : '',
+                base_url: baseUrlInput ? baseUrlInput.value.trim() : ''
+            };
+
             fetch('{{ route("super-admin.carrier-tracking.test") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ carrier_code: carrierCode })
+                body: JSON.stringify(payload)
             })
             .then(res => res.json())
             .then(data => {

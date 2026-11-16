@@ -310,6 +310,21 @@
             </button>
         </div>
 
+        <!-- Frexo AI Credits Top-Bar Pill -->
+        @php
+            $navCompany = Auth::user()?->company ?: \App\Models\Company::first();
+            $navBalance = $navCompany ? (float)($navCompany->frexo_ai_credits ?? 0) : 0;
+            $navUnlimited = $navCompany?->frexo_ai_unlimited;
+        @endphp
+        <a href="{{ route('settings.ai-credits') }}" 
+           class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border shadow-sm text-decoration-none"
+           style="{{ $navUnlimited ? 'background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;' : ($navBalance < 50 ? 'background: #fef2f2; color: #b91c1c; border-color: #fecaca;' : 'background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;') }}"
+           title="Frexo AI Document Extraction Credits & Top-Up">
+            <i class="fa fa-bolt {{ $navUnlimited ? 'text-purple-600' : ($navBalance < 50 ? 'text-red-500' : 'text-blue-500') }}"></i>
+            <span>{{ $navUnlimited ? 'AI Unlimited' : number_format($navBalance, 0) . ' Credits' }}</span>
+            <span class="text-[9px] font-bold bg-white/80 px-1.5 py-0.5 rounded-full uppercase ml-0.5 shadow-xs">Top-Up</span>
+        </a>
+
         <!-- User Profile -->
         <div class="relative flex items-center pl-3 border-l border-gray-200 cursor-pointer group !overflow-visible" x-data="{ open: false }">
             <div @click="open = !open" class="flex items-center space-x-2">

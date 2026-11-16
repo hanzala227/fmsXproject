@@ -5,12 +5,12 @@ namespace App\Services\Tracking\DTO;
 class TrackingEventDTO
 {
     public function __construct(
-        public ?string $eventId,
-        public string $eventType, // SHIPMENT, TRANSPORT, EQUIPMENT
-        public string $eventClassifier, // ACT, EST, PLN, REQ
-        public ?string $eventCode, // LOAD, DISC, GTIN, GTOUT, DEPA, ARRI
-        public ?string $eventDateTime,
-        public string $title,
+        public ?string $eventId = null,
+        public string $eventType = 'MILESTONE', // SHIPMENT, TRANSPORT, EQUIPMENT
+        public string $eventClassifier = 'ACT', // ACT, EST, PLN, REQ
+        public ?string $eventCode = 'INFO', // LOAD, DISC, GTIN, GTOUT, DEPA, ARRI
+        public ?string $eventDateTime = null,
+        public string $title = 'Milestone',
         public ?string $description = null,
         public ?string $locationName = null,
         public ?string $locationLocode = null,

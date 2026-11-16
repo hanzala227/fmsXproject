@@ -65,5 +65,43 @@ return [
         'min_required_credits' => (float) env('FREXO_AI_MIN_REQUIRED_CREDITS', 1.0), // Minimum balance to start extraction
         'image_tokens_weight' => (int) env('FREXO_AI_IMAGE_TOKENS', 258), // Gemini standard image token weight
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tiered Top-Up Pricing Packages
+    |--------------------------------------------------------------------------
+    */
+    'packages' => [
+        [
+            'id' => 'starter',
+            'name' => 'Starter Pack',
+            'credits' => 500,
+            'price_usd' => 25.00,
+            'price_pkr' => 7000,
+            'popular' => false,
+            'desc' => 'Ideal for small branches processing periodic ocean & air shipping bills.',
+            'features' => ['~50 Document Extractions', 'Google Gemini AI Support', 'OCR Table Extraction', 'No Expiration Date'],
+        ],
+        [
+            'id' => 'growth',
+            'name' => 'Growth Pack',
+            'credits' => 2500,
+            'price_usd' => 100.00,
+            'price_pkr' => 28000,
+            'popular' => true,
+            'desc' => 'Best for active freight forwarding hubs with daily cargo movements.',
+            'features' => ['~250 Document Extractions', 'Priority Job Queue', 'Multi-Page HBL & MAWB OCR', 'Container Cross-Validation', 'No Expiration Date'],
+        ],
+        [
+            'id' => 'enterprise',
+            'name' => 'Enterprise Scale',
+            'credits' => 10000,
+            'price_usd' => 350.00,
+            'price_pkr' => 98000,
+            'popular' => false,
+            'desc' => 'High-throughput operations handling commercial invoices and manifest sync.',
+            'features' => ['~1,000+ Document Extractions', 'Dedicated AI Concurrency', 'Accounting Commercial Invoice Parse', 'Custom Integration Support', 'No Expiration Date'],
+        ],
+    ],
 ];
 

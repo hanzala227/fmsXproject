@@ -3,19 +3,23 @@
 @section('content')
 <div style="padding: 16px;">
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div style="font-size: 16px; font-weight: 600; color: #1e293b;">
-            <i class="fa fa-life-ring" style="color: #405189; margin-right: 6px;"></i> Support Center
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa fa-life-ring" style="color: #405189;"></i>
+            <span>Support Center</span>
             @if(request()->routeIs('super-admin.support-center.my-tickets'))
-                <span style="font-size: 14px; color: #64748b; font-weight: 400; margin-left: 8px;">(My Tickets)</span>
+                <span style="font-size: 10px; font-weight: 700; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase;">My Tickets</span>
             @endif
         </div>
         
-        <div style="display: flex; gap: 12px; align-items: center;">
-            <form method="GET" action="{{ url()->current() }}" style="display: flex; gap: 12px; margin: 0;">
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search tickets..." style="height: 32px; padding: 0 12px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff; width: 200px;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <form method="GET" action="{{ url()->current() }}" style="display: flex; gap: 8px; margin: 0; align-items: center;">
+                @if(request('tab'))
+                    <input type="hidden" name="tab" value="{{ request('tab') }}">
+                @endif
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search tickets..." style="height: 32px; padding: 0 12px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff; width: 180px;">
                 
-                <select name="status" onchange="this.form.submit()" style="height: 32px; padding: 0 12px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff;">
+                <select name="status" onchange="this.form.submit()" style="height: 32px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff;">
                     <option value="">All Statuses</option>
                     <option value="Open" {{ request('status') === 'Open' ? 'selected' : '' }}>Open</option>
                     <option value="In Progress" {{ request('status') === 'In Progress' ? 'selected' : '' }}>In Progress</option>
@@ -23,22 +27,51 @@
                     <option value="Closed" {{ request('status') === 'Closed' ? 'selected' : '' }}>Closed</option>
                 </select>
 
-                <select name="priority" onchange="this.form.submit()" style="height: 32px; padding: 0 12px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff;">
+                <select name="priority" onchange="this.form.submit()" style="height: 32px; padding: 0 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; background: #fff;">
                     <option value="">All Priorities</option>
                     <option value="Low" {{ request('priority') === 'Low' ? 'selected' : '' }}>Low</option>
                     <option value="Medium" {{ request('priority') === 'Medium' ? 'selected' : '' }}>Medium</option>
                     <option value="High" {{ request('priority') === 'High' ? 'selected' : '' }}>High</option>
                     <option value="Urgent" {{ request('priority') === 'Urgent' ? 'selected' : '' }}>Urgent</option>
                 </select>
-                
-                <button type="submit" style="display: none;"></button>
             </form>
             
-            <a href="{{ route('super-admin.support-center.create') }}" style="height: 32px; padding: 0 16px; font-size: 12px; font-weight: 500; color: #fff; background: #405189; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
-                <i class="fa fa-plus" style="margin-right: 6px;"></i> New Ticket
+            <a href="{{ route('super-admin.support-center.create') }}" style="height: 32px; padding: 0 14px; font-size: 12px; font-weight: 600; color: #fff; background: #0ab39c; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa fa-plus"></i> New Ticket
             </a>
         </div>
     </div>
+
+    {{-- Sub-navigation Tabs --}}
+    <div style="display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px;">
+        <a href="{{ route('super-admin.support-center.index') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: {{ request()->routeIs('super-admin.support-center.index') ? '600; color: #0ab39c; border-bottom: 2px solid #0ab39c;' : '500; color: #64748b;' }}">
+            All Tickets
+        </a>
+        <a href="{{ route('super-admin.support-center.my-tickets') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: {{ request()->routeIs('super-admin.support-center.my-tickets') ? '600; color: #0ab39c; border-bottom: 2px solid #0ab39c;' : '500; color: #64748b;' }}">
+            My Tickets
+        </a>
+        <a href="{{ route('super-admin.support-center.sla-management') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            SLA Management
+        </a>
+        <a href="{{ route('super-admin.support-center.knowledge-base') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            Knowledge Base
+        </a>
+    </div>
+
+    {{-- When on My Tickets: Show Assignment Sub-Tabs --}}
+    @if(isset($tabCounts))
+    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <a href="{{ route('super-admin.support-center.my-tickets', ['tab' => 'assigned']) }}" style="padding: 6px 14px; font-size: 11px; font-weight: 600; text-decoration: none; border-radius: 4px; {{ ($currentTab ?? 'assigned') === 'assigned' ? 'background: #405189; color: #fff;' : 'background: #fff; color: #475569; border: 1px solid #cbd5e1;' }}">
+            Assigned to Me ({{ $tabCounts['assigned'] }})
+        </a>
+        <a href="{{ route('super-admin.support-center.my-tickets', ['tab' => 'unassigned']) }}" style="padding: 6px 14px; font-size: 11px; font-weight: 600; text-decoration: none; border-radius: 4px; {{ ($currentTab ?? '') === 'unassigned' ? 'background: #405189; color: #fff;' : 'background: #fff; color: #475569; border: 1px solid #cbd5e1;' }}">
+            Unassigned Queue ({{ $tabCounts['unassigned'] }})
+        </a>
+        <a href="{{ route('super-admin.support-center.my-tickets', ['tab' => 'created']) }}" style="padding: 6px 14px; font-size: 11px; font-weight: 600; text-decoration: none; border-radius: 4px; {{ ($currentTab ?? '') === 'created' ? 'background: #405189; color: #fff;' : 'background: #fff; color: #475569; border: 1px solid #cbd5e1;' }}">
+            Created by Me ({{ $tabCounts['created'] }})
+        </a>
+    </div>
+    @endif
 
     @if(session('success'))
     <div style="background: #dcfce7; color: #166534; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
@@ -123,9 +156,20 @@
                         @endif
                     </td>
                     <td style="padding: 12px 16px; text-align: center;">
-                        <a href="{{ route('super-admin.support-center.show', $ticket->id) }}" style="color: #405189; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #f1f5f9; border-radius: 4px; text-decoration: none;" title="View Ticket">
-                            <i class="fa fa-eye"></i>
-                        </a>
+                        <div style="display: inline-flex; align-items: center; gap: 4px;">
+                            <a href="{{ route('super-admin.support-center.show', $ticket->id) }}" style="color: #405189; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #f1f5f9; border-radius: 4px; text-decoration: none;" title="View Ticket">
+                                <i class="fa fa-eye"></i>
+                            </a>
+                            @if(!$ticket->assigned_agent_id)
+                            <form method="POST" action="{{ route('super-admin.support-center.claim', $ticket) }}" style="margin: 0; display: inline;">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" style="height: 28px; padding: 0 8px; font-size: 10px; font-weight: 600; color: #fff; background: #0ab39c; border: none; border-radius: 4px; cursor: pointer;" title="Assign to Me">
+                                    Claim
+                                </button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty

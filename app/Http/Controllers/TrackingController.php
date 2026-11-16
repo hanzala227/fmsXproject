@@ -16,11 +16,40 @@ class TrackingController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $query = ShipmentTracking::with(['events'])
+        // If a customer/client user accesses the internal tracking center,
+        // redirect them to their dedicated client portal tracking view
+        if (auth()->check() && (auth()->user()->isClient() || auth()->user()->role === 'client')) {
+            return redirect()->route('client.tracking');
+        }
+
+        $query = ShipmentTracking::with(['events', 'trackable.dmCustomer', 'trackable.dmShipper', 'trackable.dmConsignee'])
             ->latest('last_polled_at');
 
         if (auth()->check() && !auth()->user()->isSuperAdmin() && auth()->user()->company_id) {
             $query->where('company_id', auth()->user()->company_id);
+        }
+
+        // Scope to specific customer if user has a trade_partner_id
+        if (auth()->check() && auth()->user()->trade_partner_id) {
+            $tpId = auth()->user()->trade_partner_id;
+            $query->where(function ($q) use ($tpId) {
+                $q->whereHasMorph('trackable', [\App\Models\OceanImport::class, \App\Models\OceanExport::class], function ($sq) use ($tpId) {
+                    $sq->where('dm_customer_id', $tpId)
+                       ->orWhere('dm_shipper_id', $tpId)
+                       ->orWhere('dm_consignee_id', $tpId);
+                });
+            });
+        }
+
+        // Customer filter from dropdown (for Admin / Staff)
+        if ($customerFilter = $request->get('customer_id')) {
+            $query->where(function ($q) use ($customerFilter) {
+                $q->whereHasMorph('trackable', [\App\Models\OceanImport::class, \App\Models\OceanExport::class], function ($sq) use ($customerFilter) {
+                    $sq->where('dm_customer_id', $customerFilter)
+                       ->orWhere('dm_shipper_id', $customerFilter)
+                       ->orWhere('dm_consignee_id', $customerFilter);
+                });
+            });
         }
 
         if ($search = $request->get('search')) {
@@ -42,7 +71,34 @@ class TrackingController extends Controller
 
         $trackings = $query->paginate(20)->withQueryString();
 
-        return view('tracking.index', compact('trackings'));
+        $fleetMapItems = $trackings->getCollection()
+            ->filter(fn($t) => !empty($t->map_data) && !empty($t->map_data['has_route']))
+            ->map(function ($t) {
+                return [
+                    'id' => $t->id,
+                    'tracking_number' => $t->tracking_number,
+                    'carrier_code' => $t->carrier_code,
+                    'status' => $t->current_status,
+                    'map_data' => $t->map_data,
+                ];
+            })
+            ->values();
+
+        $carriers = ShipmentTracking::query()
+            ->whereNotNull('carrier_code')
+            ->distinct()
+            ->pluck('carrier_code')
+            ->filter()
+            ->sort()
+            ->values();
+
+        $companyId = auth()->user()?->company_id;
+        $customers = \App\Models\TradePartner::where('company_id', $companyId)
+            ->where('type', 'CLIENT')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return view('tracking.index', compact('trackings', 'fleetMapItems', 'carriers', 'customers'));
     }
 
     /**
@@ -70,19 +126,30 @@ class TrackingController extends Controller
                 $modelClass = $request->shipment_type ?: OceanImport::class;
                 if (class_exists($modelClass)) {
                     $shipment = $modelClass::find($request->shipment_id);
-                    if ($shipment) {
-                        $options = [
-                            'origin_name' => $shipment->portOfLoading->name ?? ($shipment->pol_name ?? null),
-                            'origin_locode' => $shipment->portOfLoading->code ?? null,
-                            'destination_name' => $shipment->portOfDischarge->name ?? ($shipment->pod_name ?? null),
-                            'destination_locode' => $shipment->portOfDischarge->code ?? null,
-                            'vessel_name' => $shipment->vessel->name ?? ($shipment->vessel_name ?? null),
-                            'voyage_no' => $shipment->voyage ?? null,
-                            'etd' => $shipment->etd ?? null,
-                            'eta' => $shipment->eta ?? null,
-                        ];
+                }
+            } else {
+                // Auto-resolve shipment from existing tracking record or container records
+                $existingTracking = ShipmentTracking::where('tracking_number', $number)->first();
+                if ($existingTracking && $existingTracking->trackable) {
+                    $shipment = $existingTracking->trackable;
+                    if (empty($carrierCode) && !empty($existingTracking->carrier_code)) {
+                        $carrierCode = $existingTracking->carrier_code;
+                    }
+                } else {
+                    $importContainer = \App\Models\OceanImportContainer::where('container_no', $number)->first();
+                    if ($importContainer && $importContainer->oceanImport) {
+                        $shipment = $importContainer->oceanImport;
+                    } else {
+                        $exportContainer = \App\Models\OceanExportContainer::where('container_no', $number)->first();
+                        if ($exportContainer && $exportContainer->oceanExport) {
+                            $shipment = $exportContainer->oceanExport;
+                        }
                     }
                 }
+            }
+
+            if ($shipment && empty($carrierCode) && !empty($shipment->carrier_id)) {
+                $carrierCode = $shipment->carrier->code ?? null;
             }
 
             $tracking = TrackingManager::syncTracking(

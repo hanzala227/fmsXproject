@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\SuperAdminAuditLog;
+use App\Models\ActivityLog;
+use App\Models\SystemModule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SuperAdminUserController extends Controller
 {
@@ -249,15 +253,97 @@ class SuperAdminUserController extends Controller
      */
     public function show(User $user)
     {
-        $user->load('company');
+        $user->load(['company.branches', 'company.modules', 'roles.permissions', 'permissions']);
         
-        $activityLogs = SuperAdminAuditLog::where('target_type', 'user')
-            ->where('target_id', $user->id)
-            ->latest()
-            ->take(10)
+        // Tab 3: Dynamic user activity from activity_logs + super_admin_audit_logs
+        $userLogs = ActivityLog::where('user_id', $user->id)
+            ->latest('created_at')
+            ->take(15)
             ->get();
 
-        return view('super-admin.users.show', compact('user', 'activityLogs'));
+        if ($userLogs->isEmpty()) {
+            $userLogs = SuperAdminAuditLog::where(function($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhere(function($sub) use ($user) {
+                          $sub->where('target_type', 'user')->where('target_id', $user->id);
+                      });
+                })
+                ->latest('created_at')
+                ->take(15)
+                ->get();
+        }
+        $activityLogs = $userLogs;
+
+        // Tab 4: Live concurrent user sessions directly from database
+        $userSessions = Schema::hasTable('sessions')
+            ? DB::table('sessions')->where('user_id', $user->id)->orderByDesc('last_activity')->get()
+            : collect();
+
+        // Tab 1: Dynamic Spatie and direct permissions
+        $directPermissions = $user->getAllPermissions();
+
+        // Tab 2: Dynamic System & Freight Modules directly from system_modules table
+        $iconMap = [
+            'ocean_import' => ['icon' => 'fa-ship', 'color' => '#0284c7'],
+            'ocean_export' => ['icon' => 'fa-ship', 'color' => '#0369a1'],
+            'air_import' => ['icon' => 'fa-plane', 'color' => '#6366f1'],
+            'air_export' => ['icon' => 'fa-plane', 'color' => '#4f46e5'],
+            'trucking' => ['icon' => 'fa-truck', 'color' => '#f59e0b'],
+            'warehouse' => ['icon' => 'fa-archive', 'color' => '#8b5cf6'],
+            'accounting' => ['icon' => 'fa-calculator', 'color' => '#10b981'],
+            'customs' => ['icon' => 'fa-shield', 'color' => '#059669'],
+            'master_data' => ['icon' => 'fa-database', 'color' => '#64748b'],
+            'trade_partners' => ['icon' => 'fa-address-book-o', 'color' => '#06b6d4'],
+            'settings' => ['icon' => 'fa-cog', 'color' => '#475569'],
+            'crm' => ['icon' => 'fa-users', 'color' => '#ec4899'],
+            'reports' => ['icon' => 'fa-bar-chart', 'color' => '#14b8a6'],
+            'roles_rules' => ['icon' => 'fa-key', 'color' => '#4338ca'],
+            'data_migration' => ['icon' => 'fa-exchange', 'color' => '#0891b2'],
+            'bugs_issues' => ['icon' => 'fa-bug', 'color' => '#dc2626'],
+            'support_center' => ['icon' => 'fa-life-ring', 'color' => '#ea580c'],
+            'module_management' => ['icon' => 'fa-puzzle-piece', 'color' => '#9333ea'],
+            'integrations' => ['icon' => 'fa-plug', 'color' => '#2563eb'],
+        ];
+
+        $rawModules = Schema::hasTable('system_modules')
+            ? SystemModule::where('status', 'Active')
+                ->whereIn('category', ['Freight', 'Logistics', 'Finance', 'Commercial', 'Configuration', 'Operations'])
+                ->get()
+            : collect();
+
+        $companyModules = $user->company ? $user->company->modules->pluck('module_key')->toArray() : [];
+        $userAccessible = is_array($user->accessible_modules) 
+            ? $user->accessible_modules 
+            : (is_string($user->accessible_modules) ? json_decode($user->accessible_modules, true) : []);
+
+        $freightModules = $rawModules->map(function($m) use ($iconMap, $user, $companyModules, $userAccessible) {
+            $meta = $iconMap[$m->key] ?? ['icon' => 'fa-cube', 'color' => '#0ab39c'];
+            $isAssigned = false;
+
+            if ($user->role === 'SuperAdmin') {
+                $isAssigned = true;
+            } elseif ($user->role === 'Admin') {
+                $isAssigned = true;
+            } elseif (!empty($userAccessible)) {
+                $isAssigned = in_array($m->key, $userAccessible);
+            } elseif (!empty($companyModules)) {
+                $isAssigned = in_array($m->key, $companyModules);
+            } else {
+                $isAssigned = true; // standard tenant assignment
+            }
+
+            return [
+                'name' => $m->name,
+                'key' => $m->key,
+                'category' => $m->category,
+                'icon' => $meta['icon'],
+                'color' => $meta['color'],
+                'desc' => $m->description ?: 'Operational freight forwarding and tenant workspace execution.',
+                'is_active' => $isAssigned,
+            ];
+        });
+
+        return view('super-admin.users.show', compact('user', 'activityLogs', 'userSessions', 'directPermissions', 'freightModules'));
     }
 
     /**

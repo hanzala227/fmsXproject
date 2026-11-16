@@ -320,12 +320,6 @@
                 </div>
             </div>
 
-            <!-- Footer Actions -->
-            <div class="action-bar">
-                <button type="button" class="btn-tool green" @click="handleSubmit('save_close')"><i class="fa fa-save"></i> SAVE &amp; CLOSE</button>
-                <button type="button" class="btn-tool" @click="handleSubmit('save_new')"><i class="fa fa-plus-circle"></i> SAVE &amp; NEW</button>
-                <a href="{{ route('accounting.invoices.index') }}" class="btn-tool" target="_blank"><i class="fa fa-arrow-left"></i> CANCEL</a>
-            </div>
         </form>
 
         <!-- Memo Modal -->

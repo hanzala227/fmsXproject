@@ -12,6 +12,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
+        [x-cloak] { display: none !important; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; width: 100%; max-width: 100%; overflow-x: hidden; height: 100%; }
         body { font-family: 'Inter', sans-serif; background: #eef1f5; }

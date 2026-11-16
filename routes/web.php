@@ -639,6 +639,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/shipment-memo-configs/check', [App\Http\Controllers\ShipmentMemoConfigController::class, 'checkAutoLoad'])->name('api.shipment-memo-configs.check');
     Route::post('/api/shipment-memo-configs/bulk-save', [App\Http\Controllers\ShipmentMemoConfigController::class, 'bulkSave'])->name('api.shipment-memo-configs.bulk-save');
 
+    // Settings - Frexo AI Credits & Billing
+    Route::get('/settings/ai-credits', [App\Http\Controllers\AiCreditBillingController::class, 'index'])->name('settings.ai-credits');
+    Route::post('/settings/ai-credits/checkout', [App\Http\Controllers\AiCreditBillingController::class, 'createCheckout'])->name('settings.ai-credits.checkout');
+    Route::get('/settings/ai-credits/callback', [App\Http\Controllers\AiCreditBillingController::class, 'callback'])->name('settings.ai-credits.callback');
+    Route::post('/settings/ai-credits/bank-transfer', [App\Http\Controllers\AiCreditBillingController::class, 'submitBankTransfer'])->name('settings.ai-credits.bank-transfer');
+
     // Supply Chain & Warehouse
     Route::get('/warehouse/receipt', [WarehouseReceiptController::class, 'index'])->name('warehouse.receipts.index');
     Route::get('/warehouse/receipt/create', [WarehouseReceiptController::class, 'create'])->name('warehouse.receipts.create');
@@ -1164,6 +1170,10 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
     Route::post('/companies/{company}/recharge-ai-credits', [SuperAdminCompanyController::class, 'rechargeAiCredits'])->name('companies.recharge-ai-credits');
     Route::post('/companies/{company}/toggle-ai-unlimited', [SuperAdminCompanyController::class, 'toggleAiUnlimited'])->name('companies.toggle-ai-unlimited');
 
+    // Branch Management (under Company Management)
+    Route::patch('/branches/{branch}/toggle-status', [\App\Http\Controllers\SuperAdmin\BranchController::class, 'toggleStatus'])->name('branches.toggle-status');
+    Route::resource('branches', \App\Http\Controllers\SuperAdmin\BranchController::class);
+
     // Users (Accounts & Access)
     Route::get('/users/export-csv', [App\Http\Controllers\SuperAdmin\SuperAdminUserController::class, 'exportCsv'])->name('users.export-csv');
     Route::resource('users', App\Http\Controllers\SuperAdmin\SuperAdminUserController::class);
@@ -1194,8 +1204,12 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
         Route::get('/create', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'store'])->name('store');
         Route::get('/my-tickets', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'myTickets'])->name('my-tickets');
+        Route::patch('/{ticket}/claim', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'claimTicket'])->name('claim');
         Route::get('/sla-management', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'slaManagement'])->name('sla-management');
         Route::get('/knowledge-base', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'knowledgeBase'])->name('knowledge-base');
+        Route::get('/knowledge-base/articles/{article}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'showArticle'])->name('knowledge-base.show');
+        Route::post('/knowledge-base/articles', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'storeArticle'])->name('knowledge-base.store');
+        Route::delete('/knowledge-base/articles/{article}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'deleteArticle'])->name('knowledge-base.destroy');
         Route::get('/{ticket}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'show'])->name('show');
         Route::put('/{ticket}', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'update'])->name('update');
         Route::post('/{ticket}/reply', [\App\Http\Controllers\SuperAdmin\SupportCenterController::class, 'reply'])->name('reply');
@@ -1223,9 +1237,13 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
         Route::get('/', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'settings'])->name('index');
         Route::post('/update', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'updateSettings'])->name('update');
         Route::post('/test', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'testConnection'])->name('test');
+        Route::get('/credits', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'creditSettings'])->name('credits');
+        Route::post('/credits/update', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'updateCreditSettings'])->name('credits.update');
+        Route::post('/wire-requests/{id}/approve', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'approveBankWireRequest'])->name('wire-requests.approve');
+        Route::post('/wire-requests/{id}/reject', [\App\Http\Controllers\SuperAdmin\AiIntegrationController::class, 'rejectBankWireRequest'])->name('wire-requests.reject');
     });
 
-    // Carrier & Customs Tracking API Integration (Hapag-Lloyd, Maersk, DCSA)
+    // Carrier & Customs Tracking API Integration (ShipmentBeat Multi-Carrier Gateway)
     Route::prefix('carrier-tracking')->name('carrier-tracking.')->group(function () {
         Route::get('/', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'index'])->name('index');
         Route::put('/update', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'update'])->name('update');
@@ -1233,9 +1251,22 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('super-admin')->n
         Route::delete('/clear-logs', [\App\Http\Controllers\SuperAdmin\TrackingSettingsController::class, 'clearLogs'])->name('clear-logs');
     });
 
+    // Central API Keys & Webhooks Console
+    Route::prefix('integrations')->name('integrations.')->group(function () {
+        Route::get('/api-keys', [\App\Http\Controllers\SuperAdmin\ApiManagementController::class, 'index'])->name('api-keys');
+        Route::post('/api-keys/test-webhook-ping', [\App\Http\Controllers\SuperAdmin\ApiManagementController::class, 'testWebhookPing'])->name('test-webhook-ping');
+    });
+
     // SaaS Billing & Subscriptions
     Route::get('/billing', [\App\Http\Controllers\SuperAdmin\BillingController::class, 'index'])->name('billing.index');
     Route::patch('/billing/{company}/update-subscription', [\App\Http\Controllers\SuperAdmin\BillingController::class, 'updateSubscription'])->name('billing.update-subscription');
+    Route::patch('/billing/{company}/toggle-status', [\App\Http\Controllers\SuperAdmin\BillingController::class, 'toggleStatus'])->name('billing.toggle-status');
+
+    // Platform Releases & Version Updates
+    Route::prefix('releases')->name('releases.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\ReleaseManagementController::class, 'index'])->name('index');
+        Route::post('/clear-cache', [\App\Http\Controllers\SuperAdmin\ReleaseManagementController::class, 'clearCache'])->name('clear-cache');
+    });
 
     // System Settings & Security Compliance
     Route::get('/settings', [\App\Http\Controllers\SuperAdmin\SettingsController::class, 'index'])->name('settings.index');

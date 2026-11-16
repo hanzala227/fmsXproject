@@ -113,31 +113,170 @@ class SupportCenterController extends Controller
 
     public function myTickets(Request $request)
     {
-        $request->merge(['assigned_agent_id' => auth()->id()]);
-        
-        $tickets = Ticket::with(['company', 'user'])
-            ->where('assigned_agent_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-            
+        $currentTab = $request->get('tab', 'assigned');
+        $query = Ticket::with(['company', 'user', 'assignedAgent']);
+
+        if ($currentTab === 'unassigned') {
+            $query->whereNull('assigned_agent_id')->whereNotIn('status', ['Resolved', 'Closed']);
+        } elseif ($currentTab === 'created') {
+            $query->where('user_id', auth()->id());
+        } else {
+            // Default: assigned to me
+            $query->where('assigned_agent_id', auth()->id());
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->search) . '%';
+            $query->where(function ($q) use ($term) {
+                $q->where('title', 'like', $term)
+                  ->orWhere('description', 'like', $term)
+                  ->orWhere('id', 'like', $term);
+            });
+        }
+
+        $tickets = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
+        $tabCounts = [
+            'assigned' => Ticket::where('assigned_agent_id', auth()->id())->count(),
+            'unassigned' => Ticket::whereNull('assigned_agent_id')->whereNotIn('status', ['Resolved', 'Closed'])->count(),
+            'created' => Ticket::where('user_id', auth()->id())->count(),
+        ];
+
         $agents = User::whereIn('role', ['SuperAdmin', 'Support'])->get();
-        return view('super-admin.support-center.index', compact('tickets', 'agents'));
+        return view('super-admin.support-center.index', compact('tickets', 'agents', 'tabCounts', 'currentTab'));
     }
 
-    public function slaManagement()
+    public function claimTicket(Ticket $ticket)
     {
-        $tickets = Ticket::with(['company', 'user', 'assignedAgent'])
+        $ticket->assigned_agent_id = auth()->id();
+        if ($ticket->status === 'Open') {
+            $ticket->status = 'In Progress';
+        }
+        $ticket->save();
+
+        if (class_exists(\App\Models\SuperAdminAuditLog::class)) {
+            \App\Models\SuperAdminAuditLog::log('claimed_ticket', 'ticket', $ticket->id, ['title' => $ticket->title]);
+        }
+
+        return back()->with('success', "Ticket #{$ticket->id} has been claimed and assigned to you.");
+    }
+
+    public function slaManagement(Request $request)
+    {
+        $now = Carbon::now();
+        $filter = $request->get('filter', 'all');
+
+        $query = Ticket::with(['company', 'user', 'assignedAgent'])
             ->whereNotIn('status', ['Resolved', 'Closed'])
-            ->orderBy('sla_due_at', 'asc')
-            ->paginate(20);
-            
-        return view('super-admin.support-center.sla', compact('tickets'));
+            ->whereNotNull('sla_due_at');
+
+        if ($filter === 'overdue') {
+            $query->where('sla_due_at', '<', $now);
+        } elseif ($filter === 'due_soon') {
+            $query->whereBetween('sla_due_at', [$now, $now->copy()->addHours(4)]);
+        } elseif ($filter === 'on_track') {
+            $query->where('sla_due_at', '>', $now->copy()->addHours(4));
+        }
+
+        $tickets = $query->orderBy('sla_due_at', 'asc')->paginate(20)->withQueryString();
+
+        $baseQuery = Ticket::whereNotIn('status', ['Resolved', 'Closed'])->whereNotNull('sla_due_at');
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'overdue' => (clone $baseQuery)->where('sla_due_at', '<', $now)->count(),
+            'due_soon' => (clone $baseQuery)->whereBetween('sla_due_at', [$now, $now->copy()->addHours(4)])->count(),
+            'on_track' => (clone $baseQuery)->where('sla_due_at', '>', $now->copy()->addHours(4))->count(),
+        ];
+
+        return view('super-admin.support-center.sla', compact('tickets', 'kpis', 'filter'));
     }
 
-    public function knowledgeBase()
+    public function knowledgeBase(Request $request)
     {
-        // Placeholder for future knowledge base implementation
-        return view('super-admin.support-center.knowledge-base');
+        $query = \App\Models\KnowledgeBaseArticle::with('author')->published();
+
+        if ($category = $request->input('category')) {
+            $query->where('category', $category);
+        }
+
+        if ($search = $request->input('search')) {
+            $query->search($search);
+        }
+
+        $articles = $query->latest()->paginate(9)->withQueryString();
+
+        $categories = \App\Models\KnowledgeBaseArticle::published()
+            ->select('category', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('category')
+            ->orderBy('count', 'desc')
+            ->get();
+
+        $kpis = [
+            'total_articles' => \App\Models\KnowledgeBaseArticle::published()->count(),
+            'total_views' => \App\Models\KnowledgeBaseArticle::published()->sum('views_count'),
+            'total_categories' => $categories->count(),
+        ];
+
+        return view('super-admin.support-center.knowledge-base', compact('articles', 'categories', 'kpis'));
+    }
+
+    public function showArticle(\App\Models\KnowledgeBaseArticle $article)
+    {
+        $article->increment('views_count');
+        $article->load('author');
+
+        $relatedArticles = \App\Models\KnowledgeBaseArticle::published()
+            ->where('id', '!=', $article->id)
+            ->where('category', $article->category)
+            ->take(3)
+            ->get();
+
+        return view('super-admin.support-center.knowledge-base-article', compact('article', 'relatedArticles'));
+    }
+
+    public function storeArticle(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'category' => 'required|string|max:100',
+            'summary' => 'nullable|string',
+            'content' => 'required|string',
+            'target_audience' => 'required|string',
+        ]);
+
+        $validated['author_id'] = auth()->id();
+        $validated['slug'] = \Illuminate\Support\Str::slug($validated['title']) . '-' . time();
+        $validated['is_published'] = true;
+
+        $article = \App\Models\KnowledgeBaseArticle::create($validated);
+
+        if (class_exists(\App\Models\SuperAdminAuditLog::class)) {
+            \App\Models\SuperAdminAuditLog::log('created_kb_article', 'article', $article->id, ['title' => $article->title]);
+        }
+
+        return redirect()->route('super-admin.support-center.knowledge-base')
+            ->with('success', "Help article '{$article->title}' published successfully.");
+    }
+
+    public function deleteArticle(\App\Models\KnowledgeBaseArticle $article)
+    {
+        $title = $article->title;
+        $article->delete();
+
+        if (class_exists(\App\Models\SuperAdminAuditLog::class)) {
+            \App\Models\SuperAdminAuditLog::log('deleted_kb_article', 'article', $article->id, ['title' => $title]);
+        }
+
+        return redirect()->route('super-admin.support-center.knowledge-base')
+            ->with('success', "Article '{$title}' removed.");
     }
 
     private function calculateSLA($priority)

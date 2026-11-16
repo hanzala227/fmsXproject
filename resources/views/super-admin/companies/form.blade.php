@@ -18,7 +18,7 @@
     </div>
 
     {{-- Validation Errors --}}
-    @if($errors->any())
+    @if(isset($errors) && $errors->any())
     <div style="margin-bottom: 12px; padding: 10px 14px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 4px;">
         <div style="font-size: 11px; font-weight: 600; color: #991b1b; margin-bottom: 4px;"><i class="fa fa-exclamation-triangle"></i> Please fix the following errors:</div>
         @foreach($errors->all() as $error)
@@ -103,9 +103,18 @@
                         style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;">
                 </div>
                 <div>
-                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Timezone</label>
-                    <input type="text" name="timezone" value="{{ old('timezone', $company?->timezone ?? 'UTC') }}"
-                        style="width: 100%; height: 30px; padding: 0 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none;" placeholder="e.g. UTC">
+                    <label style="display: block; font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 3px;">Operational Timezone <span style="color: #ef4444;">*</span></label>
+                    <select name="timezone" required style="width: 100%; height: 30px; padding: 0 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; outline: none; background: #fff;">
+                        @php
+                            $tzList = $timezones ?? \App\Services\TimezoneService::getTimezones();
+                            $currentTimezone = old('timezone', $company?->timezone ?? 'UTC');
+                        @endphp
+                        @foreach($tzList as $tzVal => $tzLabel)
+                            <option value="{{ $tzVal }}" {{ $currentTimezone === $tzVal ? 'selected' : '' }}>
+                                {{ $tzLabel }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
         </div>

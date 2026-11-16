@@ -374,37 +374,108 @@ class ClientController extends Controller
         $activeTracking = null;
         $errorMessage = null;
 
-        // Fetch real ocean import shipments for this customer
-        $oceanImports = OceanImport::with(['portOfLoading', 'portOfDischarge', 'vessel', 'containers'])
-            ->where('company_id', $companyId)
-            ->when($customerId, function ($q) use ($customerId) {
-                $q->where(function ($sub) use ($customerId) {
+        if (!$customerId) {
+            // Strictly isolate: If logged-in user has no linked customer profile, return empty collections
+            $oceanImports = collect();
+            $oceanExports = collect();
+            $recentShipments = collect();
+        } else {
+            // Fetch real ocean import shipments for this specific customer
+            $oceanImports = OceanImport::with(['portOfLoading', 'portOfDischarge', 'vessel', 'containers'])
+                ->where('company_id', $companyId)
+                ->where(function ($sub) use ($customerId) {
                     $sub->where('dm_customer_id', $customerId)
                         ->orWhere('dm_shipper_id', $customerId)
                         ->orWhere('dm_consignee_id', $customerId);
-                });
-            })
-            ->latest()
-            ->take(20)
-            ->get();
+                })
+                ->latest()
+                ->take(15)
+                ->get();
+
+            // Fetch real ocean export shipments for this specific customer
+            $oceanExports = OceanExport::with(['portOfLoading', 'portOfDischarge', 'vessel', 'containers'])
+                ->where('company_id', $companyId)
+                ->where(function ($sub) use ($customerId) {
+                    $sub->where('dm_customer_id', $customerId)
+                        ->orWhere('dm_shipper_id', $customerId)
+                        ->orWhere('dm_consignee_id', $customerId);
+                })
+                ->latest()
+                ->take(15)
+                ->get();
+
+            // Combine into unified recent shipments list
+            $recentShipments = collect();
+            foreach ($oceanImports as $oi) {
+                $oi->shipment_direction = 'Import';
+                $recentShipments->push($oi);
+            }
+            foreach ($oceanExports as $oe) {
+                $oe->shipment_direction = 'Export';
+                $recentShipments->push($oe);
+            }
+            $recentShipments = $recentShipments->sortByDesc('created_at')->values();
+        }
+
+        // Whitelist of container numbers & MBL numbers belonging to this customer
+        $allowedNumbers = collect();
+        foreach ($recentShipments as $shp) {
+            if (!empty($shp->mbl_no)) {
+                $allowedNumbers->push(strtoupper(trim($shp->mbl_no)));
+            }
+            if ($shp->containers) {
+                foreach ($shp->containers as $c) {
+                    if (!empty($c->container_no)) {
+                        $allowedNumbers->push(strtoupper(trim($c->container_no)));
+                    }
+                }
+            }
+        }
+        $allowedNumbers = $allowedNumbers->unique()->values();
 
         if ($searchNumber) {
-            // First check if already synced in database
-            $activeTracking = \App\Models\ShipmentTracking::with(['events'])
-                ->where('tracking_number', $searchNumber)
-                ->first();
+            // Strict authorization check: Only allow searching containers that belong to this customer
+            if ($customerId && !$allowedNumbers->contains($searchNumber)) {
+                $errorMessage = "Container / B/L '{$searchNumber}' does not belong to your account shipments.";
+                $activeTracking = null;
+            } else {
+                $matchedShipment = $recentShipments->first(function ($s) use ($searchNumber) {
+                    if (strtoupper((string) $s->mbl_no) === $searchNumber) return true;
+                    return $s->containers && $s->containers->contains(fn($c) => strtoupper((string) $c->container_no) === $searchNumber);
+                });
 
-            // If not found in DB, query the real carrier API
-            if (!$activeTracking) {
+                // ALWAYS query live carrier network on search via ShipmentBeat API
                 try {
-                    $activeTracking = \App\Services\Tracking\TrackingManager::syncTracking($searchNumber);
+                    $activeTracking = \App\Services\Tracking\TrackingManager::syncTracking(
+                        trackingNumber: $searchNumber,
+                        type: 'container',
+                        shipment: $matchedShipment
+                    );
                 } catch (\Throwable $e) {
-                    $errorMessage = $e->getMessage();
+                    // Fall back to database record if carrier network timed out or threw exception
+                    $activeTracking = \App\Models\ShipmentTracking::with(['events'])
+                        ->where('tracking_number', $searchNumber)
+                        ->first();
+
+                    if (!$activeTracking) {
+                        $errorMessage = $e->getMessage();
+                    }
+                }
+            }
+        } elseif ($recentShipments->isNotEmpty()) {
+            // Auto-load first container of this customer's most recent shipment for instant visibility
+            $firstContainer = $recentShipments->pluck('containers')->flatten()->first()?->container_no;
+            if ($firstContainer) {
+                $activeTracking = \App\Models\ShipmentTracking::with(['events'])
+                    ->where('tracking_number', $firstContainer)
+                    ->first();
+                if ($activeTracking) {
+                    $searchNumber = $firstContainer;
                 }
             }
         }
 
-        return view('client.tracking', compact('oceanImports', 'activeTracking', 'searchNumber', 'errorMessage'));
+        return view('client.tracking', compact('oceanImports', 'oceanExports', 'recentShipments', 'activeTracking', 'searchNumber', 'errorMessage'));
     }
 
     public function bookings()

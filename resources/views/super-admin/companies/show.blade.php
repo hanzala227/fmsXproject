@@ -72,6 +72,74 @@
                 </div>
             </div>
 
+            {{-- Operational Branches & Freight Stations --}}
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
+                <div style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa fa-sitemap" style="color: #405189; margin-right: 6px;"></i> Operational Branches & Freight Stations ({{ $company->branches->count() }})</span>
+                    <a href="{{ route('super-admin.branches.create', ['company_id' => $company->id]) }}" style="font-size: 11px; font-weight: 600; color: #fff; background: #0ab39c; padding: 4px 10px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-plus"></i> Add Branch
+                    </a>
+                </div>
+                <div style="padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                <th style="padding: 10px 16px; text-align: left; font-weight: 700; color: #475569; text-transform: uppercase;">Station / Code</th>
+                                <th style="padding: 10px 16px; text-align: left; font-weight: 700; color: #475569; text-transform: uppercase;">Type & Regulatory</th>
+                                <th style="padding: 10px 16px; text-align: left; font-weight: 700; color: #475569; text-transform: uppercase;">Location</th>
+                                <th style="padding: 10px 16px; text-align: left; font-weight: 700; color: #475569; text-transform: uppercase;">Manager</th>
+                                <th style="padding: 10px 16px; text-align: left; font-weight: 700; color: #475569; text-transform: uppercase;">Status</th>
+                                <th style="padding: 10px 16px; text-align: right; font-weight: 700; color: #475569; text-transform: uppercase;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($company->branches as $br)
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 10px 16px;">
+                                    <div style="font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                                        <a href="{{ route('super-admin.branches.show', $br) }}" style="color: #1e293b; text-decoration: none;" onmouseover="this.style.color='#0ab39c'" onmouseout="this.style.color='#1e293b'">{{ $br->name }}</a>
+                                        @if($br->is_head_office)
+                                            <span style="font-size: 9px; font-weight: 700; background: #e0e7ff; color: #4338ca; padding: 1px 5px; border-radius: 3px;">HQ</span>
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 10px; font-family: monospace; color: #0284c7;">{{ $br->code }}</div>
+                                </td>
+                                <td style="padding: 10px 16px;">
+                                    <span style="font-weight: 500; color: #334155;">{{ $br->branch_type }}</span>
+                                    <div style="display: flex; gap: 4px; margin-top: 2px;">
+                                        @if($br->iata_code)<span style="font-size: 9px; background: #fef3c7; color: #92400e; padding: 1px 4px; border-radius: 2px; font-weight: 600;">IATA: {{ $br->iata_code }}</span>@endif
+                                        @if($br->unlocode)<span style="font-size: 9px; background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 2px; font-weight: 600;">UN: {{ $br->unlocode }}</span>@endif
+                                    </div>
+                                </td>
+                                <td style="padding: 10px 16px; color: #334155;">
+                                    {{ $br->city ?: '—' }}{{ $br->country ? ', ' . $br->country : '' }}
+                                </td>
+                                <td style="padding: 10px 16px; color: #334155;">
+                                    <div>{{ $br->manager_name ?: '—' }}</div>
+                                    <div style="font-size: 10px; color: #64748b;">{{ $br->phone ?: $br->email }}</div>
+                                </td>
+                                <td style="padding: 10px 16px;">
+                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 12px; {{ $br->is_active ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;' }}">
+                                        {{ $br->is_active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px 16px; text-align: right;">
+                                    <a href="{{ route('super-admin.branches.show', $br) }}" style="color: #64748b; margin-right: 8px;" title="View"><i class="fa fa-eye"></i></a>
+                                    <a href="{{ route('super-admin.branches.edit', $br) }}" style="color: #3b82f6;" title="Edit"><i class="fa fa-pencil"></i></a>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="6" style="padding: 24px; text-align: center; color: #64748b;">
+                                    No branches configured for this company yet.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             {{-- Users --}}
             <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                 <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #1e293b; display: flex; justify-content: space-between; align-items: center;">

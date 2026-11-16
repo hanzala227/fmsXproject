@@ -8,12 +8,6 @@
         @if(isset($oceanExport) && $oceanExport->id) @method('PUT') @endif
 
         @include('partials.shipment-success-popup')
-
-        @if(session('success'))
-            <div class="alert alert-success" style="background:#e8f5e9;border:1px solid #66bb6a;color:#2e7d32;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
-                <i class="fa fa-check-circle"></i> {{ session('success') }}
-            </div>
-        @endif
         @if(session('error'))
             <div class="alert alert-danger" style="background:#fce4e4;border:1px solid #e57373;color:#c62828;padding:10px 15px;border-radius:4px;margin-bottom:15px;display:flex;align-items:center;gap:8px;">
                 <i class="fa fa-exclamation-circle"></i> {{ session('error') }}
@@ -4819,10 +4813,7 @@
             setTimeout(() => t.remove(), 7000);
         }
 
-        // Show session messages as toasts
-        @if(session('success'))
-            showToast('success', '{{ session('success') }}');
-        @endif
+        // Show session error / warning messages as toasts
         @if(session('error'))
             showToast('error', '{!! addslashes(session('error')) !!}');
         @endif

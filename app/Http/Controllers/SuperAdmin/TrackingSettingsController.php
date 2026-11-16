@@ -18,24 +18,14 @@ class TrackingSettingsController extends Controller
     {
         $carriers = CarrierApiConfig::all()->keyBy('carrier_code');
 
-        // Ensure default records exist
-        $defaults = ['shipmentbeat', 'hapag_lloyd', 'maersk', 'dcsa'];
+        // Ensure default records exist (ShipmentBeat Unified Multi-Carrier Gateway only)
+        $defaults = ['shipmentbeat'];
         foreach ($defaults as $code) {
             if (!$carriers->has($code)) {
                 $created = CarrierApiConfig::create([
-                    'carrier_code' => $code,
-                    'name' => match ($code) {
-                        'shipmentbeat' => 'ShipmentBeat (Ocean Container Visibility)',
-                        'hapag_lloyd' => 'Hapag-Lloyd (DCSA v2/v3)',
-                        'maersk' => 'Maersk (DCSA Track & Trace)',
-                        default => 'Generic DCSA Gateway',
-                    },
-                    'base_url' => match ($code) {
-                        'shipmentbeat' => 'https://api.shipmentbeat.com',
-                        'hapag_lloyd' => 'https://api.hlag.com',
-                        'maersk' => 'https://api.maersk.com',
-                        default => 'https://api.dcsa.org',
-                    },
+                    'carrier_code' => 'shipmentbeat',
+                    'name' => 'ShipmentBeat (Ocean Container Visibility)',
+                    'base_url' => 'https://api.shipmentbeat.com',
                     'environment' => 'production',
                     'is_active' => true,
                     'enable_simulation' => false,
@@ -57,7 +47,7 @@ class TrackingSettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'carrier_code' => 'required|string|in:shipmentbeat,hapag_lloyd,maersk,dcsa',
+            'carrier_code' => 'required|string|in:shipmentbeat',
             'base_url' => 'nullable|string',
             'client_id' => 'nullable|string',
             'client_secret' => 'nullable|string',
@@ -69,11 +59,15 @@ class TrackingSettingsController extends Controller
 
         $carrier = CarrierApiConfig::where('carrier_code', $request->carrier_code)->firstOrFail();
 
+        $apiKey = $request->filled('api_key') 
+            ? trim($request->api_key) 
+            : ($carrier->api_key ?: env('SHIPMENTBEAT_API_KEY'));
+
         $carrier->update([
-            'base_url' => $request->base_url,
+            'base_url' => $request->base_url ?: 'https://api.shipmentbeat.com',
             'client_id' => $request->client_id,
             'client_secret' => $request->client_secret,
-            'api_key' => $request->api_key,
+            'api_key' => $apiKey,
             'environment' => $request->environment,
             'is_active' => $request->boolean('is_active', true),
             'enable_simulation' => $request->boolean('enable_simulation', false),
@@ -88,11 +82,22 @@ class TrackingSettingsController extends Controller
     public function testConnection(Request $request)
     {
         $request->validate([
-            'carrier_code' => 'required|string|in:shipmentbeat,hapag_lloyd,maersk,dcsa',
+            'carrier_code' => 'required|string|in:shipmentbeat',
+            'api_key' => 'nullable|string',
+            'base_url' => 'nullable|string',
         ]);
 
         try {
-            $driver = TrackingManager::driver($request->carrier_code);
+            if ($request->filled('api_key')) {
+                $customConfig = clone CarrierApiConfig::where('carrier_code', $request->carrier_code)->firstOrFail();
+                $customConfig->api_key = trim($request->api_key);
+                if ($request->filled('base_url')) {
+                    $customConfig->base_url = trim($request->base_url);
+                }
+                $driver = new \App\Services\Tracking\Drivers\ShipmentBeatDriver($customConfig);
+            } else {
+                $driver = TrackingManager::driver($request->carrier_code);
+            }
             $result = $driver->testConnection();
 
             return response()->json($result);

@@ -686,14 +686,6 @@
                 </div>
             </div>
 
-            <!-- Footer Actions -->
-            <div class="action-bar">
-                <button type="button" class="btn-tool green" @click="handleSubmit('save_close')"><i class="fa fa-save"></i> @if($payment) UPDATE &amp; CLOSE @else SAVE &amp; CLOSE @endif</button>
-                @if(!$payment)
-                <button type="button" class="btn-tool" @click="handleSubmit('save_new')"><i class="fa fa-plus-circle"></i> SAVE &amp; NEW</button>
-                @endif
-                <a href="{{ route('accounting.payment-received-list') }}" class="btn-tool" target="_blank"><i class="fa fa-arrow-left"></i> CANCEL</a>
-            </div>
         </form>
     </div>
 

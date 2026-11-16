@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    'safepay' => [
+        'key' => env('SAFEPAY_API_KEY'),
+        'secret' => env('SAFEPAY_SECRET_KEY'),
+    ],
+
 ];

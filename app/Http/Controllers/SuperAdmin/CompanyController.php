@@ -91,11 +91,13 @@ class CompanyController extends Controller
     public function create()
     {
         $permissionsGrouped = \Spatie\Permission\Models\Permission::orderBy('module_name')->get()->groupBy('module_name');
+        $timezones = \App\Services\TimezoneService::getTimezones();
         return view('super-admin.companies.form', [
             'company' => null,
             'adminUser' => null,
             'permissionsGrouped' => $permissionsGrouped,
             'companyPermissions' => [],
+            'timezones' => $timezones,
         ]);
     }
 
@@ -186,8 +188,9 @@ class CompanyController extends Controller
         if ($adminUser) {
             $companyPermissions = $adminUser->permissions->pluck('name')->toArray();
         }
+        $timezones = \App\Services\TimezoneService::getTimezones();
 
-        return view('super-admin.companies.form', compact('company', 'adminUser', 'permissionsGrouped', 'companyPermissions'));
+        return view('super-admin.companies.form', compact('company', 'adminUser', 'permissionsGrouped', 'companyPermissions', 'timezones'));
     }
 
     /**
@@ -292,7 +295,7 @@ class CompanyController extends Controller
     {
         $company->load(['users' => function($q) {
             $q->orderBy('created_at', 'desc');
-        }, 'modules']);
+        }, 'modules', 'branches']);
         
         $adminUser = $company->users->firstWhere('role', 'Admin') ?? $company->users->first();
         $recentActivity = SuperAdminAuditLog::where('target_type', 'company')
@@ -427,18 +430,29 @@ class CompanyController extends Controller
     }
 
     /**
-     * Audit log listing.
+     * Audit log listing with dedicated User, Company, and System activity streams.
      */
     public function auditLog(Request $request)
     {
+        $tab = $request->input('tab', 'all');
         $query = SuperAdminAuditLog::with('user')->latest('created_at');
+
+        if ($tab === 'user') {
+            $query->whereIn('target_type', ['user', 'role', 'permission']);
+        } elseif ($tab === 'company') {
+            $query->whereIn('target_type', ['company', 'branch', 'tenant']);
+        } elseif ($tab === 'system') {
+            $query->whereIn('target_type', ['system', 'SystemConfig', 'ticket', 'carrier', 'api', 'cache']);
+        }
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('action', 'like', "%{$search}%")
                   ->orWhere('target_type', 'like', "%{$search}%")
+                  ->orWhere('ip_address', 'like', "%{$search}%")
                   ->orWhereHas('user', function ($q2) use ($search) {
-                      $q2->where('name', 'like', "%{$search}%");
+                      $q2->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
                   });
             });
         }
@@ -447,9 +461,84 @@ class CompanyController extends Controller
             $query->where('action', $action);
         }
 
-        $logs = $query->paginate(25)->withQueryString();
+        if ($startDate = $request->input('start_date')) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate = $request->input('end_date')) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
 
-        return view('super-admin.audit-log', compact('logs'));
+        // CSV Export handling for compliance
+        if ($request->input('export') === 'csv') {
+            return $this->exportAuditLogCsv($query->get(), $tab);
+        }
+
+        $logs = $query->paginate(20)->withQueryString();
+
+        $counts = [
+            'all' => SuperAdminAuditLog::count(),
+            'user' => SuperAdminAuditLog::whereIn('target_type', ['user', 'role', 'permission'])->count(),
+            'company' => SuperAdminAuditLog::whereIn('target_type', ['company', 'branch', 'tenant'])->count(),
+            'system' => SuperAdminAuditLog::whereIn('target_type', ['system', 'SystemConfig', 'ticket', 'carrier', 'api', 'cache'])->count(),
+        ];
+
+        $actions = SuperAdminAuditLog::select('action')->distinct()->pluck('action');
+
+        return view('super-admin.audit-log', compact('logs', 'counts', 'tab', 'actions'));
+    }
+
+    /**
+     * Export filtered audit logs to CSV for compliance
+     */
+    protected function exportAuditLogCsv($logs, $stream = 'all')
+    {
+        $fileName = 'freightx-audit-logs-' . $stream . '-' . date('Y-m-d-His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"$fileName\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($logs, $stream) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['FreightX SaaS Enterprise - Security & Audit Trail']);
+            fputcsv($handle, ['Export Timestamp', now()->toIso8601String()]);
+            fputcsv($handle, ['Stream', strtoupper($stream) . ' ACTIVITY LOGS']);
+            fputcsv($handle, ['Total Records', $logs->count()]);
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Log ID', 'Timestamp', 'Operator / User', 'User Email', 'Category', 'Action Taken', 'Target ID', 'IP Address', 'Details']);
+
+            foreach ($logs as $log) {
+                $detailsStr = '';
+                if ($log->details && is_array($log->details)) {
+                    $parts = [];
+                    foreach ($log->details as $k => $v) {
+                        $parts[] = "$k: " . (is_array($v) ? json_encode($v) : $v);
+                    }
+                    $detailsStr = implode(' | ', $parts);
+                }
+
+                fputcsv($handle, [
+                    $log->id,
+                    $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : 'N/A',
+                    $log->user ? $log->user->name : 'System Process',
+                    $log->user ? $log->user->email : 'N/A',
+                    strtoupper($log->target_type ?? 'SYSTEM'),
+                    $log->action,
+                    $log->target_id ?? 'N/A',
+                    $log->ip_address ?? '127.0.0.1',
+                    $detailsStr,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**

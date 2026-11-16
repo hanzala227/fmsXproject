@@ -54,6 +54,16 @@ class Company extends Model
         return $this->hasMany(User::class);
     }
 
+    public function branches()
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(ModulePackage::class, 'plan_id');
+    }
+
     public function modules()
     {
         return $this->hasMany(CompanyModule::class);

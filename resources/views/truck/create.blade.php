@@ -207,10 +207,7 @@
         <form id="truckShipmentForm" action="{{ isset($truckShipment) ? route('truck.update', $truckShipment->id) : route('truck.store') }}" method="POST" enctype="multipart/form-data" @submit.prevent="validateAndSubmit">
             @csrf
             @if(isset($truckShipment)) @method('PUT') @endif
-
-            @if(session('success'))
-                <div class="alert-success"><i class="fa fa-check-circle"></i> {{ session('success') }}</div>
-            @endif
+            @include('partials.shipment-success-popup')
             @if($errors->any())
                 <div class="alert-danger">
                     <strong><i class="fa fa-exclamation-circle"></i> Validation Error</strong>
@@ -3599,10 +3596,7 @@
             setTimeout(() => t.remove(), 7000);
         }
 
-        // Show Laravel session messages as toasts
-        @if(session('success'))
-            showToast('success', '{{ session('success') }}');
-        @endif
+        // Show Laravel session error / warning messages as toasts
         @if(session('error'))
             showToast('error', '{!! addslashes(session('error')) !!}');
         @endif

@@ -10,8 +10,9 @@ use App\Models\SuperAdminAuditLog;
 
 class SuperAdminRoleController extends Controller
 {
-    public function index(Request $request)
+    public function index(?Request $request = null)
     {
+        $request = $request ?? request();
         $query = Role::withCount(['users', 'permissions']);
 
         if ($request->filled('search')) {
@@ -26,8 +27,12 @@ class SuperAdminRoleController extends Controller
     public function create()
     {
         $role = null;
-        $permissions = Permission::all();
-        return view('super-admin.roles.form', compact('role', 'permissions'));
+        $permissionsGrouped = Permission::orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
+        return view('super-admin.roles.form', [
+            'role' => null,
+            'permissionsGrouped' => $permissionsGrouped,
+            'rolePermissions' => [],
+        ]);
     }
 
     public function store(Request $request)
@@ -66,9 +71,9 @@ class SuperAdminRoleController extends Controller
 
     public function edit(Role $role)
     {
-        $permissions = Permission::all();
+        $permissionsGrouped = Permission::orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
         $rolePermissions = $role->permissions->pluck('name')->toArray();
-        return view('super-admin.roles.form', compact('role', 'permissions', 'rolePermissions'));
+        return view('super-admin.roles.form', compact('role', 'permissionsGrouped', 'rolePermissions'));
     }
 
     public function update(Request $request, Role $role)
@@ -96,27 +101,43 @@ class SuperAdminRoleController extends Controller
     public function destroy(Role $role)
     {
         if ($role->name === 'SuperAdmin') {
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Cannot delete SuperAdmin role.'], 403);
+            }
             return back()->with('error', 'Cannot delete SuperAdmin role.');
         }
 
-        SuperAdminAuditLog::log('deleted_role', 'role', $role->id, ['name' => $role->name]);
+        $name = $role->name;
+        SuperAdminAuditLog::log('deleted_role', 'role', $role->id, ['name' => $name]);
         
         $role->delete();
 
-        return response()->json(['success' => true, 'message' => 'Role deleted successfully.']);
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['success' => true, 'message' => "Role '{$name}' deleted successfully."]);
+        }
+
+        return redirect()->route('super-admin.roles.index')->with('success', "Role '{$name}' deleted successfully.");
     }
 
     public function clone(Role $role)
     {
+        $baseName = $role->name . ' (Clone)';
+        $newName = $baseName;
+        $counter = 1;
+        while (Role::where('name', $newName)->exists()) {
+            $newName = $role->name . " (Clone {$counter})";
+            $counter++;
+        }
+
         $newRole = Role::create([
-            'name' => $role->name . ' (Clone)',
-            'guard_name' => $role->guard_name
+            'name' => $newName,
+            'guard_name' => $role->guard_name ?: 'web'
         ]);
 
         $newRole->syncPermissions($role->permissions);
 
         SuperAdminAuditLog::log('cloned_role', 'role', $newRole->id, ['from' => $role->name, 'new' => $newRole->name]);
 
-        return back()->with('success', 'Role cloned successfully.');
+        return back()->with('success', "Role cloned successfully as '{$newName}'.");
     }
 }

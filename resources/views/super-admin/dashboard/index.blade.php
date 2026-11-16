@@ -16,22 +16,31 @@
                 <i class="fa fa-refresh"></i> Refresh
             </button>
             <form method="GET" action="{{ route('super-admin.dashboard') }}" style="display: flex; align-items: center; gap: 4px; margin: 0;">
-                <input type="date" name="date" value="{{ $stats['selected_date'] ?? '' }}" onchange="this.form.submit()" style="height: 32px; padding: 0 10px; font-size: 11px; font-weight: 500; color: #475569; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; cursor: pointer;">
+                <input type="date" name="date" value="{{ $stats['selected_date'] ?? '' }}" onchange="this.form.submit()" title="Filter platform snapshot as of this date" style="height: 32px; padding: 0 10px; font-size: 11px; font-weight: 500; color: #475569; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; cursor: pointer;">
                 @if(!empty($stats['selected_date']))
                 <a href="{{ route('super-admin.dashboard') }}" style="height: 32px; padding: 0 8px; display: inline-flex; align-items: center; color: #ef4444; font-size: 11px; text-decoration: none;" title="Clear date filter"><i class="fa fa-times"></i></a>
                 @endif
             </form>
-            <a href="{{ route('super-admin.dashboard.export') }}" style="height: 32px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #fff; background: #0ab39c; text-decoration: none; border-radius: 4px; cursor: pointer; transition: background 0.15s ease;" onmouseover="this.style.background='#089784'" onmouseout="this.style.background='#0ab39c'">
+            <a href="{{ route('super-admin.dashboard.export', ['date' => $stats['selected_date'] ?? '']) }}" style="height: 32px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #fff; background: #0ab39c; text-decoration: none; border-radius: 4px; cursor: pointer; transition: background 0.15s ease;" onmouseover="this.style.background='#089784'" onmouseout="this.style.background='#0ab39c'">
                 <i class="fa fa-download"></i> Export CSV
             </a>
         </div>
     </div>
 
+    {{-- Date Filter Active Alert --}}
+    @if(!empty($stats['selected_date']))
+    <div style="margin-bottom: 16px; padding: 8px 14px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 12px; color: #1e40af; font-weight: 500;">
+            <i class="fa fa-filter" style="margin-right: 6px;"></i> Showing platform snapshot as of <strong>{{ \Carbon\Carbon::parse($stats['selected_date'])->format('M d, Y') }}</strong>
+        </span>
+        <a href="{{ route('super-admin.dashboard') }}" style="font-size: 11px; color: #2563eb; font-weight: 600; text-decoration: underline;">Reset to live view</a>
+    </div>
+    @endif
+
     {{-- Tabs --}}
     <div style="display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px;">
         <a href="{{ route('super-admin.dashboard') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 600; color: #0ab39c; border-bottom: 2px solid #0ab39c;">Overview</a>
         <a href="{{ route('super-admin.dashboard.reports') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">Reports</a>
-        <a href="{{ route('super-admin.dashboard.system-status') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">System Status</a>
     </div>
 
     {{-- Platform Tenant KPI Cards --}}

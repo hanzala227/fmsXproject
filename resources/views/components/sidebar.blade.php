@@ -264,13 +264,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                 <!-- Intelligence Section -->
                 <div x-show="!isCollapsed" class="pt-6 pb-2 text-[8px] font-black uppercase tracking-widest border-b border-white/10 mb-1" style="color: #c3cbe4 !important; padding-left: 20px !important;">Intelligence</div>
 
-                <a href="/crm" class="sidebar-nav-item flex items-center transition-all duration-200 {{ request()->is('crm*') ? 'active-link' : 'nav-link' }}" style="text-decoration: none;" :class="isCollapsed ? 'justify-center px-0' : 'px-5'">
-                    <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
-                        <i class="fa fa-users text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
-                        <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Clients</span>
-                    </div>
-                </a>
-
                 <!-- Settings Menu with Accounting Submenu -->
                 <div x-data="{ open: openMenus.includes('settings-menu'), hovered: false, isCollapsed: document.body.classList.contains('sidebar-collapsed') }"
                      @sidebar-toggled.window="isCollapsed = document.body.classList.contains('sidebar-collapsed')"
@@ -341,6 +334,11 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                         <!-- AWB No. Management Link -->
                         <a href="/settings/awb-management" class="block text-[9px] transition-all duration-200 {{ Request::is('settings/awb-management*') ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
                             <i class="fa fa-barcode mr-2" style="font-size: 8px;"></i> AWB No. Management
+                        </a>
+
+                        <!-- Frexo AI Credits & Billing Link -->
+                        <a href="{{ route('settings.ai-credits') }}" class="block text-[9px] transition-all duration-200 {{ Request::is('settings/ai-credits*') ? 'active-sub-link' : 'sub-link' }} uppercase tracking-widest border-b border-white/5 last:border-none" style="padding-left: 52px !important; padding-top: 10px !important; padding-bottom: 10px !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;">
+                            <i class="fa fa-bolt mr-2 text-amber-400" style="font-size: 8px;"></i> Frexo AI & Credits
                         </a>
                         
                         <!-- HBL Templates Link -->

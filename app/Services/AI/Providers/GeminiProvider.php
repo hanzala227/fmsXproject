@@ -40,7 +40,8 @@ class GeminiProvider implements AiProviderInterface
 
         if ($response->failed()) {
             Log::error('Gemini Error: ' . $response->body());
-            throw new Exception("Failed to get response from Gemini.");
+            $errorMsg = $response->json('error.message') ?? ('HTTP ' . $response->status() . ': ' . ($response->json('error.status') ?? 'Failed to get response from Gemini.'));
+            throw new Exception($errorMsg);
         }
 
         return $response->json('candidates.0.content.parts.0.text') ?? '';

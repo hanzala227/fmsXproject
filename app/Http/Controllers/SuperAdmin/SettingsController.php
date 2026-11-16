@@ -30,8 +30,9 @@ class SettingsController extends Controller
         ];
 
         $currencies = Currency::orderBy('code')->get();
+        $timezones = \App\Services\TimezoneService::getTimezones();
 
-        return view('super-admin.settings.index', compact('settings', 'currencies'));
+        return view('super-admin.settings.index', compact('settings', 'currencies', 'timezones'));
     }
 
     /**

@@ -255,13 +255,6 @@ x-init="if(activeMenu) { openMenus.push(activeMenu); if(activeMenu === 'settings
                 <!-- Intelligence Section -->
                 <div x-show="!isCollapsed" class="pt-6 pb-2 text-[8px] font-black uppercase tracking-widest border-b border-white/10 mb-1" style="color: #c3cbe4 !important; padding-left: 20px !important;">Intelligence</div>
 
-                <a href="/crm" class="sidebar-nav-item flex items-center transition-all duration-200 {{ request()->is('crm*') ? 'active-link' : 'nav-link' }}" style="text-decoration: none;" :class="isCollapsed ? 'justify-center px-0' : 'px-5'">
-                    <div class="flex items-center" :class="isCollapsed ? 'justify-center w-full' : ''">
-                        <i class="fa fa-users text-center text-[12px] opacity-70" :class="isCollapsed ? '!mr-0 !w-auto' : 'mr-3 w-5'"></i>
-                        <span x-show="!isCollapsed" class="uppercase tracking-widest font-bold">Customers</span>
-                    </div>
-                </a>
-
                 <!-- Settings Menu with Accounting Submenu -->
                 <div x-data="{ open: openMenus.includes('settings-menu'), hovered: false, isCollapsed: document.body.classList.contains('sidebar-collapsed') }"
                      @sidebar-toggled.window="isCollapsed = document.body.classList.contains('sidebar-collapsed')"

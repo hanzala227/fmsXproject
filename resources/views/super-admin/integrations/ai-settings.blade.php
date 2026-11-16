@@ -3,13 +3,29 @@
 @section('content')
 <div style="padding: 16px; max-width: 900px; margin: 0 auto;">
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
             <h2 style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 4px 0;">
                 <i class="fa fa-microchip" style="color: #405189; margin-right: 8px;"></i> Truly Universal AI Engine
             </h2>
             <p style="margin: 0; font-size: 13px; color: #64748b;">Configure any AI provider (OpenAI, Grok, Groq, OpenRouter, Gemini) instantly.</p>
         </div>
+    </div>
+
+    {{-- Sub-Navigation Tabs --}}
+    <div style="display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <a href="{{ route('super-admin.carrier-tracking.index') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            <i class="fa fa-ship" style="margin-right: 4px;"></i> Carrier Tracking (ShipmentBeat)
+        </a>
+        <a href="{{ route('super-admin.ai-settings.index') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 600; color: #0ab39c; border-bottom: 2px solid #0ab39c;">
+            <i class="fa fa-microchip" style="margin-right: 4px;"></i> AI Engine API (Gemini)
+        </a>
+        <a href="{{ route('super-admin.ai-settings.credits') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            <i class="fa fa-bolt" style="margin-right: 4px; color: #f59e0b;"></i> AI Credits & Pricing Engine
+        </a>
+        <a href="{{ route('super-admin.integrations.api-keys') }}" style="text-decoration: none; padding-bottom: 8px; font-size: 13px; font-weight: 500; color: #64748b;">
+            <i class="fa fa-key" style="margin-right: 4px;"></i> API Keys & Webhooks Console
+        </a>
     </div>
 
     @if(session('success'))
@@ -24,7 +40,7 @@
         </div>
     @endif
 
-    @if ($errors->any())
+    @if (isset($errors) && $errors->any())
         <div style="margin-bottom: 20px; padding: 12px 16px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 6px; font-size: 13px;">
             <ul style="margin: 0; padding-left: 20px;">
                 @foreach ($errors->all() as $error)
@@ -113,7 +129,7 @@
     </div>
 
     <!-- Connection Test Panel (Chatbot) -->
-    <div style="margin-top: 24px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" x-data="aiChatBot()">
+    <div id="ai-tester-container" style="margin-top: 24px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" x-data="aiChatBot()">
         <div style="padding: 16px 24px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #1e293b;">
                 <i class="fa fa-comments" style="color: #405189; margin-right: 8px;"></i> AI Configuration Tester
@@ -128,7 +144,7 @@
                 <!-- Welcome Message -->
                 <div style="display: flex; gap: 12px;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: #405189; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
-                        <i class="fa fa-robot"></i>
+                        <i class="fa fa-microchip"></i>
                     </div>
                     <div style="background: #fff; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 0 12px 12px 12px; font-size: 13px; color: #334155; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         Hello! I am connected to <strong>{{ $settings->model_name }}</strong> via your configured API. Send me a message to test if the connection is working properly!
@@ -140,7 +156,7 @@
                     <div style="display: flex; gap: 12px;" :style="msg.role === 'user' ? 'flex-direction: row-reverse;' : ''">
                         <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;"
                              :style="msg.role === 'user' ? 'background: #0f172a;' : (msg.isError ? 'background: #ef4444;' : 'background: #405189;')">
-                            <i class="fa" :class="msg.role === 'user' ? 'fa-user' : (msg.isError ? 'fa-exclamation-triangle' : 'fa-robot')"></i>
+                            <i class="fa" :class="msg.role === 'user' ? 'fa-user' : (msg.isError ? 'fa-exclamation-triangle' : 'fa-microchip')"></i>
                         </div>
                         <div style="padding: 12px 16px; font-size: 13px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space: pre-wrap; word-break: break-word;"
                              :style="msg.role === 'user' ? 'background: #0f172a; color: white; border-radius: 12px 0 12px 12px;' : (msg.isError ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 0 12px 12px 12px;' : 'background: #fff; border: 1px solid #e2e8f0; color: #334155; border-radius: 0 12px 12px 12px;')"
@@ -152,7 +168,7 @@
                 <!-- Loading Indicator -->
                 <div x-show="isLoading" style="display: flex; gap: 12px;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: #405189; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
-                        <i class="fa fa-robot"></i>
+                        <i class="fa fa-microchip"></i>
                     </div>
                     <div style="background: #fff; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 0 12px 12px 12px; font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 8px;">
                         <i class="fa fa-circle-o-notch fa-spin"></i> Thinking...
@@ -164,7 +180,7 @@
             <!-- Input Area -->
             <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; background: #fff; display: flex; gap: 12px;">
                 <input type="text" x-model="inputText" @keydown.enter="sendMessage" :disabled="isLoading" placeholder="Type a message to test..." style="flex: 1; height: 40px; padding: 0 16px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 20px; outline: none; transition: border-color 0.2s;">
-                <button @click="sendMessage" :disabled="isLoading || inputText.trim() === ''" style="height: 40px; width: 40px; border-radius: 50%; background: #405189; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;" :style="(isLoading || inputText.trim() === '') ? 'opacity: 0.5; cursor: not-allowed;' : ''">
+                <button type="button" @click="sendMessage" :disabled="isLoading || !inputText || inputText.trim() === ''" style="height: 40px; width: 40px; border-radius: 50%; background: #405189; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;" :style="(isLoading || !inputText || inputText.trim() === '') ? 'opacity: 0.5; cursor: not-allowed;' : ''">
                     <i class="fa fa-paper-plane"></i>
                 </button>
             </div>
@@ -214,37 +230,39 @@ function toggleFields(type) {
     }
 }
 
-// Alpine.js Chatbot Logic
-document.addEventListener('alpine:init', () => {
-    Alpine.data('aiChatBot', () => ({
+// Robust AI Chatbot Alpine.js Component (Works with both initial page load and Turbo soft-nav)
+function aiChatBot() {
+    return {
         inputText: '',
         isLoading: false,
         messages: [],
         
         scrollToBottom() {
             setTimeout(() => {
-                const window = document.getElementById('chat-window');
-                if (window) window.scrollTop = window.scrollHeight;
-            }, 50);
+                const win = document.getElementById('chat-window');
+                if (win) win.scrollTop = win.scrollHeight;
+            }, 60);
         },
 
         async sendMessage() {
-            if (this.inputText.trim() === '') return;
+            if (!this.inputText || this.inputText.trim() === '' || this.isLoading) return;
             
             const message = this.inputText.trim();
             this.inputText = '';
             
-            // Add user message
+            // Add user message to thread
             this.messages.push({ role: 'user', content: message, isError: false });
             this.isLoading = true;
             this.scrollToBottom();
             
             try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
                 const response = await fetch("{{ route('super-admin.ai-settings.test') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token
                     },
                     body: JSON.stringify({ message: message })
                 });
@@ -257,13 +275,36 @@ document.addEventListener('alpine:init', () => {
                     this.messages.push({ role: 'ai', content: 'Connection Error: ' + (data.error || 'Unknown error occurred'), isError: true });
                 }
             } catch (error) {
-                this.messages.push({ role: 'ai', content: 'Network Error: Failed to reach the server.', isError: true });
+                this.messages.push({ role: 'ai', content: 'Network Error: Failed to reach the server. Please verify your connection.', isError: true });
             } finally {
                 this.isLoading = false;
                 this.scrollToBottom();
             }
         }
-    }));
-});
+    };
+}
+
+window.aiChatBot = aiChatBot;
+
+// Register component with Alpine immediately
+function bootAiChatBot() {
+    if (window.Alpine) {
+        if (typeof window.Alpine.data === 'function') {
+            window.Alpine.data('aiChatBot', aiChatBot);
+        }
+        var el = document.getElementById('ai-tester-container');
+        if (el && !el._x_dataStack) {
+            window.Alpine.initTree(el);
+        }
+    }
+}
+
+if (window.Alpine) {
+    bootAiChatBot();
+} else {
+    document.addEventListener('alpine:init', bootAiChatBot);
+}
+document.addEventListener('DOMContentLoaded', bootAiChatBot);
+document.addEventListener('turbo:load', bootAiChatBot);
 </script>
 @endsection
